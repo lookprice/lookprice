@@ -90,6 +90,34 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [isEnriching, setIsEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0 });
   const [enrichedData, setEnrichedData] = useState<any>(null);
+  const [aiReady, setAiReady] = useState(false);
+
+  useEffect(() => {
+    const checkAi = async () => {
+      if (process.env.GEMINI_API_KEY || process.env.API_KEY) {
+        setAiReady(true);
+      } else if ((window as any).aistudio) {
+        try {
+          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+          setAiReady(hasKey);
+        } catch (e) {
+          setAiReady(false);
+        }
+      }
+    };
+    checkAi();
+    window.addEventListener('focus', checkAi);
+    return () => window.removeEventListener('focus', checkAi);
+  }, []);
+
+  const handleConnectAI = async () => {
+    if ((window as any).aistudio) {
+      await (window as any).aistudio.openSelectKey();
+      setAiReady(true);
+    } else {
+      alert(lang === 'tr' ? "AI Studio ortamı algılanamadı." : "AI Studio environment not detected.");
+    }
+  };
   const [showImportModal, setShowImportModal] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -508,58 +536,61 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     
     if (!confirmBulk) return;
 
-    let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-    if (!apiKey && (window as any).aistudio) {
-      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        await (window as any).aistudio.openSelectKey();
-        apiKey = process.env.API_KEY;
-      } else {
-        apiKey = process.env.API_KEY;
-      }
-    }
-
-    if (!apiKey) {
-      alert(lang === 'tr' ? "API Key bulunamadı. Lütfen bir anahtar seçin." : "API Key not found. Please select a key.");
-      return;
-    }
-
     setIsEnriching(true);
     setEnrichProgress({ current: 0, total: productsToEnrich.length });
 
-    const ai = new GoogleGenAI({ apiKey });
-
-    for (let i = 0; i < productsToEnrich.length; i++) {
-      const p = productsToEnrich[i];
-      setEnrichProgress({ current: i + 1, total: productsToEnrich.length });
-
-      try {
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: `Sen bir e-ticaret uzmanısın. Ürün: ${p.name}, Barkod: ${p.barcode}. 
-          Bu ürün için profesyonel bir açıklama, kategori ve GERÇEK bir görsel URL'si bul.
-          Yanıtı JSON formatında ver: {"description": "...", "category": "...", "image_url": "..."}`,
-          config: {
-            tools: [{ googleSearch: {} }],
-            responseMimeType: "application/json"
-          }
-        });
-
-        const result = JSON.parse(response.text || "{}");
-        if (result.description || result.image_url || result.category) {
-          await api.updateProduct(p.id, {
-            ...p,
-            description: p.description || result.description,
-            category: p.category || result.category,
-            image_url: p.image_url || result.image_url
-          }, user.role === 'superadmin' ? currentStoreId : undefined);
-        }
-      } catch (err) {
-        console.error(`Error enriching product ${p.id}:`, err);
-      }
+    try {
+      let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
       
-      // Small delay to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!apiKey && (window as any).aistudio) {
+        await (window as any).aistudio.openSelectKey();
+        apiKey = process.env.API_KEY;
+      }
+
+      if (!apiKey) {
+        throw new Error("API Key not found");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+
+      for (let i = 0; i < productsToEnrich.length; i++) {
+        const p = productsToEnrich[i];
+        setEnrichProgress({ current: i + 1, total: productsToEnrich.length });
+
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Sen bir e-ticaret uzmanısın. Ürün: ${p.name}, Barkod: ${p.barcode}. 
+            Bu ürün için profesyonel bir açıklama, kategori ve GERÇEK bir görsel URL'si bul.
+            Yanıtı JSON formatında ver: {"description": "...", "category": "...", "image_url": "..."}`,
+            config: {
+              tools: [{ googleSearch: {} }],
+              responseMimeType: "application/json"
+            }
+          });
+
+          const result = JSON.parse(response.text || "{}");
+          if (result.description || result.image_url || result.category) {
+            await api.updateProduct(p.id, {
+              ...p,
+              description: p.description || result.description,
+              category: p.category || result.category,
+              image_url: p.image_url || result.image_url
+            }, user.role === 'superadmin' ? currentStoreId : undefined);
+          }
+        } catch (err) {
+          console.error(`Error enriching product ${p.id}:`, err);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    } catch (error) {
+      console.error("Bulk enrich error:", error);
+      if ((window as any).aistudio) {
+        await (window as any).aistudio.openSelectKey();
+      } else {
+        alert(lang === 'tr' ? "İşlem sırasında bir hata oluştu. Lütfen API anahtarınızı kontrol edin." : "An error occurred. Please check your API key.");
+      }
     }
 
     setIsEnriching(false);
@@ -578,28 +609,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     try {
       let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
       
-      if (!apiKey && typeof window !== 'undefined' && (window as any).aistudio) {
-        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-          await (window as any).aistudio.openSelectKey();
-          // The platform will inject it into process.env.API_KEY.
-          // We'll try to get it again after the dialog opens.
-          apiKey = process.env.API_KEY;
-        } else {
-          apiKey = process.env.API_KEY;
-        }
+      if (!apiKey && (window as any).aistudio) {
+        await (window as any).aistudio.openSelectKey();
+        apiKey = process.env.API_KEY;
       }
 
       if (!apiKey) {
-        const confirmSelect = window.confirm(lang === 'tr' 
-          ? "AI zenginleştirme için bir API anahtarı gerekiyor. Şimdi seçmek ister misiniz?" 
-          : "An API key is required for AI enrichment. Would you like to select one now?");
-        
-        if (confirmSelect && (window as any).aistudio) {
-          await (window as any).aistudio.openSelectKey();
-          return;
-        }
-        throw new Error(lang === 'tr' ? "API Key bulunamadı. Lütfen sistem ayarlarını kontrol edin." : "API Key not found. Please check system settings.");
+        throw new Error("API Key not found");
       }
       
       const ai = new GoogleGenAI({ apiKey });
@@ -638,7 +654,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       const result = JSON.parse(response.text || "{}");
       setEnrichedData(result);
       
-      // Update form fields if they are empty
       const form = formElement || document.querySelector('form') as HTMLFormElement;
       if (form) {
         const descInput = form.querySelector('[name="description"]') as HTMLTextAreaElement;
@@ -649,11 +664,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         if (catInput && !catInput.value) catInput.value = result.category || "";
         if (imgInput && !imgInput.value) imgInput.value = result.image_url || "";
       }
-      
-      setShowDescription(true);
-    } catch (error: any) {
+    } catch (error) {
       console.error("AI Enrichment error:", error);
-      alert((lang === 'tr' ? "AI zenginleştirme sırasında bir hata oluştu: " : "An error occurred during AI enrichment: ") + (error?.message || "Bilinmeyen hata"));
+      if ((window as any).aistudio) {
+        await (window as any).aistudio.openSelectKey();
+      } else {
+        alert(lang === 'tr' ? "AI zenginleştirme başarısız oldu. Lütfen API anahtarınızı kontrol edin." : "AI enrichment failed. Please check your API key.");
+      }
     } finally {
       setIsEnriching(false);
     }
@@ -1604,6 +1621,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
           
           <div className="flex items-center space-x-3">
+            {!aiReady && (window as any).aistudio && (
+              <button
+                onClick={handleConnectAI}
+                className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-200 text-[10px] font-bold uppercase tracking-wider hover:bg-amber-100 transition-all shadow-sm"
+              >
+                <Sparkles className="h-3 w-3" />
+                <span>{lang === 'tr' ? 'AI\'yı Bağla' : 'Connect AI'}</span>
+              </button>
+            )}
+            {aiReady && (
+              <div className="flex items-center space-x-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                <Sparkles className="h-3 w-3" />
+                <span>{lang === 'tr' ? 'AI Aktif' : 'AI Active'}</span>
+              </div>
+            )}
             <div className="hidden sm:flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-1.5 space-x-4">
               <div className="flex flex-col items-end">
                 <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Plan Tier</span>
