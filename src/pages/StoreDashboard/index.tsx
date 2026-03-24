@@ -94,7 +94,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   useEffect(() => {
     const checkAi = async () => {
-      if (process.env.GEMINI_API_KEY || process.env.API_KEY) {
+      if (process.env.API_KEY || process.env.GEMINI_API_KEY) {
         setAiReady(true);
       } else if ((window as any).aistudio) {
         try {
@@ -540,7 +540,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     setEnrichProgress({ current: 0, total: productsToEnrich.length });
 
     try {
-      let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+      let apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
       
       if (!apiKey && (window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
@@ -607,7 +607,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
     setIsEnriching(true);
     try {
-      let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+      let apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
       
       if (!apiKey && (window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
