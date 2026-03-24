@@ -92,9 +92,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [enrichedData, setEnrichedData] = useState<any>(null);
   const [aiReady, setAiReady] = useState(false);
 
+  const getApiKey = useCallback(() => {
+    // Check all possible sources for the API key
+    // 1. VITE_ prefixed variables (standard for Vite client-side)
+    // 2. process.env (sometimes shimmed or available in full-stack)
+    // 3. window.aistudio (platform specific)
+    return (
+      (import.meta as any).env?.VITE_API_KEY || 
+      (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+      process.env.API_KEY || 
+      process.env.GEMINI_API_KEY
+    );
+  }, []);
+
   useEffect(() => {
     const checkAi = async () => {
-      if (process.env.API_KEY || process.env.GEMINI_API_KEY) {
+      if (getApiKey()) {
         setAiReady(true);
       } else if ((window as any).aistudio) {
         try {
@@ -108,7 +121,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     checkAi();
     window.addEventListener('focus', checkAi);
     return () => window.removeEventListener('focus', checkAi);
-  }, []);
+  }, [getApiKey]);
 
   const handleConnectAI = async () => {
     if ((window as any).aistudio) {
@@ -540,15 +553,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     setEnrichProgress({ current: 0, total: productsToEnrich.length });
 
     try {
-      let apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      let apiKey = getApiKey();
       
       if (!apiKey && (window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
-        apiKey = process.env.API_KEY;
+        apiKey = getApiKey();
       }
 
       if (!apiKey) {
-        throw new Error("API Key not found");
+        throw new Error("API Key not found. Please add VITE_API_KEY to your environment variables.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -622,15 +635,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
     setIsEnriching(true);
     try {
-      let apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      let apiKey = getApiKey();
       
       if (!apiKey && (window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
-        apiKey = process.env.API_KEY;
+        apiKey = getApiKey();
       }
 
       if (!apiKey) {
-        throw new Error("API Key not found");
+        throw new Error("API Key not found. Please add VITE_API_KEY to your environment variables.");
       }
       
       const ai = new GoogleGenAI({ apiKey });
