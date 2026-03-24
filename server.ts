@@ -3,13 +3,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
-import { initDb } from "./models/db.js";
-import authRoutes from "./routes/auth.js";
-import publicRoutes from "./routes/public.js";
-import adminRoutes from "./routes/admin.js";
-import storeRoutes from "./routes/store.js";
-import { authenticate } from "./middleware/auth.js";
-import { pool } from "./models/db.js";
+import { initDb } from "./models/db.ts";
+import authRoutes from "./routes/auth.ts";
+import publicRoutes from "./routes/public.ts";
+import adminRoutes from "./routes/admin.ts";
+import storeRoutes from "./routes/store.ts";
+import { authenticate } from "./middleware/auth.ts";
+import { pool } from "./models/db.ts";
 
 dotenv.config();
 
@@ -48,10 +48,24 @@ async function startServer() {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: blob: https:; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' https://www.google-analytics.com https://*.run.app https://*.onrender.com;"
+      "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com;"
     );
     next();
   });
+
+  // Keep-alive logic for Render (pings the app every 14 minutes)
+  const APP_URL = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
+  if (APP_URL) {
+    console.log(`Keep-alive active for: ${APP_URL}`);
+    setInterval(async () => {
+      try {
+        const response = await fetch(`${APP_URL}/api/health`);
+        console.log(`Keep-alive ping sent to ${APP_URL}:`, response.status);
+      } catch (e) {
+        console.error("Keep-alive ping failed:", e);
+      }
+    }, 14 * 60 * 1000); // 14 minutes
+  }
 
   console.log("Setting up routes...");
 
