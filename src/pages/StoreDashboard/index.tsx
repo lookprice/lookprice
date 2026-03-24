@@ -1196,68 +1196,74 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       });
     };
 
-    let yPos = 25;
+    let yPos = 20;
 
-    // Logo (if exists)
+    // Logo (if exists) - Larger and positioned better
     if (branding.logo_url) {
       try {
         const logoBase64 = await getBase64Image(branding.logo_url);
-        doc.addImage(logoBase64, 'PNG', 14, 10, 20, 20);
-        yPos = 35;
+        // Larger logo: 40x20 or similar
+        doc.addImage(logoBase64, 'PNG', 14, 10, 40, 15);
+        yPos = 30;
       } catch (e) {
         console.error("Logo addImage error:", e);
       }
     }
 
-    // Store Branding Info
+    // Store Branding Info - Using branding.name or store_name
+    const storeTitle = branding.name || branding.store_name || "LookPrice";
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(branding.store_name || "LookPrice"), 14, yPos);
+    doc.setFontSize(16);
+    doc.setTextColor(0);
+    // If logo exists, we might want to move the title or keep it if it's different
+    doc.text(fixTr(storeTitle), 14, yPos);
     
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(100);
-    yPos += 6;
+    yPos += 5;
     
-    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 100);
+    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 80);
     doc.text(addressLines, 14, yPos);
-    yPos += (addressLines.length * 4) + 2;
+    yPos += (addressLines.length * 4);
     
     if (branding.phone) {
       doc.text(fixTr(branding.phone), 14, yPos);
-      yPos += 5;
+      yPos += 4;
     }
     
-    // Title
+    // Separator
     doc.setDrawColor(230);
-    doc.line(14, yPos, 196, yPos);
-    yPos += 10;
+    doc.line(14, yPos + 2, 196, yPos + 2);
+    yPos += 12;
     
-    doc.setFontSize(16);
+    // Centered Title
+    doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
-    doc.text(fixTr(isTr ? "Cari Hesap Ekstresi" : "Account Statement"), 14, yPos);
-    yPos += 10;
+    const titleText = fixTr(isTr ? "Cari Hesap Ekstresi" : "Account Statement");
+    const titleWidth = doc.getTextWidth(titleText);
+    doc.text(titleText, (210 - titleWidth) / 2, yPos);
+    yPos += 12;
     
     // Customer Info Box
     doc.setFillColor(249, 250, 251);
-    doc.roundedRect(14, yPos, 182, 25, 2, 2, 'F');
+    doc.roundedRect(14, yPos, 182, 22, 1, 1, 'F');
     
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Cari Bilgileri" : "Account Information"), 18, yPos + 7);
+    doc.text(fixTr(isTr ? "Cari Bilgileri" : "Account Information"), 18, yPos + 6);
     
     doc.setFont("helvetica", "normal");
     doc.setTextColor(50);
-    doc.setFontSize(11);
-    doc.text(fixTr(selectedCompany.title), 18, yPos + 14);
+    doc.setFontSize(10);
+    doc.text(fixTr(selectedCompany.title), 18, yPos + 12);
     
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(100);
-    doc.text(`${isTr ? "Tarih Aralığı:" : "Date Range:"} ${new Date(transactionStartDate).toLocaleDateString('tr-TR')} - ${new Date(transactionEndDate).toLocaleDateString('tr-TR')}`, 18, yPos + 20);
-    yPos += 35;
+    doc.text(`${isTr ? "Tarih Aralığı:" : "Date Range:"} ${new Date(transactionStartDate).toLocaleDateString('tr-TR')} - ${new Date(transactionEndDate).toLocaleDateString('tr-TR')}`, 18, yPos + 18);
+    yPos += 30;
 
     let runningBalance = 0;
     const tableData = companyTransactions.map((t: any) => {
@@ -1286,28 +1292,60 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 8, font: "helvetica", cellPadding: 3 },
+      styles: { fontSize: 8, font: "helvetica", cellPadding: 2 },
       columnStyles: {
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
+        2: { halign: 'right', cellWidth: 25 },
+        3: { halign: 'right', cellWidth: 25 },
+        4: { halign: 'right', cellWidth: 25 }
       }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || yPos;
+    let finalY = (doc as any).lastAutoTable.finalY || yPos;
     
     // Summary Box
     doc.setFillColor(249, 250, 251);
-    doc.roundedRect(130, finalY + 10, 66, 15, 1, 1, 'F');
+    doc.roundedRect(130, finalY + 5, 66, 12, 1, 1, 'F');
     
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Güncel Bakiye" : "Current Balance"), 134, finalY + 16);
+    doc.text(fixTr(isTr ? "Güncel Bakiye" : "Current Balance"), 134, finalY + 10);
     
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text(`${runningBalance.toLocaleString('tr-TR')} ${branding.default_currency}`, 192, finalY + 21, { align: 'right' });
+    doc.text(`${runningBalance.toLocaleString('tr-TR')} ${branding.default_currency}`, 192, finalY + 14, { align: 'right' });
+
+    finalY += 25;
+
+    // Notes Section
+    if (finalY > 260) {
+      doc.addPage();
+      finalY = 20;
+    }
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(50);
+    doc.text(fixTr(isTr ? "Notlar ve Açıklamalar:" : "Notes & Remarks:"), 14, finalY);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const notes = isTr ? [
+      "1. Bu ekstre bilgilendirme amacli hazirlanmistir.",
+      "2. Mutabakat icin lutfen 7 is gunu icerisinde itiraz ediniz.",
+      "3. Itiraz edilmeyen ekstreler taraflarca kabul edilmis sayilir.",
+      "4. Odemelerinizi banka hesaplarimiza aciklama belirterek yapabilirsiniz."
+    ] : [
+      "1. This statement is for informational purposes only.",
+      "2. Please object within 7 business days for reconciliation.",
+      "3. Statements not objected to are considered accepted.",
+      "4. You can make payments to our bank accounts with a description."
+    ];
+
+    notes.forEach((note, index) => {
+      doc.text(fixTr(note), 14, finalY + 6 + (index * 4));
+    });
 
     doc.save(`${selectedCompany.title}_Ekstre_${new Date().toISOString().split('T')[0]}.pdf`);
   };
