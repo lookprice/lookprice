@@ -1163,24 +1163,101 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const handleExportTransactionsPDF = () => {
+  const handleExportTransactionsPDF = async () => {
     if (!selectedCompany) return;
     const isTr = lang === 'tr';
     const doc = new jsPDF();
 
-    // Add branding info
-    doc.setFontSize(20);
-    doc.text(branding.store_name || "LookPrice", 14, 22);
-    doc.setFontSize(10);
-    doc.text(branding.address || "", 14, 28);
-    doc.text(branding.phone || "", 14, 33);
+    const fixTr = (text: string) => {
+      if (!text) return "";
+      return text
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+        .replace(/ş/g, 's').replace(/Ş/g, 'S')
+        .replace(/ı/g, 'i').replace(/İ/g, 'I')
+        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+    };
 
-    doc.setFontSize(16);
-    doc.text(isTr ? "Cari Hesap Ekstresi" : "Account Statement", 14, 45);
+    const getBase64Image = (url: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.setAttribute('crossOrigin', 'anonymous');
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = (e) => reject(e);
+        img.src = url;
+      });
+    };
+
+    let yPos = 25;
+
+    // Logo (if exists)
+    if (branding.logo_url) {
+      try {
+        const logoBase64 = await getBase64Image(branding.logo_url);
+        doc.addImage(logoBase64, 'PNG', 14, 10, 20, 20);
+        yPos = 35;
+      } catch (e) {
+        console.error("Logo addImage error:", e);
+      }
+    }
+
+    // Store Branding Info
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(79, 70, 229);
+    doc.text(fixTr(branding.store_name || "LookPrice"), 14, yPos);
     
-    doc.setFontSize(12);
-    doc.text(`${isTr ? "Cari:" : "Account:"} ${selectedCompany.title}`, 14, 55);
-    doc.text(`${isTr ? "Tarih Aralığı:" : "Date Range:"} ${new Date(transactionStartDate).toLocaleDateString('tr-TR')} - ${new Date(transactionEndDate).toLocaleDateString('tr-TR')}`, 14, 62);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    yPos += 6;
+    
+    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 100);
+    doc.text(addressLines, 14, yPos);
+    yPos += (addressLines.length * 4) + 2;
+    
+    if (branding.phone) {
+      doc.text(fixTr(branding.phone), 14, yPos);
+      yPos += 5;
+    }
+    
+    // Title
+    doc.setDrawColor(230);
+    doc.line(14, yPos, 196, yPos);
+    yPos += 10;
+    
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0);
+    doc.text(fixTr(isTr ? "Cari Hesap Ekstresi" : "Account Statement"), 14, yPos);
+    yPos += 10;
+    
+    // Customer Info Box
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(14, yPos, 182, 25, 2, 2, 'F');
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(79, 70, 229);
+    doc.text(fixTr(isTr ? "Cari Bilgileri" : "Account Information"), 18, yPos + 7);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(50);
+    doc.setFontSize(11);
+    doc.text(fixTr(selectedCompany.title), 18, yPos + 14);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`${isTr ? "Tarih Aralığı:" : "Date Range:"} ${new Date(transactionStartDate).toLocaleDateString('tr-TR')} - ${new Date(transactionEndDate).toLocaleDateString('tr-TR')}`, 18, yPos + 20);
+    yPos += 35;
 
     let runningBalance = 0;
     const tableData = companyTransactions.map((t: any) => {
@@ -1190,7 +1267,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
       return [
         new Date(t.transaction_date).toLocaleDateString('tr-TR'),
-        t.description,
+        fixTr(t.description),
         t.type === 'debt' ? amount.toLocaleString('tr-TR') : "",
         t.type === 'credit' ? amount.toLocaleString('tr-TR') : "",
         runningBalance.toLocaleString('tr-TR')
@@ -1198,23 +1275,39 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     });
 
     autoTable(doc, {
-      startY: 70,
+      startY: yPos,
       head: [[
-        isTr ? "Tarih" : "Date",
-        isTr ? "Açıklama" : "Description",
-        isTr ? "Borç" : "Debt",
-        isTr ? "Alacak" : "Credit",
-        isTr ? "Bakiye" : "Balance"
+        fixTr(isTr ? "Tarih" : "Date"),
+        fixTr(isTr ? "Açıklama" : "Description"),
+        fixTr(isTr ? "Borç" : "Debt"),
+        fixTr(isTr ? "Alacak" : "Credit"),
+        fixTr(isTr ? "Bakiye" : "Balance")
       ]],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] },
-      styles: { fontSize: 8 }
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 8, font: "helvetica", cellPadding: 3 },
+      columnStyles: {
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' }
+      }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 70;
+    const finalY = (doc as any).lastAutoTable.finalY || yPos;
+    
+    // Summary Box
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(130, finalY + 10, 66, 15, 1, 1, 'F');
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(79, 70, 229);
+    doc.text(fixTr(isTr ? "Güncel Bakiye" : "Current Balance"), 134, finalY + 16);
+    
     doc.setFontSize(12);
-    doc.text(`${isTr ? "Güncel Bakiye:" : "Current Balance:"} ${runningBalance.toLocaleString('tr-TR')} ${branding.default_currency}`, 14, finalY + 15);
+    doc.setTextColor(0);
+    doc.text(`${runningBalance.toLocaleString('tr-TR')} ${branding.default_currency}`, 192, finalY + 21, { align: 'right' });
 
     doc.save(`${selectedCompany.title}_Ekstre_${new Date().toISOString().split('T')[0]}.pdf`);
   };

@@ -293,25 +293,49 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    doc.text(isTr ? "Alış Faturaları" : "Purchase Invoices", 14, 15);
+    
+    const fixTr = (text: string) => {
+      if (!text) return "";
+      return text
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+        .replace(/ş/g, 's').replace(/Ş/g, 'S')
+        .replace(/ı/g, 'i').replace(/İ/g, 'I')
+        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+    };
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(79, 70, 229);
+    doc.text(fixTr(isTr ? "Alış Faturaları Raporu" : "Purchase Invoices Report"), 14, 15);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`${isTr ? "Tarih:" : "Date:"} ${new Date().toLocaleDateString('tr-TR')}`, 14, 22);
+
     autoTable(doc, {
-      startY: 20,
+      startY: 28,
       head: [[
-        isTr ? 'Tarih' : 'Date',
-        isTr ? 'Fatura No' : 'Invoice No',
-        isTr ? 'Cari' : 'Company',
-        isTr ? 'Tutar' : 'Amount',
-        isTr ? 'KDV' : 'Tax',
-        isTr ? 'Genel Toplam' : 'Grand Total'
+        fixTr(isTr ? 'Tarih' : 'Date'),
+        fixTr(isTr ? 'Fatura No' : 'Invoice No'),
+        fixTr(isTr ? 'Cari' : 'Company'),
+        fixTr(isTr ? 'Tutar' : 'Amount'),
+        fixTr(isTr ? 'KDV' : 'Tax'),
+        fixTr(isTr ? 'Genel Toplam' : 'Grand Total')
       ]],
       body: filteredInvoices.map((inv: any) => [
         new Date(inv.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US'),
         inv.invoice_number,
-        inv.company_name,
-        `${Number(inv.total_amount).toFixed(2)} ${inv.currency || 'TRY'}`,
-        `${Number(inv.tax_amount).toFixed(2)} ${inv.currency || 'TRY'}`,
-        `${Number(inv.grand_total).toFixed(2)} ${inv.currency || 'TRY'}`
-      ])
+        fixTr(inv.company_name),
+        `${Number(inv.total_amount).toLocaleString('tr-TR')} ${inv.currency || 'TRY'}`,
+        `${Number(inv.tax_amount).toLocaleString('tr-TR')} ${inv.currency || 'TRY'}`,
+        `${Number(inv.grand_total).toLocaleString('tr-TR')} ${inv.currency || 'TRY'}`
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
+      styles: { fontSize: 8, font: "helvetica" }
     });
     doc.save(`purchase_invoices_${new Date().toISOString().split('T')[0]}.pdf`);
   };
