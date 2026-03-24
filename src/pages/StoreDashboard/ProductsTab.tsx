@@ -26,6 +26,9 @@ interface ProductsTabProps {
   onExportReport: () => void;
   onShowQr: () => void;
   onEnrichAI?: (product: any) => void;
+  onBulkEnrichAI?: () => void;
+  isEnriching?: boolean;
+  enrichProgress?: { current: number; total: number };
   branding?: any;
 }
 
@@ -39,6 +42,9 @@ const ProductsTab = ({
   onExportReport,
   onShowQr,
   onEnrichAI,
+  onBulkEnrichAI,
+  isEnriching,
+  enrichProgress,
   branding
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
@@ -96,6 +102,29 @@ const ProductsTab = ({
           />
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
+          {!isViewer && onBulkEnrichAI && (
+            <button 
+              onClick={onBulkEnrichAI}
+              disabled={isEnriching}
+              className={`flex-1 md:flex-none flex items-center justify-center px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${
+                isEnriching 
+                  ? 'bg-amber-50 text-amber-600 border border-amber-200 cursor-not-allowed' 
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+              }`}
+            >
+              {isEnriching && enrichProgress ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
+                  %{Math.round((enrichProgress.current / enrichProgress.total) * 100)}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {lang === 'tr' ? 'Tümünü AI ile Zenginleştir' : 'Bulk AI Enrich'}
+                </>
+              )}
+            </button>
+          )}
           <button 
             onClick={onShowQr}
             className="flex-1 md:flex-none flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
