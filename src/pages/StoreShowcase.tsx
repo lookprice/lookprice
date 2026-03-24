@@ -8,6 +8,7 @@ import {
   Minus, 
   X, 
   ChevronRight, 
+  ChevronLeft,
   Store as StoreIcon,
   Package,
   CheckCircle2,
@@ -273,6 +274,8 @@ const StoreShowcase: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -299,6 +302,20 @@ const StoreShowcase: React.FC = () => {
     fetchData();
   }, [slug]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, sortBy]);
+
+  const shuffledProducts = useMemo(() => {
+    if (!products.length) return [];
+    // Stable shuffle based on product ID to avoid jumping items on re-renders but still feel "mixed"
+    return [...products].sort((a, b) => {
+      const hashA = (a.id * 15485863) % 1000000;
+      const hashB = (b.id * 15485863) % 1000000;
+      return hashA - hashB;
+    });
+  }, [products]);
+
   const categories = useMemo(() => {
     const cats = new Set<string>();
     products.forEach(p => {
@@ -309,7 +326,9 @@ const StoreShowcase: React.FC = () => {
   }, [products, t]);
 
   const sortedAndFilteredProducts = useMemo(() => {
-    let result = products.filter(p => {
+    const baseProducts = sortBy === 'default' && !searchQuery && !selectedCategory ? shuffledProducts : products;
+    
+    let result = baseProducts.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -327,7 +346,13 @@ const StoreShowcase: React.FC = () => {
     }
 
     return result;
-  }, [products, searchQuery, selectedCategory, sortBy, t]);
+  }, [products, shuffledProducts, searchQuery, selectedCategory, sortBy, t]);
+
+  const totalPages = Math.ceil(sortedAndFilteredProducts.length / ITEMS_PER_PAGE);
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sortedAndFilteredProducts.slice(start, start + ITEMS_PER_PAGE);
+  }, [sortedAndFilteredProducts, currentPage]);
 
   const featuredProducts = useMemo(() => products.slice(0, 8), [products]);
   const newArrivals = useMemo(() => [...products].reverse().slice(0, 8), [products]);
@@ -727,11 +752,80 @@ const StoreShowcase: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {sortedAndFilteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} store={store} t={t} addToBasket={addToBasket} onView={setSelectedProduct} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {paginatedProducts.map((product) => (
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  store={store} 
+                  t={t} 
+                  addToBasket={addToBasket} 
+                  onView={setSelectedProduct} 
+                  primaryColor={primaryColor}
+                />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-16 flex items-center justify-center gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => {
+                    setCurrentPage(prev => Math.max(1, prev - 1));
+                    document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="p-4 bg-white border-2 border-gray-100 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                    if (totalPages > 7) {
+                      if (page !== 1 && page !== totalPages && Math.abs(page - currentPage) > 1) {
+                        if (page === 2 || page === totalPages - 1) return <span key={page} className="px-2 text-gray-400">...</span>;
+                        return null;
+                      }
+                    }
+                    
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => {
+                          setCurrentPage(page);
+                          document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className={`w-12 h-12 rounded-2xl font-black text-sm transition-all active:scale-95 ${
+                          currentPage === page 
+                            ? "text-white shadow-xl" 
+                            : "bg-white border-2 border-gray-100 text-gray-500 hover:bg-gray-50"
+                        }`}
+                        style={{ 
+                          backgroundColor: currentPage === page ? primaryColor : undefined,
+                          boxShadow: currentPage === page ? `0 10px 25px -5px ${primaryColor}40` : undefined
+                        }}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                    document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="p-4 bg-white border-2 border-gray-100 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {/* New Arrivals Section */}

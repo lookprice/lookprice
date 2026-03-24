@@ -567,6 +567,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               tools: [{ googleSearch: {} }],
               responseMimeType: "application/json"
             }
+          }).catch(async (e) => {
+            // Fallback without googleSearch if it fails (some keys might not have it enabled)
+            console.warn("Google Search tool failed, retrying without it:", e);
+            return await ai.models.generateContent({
+              model: "gemini-3-flash-preview",
+              contents: `Sen bir e-ticaret uzmanısın. Ürün: ${p.name}, Barkod: ${p.barcode}. 
+              Bu ürün için profesyonel bir açıklama ve kategori bul.
+              Yanıtı JSON formatında ver: {"description": "...", "category": "..."}`,
+              config: {
+                responseMimeType: "application/json"
+              }
+            });
           });
 
           const result = JSON.parse(response.text || "{}");
@@ -584,12 +596,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Bulk enrich error:", error);
+      const errorMsg = error?.message || String(error);
       if ((window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
       } else {
-        alert(lang === 'tr' ? "İşlem sırasında bir hata oluştu. Lütfen API anahtarınızı kontrol edin." : "An error occurred. Please check your API key.");
+        alert(lang === 'tr' 
+          ? `İşlem sırasında bir hata oluştu: ${errorMsg}\nLütfen API anahtarınızı kontrol edin.` 
+          : `An error occurred: ${errorMsg}\nPlease check your API key.`);
       }
     }
 
@@ -649,6 +664,32 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             }
           }
         }
+      }).catch(async (e) => {
+        // Fallback without googleSearch
+        console.warn("Google Search tool failed, retrying without it:", e);
+        return await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: `Sen bir e-ticaret ve ürün uzmanısın. Aşağıdaki ürün bilgilerini kullanarak ürün için profesyonel bir açıklama ve kategori bul.
+          
+          Ürün Adı: ${name}
+          Barkod: ${barcode}
+          
+          Yanıtı MUTLAKA şu JSON formatında ver:
+          {
+            "description": "...",
+            "category": "..."
+          }`,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                description: { type: Type.STRING },
+                category: { type: Type.STRING }
+              }
+            }
+          }
+        });
       });
 
       const result = JSON.parse(response.text || "{}");
@@ -664,12 +705,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         if (catInput && !catInput.value) catInput.value = result.category || "";
         if (imgInput && !imgInput.value) imgInput.value = result.image_url || "";
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Enrichment error:", error);
+      const errorMsg = error?.message || String(error);
       if ((window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
       } else {
-        alert(lang === 'tr' ? "AI zenginleştirme başarısız oldu. Lütfen API anahtarınızı kontrol edin." : "AI enrichment failed. Please check your API key.");
+        alert(lang === 'tr' 
+          ? `AI zenginleştirme başarısız oldu: ${errorMsg}\nLütfen API anahtarınızı kontrol edin.` 
+          : `AI enrichment failed: ${errorMsg}\nPlease check your API key.`);
       }
     } finally {
       setIsEnriching(false);
