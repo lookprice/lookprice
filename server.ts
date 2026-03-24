@@ -53,18 +53,33 @@ async function startServer() {
     next();
   });
 
-  // Keep-alive logic for Render (pings the app every 14 minutes)
+  // Keep-alive logic for Render (pings the app every 5 minutes)
   const APP_URL = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
   if (APP_URL) {
-    console.log(`Keep-alive active for: ${APP_URL}`);
+    console.log(`Keep-alive system initialized for: ${APP_URL}`);
+    
+    // Initial ping after 30 seconds to confirm it's working
+    setTimeout(async () => {
+      try {
+        const response = await fetch(`${APP_URL}/api/health`);
+        console.log(`Initial keep-alive check for ${APP_URL}: ${response.status}`);
+      } catch (e) {
+        console.error("Initial keep-alive check failed. Check your APP_URL variable.");
+      }
+    }, 30000);
+
     setInterval(async () => {
       try {
         const response = await fetch(`${APP_URL}/api/health`);
-        console.log(`Keep-alive ping sent to ${APP_URL}:`, response.status);
-      } catch (e) {
-        console.error("Keep-alive ping failed:", e);
+        if (response.status !== 200) {
+          console.warn(`Keep-alive ping returned non-200 status: ${response.status}`);
+        }
+      } catch (e: any) {
+        console.error("Keep-alive ping failed:", e.message);
       }
-    }, 14 * 60 * 1000); // 14 minutes
+    }, 5 * 60 * 1000); // 5 minutes is safer than 14
+  } else {
+    console.warn("KEEP-ALIVE WARNING: APP_URL environment variable is NOT set. The app will go to sleep on Render free tier.");
   }
 
   console.log("Setting up routes...");
