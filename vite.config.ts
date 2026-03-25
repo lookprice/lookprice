@@ -12,10 +12,7 @@ export default defineConfig(({ mode }) => {
   });
   return {
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY),
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY),
-      'process.env.VITE_API_KEY': JSON.stringify(env.VITE_API_KEY || process.env.VITE_API_KEY),
-      'process.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY),
+      'process.env': 'globalThis.process.env',
     },
     plugins: [react(), tailwindcss()],
     build: {

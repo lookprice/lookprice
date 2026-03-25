@@ -26,7 +26,8 @@ async function startServer() {
   await initDb();
   console.log("initDb finished.");
 
-  app.use(express.json());
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // Root route for debugging
   app.get("/api/health", (req, res) => {
@@ -137,7 +138,14 @@ async function startServer() {
           let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
           
           // Inject process.env into the head
-          const injection = `<script>window.process = { env: { GEMINI_API_KEY: ${JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || "")} } };</script>`;
+          const injection = `<script>
+            globalThis.process = globalThis.process || { env: {} };
+            globalThis.process.env = globalThis.process.env || {};
+            globalThis.process.env.GEMINI_API_KEY = globalThis.process.env.GEMINI_API_KEY || ${JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || "")};
+            globalThis.process.env.API_KEY = globalThis.process.env.API_KEY || ${JSON.stringify(process.env.API_KEY || process.env.GEMINI_API_KEY || "")};
+            globalThis.process.env.VITE_API_KEY = globalThis.process.env.VITE_API_KEY || ${JSON.stringify(process.env.VITE_API_KEY || process.env.API_KEY || "")};
+            globalThis.process.env.VITE_GEMINI_API_KEY = globalThis.process.env.VITE_GEMINI_API_KEY || ${JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "")};
+          </script>`;
           template = template.replace("</head>", `${injection}</head>`);
           
           template = await vite.transformIndexHtml(url, template);
@@ -169,7 +177,14 @@ async function startServer() {
         let template = fs.readFileSync(indexPath, "utf-8");
         
         // Inject process.env into the head
-        const injection = `<script>window.process = { env: { GEMINI_API_KEY: ${JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || "")} } };</script>`;
+        const injection = `<script>
+          globalThis.process = globalThis.process || { env: {} };
+          globalThis.process.env = globalThis.process.env || {};
+          globalThis.process.env.GEMINI_API_KEY = globalThis.process.env.GEMINI_API_KEY || ${JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || "")};
+          globalThis.process.env.API_KEY = globalThis.process.env.API_KEY || ${JSON.stringify(process.env.API_KEY || process.env.GEMINI_API_KEY || "")};
+          globalThis.process.env.VITE_API_KEY = globalThis.process.env.VITE_API_KEY || ${JSON.stringify(process.env.VITE_API_KEY || process.env.API_KEY || "")};
+          globalThis.process.env.VITE_GEMINI_API_KEY = globalThis.process.env.VITE_GEMINI_API_KEY || ${JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "")};
+        </script>`;
         template = template.replace("</head>", `${injection}</head>`);
         
         res.status(200).set({ "Content-Type": "text/html" }).end(template);

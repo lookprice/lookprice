@@ -94,18 +94,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const getApiKey = useCallback(() => {
     // Check all possible sources for the API key
+    // We check globalThis.process explicitly to ensure we get the most up-to-date value
+    // especially after aistudio.openSelectKey()
     const key = (
+      globalThis.process?.env?.API_KEY ||
+      globalThis.process?.env?.GEMINI_API_KEY ||
       (import.meta as any).env?.VITE_API_KEY || 
-      (import.meta as any).env?.VITE_GEMINI_API_KEY ||
-      process.env.VITE_API_KEY ||
-      process.env.VITE_GEMINI_API_KEY ||
-      process.env.API_KEY || 
-      process.env.GEMINI_API_KEY
+      (import.meta as any).env?.VITE_GEMINI_API_KEY
     );
     
-    // If the key is literally "AI Studio Free Tier", it's a placeholder from the UI
-    // and we should wait for the platform to inject the real key or use aistudio window
-    if (key === "AI Studio Free Tier") return undefined;
+    // If the key is literally "AI Studio Free Tier", it's a placeholder
+    if (key === "AI Studio Free Tier" || !key) return undefined;
     
     return key;
   }, []);
@@ -560,17 +559,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     try {
       let apiKey = getApiKey();
       
+      // AI Studio specific key selection
       if (!apiKey && (window as any).aistudio) {
-        await (window as any).aistudio.openSelectKey();
-        apiKey = getApiKey();
+        try {
+          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+          if (!hasKey) {
+            await (window as any).aistudio.openSelectKey();
+          }
+          apiKey = getApiKey();
+        } catch (e) {
+          console.warn("AI Studio key selection failed:", e);
+        }
       }
 
       if (!apiKey) {
         console.error("Bulk enrich: API Key not found. Env check:", {
-          importMetaEnv: (import.meta as any).env,
-          processEnv: process.env
+          processEnv: globalThis.process?.env,
+          importMetaEnv: (import.meta as any).env
         });
-        throw new Error("API Key not found. Please add VITE_API_KEY to your environment variables.");
+        throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -646,17 +653,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     try {
       let apiKey = getApiKey();
       
+      // AI Studio specific key selection
       if (!apiKey && (window as any).aistudio) {
-        await (window as any).aistudio.openSelectKey();
-        apiKey = getApiKey();
+        try {
+          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+          if (!hasKey) {
+            await (window as any).aistudio.openSelectKey();
+          }
+          apiKey = getApiKey();
+        } catch (e) {
+          console.warn("AI Studio key selection failed:", e);
+        }
       }
 
       if (!apiKey) {
         console.error("Single enrich: API Key not found. Env check:", {
-          importMetaEnv: (import.meta as any).env,
-          processEnv: process.env
+          processEnv: globalThis.process?.env,
+          importMetaEnv: (import.meta as any).env
         });
-        throw new Error("API Key not found. Please add VITE_API_KEY to your environment variables.");
+        throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
       }
       
       const ai = new GoogleGenAI({ apiKey });
