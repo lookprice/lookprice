@@ -661,6 +661,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Sen bir e-ticaret ve ürün uzmanısın. Aşağıdaki ürün bilgilerini kullanarak ürün için profesyonel bir açıklama, kategori ve GERÇEK bir ürün görseli URL'si bul.
         
         Ürün Adı: ${name}
         Barkod: ${barcode}

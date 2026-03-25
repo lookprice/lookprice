@@ -193,112 +193,114 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="flex justify-between items-center mb-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight">Süper Admin Paneli</h1>
-          <p className="text-gray-500 font-medium mt-1">Sistemdeki tüm mağazaları ve talepleri yönetin</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Süper Admin Paneli</h1>
+          <p className="text-sm text-gray-500 font-medium mt-0.5">Sistemdeki tüm mağazaları ve talepleri yönetin</p>
         </div>
         <button 
           onClick={() => setShowAdd(true)}
-          className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center"
+          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm flex items-center text-sm"
         >
-          <Plus className="mr-2 h-5 w-5" /> {st.registerNewStore}
+          <Plus className="mr-2 h-4 w-4" /> {st.registerNewStore}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
-              <Store className="h-6 w-6" />
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
+          <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+            <Store className="h-5 w-5" />
           </div>
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Aktif Mağazalar</p>
-          <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.activeStores} / {stats.totalStores}</h3>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Aktif Mağazalar</p>
+            <h3 className="text-xl font-bold text-gray-900">{stats.activeStores} / {stats.totalStores}</h3>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
-              <TrendingUp className="h-6 w-6" />
-            </div>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
+          <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
+            <TrendingUp className="h-5 w-5" />
           </div>
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Yeni Talepler</p>
-          <h3 className="text-3xl font-black text-gray-900 mt-1">{leads.filter(l => l.status === 'new').length}</h3>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Yeni Talepler</p>
+            <h3 className="text-xl font-bold text-gray-900">{leads.filter(l => l.status === 'new').length}</h3>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
-              <Scan className="h-6 w-6" />
-            </div>
-            <div className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">
-              +{stats.scansLast24h} Bugün
-            </div>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
+          <div className="p-2.5 bg-orange-50 rounded-xl text-orange-600">
+            <Scan className="h-5 w-5" />
           </div>
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Toplam Tarama</p>
-          <h3 className="text-3xl font-black text-gray-900 mt-1">{stats.totalScans.toLocaleString('tr-TR')}</h3>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Toplam Tarama</p>
+              <span className="text-[9px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                +{stats.scansLast24h} Bugün
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">{stats.totalScans.toLocaleString('tr-TR')}</h3>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-12">
+      <div className="space-y-8">
         <section>
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Plus className="mr-3 text-indigo-600" /> Mağaza Başvuruları
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center">
+              <Plus className="mr-2 h-5 w-5 text-indigo-600" /> Mağaza Başvuruları
             </h2>
           </div>
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Mağaza / Şirket</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">İletişim</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Plan / Ürün</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Durum</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">İşlem</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mağaza / Şirket</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">İletişim</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan / Ürün</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Durum</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">İşlem</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {registrationRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">Henüz başvuru bulunmuyor.</td>
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500 text-sm font-medium">Henüz başvuru bulunmuyor.</td>
                     </tr>
                   ) : (
                     registrationRequests.map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-gray-900">{r.store_name}</div>
-                          <div className="text-xs text-gray-400">{r.company_title}</div>
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-gray-900 text-sm">{r.store_name}</div>
+                          <div className="text-[10px] text-gray-400">{r.company_title}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{r.username}</div>
-                          <div className="text-xs text-gray-400">{r.phone}</div>
+                        <td className="px-4 py-3">
+                          <div className="text-xs text-gray-900">{r.username}</div>
+                          <div className="text-[10px] text-gray-400">{r.phone}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-bold text-indigo-600 uppercase">{r.plan}</div>
-                          <div className="text-xs text-gray-400">{r.upload_method === 'excel' ? 'Excel Yükleme' : 'Manuel Giriş'}</div>
+                        <td className="px-4 py-3">
+                          <div className="text-xs font-bold text-indigo-600 uppercase">{r.plan}</div>
+                          <div className="text-[10px] text-gray-400">{r.upload_method === 'excel' ? 'Excel Yükleme' : 'Manuel Giriş'}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                             r.status === 'pending' ? 'bg-orange-100 text-orange-700' :
                             r.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                           }`}>
                             {r.status === 'pending' ? 'Bekliyor' : r.status === 'approved' ? 'Onaylandı' : 'Reddedildi'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-3 text-right">
                           {r.status === 'pending' && (
                             <div className="flex justify-end space-x-2">
                               <button 
                                 onClick={() => handleApproveRegistration(r.id)}
-                                className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-green-700 transition-all"
+                                className="bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold text-[10px] hover:bg-green-700 transition-all"
                               >
                                 Onayla
                               </button>
                               <button 
                                 onClick={() => handleRejectRegistration(r.id)}
-                                className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-100 transition-all"
+                                className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg font-bold text-[10px] hover:bg-red-100 transition-all"
                               >
                                 Reddet
                               </button>
@@ -315,52 +317,52 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
         </section>
 
         <section>
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-              <TrendingUp className="mr-3 text-indigo-600" /> Gelen Talepler
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center">
+              <TrendingUp className="mr-2 h-5 w-5 text-indigo-600" /> Gelen Talepler
             </h2>
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input 
                 type="text"
                 placeholder={lang === 'tr' ? "Talep ara..." : "Search leads..."}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 transition-all"
                 value={leadSearchTerm}
                 onChange={(e) => setLeadSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">{st.customerStore}</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">{st.contact}</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">{st.status}</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">{st.probability}</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">{st.date}</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">{st.action}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.customerStore}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.contact}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.status}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.probability}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.date}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{st.action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredLeads.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500 font-medium">{st.noLeads}</td>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm font-medium">{st.noLeads}</td>
                     </tr>
                   ) : (
                     filteredLeads.map((l) => (
                       <tr key={l.id} className="hover:bg-gray-50/50 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-gray-900">{l.store_name}</div>
-                          <div className="text-xs text-gray-400">{l.company_title}</div>
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-gray-900 text-sm">{l.store_name}</div>
+                          <div className="text-[10px] text-gray-400">{l.company_title}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{l.email}</div>
-                          <div className="text-xs text-gray-400">{l.phone}</div>
+                        <td className="px-4 py-3">
+                          <div className="text-xs text-gray-900">{l.email}</div>
+                          <div className="text-[10px] text-gray-400">{l.phone}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                             l.status === 'new' ? 'bg-indigo-100 text-indigo-700' :
                             l.status === 'contacted' ? 'bg-orange-100 text-orange-700' :
                             l.status === 'demo' ? 'bg-blue-100 text-blue-700' :
@@ -369,8 +371,8 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                             {l.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <td className="px-4 py-3">
+                          <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div 
                               className={`h-full rounded-full ${
                                 l.probability > 70 ? 'bg-green-500' :
@@ -379,17 +381,17 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                               style={{ width: `${l.probability}%` }}
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-gray-400 mt-1 block">%{l.probability}</span>
+                          <span className="text-[9px] font-bold text-gray-400 mt-0.5 block">%{l.probability}</span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-4 py-3 text-xs text-gray-500">
                           {new Date(l.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-3 text-right">
                           <button 
                             onClick={() => setSelectedLead(l)}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                           >
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronRight className="h-4 w-4" />
                           </button>
                         </td>
                       </tr>
@@ -441,64 +443,60 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
         </section>
 
         <section>
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Store className="mr-3 text-indigo-600" /> Mağazalar
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center">
+              <Store className="mr-2 h-5 w-5 text-indigo-600" /> Mağazalar
             </h2>
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input 
                 type="text"
                 placeholder={lang === 'tr' ? "Mağaza ara..." : "Search stores..."}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 transition-all"
                 value={storeSearchTerm}
                 onChange={(e) => setStoreSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {filteredStores.map((s) => (
               <motion.div 
                 key={s.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+                className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group relative"
               >
-                <div className="flex justify-between items-start mb-6">
-                  <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                    <Store className="h-6 w-6" />
+                <div className="flex justify-between items-start mb-3">
+                  <div className="h-9 w-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                    <Store className="h-4.5 w-4.5" />
                   </div>
                   <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => setEditingStore(s)}
-                      className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                      className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                     >
-                      <Edit2 className="h-4 w-4" />
+                      <Edit2 className="h-3.5 w-3.5" />
                     </button>
                     <button 
                       onClick={() => setStoreToDelete(s)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
                 
-                <h3 className="text-xl font-bold text-gray-900 mb-1">{s.name}</h3>
-                <p className="text-sm text-gray-400 font-medium mb-6">/{s.slug}</p>
+                <h3 className="text-sm font-bold text-gray-900 truncate">{s.name}</h3>
+                <p className="text-[10px] text-gray-400 font-medium mb-3 truncate">/{s.slug}</p>
                 
-                <div className="space-y-3 mb-8">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Ürün Sayısı</span>
+                <div className="space-y-1.5 mb-4 border-t border-gray-50 pt-3">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-400">Ürün</span>
                     <span className="font-bold text-gray-900">{s.product_count || 0}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Bitiş Tarihi</span>
-                    <span className="font-bold text-gray-900">{new Date(s.subscription_end).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-[10px]">
                     <span className="text-gray-400">Plan</span>
-                    <span className={`font-black uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full ${
+                    <span className={`font-bold uppercase tracking-wider text-[8px] px-1.5 py-0.5 rounded-full ${
                       s.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
                       s.plan === 'pro' ? 'bg-indigo-100 text-indigo-700' :
                       s.plan === 'basic' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
@@ -508,28 +506,28 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mt-auto">
+                <div className="grid grid-cols-2 gap-2">
                   <button 
                     onClick={() => setSelectedStore(s)}
-                    className="bg-gray-50 text-gray-600 py-3 rounded-xl font-bold hover:bg-indigo-50 hover:text-indigo-600 transition-all text-sm"
+                    className="bg-gray-50 text-gray-600 py-1.5 rounded-lg font-bold hover:bg-indigo-50 hover:text-indigo-600 transition-all text-[10px]"
                   >
-                    Detayları Gör
+                    Detay
                   </button>
                   <button 
                     onClick={() => window.open(`/dashboard/${s.slug}`, '_blank')}
-                    className="bg-indigo-50 text-indigo-600 py-3 rounded-xl font-bold hover:bg-indigo-100 transition-all text-sm flex items-center justify-center"
+                    className="bg-indigo-50 text-indigo-600 py-1.5 rounded-lg font-bold hover:bg-indigo-100 transition-all text-[10px]"
                   >
-                    Paneli Aç
+                    Panel
                   </button>
                 </div>
               </motion.div>
             ))}
           </div>
 
-          {/* Mobile Stores List */}
-          <div className="md:hidden space-y-4">
+            {/* Mobile Stores List */}
+          <div className="md:hidden space-y-3">
             {filteredStores.length === 0 ? (
-              <div className="bg-white p-12 text-center text-gray-500 font-medium rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-white p-8 text-center text-gray-500 text-sm font-medium rounded-2xl border border-gray-100 shadow-sm">
                 Mağaza bulunamadı.
               </div>
             ) : (
@@ -538,42 +536,42 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                   key={s.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4"
+                  className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                        <Store className="h-5 w-5" />
+                    <div className="flex items-center space-x-2">
+                      <div className="h-8 w-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                        <Store className="h-4 w-4" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900">{s.name}</h3>
-                        <p className="text-xs text-gray-400">/{s.slug}</p>
+                        <h3 className="font-bold text-gray-900 text-sm">{s.name}</h3>
+                        <p className="text-[10px] text-gray-400">/{s.slug}</p>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-1">
                       <button 
                         onClick={() => setEditingStore(s)}
-                        className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl active:scale-90 transition-all"
+                        className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg active:scale-90 transition-all"
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-3.5 w-3.5" />
                       </button>
                       <button 
                         onClick={() => setStoreToDelete(s)}
-                        className="p-2.5 bg-red-50 text-red-600 rounded-xl active:scale-90 transition-all"
+                        className="p-1.5 bg-red-50 text-red-600 rounded-lg active:scale-90 transition-all"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-50">
+                  <div className="grid grid-cols-2 gap-3 py-2 border-y border-gray-50">
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ürün Sayısı</p>
-                      <p className="font-bold text-gray-900">{s.product_count || 0}</p>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Ürün</p>
+                      <p className="font-bold text-gray-900 text-xs">{s.product_count || 0}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan</p>
-                      <span className={`font-black uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full ${
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Plan</p>
+                      <span className={`font-bold uppercase tracking-wider text-[8px] px-1.5 py-0.5 rounded-full ${
                         s.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
                         s.plan === 'pro' ? 'bg-indigo-100 text-indigo-700' :
                         s.plan === 'basic' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
@@ -583,18 +581,18 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                     </div>
                   </div>
 
-                  <div className="flex space-x-3 pt-2">
+                  <div className="flex space-x-2 pt-1">
                     <button 
                       onClick={() => setSelectedStore(s)}
-                      className="flex-1 bg-gray-50 text-gray-600 py-3 rounded-xl font-bold text-sm"
+                      className="flex-1 bg-gray-50 text-gray-600 py-2 rounded-lg font-bold text-xs"
                     >
-                      Detaylar
+                      Detay
                     </button>
                     <button 
                       onClick={() => window.open(`/dashboard/${s.slug}`, '_blank')}
-                      className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm"
+                      className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-xs"
                     >
-                      Paneli Aç
+                      Panel
                     </button>
                   </div>
                 </motion.div>
@@ -611,15 +609,15 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-8 rounded-3xl max-w-lg w-full relative"
+              className="bg-white p-6 rounded-2xl max-w-md w-full relative"
             >
-              <button onClick={() => setSelectedLead(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X /></button>
-              <h2 className="text-2xl font-bold mb-6">{st.manageLead}</h2>
-              <form onSubmit={handleUpdateLead} className="space-y-4">
+              <button onClick={() => setSelectedLead(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+              <h2 className="text-xl font-bold mb-5">{st.manageLead}</h2>
+              <form onSubmit={handleUpdateLead} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.processStatus}</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.processStatus}</label>
                   <select 
-                    className="w-full p-3 bg-gray-50 border rounded-xl" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                     value={selectedLead.status} 
                     onChange={e => setSelectedLead({...selectedLead, status: e.target.value})}
                   >
@@ -631,28 +629,28 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.salesProbability} (%{selectedLead.probability})</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.salesProbability} (%{selectedLead.probability})</label>
                   <input 
                     type="range" 
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
+                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
                     min="0" max="100" 
                     value={selectedLead.probability} 
                     onChange={e => setSelectedLead({...selectedLead, probability: parseInt(e.target.value)})} 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.meetingNotes}</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.meetingNotes}</label>
                   <textarea 
-                    className="w-full p-3 bg-gray-50 border rounded-xl" 
-                    rows={4} 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    rows={3} 
                     value={selectedLead.notes || ""} 
                     onChange={e => setSelectedLead({...selectedLead, notes: e.target.value})}
                     placeholder={st.notesPlaceholder}
                   />
                 </div>
-                <div className="flex space-x-3 pt-4">
-                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">{st.update}</button>
-                  <button type="button" onClick={() => setSelectedLead(null)} className="flex-1 bg-gray-100 text-gray-900 py-3 rounded-xl font-bold">{st.close}</button>
+                <div className="flex space-x-2 pt-3">
+                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm">{st.update}</button>
+                  <button type="button" onClick={() => setSelectedLead(null)} className="flex-1 bg-gray-100 text-gray-900 py-2 rounded-lg font-bold text-sm">{st.close}</button>
                 </div>
               </form>
             </motion.div>
@@ -665,53 +663,46 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-8 rounded-3xl max-w-2xl w-full relative max-h-[90vh] overflow-y-auto"
+              className="bg-white p-6 rounded-2xl max-w-xl w-full relative max-h-[90vh] overflow-y-auto"
             >
-              <button onClick={() => setEditingStore(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X /></button>
-              <h2 className="text-2xl font-bold mb-6">{st.editStore}</h2>
-              <form onSubmit={handleUpdateStore} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-4">
+              <button onClick={() => setEditingStore(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+              <h2 className="text-xl font-bold mb-5">{st.editStore}</h2>
+              <form onSubmit={handleUpdateStore} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.storeName}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.storeName}</label>
                     <input 
                       type="text" 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.name} 
                       onChange={e => setEditingStore({...editingStore, name: e.target.value})} 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.slug}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.slug}</label>
                     <input 
                       type="text" 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.slug} 
                       onChange={e => setEditingStore({...editingStore, slug: e.target.value})} 
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.address}</label>
-                    <textarea 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
-                      rows={2} 
-                      value={editingStore.address || ""} 
-                      onChange={e => setEditingStore({...editingStore, address: e.target.value})} 
-                    />
-                  </div>
+                </div>
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.authorizedPerson}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.authorizedPerson}</label>
                     <input 
                       type="text" 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.contact_person} 
                       onChange={e => setEditingStore({...editingStore, contact_person: e.target.value})} 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.phone}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.phone}</label>
                     <input 
                       type="text" 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.phone} 
                       onChange={e => {
                         let val = e.target.value;
@@ -720,10 +711,21 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                       }} 
                     />
                   </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.address}</label>
+                  <textarea 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    rows={2} 
+                    value={editingStore.address || ""} 
+                    onChange={e => setEditingStore({...editingStore, address: e.target.value})} 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3 md:col-span-2">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.country}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.country}</label>
                     <select 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.country || "TR"} 
                       onChange={e => {
                         const country = DEVELOPED_COUNTRIES.find(c => c.code === e.target.value);
@@ -740,18 +742,20 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.email}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.email}</label>
                     <input 
                       type="email" 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.email} 
                       onChange={e => setEditingStore({...editingStore, email: e.target.value})} 
                     />
                   </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 md:col-span-2">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.currency}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.currency}</label>
                     <select 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.default_currency || "TRY"} 
                       onChange={e => setEditingStore({...editingStore, default_currency: e.target.value})}
                     >
@@ -762,9 +766,9 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.language}</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.language}</label>
                     <select 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.language || "tr"} 
                       onChange={e => setEditingStore({...editingStore, language: e.target.value})}
                     >
@@ -774,9 +778,9 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Plan</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Plan</label>
                     <select 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={editingStore.plan || "free"} 
                       onChange={e => setEditingStore({...editingStore, plan: e.target.value})}
                     >
@@ -786,20 +790,20 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                       <option value="enterprise">Enterprise</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{st.newAdminPassword}</label>
-                    <input 
-                      type="text" 
-                      className="w-full p-3 bg-gray-50 border rounded-xl" 
-                      value={editingStore.admin_password || ""} 
-                      onChange={e => setEditingStore({...editingStore, admin_password: e.target.value})} 
-                      placeholder={st.passwordNote}
-                    />
-                  </div>
                 </div>
-                <div className="md:col-span-2 flex space-x-3 mt-4">
-                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">{st.update}</button>
-                  <button type="button" onClick={() => setEditingStore(null)} className="flex-1 bg-gray-100 text-gray-900 py-3 rounded-xl font-bold">{st.close}</button>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.newAdminPassword}</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingStore.admin_password || ""} 
+                    onChange={e => setEditingStore({...editingStore, admin_password: e.target.value})} 
+                    placeholder={st.passwordNote}
+                  />
+                </div>
+                <div className="md:col-span-2 flex space-x-2 mt-2">
+                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm">{st.update}</button>
+                  <button type="button" onClick={() => setEditingStore(null)} className="flex-1 bg-gray-100 text-gray-900 py-2 rounded-lg font-bold text-sm">{st.close}</button>
                 </div>
               </form>
             </motion.div>
@@ -812,55 +816,47 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-8 rounded-3xl max-w-2xl w-full relative max-h-[90vh] overflow-y-auto"
+              className="bg-white p-6 rounded-2xl max-w-xl w-full relative max-h-[90vh] overflow-y-auto"
             >
-              <button onClick={() => setSelectedStore(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X /></button>
-              <h2 className="text-2xl font-bold mb-6">{selectedStore.name} {st.storeDetails}</h2>
+              <button onClick={() => setSelectedStore(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+              <h2 className="text-xl font-bold mb-5">{selectedStore.name} {st.storeDetails}</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider">{st.companyInformation}</h3>
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <p className="text-xs text-gray-400 uppercase font-bold">{st.address}</p>
-                    <p className="text-gray-900">{selectedStore.address || 'N/A'}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">{st.companyInformation}</h3>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">{st.address}</p>
+                    <p className="text-xs text-gray-900">{selectedStore.address || 'N/A'}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <p className="text-xs text-gray-400 uppercase font-bold">{st.authorizedPerson}</p>
-                    <p className="text-gray-900">{selectedStore.contact_person || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">{st.authorizedPerson}</p>
+                    <p className="text-xs text-gray-900">{selectedStore.contact_person || 'N/A'}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <p className="text-xs text-gray-400 uppercase font-bold">{st.phone}</p>
-                    <p className="text-gray-900">{selectedStore.phone || 'N/A'}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <p className="text-xs text-gray-400 uppercase font-bold">{st.country}</p>
-                    <p className="text-gray-900">{DEVELOPED_COUNTRIES.find(c => c.code === selectedStore.country)?.name || selectedStore.country || 'N/A'}</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <p className="text-xs text-gray-400 uppercase font-bold">{st.email}</p>
-                    <p className="text-gray-900">{selectedStore.email || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">{st.phone}</p>
+                    <p className="text-xs text-gray-900">{selectedStore.phone || 'N/A'}</p>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider">{st.systemAccess}</h3>
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <p className="text-xs text-gray-400 uppercase font-bold">{st.adminLoginEmail}</p>
-                    <p className="text-gray-900 font-mono">{selectedStore.admin_email || 'N/A'}</p>
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">{st.systemAccess}</h3>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">{st.adminLoginEmail}</p>
+                    <p className="text-xs text-gray-900 font-mono">{selectedStore.admin_email || 'N/A'}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <p className="text-xs text-gray-400 uppercase font-bold">{st.subscriptionEndDate}</p>
-                    <p className="text-gray-900">{new Date(selectedStore.subscription_end).toLocaleDateString()}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">{st.subscriptionEndDate}</p>
+                    <p className="text-xs text-gray-900">{new Date(selectedStore.subscription_end).toLocaleDateString()}</p>
                   </div>
                   
-                  <div className="pt-4 flex flex-col space-y-2">
+                  <div className="pt-2">
                     <button 
                       onClick={() => {
                         window.open(`${window.location.origin}/dashboard/${selectedStore.slug}`, '_blank');
                       }}
-                      className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold flex items-center justify-center"
+                      className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm flex items-center justify-center"
                     >
-                      <LogOut className="h-4 w-4 mr-2 rotate-180" /> {st.goToStorePanel}
+                      <LogOut className="h-3.5 w-3.5 mr-2 rotate-180" /> {st.goToStorePanel}
                     </button>
                   </div>
                 </div>
@@ -868,7 +864,7 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
 
               <button 
                 onClick={() => setSelectedStore(null)}
-                className="w-full bg-gray-100 text-gray-900 py-3 rounded-xl font-bold mt-8"
+                className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg font-bold text-sm mt-6"
               >
                 {st.close}
               </button>
@@ -881,45 +877,45 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white p-8 rounded-3xl max-w-md w-full relative shadow-2xl"
+              className="bg-white p-6 rounded-2xl max-w-sm w-full relative shadow-2xl"
             >
-              <h2 className="text-xl font-bold mb-4 text-red-600 flex items-center">
-                <AlertTriangle className="mr-2 h-6 w-6" /> Mağazayı Sil
+              <h2 className="text-lg font-bold mb-3 text-red-600 flex items-center">
+                <AlertTriangle className="mr-2 h-5 w-5" /> Mağazayı Sil
               </h2>
-              <p className="text-gray-600 mb-6 font-medium">
-                <span className="font-bold text-gray-900">{storeToDelete.name}</span> mağazasını ve tüm verilerini (ürünler, kullanıcılar, loglar) kalıcı olarak silmek istediğinize emin misiniz?
+              <p className="text-xs text-gray-600 mb-5 font-medium">
+                <span className="font-bold text-gray-900">{storeToDelete.name}</span> mağazasını ve tüm verilerini kalıcı olarak silmek istediğinize emin misiniz?
               </p>
               
-              <form onSubmit={handleDeleteStore} className="space-y-4">
+              <form onSubmit={handleDeleteStore} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Admin Şifrenizi Girin</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Admin Şifrenizi Girin</label>
                   <input 
                     type="password" 
                     required
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-red-500 focus:ring-0 transition-all"
-                    placeholder="Onaylamak için şifreniz"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:border-red-500 focus:ring-0 transition-all text-sm"
+                    placeholder="Şifreniz"
                     value={deletePassword}
                     onChange={e => setDeletePassword(e.target.value)}
                     autoFocus
                   />
                 </div>
                 
-                <div className="flex space-x-3 pt-2">
+                <div className="flex space-x-2 pt-1">
                   <button 
                     type="button"
                     onClick={() => {
                       setStoreToDelete(null);
                       setDeletePassword("");
                     }}
-                    className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-bold text-sm hover:bg-gray-200 transition-all"
                   >
                     Vazgeç
                   </button>
                   <button 
                     type="submit"
-                    className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+                    className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-red-700 transition-all shadow-sm"
                   >
-                    Kalıcı Olarak Sil
+                    Sil
                   </button>
                 </div>
               </form>
@@ -933,34 +929,34 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-8 rounded-3xl max-w-4xl w-full relative my-8"
+            className="bg-white p-6 rounded-2xl max-w-3xl w-full relative my-4"
           >
-            <button onClick={() => setShowAdd(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X /></button>
-            <h2 className="text-2xl font-bold mb-6">{st.registerNewStore}</h2>
-            <form onSubmit={handleAddStore} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-400 uppercase">{st.storeInformation}</h3>
+            <button onClick={() => setShowAdd(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+            <h2 className="text-xl font-bold mb-5">{st.registerNewStore}</h2>
+            <form onSubmit={handleAddStore} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.storeInformation}</h3>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.storeName}</label>
-                  <input required className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} placeholder="e.g. Migros" />
+                  <label className="block text-xs font-medium text-gray-700">{st.storeName}</label>
+                  <input required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} placeholder="e.g. Migros" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.slugIdentifier}</label>
-                  <input required className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.slug} onChange={e => setNewStore({...newStore, slug: e.target.value})} placeholder="e.g. migros" />
+                  <label className="block text-xs font-medium text-gray-700">{st.slugIdentifier}</label>
+                  <input required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.slug} onChange={e => setNewStore({...newStore, slug: e.target.value})} placeholder="e.g. migros" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.address}</label>
-                  <textarea className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" rows={2} value={newStore.address} onChange={e => setNewStore({...newStore, address: e.target.value})} />
+                  <label className="block text-xs font-medium text-gray-700">{st.address}</label>
+                  <textarea className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" rows={2} value={newStore.address} onChange={e => setNewStore({...newStore, address: e.target.value})} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">{st.authorizedPerson}</label>
-                    <input className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.contact_person} onChange={e => setNewStore({...newStore, contact_person: e.target.value})} />
+                    <label className="block text-xs font-medium text-gray-700">{st.authorizedPerson}</label>
+                    <input className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.contact_person} onChange={e => setNewStore({...newStore, contact_person: e.target.value})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">{st.country}</label>
+                    <label className="block text-xs font-medium text-gray-700">{st.country}</label>
                     <select 
-                      className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" 
+                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={newStore.country} 
                       onChange={e => {
                         const country = DEVELOPED_COUNTRIES.find(c => c.code === e.target.value);
@@ -978,58 +974,60 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.phone}</label>
-                  <input className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.phone} onChange={e => setNewStore({...newStore, phone: e.target.value})} placeholder="+90 5XX XXX XX XX" />
+                  <label className="block text-xs font-medium text-gray-700">{st.phone}</label>
+                  <input className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.phone} onChange={e => setNewStore({...newStore, phone: e.target.value})} placeholder="+90 5XX XXX XX XX" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.email}</label>
-                  <input type="email" className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.email} onChange={e => setNewStore({...newStore, email: e.target.value})} />
+                  <label className="block text-xs font-medium text-gray-700">{st.email}</label>
+                  <input type="email" className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.email} onChange={e => setNewStore({...newStore, email: e.target.value})} />
                 </div>
               </div>
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-400 uppercase">{st.adminAccount}</h3>
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.adminAccount}</h3>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.adminLoginEmail}</label>
-                  <input type="email" required className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.admin_email} onChange={e => setNewStore({...newStore, admin_email: e.target.value})} />
+                  <label className="block text-xs font-medium text-gray-700">{st.adminLoginEmail}</label>
+                  <input type="email" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.admin_email} onChange={e => setNewStore({...newStore, admin_email: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.adminPassword}</label>
-                  <input type="password" required className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.admin_password} onChange={e => setNewStore({...newStore, admin_password: e.target.value})} />
+                  <label className="block text-xs font-medium text-gray-700">{st.adminPassword}</label>
+                  <input type="password" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.admin_password} onChange={e => setNewStore({...newStore, admin_password: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.subscriptionEndDate}</label>
-                  <input type="date" required className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" value={newStore.subscription_end} onChange={e => setNewStore({...newStore, subscription_end: e.target.value})} />
+                  <label className="block text-xs font-medium text-gray-700">{st.subscriptionEndDate}</label>
+                  <input type="date" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.subscription_end} onChange={e => setNewStore({...newStore, subscription_end: e.target.value})} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.plan || 'Plan'}</label>
+                    <select 
+                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                      value={newStore.plan} 
+                      onChange={e => setNewStore({...newStore, plan: e.target.value as any})}
+                    >
+                      <option value="free">Free (50)</option>
+                      <option value="basic">Basic (100)</option>
+                      <option value="pro">Pro (500)</option>
+                      <option value="enterprise">Enterprise (Unlimited)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.currency}</label>
+                    <select 
+                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                      value={newStore.default_currency} 
+                      onChange={e => setNewStore({...newStore, default_currency: e.target.value})}
+                    >
+                      <option value="TRY">TRY</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.plan || 'Plan'}</label>
+                  <label className="block text-xs font-medium text-gray-700">{st.language}</label>
                   <select 
-                    className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" 
-                    value={newStore.plan} 
-                    onChange={e => setNewStore({...newStore, plan: e.target.value as any})}
-                  >
-                    <option value="free">Free (50)</option>
-                    <option value="basic">Basic (100)</option>
-                    <option value="pro">Pro (500)</option>
-                    <option value="enterprise">Enterprise (Unlimited)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.currency}</label>
-                  <select 
-                    className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" 
-                    value={newStore.default_currency} 
-                    onChange={e => setNewStore({...newStore, default_currency: e.target.value})}
-                  >
-                    <option value="TRY">TRY</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{st.language}</label>
-                  <select 
-                    className="mt-1 block w-full p-3 bg-gray-50 border rounded-xl" 
+                    className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                     value={newStore.language} 
                     onChange={e => setNewStore({...newStore, language: e.target.value})}
                   >
@@ -1038,9 +1036,9 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
                     <option value="de">German</option>
                   </select>
                 </div>
-                <div className="flex justify-end space-x-3 pt-10">
-                  <button type="button" onClick={() => setShowAdd(false)} className="px-6 py-3 text-gray-500 font-medium">{st.cancel}</button>
-                  <button type="submit" className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">{st.register}</button>
+                <div className="flex justify-end space-x-2 pt-6">
+                  <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-gray-500 font-medium text-sm">{st.cancel}</button>
+                  <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-sm text-sm">{st.register}</button>
                 </div>
               </div>
             </form>
