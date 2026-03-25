@@ -29,6 +29,7 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
   const st = translations[lang].superAdmin;
   
   const [leads, setLeads] = useState<any[]>([]);
+  const [registrationRequests, setRegistrationRequests] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({
     totalStores: 0,
@@ -71,12 +72,14 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [leadsRes, storesRes, statsRes] = await Promise.all([
+      const [leadsRes, registrationRes, storesRes, statsRes] = await Promise.all([
         api.getLeads(),
+        api.getRegistrationRequests(),
         api.getStores(),
         api.getAdminStats()
       ]);
       setLeads(leadsRes);
+      setRegistrationRequests(registrationRes);
       setStores(storesRes);
       if (statsRes && !statsRes.error) {
         setStats(statsRes);
@@ -155,6 +158,28 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
     }
   };
 
+  const handleApproveRegistration = async (id: number) => {
+    if (!confirm(lang === 'tr' ? "Bu başvuruyu onaylamak ve mağazayı oluşturmak istediğinize emin misiniz?" : "Are you sure you want to approve this request and create the store?")) return;
+    try {
+      const res = await api.approveRegistration(id);
+      if (res.error) throw new Error(res.error);
+      alert(lang === 'tr' ? `Mağaza başarıyla oluşturuldu: /dashboard/${res.slug}` : `Store created successfully: /dashboard/${res.slug}`);
+      fetchData();
+    } catch (error: any) {
+      alert(error.message || "Hata oluştu");
+    }
+  };
+
+  const handleRejectRegistration = async (id: number) => {
+    if (!confirm(lang === 'tr' ? "Bu başvuruyu reddetmek istediğinize emin misiniz?" : "Are you sure you want to reject this request?")) return;
+    try {
+      await api.rejectRegistration(id);
+      fetchData();
+    } catch (error) {
+      alert("Hata oluştu");
+    }
+  };
+
   const filteredStores = stores.filter(s => 
     s.name.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
     s.slug.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
@@ -216,6 +241,79 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
       </div>
 
       <div className="space-y-12">
+        <section>
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <Plus className="mr-3 text-indigo-600" /> Mağaza Başvuruları
+            </h2>
+          </div>
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Mağaza / Şirket</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">İletişim</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Plan / Ürün</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Durum</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">İşlem</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {registrationRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">Henüz başvuru bulunmuyor.</td>
+                    </tr>
+                  ) : (
+                    registrationRequests.map((r) => (
+                      <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-gray-900">{r.store_name}</div>
+                          <div className="text-xs text-gray-400">{r.company_title}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{r.username}</div>
+                          <div className="text-xs text-gray-400">{r.phone}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-bold text-indigo-600 uppercase">{r.plan}</div>
+                          <div className="text-xs text-gray-400">{r.upload_method === 'excel' ? 'Excel Yükleme' : 'Manuel Giriş'}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            r.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                            r.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {r.status === 'pending' ? 'Bekliyor' : r.status === 'approved' ? 'Onaylandı' : 'Reddedildi'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {r.status === 'pending' && (
+                            <div className="flex justify-end space-x-2">
+                              <button 
+                                onClick={() => handleApproveRegistration(r.id)}
+                                className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-green-700 transition-all"
+                              >
+                                Onayla
+                              </button>
+                              <button 
+                                onClick={() => handleRejectRegistration(r.id)}
+                                className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-100 transition-all"
+                              >
+                                Reddet
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <section>
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
             <h2 className="text-2xl font-bold text-gray-900 flex items-center">

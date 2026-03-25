@@ -105,6 +105,9 @@ export const api = {
   deleteUser: (id: number, storeId?: number) => api.delete(`/api/store/users/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
   getLeads: () => api.get("/api/admin/leads"),
+  getRegistrationRequests: () => api.get("/api/admin/registration-requests"),
+  approveRegistration: (id: number) => api.post(`/api/admin/registration-requests/${id}/approve`, {}),
+  rejectRegistration: (id: number) => api.post(`/api/admin/registration-requests/${id}/reject`, {}),
   getAdminStats: () => api.get("/api/admin/stats"),
   updateLead: (id: number, data: any) => api.put(`/api/admin/leads/${id}`, data),
   getStores: () => api.get("/api/admin/stores"),
