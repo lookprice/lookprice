@@ -94,15 +94,20 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const getApiKey = useCallback(() => {
     // Check all possible sources for the API key
-    // 1. VITE_ prefixed variables (standard for Vite client-side)
-    // 2. process.env (sometimes shimmed or available in full-stack)
-    // 3. window.aistudio (platform specific)
-    return (
+    const key = (
       (import.meta as any).env?.VITE_API_KEY || 
       (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+      process.env.VITE_API_KEY ||
+      process.env.VITE_GEMINI_API_KEY ||
       process.env.API_KEY || 
       process.env.GEMINI_API_KEY
     );
+    
+    // If the key is literally "AI Studio Free Tier", it's a placeholder from the UI
+    // and we should wait for the platform to inject the real key or use aistudio window
+    if (key === "AI Studio Free Tier") return undefined;
+    
+    return key;
   }, []);
 
   useEffect(() => {
@@ -561,6 +566,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
 
       if (!apiKey) {
+        console.error("Bulk enrich: API Key not found. Env check:", {
+          importMetaEnv: (import.meta as any).env,
+          processEnv: process.env
+        });
         throw new Error("API Key not found. Please add VITE_API_KEY to your environment variables.");
       }
 
@@ -643,13 +652,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
 
       if (!apiKey) {
+        console.error("Single enrich: API Key not found. Env check:", {
+          importMetaEnv: (import.meta as any).env,
+          processEnv: process.env
+        });
         throw new Error("API Key not found. Please add VITE_API_KEY to your environment variables.");
       }
       
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Sen bir e-ticaret ve ürün uzmanısın. Aşağıdaki ürün bilgilerini kullanarak ürün için profesyonel bir açıklama, kategori ve GERÇEK bir ürün görseli URL'si bul.
         
         Ürün Adı: ${name}
         Barkod: ${barcode}
