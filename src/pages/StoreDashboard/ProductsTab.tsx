@@ -29,6 +29,7 @@ interface ProductsTabProps {
   onBulkEnrichAI?: () => void;
   isEnriching?: boolean;
   enrichProgress?: { current: number; total: number };
+  aiReady?: boolean;
   branding?: any;
 }
 
@@ -45,6 +46,7 @@ const ProductsTab = ({
   onBulkEnrichAI,
   isEnriching,
   enrichProgress,
+  aiReady,
   branding
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
@@ -103,27 +105,37 @@ const ProductsTab = ({
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
           {!isViewer && onBulkEnrichAI && (
-            <button 
-              onClick={onBulkEnrichAI}
-              disabled={isEnriching}
-              className={`flex-1 md:flex-none flex items-center justify-center px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${
-                isEnriching 
-                  ? 'bg-amber-50 text-amber-600 border border-amber-200 cursor-not-allowed' 
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
-              }`}
-            >
-              {isEnriching && enrichProgress ? (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
-                  %{Math.round((enrichProgress.current / enrichProgress.total) * 100)}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  {lang === 'tr' ? 'Tümünü AI ile Zenginleştir' : 'Bulk AI Enrich'}
-                </>
-              )}
-            </button>
+            <div className="relative group">
+              <button 
+                onClick={onBulkEnrichAI}
+                disabled={isEnriching}
+                className={`flex-1 md:flex-none flex items-center justify-center px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${
+                  isEnriching 
+                    ? 'bg-amber-50 text-amber-600 border border-amber-200 cursor-not-allowed' 
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+                }`}
+              >
+                {isEnriching && enrichProgress ? (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
+                    %{Math.round((enrichProgress.current / enrichProgress.total) * 100)}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {lang === 'tr' ? 'AI Zenginleştir' : 'AI Enrich'}
+                  </>
+                )}
+              </button>
+              
+              {/* AI Status Dot */}
+              <div 
+                className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white shadow-sm ${
+                  aiReady ? 'bg-green-500' : 'bg-red-500'
+                }`}
+                title={aiReady ? (lang === 'tr' ? 'AI Hazır' : 'AI Ready') : (lang === 'tr' ? 'API Anahtarı Gerekli' : 'API Key Required')}
+              />
+            </div>
           )}
           <button 
             onClick={onShowQr}

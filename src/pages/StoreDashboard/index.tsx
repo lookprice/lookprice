@@ -1851,6 +1851,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onBulkEnrichAI={handleBulkEnrichAI}
                         isEnriching={isEnriching}
                         enrichProgress={enrichProgress}
+                        aiReady={aiReady}
                         branding={branding}
                       />
                     )}
