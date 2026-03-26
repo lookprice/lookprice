@@ -191,8 +191,8 @@ const PublicQuotation = () => {
     const tableData = quotation.items.map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
-      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency}`,
-      `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency}`
+      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
+      `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
     ]);
 
     autoTable(doc, {
@@ -238,14 +238,14 @@ const PublicQuotation = () => {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
     doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency}`, 196, finalY, { align: 'right' });
+    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
     
     finalY += 6;
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
     doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency}`, 196, finalY, { align: 'right' });
+    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
 
     // Add page numbers to all pages
     const totalPages = (doc as any).internal.getNumberOfPages();
@@ -434,8 +434,8 @@ const PublicQuotation = () => {
                           <div className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-0.5">{item.barcode || `#${item.product_id}`}</div>
                         </td>
                         <td className="px-6 py-4 text-center text-gray-600 font-medium">{item.quantity}</td>
-                        <td className="px-6 py-4 text-right text-gray-600 font-medium">{Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency}</td>
-                        <td className="px-6 py-4 text-right font-bold text-gray-900">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency}</td>
+                        <td className="px-6 py-4 text-right text-gray-600 font-medium">{Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</td>
+                        <td className="px-6 py-4 text-right font-bold text-gray-900">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -443,7 +443,7 @@ const PublicQuotation = () => {
                     <tr className="bg-indigo-50/50">
                       <td colSpan={3} className="px-6 py-6 text-right font-black text-gray-500 uppercase tracking-widest text-xs">{t.totalAmount}</td>
                       <td className="px-6 py-6 text-right text-2xl font-black text-indigo-600">
-                        {Number(quotation.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency}
+                        {Number(quotation.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}
                       </td>
                     </tr>
                   </tfoot>

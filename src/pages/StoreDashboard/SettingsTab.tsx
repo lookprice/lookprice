@@ -173,8 +173,11 @@ const SettingsTab = ({
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                   <input 
                     type="number" 
+                    step="1"
                     min="0"
-                    max="100"
+                    max="99"
+                    maxLength={2}
+                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                     className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
                     value={branding.default_tax_rate !== undefined ? branding.default_tax_rate : 20}
                     onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value) || 0)}

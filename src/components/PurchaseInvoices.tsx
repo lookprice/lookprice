@@ -792,16 +792,18 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                         onFocus={(e) => e.target.select()}
                                         className="w-full pl-2 pr-8 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                       />
-                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currency}</span>
+                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currency?.slice(0, 3)}</span>
                                     </div>
                                   </td>
                                   <td className="p-3">
                                     <div className="relative">
                                       <input
                                         type="number"
+                                        step="1"
                                         list="tax-rates"
                                         value={item.tax_rate}
                                         onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                                         onFocus={(e) => e.target.select()}
                                         maxLength={2}
                                         max={99}
@@ -876,16 +878,18 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                       onFocus={(e) => e.target.select()}
                                       className="w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                                     />
-                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currency}</span>
+                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currency?.slice(0, 3)}</span>
                                   </div>
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "KDV Oranı" : "Tax Rate"}</label>
                                   <input
                                     type="number"
+                                    step="1"
                                     list="tax-rates-mobile"
                                     value={item.tax_rate}
                                     onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                                     onFocus={(e) => e.target.select()}
                                     maxLength={2}
                                     max={99}
@@ -1050,8 +1054,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               </h3>
               <p className="text-slate-600 mb-6">
                 {isTr 
-                  ? `FATURA PARA BİRİMİNİZ = ${currency}. Bu para birimi ile kaydetmeyi onaylıyor musunuz?` 
-                  : `INVOICE CURRENCY = ${currency}. Do you confirm saving with this currency?`}
+                  ? `FATURA PARA BİRİMİNİZ = ${currency?.slice(0, 3)}. Bu para birimi ile kaydetmeyi onaylıyor musunuz?` 
+                  : `INVOICE CURRENCY = ${currency?.slice(0, 3)}. Do you confirm saving with this currency?`}
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -1313,7 +1317,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                     type="text"
                     value={quickProductForm.barcode}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    maxLength={13}
+                    className="w-[18ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
                 <div>

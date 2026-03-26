@@ -907,8 +907,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const tableData = quotation.items.map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
-      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency}`,
-      `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency}`
+      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
+      `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
     ]);
 
     autoTable(doc, {
@@ -954,14 +954,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
     doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency}`, 196, finalY, { align: 'right' });
+    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
     
     finalY += 6;
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
     doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency}`, 196, finalY, { align: 'right' });
+    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
 
     // Notes Section
     if (quotation.notes) {
@@ -1047,7 +1047,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       [isTr ? 'Teklif No' : 'Quotation No']: q.id,
       [isTr ? 'Tarih' : 'Date']: new Date(q.created_at).toLocaleDateString('tr-TR'),
       [isTr ? 'Müşteri' : 'Customer']: q.customer_name,
-      [isTr ? 'Tutar' : 'Amount']: `${Number(q.total_amount).toLocaleString('tr-TR')} ${q.currency}`,
+      [isTr ? 'Tutar' : 'Amount']: `${Number(q.total_amount).toLocaleString('tr-TR')} ${q.currency?.slice(0, 3)}`,
       [isTr ? 'Durum' : 'Status']: q.status === 'approved' || q.status === 'completed' ? (isTr ? 'Tamamlandı' : 'Completed') : q.status === 'cancelled' ? (isTr ? 'İptal Edildi' : 'Cancelled') : (isTr ? 'Beklemede' : 'Pending')
     }));
 
@@ -1230,7 +1230,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     
     doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text(`${runningBalance.toLocaleString('tr-TR')} ${branding.default_currency}`, 192, finalY + 14, { align: 'right' });
+    doc.text(`${runningBalance.toLocaleString('tr-TR')} ${branding.default_currency?.slice(0, 3)}`, 192, finalY + 14, { align: 'right' });
 
     finalY += 25;
 
@@ -1778,7 +1778,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <div className="p-4 bg-indigo-600 rounded-2xl text-white">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{lang === 'tr' ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
-                    <span className="text-xl font-black">{Number(selectedPurchaseInvoice.grand_total).toLocaleString('tr-TR')} {selectedPurchaseInvoice.currency}</span>
+                    <span className="text-xl font-black">{Number(selectedPurchaseInvoice.grand_total).toLocaleString('tr-TR')} {selectedPurchaseInvoice.currency?.slice(0, 3)}</span>
                   </div>
                 </div>
               </div>
@@ -2095,7 +2095,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                   <div className="p-4 bg-indigo-50 rounded-2xl">
                     <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t.amount}</p>
-                    <p className="text-xl font-black text-indigo-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR')} {selectedQuotationDetails.currency}</p>
+                    <p className="text-xl font-black text-indigo-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR')} {selectedQuotationDetails.currency?.slice(0, 3)}</p>
                   </div>
                 </div>
 
@@ -2118,7 +2118,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                               <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{item.barcode || `#${item.product_id}`}</div>
                             </td>
                             <td className="px-4 py-3 text-center text-gray-600">{item.quantity}</td>
-                            <td className="px-4 py-3 text-right font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {selectedQuotationDetails.currency}</td>
+                            <td className="px-4 py-3 text-right font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {selectedQuotationDetails.currency?.slice(0, 3)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2211,7 +2211,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           </span>
                         </div>
                         <p className="text-xl font-black text-gray-900">
-                          {Number(data.total_amount).toLocaleString('tr-TR')} {branding.default_currency}
+                          {Number(data.total_amount).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
                         </p>
                       </div>
                     );
@@ -2223,7 +2223,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <div>
                       <p className="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM GENEL' : 'GRAND TOTAL'}</p>
                       <p className="text-3xl font-black">
-                        {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString('tr-TR')} {branding.default_currency}
+                        {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
                       </p>
                     </div>
                     <div className="text-right">
@@ -2321,19 +2321,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
                     <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{lang === 'tr' ? 'GÜNCEL BAKİYE' : 'CURRENT BALANCE'}</p>
                     <p className="text-2xl font-black">
-                      {Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balance).toLocaleString('tr-TR')} {branding.default_currency}
+                      {Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balance).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
                     </p>
                   </div>
                   <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM BORÇ' : 'TOTAL DEBT'}</p>
                     <p className="text-2xl font-black text-red-600">
-                      {companyTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString('tr-TR')} {branding.default_currency}
+                      {companyTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
                     </p>
                   </div>
                   <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM ALACAK' : 'TOTAL CREDIT'}</p>
                     <p className="text-2xl font-black text-green-600">
-                      {companyTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString('tr-TR')} {branding.default_currency}
+                      {companyTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
                     </p>
                   </div>
                 </div>
@@ -2461,7 +2461,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <div className="p-4 bg-gray-50 rounded-2xl flex justify-between items-center">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Mevcut Bakiye' : 'Current Balance'}</span>
                   <span className={`font-black ${Number(selectedCompany.balance) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {Math.abs(Number(selectedCompany.balance)).toLocaleString('tr-TR')} {branding.default_currency}
+                    {Math.abs(Number(selectedCompany.balance)).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
                     {Number(selectedCompany.balance) < 0 ? (lang === 'tr' ? ' (Borçlu)' : ' (Debt)') : (lang === 'tr' ? ' (Alacaklı)' : ' (Credit)')}
                   </span>
                 </div>
@@ -2584,7 +2584,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">{t.amount}</span>
                     <span className="text-xl font-black text-indigo-600">
-                      {Number(selectedQuotation.total_amount).toLocaleString('tr-TR')} {selectedQuotation.currency}
+                      {Number(selectedQuotation.total_amount).toLocaleString('tr-TR')} {selectedQuotation.currency?.slice(0, 3)}
                     </span>
                   </div>
                 </div>
@@ -2703,7 +2703,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     maxLength={13}
                     defaultValue={editingProduct?.barcode} 
                     placeholder="869..."
-                    className="w-[16ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
+                    className="w-[18ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
                   />
                 </div>
 
@@ -2807,9 +2807,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <input 
                     name="tax_rate" 
                     type="number" 
-                    step="0.1"
+                    step="1"
                     maxLength={2}
                     max={99}
+                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                     defaultValue={editingProduct?.tax_rate !== undefined ? editingProduct.tax_rate : (branding?.default_tax_rate || 20)} 
                     onFocus={(e) => e.target.select()}
                     className="w-[8ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
@@ -3238,7 +3239,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                               <div className="text-xs text-gray-400">{p.barcode}</div>
                             </div>
                             <div className="text-sm font-black text-indigo-600">
-                              {p.price} {p.currency}
+                              {p.price} {p.currency?.slice(0, 3)}
                             </div>
                           </div>
                         </button>
@@ -3296,13 +3297,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KDV %' : 'Tax %'}</label>
                             <input 
                               type="number" 
+                              step="1"
                               value={item.tax_rate === 0 ? '' : item.tax_rate}
                               onChange={(e) => {
-                                const tax = parseFloat(e.target.value) || 0;
+                                const tax = parseInt(e.target.value) || 0;
                                 const newItems = [...quotationItems];
                                 newItems[idx] = { ...newItems[idx], tax_rate: tax };
                                 setQuotationItems(newItems);
                               }}
+                              onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                               onFocus={(e) => e.target.select()}
                               maxLength={2}
                               max={99}
@@ -3417,9 +3420,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KDV %' : 'Tax %'}</label>
                       <input 
                         type="number"
+                        step="1"
                         required
                         value={quickProductForm.tax_rate}
                         onChange={(e) => setQuickProductForm({ ...quickProductForm, tax_rate: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                         onFocus={(e) => e.target.select()}
                         maxLength={2}
                         max={99}
@@ -3432,7 +3437,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         value={quickProductForm.barcode}
                         onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
                         maxLength={13}
-                        className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                        className="w-[18ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                       />
                     </div>
                   </div>
