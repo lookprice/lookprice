@@ -138,6 +138,11 @@ async function startServer() {
           let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
           
           // Inject process.env into the head
+          console.log("Injecting API Keys into HTML (Dev):", {
+            GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+            API_KEY: !!process.env.API_KEY,
+            allKeys: Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GEMINI"))
+          });
           const injection = `<script>
             globalThis.process = globalThis.process || { env: {} };
             globalThis.process.env = globalThis.process.env || {};
@@ -177,6 +182,10 @@ async function startServer() {
         let template = fs.readFileSync(indexPath, "utf-8");
         
         // Inject process.env into the head
+        console.log("Injecting API Keys into HTML (Prod):", {
+          GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+          API_KEY: !!process.env.API_KEY
+        });
         const injection = `<script>
           globalThis.process = globalThis.process || { env: {} };
           globalThis.process.env = globalThis.process.env || {};

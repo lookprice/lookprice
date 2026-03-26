@@ -99,12 +99,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const key = (
       globalThis.process?.env?.API_KEY ||
       globalThis.process?.env?.GEMINI_API_KEY ||
+      (window as any).process?.env?.API_KEY ||
+      (window as any).process?.env?.GEMINI_API_KEY ||
       (import.meta as any).env?.VITE_API_KEY || 
-      (import.meta as any).env?.VITE_GEMINI_API_KEY
+      (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+      (window as any).API_KEY ||
+      (window as any).GEMINI_API_KEY
     );
     
     // If the key is literally "AI Studio Free Tier", it's a placeholder
-    if (key === "AI Studio Free Tier" || !key) return undefined;
+    if (key === "AI Studio Free Tier" || !key || key === "undefined" || key === "null") return undefined;
     
     return key;
   }, []);
@@ -574,8 +578,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
       if (!apiKey) {
         console.error("Bulk enrich: API Key not found. Env check:", {
-          processEnv: globalThis.process?.env,
-          importMetaEnv: (import.meta as any).env
+          processEnvKeys: globalThis.process?.env ? Object.keys(globalThis.process.env) : "null",
+          importMetaEnvKeys: (import.meta as any).env ? Object.keys((import.meta as any).env) : "null",
+          windowKeys: Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"))
         });
         throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
       }
@@ -668,8 +673,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
       if (!apiKey) {
         console.error("Single enrich: API Key not found. Env check:", {
-          processEnv: globalThis.process?.env,
-          importMetaEnv: (import.meta as any).env
+          processEnvKeys: globalThis.process?.env ? Object.keys(globalThis.process.env) : "null",
+          importMetaEnvKeys: (import.meta as any).env ? Object.keys((import.meta as any).env) : "null",
+          windowKeys: Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"))
         });
         throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
       }
