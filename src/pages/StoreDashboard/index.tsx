@@ -97,18 +97,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     // We check globalThis.process explicitly to ensure we get the most up-to-date value
     // especially after aistudio.openSelectKey()
     const key = (
-      globalThis.process?.env?.API_KEY ||
       globalThis.process?.env?.GEMINI_API_KEY ||
-      (window as any).process?.env?.API_KEY ||
+      globalThis.process?.env?.API_KEY ||
+      globalThis.process?.env?.VITE_GEMINI_API_KEY ||
+      globalThis.process?.env?.VITE_API_KEY ||
       (window as any).process?.env?.GEMINI_API_KEY ||
-      (import.meta as any).env?.VITE_API_KEY || 
-      (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+      (window as any).process?.env?.API_KEY ||
+      (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+      (import.meta as any).env?.VITE_API_KEY ||
+      (window as any).GEMINI_API_KEY ||
       (window as any).API_KEY ||
-      (window as any).GEMINI_API_KEY
+      (window as any)._env_?.GEMINI_API_KEY ||
+      (window as any)._env_?.API_KEY
     );
     
     // If the key is literally "AI Studio Free Tier", it's a placeholder
-    if (key === "AI Studio Free Tier" || !key || key === "undefined" || key === "null") return undefined;
+    if (key === "AI Studio Free Tier" || !key || key === "undefined" || key === "null" || key === "") return undefined;
     
     return key;
   }, []);
@@ -577,10 +581,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
 
       if (!apiKey) {
-        console.error("Bulk enrich: API Key not found. Env check:", {
-          processEnvKeys: globalThis.process?.env ? Object.keys(globalThis.process.env) : "null",
-          importMetaEnvKeys: (import.meta as any).env ? Object.keys((import.meta as any).env) : "null",
-          windowKeys: Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"))
+        const pEnv = globalThis.process?.env || {};
+        const imEnv = (import.meta as any).env || {};
+        const wKeys = Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"));
+        
+        console.error("Bulk enrich: API Key not found. Detailed Env check:", {
+          processEnv: Object.keys(pEnv).reduce((acc, key) => ({ ...acc, [key]: (pEnv as any)[key] ? "SET" : "EMPTY" }), {}),
+          importMetaEnv: Object.keys(imEnv).reduce((acc, key) => ({ ...acc, [key]: (imEnv as any)[key] ? "SET" : "EMPTY" }), {}),
+          windowKeys: wKeys.reduce((acc, key) => ({ ...acc, [key]: (window as any)[key] ? "SET" : "EMPTY" }), {})
         });
         throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
       }
@@ -672,10 +680,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
 
       if (!apiKey) {
-        console.error("Single enrich: API Key not found. Env check:", {
-          processEnvKeys: globalThis.process?.env ? Object.keys(globalThis.process.env) : "null",
-          importMetaEnvKeys: (import.meta as any).env ? Object.keys((import.meta as any).env) : "null",
-          windowKeys: Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"))
+        const pEnv = globalThis.process?.env || {};
+        const imEnv = (import.meta as any).env || {};
+        const wKeys = Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"));
+        
+        console.error("Single enrich: API Key not found. Detailed Env check:", {
+          processEnv: Object.keys(pEnv).reduce((acc, key) => ({ ...acc, [key]: (pEnv as any)[key] ? "SET" : "EMPTY" }), {}),
+          importMetaEnv: Object.keys(imEnv).reduce((acc, key) => ({ ...acc, [key]: (imEnv as any)[key] ? "SET" : "EMPTY" }), {}),
+          windowKeys: wKeys.reduce((acc, key) => ({ ...acc, [key]: (window as any)[key] ? "SET" : "EMPTY" }), {})
         });
         throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
       }

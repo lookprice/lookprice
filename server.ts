@@ -137,23 +137,38 @@ async function startServer() {
           const url = req.originalUrl;
           let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
           
-          // Inject process.env into the head
+          // Transform HTML first
+          template = await vite.transformIndexHtml(url, template);
+          
+          // Then inject process.env into the head
+          const envVars = {
+            GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.API_KEY || "",
+            API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
+            VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
+            VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""
+          };
+
           console.log("Injecting API Keys into HTML (Dev):", {
-            GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
-            API_KEY: !!process.env.API_KEY,
+            hasGemini: !!envVars.GEMINI_API_KEY,
+            hasApiKey: !!envVars.API_KEY,
             allKeys: Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GEMINI"))
           });
+
           const injection = `<script>
-            globalThis.process = globalThis.process || { env: {} };
-            globalThis.process.env = globalThis.process.env || {};
-            globalThis.process.env.GEMINI_API_KEY = globalThis.process.env.GEMINI_API_KEY || ${JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || "")};
-            globalThis.process.env.API_KEY = globalThis.process.env.API_KEY || ${JSON.stringify(process.env.API_KEY || process.env.GEMINI_API_KEY || "")};
-            globalThis.process.env.VITE_API_KEY = globalThis.process.env.VITE_API_KEY || ${JSON.stringify(process.env.VITE_API_KEY || process.env.API_KEY || "")};
-            globalThis.process.env.VITE_GEMINI_API_KEY = globalThis.process.env.VITE_GEMINI_API_KEY || ${JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "")};
+            (function() {
+              globalThis.process = globalThis.process || { env: {} };
+              globalThis.process.env = globalThis.process.env || {};
+              const env = ${JSON.stringify(envVars)};
+              Object.keys(env).forEach(key => {
+                if (env[key]) {
+                  globalThis.process.env[key] = globalThis.process.env[key] || env[key];
+                }
+              });
+              console.log("Runtime env injection complete. Keys:", Object.keys(globalThis.process.env));
+            })();
           </script>`;
           template = template.replace("</head>", `${injection}</head>`);
           
-          template = await vite.transformIndexHtml(url, template);
           res.status(200).set({ "Content-Type": "text/html" }).end(template);
         } catch (e: any) {
           vite.ssrFixStacktrace(e);
@@ -182,17 +197,30 @@ async function startServer() {
         let template = fs.readFileSync(indexPath, "utf-8");
         
         // Inject process.env into the head
+        const envVars = {
+          GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.API_KEY || "",
+          API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
+          VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
+          VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""
+        };
+
         console.log("Injecting API Keys into HTML (Prod):", {
-          GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
-          API_KEY: !!process.env.API_KEY
+          hasGemini: !!envVars.GEMINI_API_KEY,
+          hasApiKey: !!envVars.API_KEY,
+          allKeys: Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GEMINI"))
         });
+
         const injection = `<script>
-          globalThis.process = globalThis.process || { env: {} };
-          globalThis.process.env = globalThis.process.env || {};
-          globalThis.process.env.GEMINI_API_KEY = globalThis.process.env.GEMINI_API_KEY || ${JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || "")};
-          globalThis.process.env.API_KEY = globalThis.process.env.API_KEY || ${JSON.stringify(process.env.API_KEY || process.env.GEMINI_API_KEY || "")};
-          globalThis.process.env.VITE_API_KEY = globalThis.process.env.VITE_API_KEY || ${JSON.stringify(process.env.VITE_API_KEY || process.env.API_KEY || "")};
-          globalThis.process.env.VITE_GEMINI_API_KEY = globalThis.process.env.VITE_GEMINI_API_KEY || ${JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "")};
+          (function() {
+            globalThis.process = globalThis.process || { env: {} };
+            globalThis.process.env = globalThis.process.env || {};
+            const env = ${JSON.stringify(envVars)};
+            Object.keys(env).forEach(key => {
+              if (env[key]) {
+                globalThis.process.env[key] = globalThis.process.env[key] || env[key];
+              }
+            });
+          })();
         </script>`;
         template = template.replace("</head>", `${injection}</head>`);
         
