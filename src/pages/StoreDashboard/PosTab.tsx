@@ -52,14 +52,14 @@ const PosTab = ({
               <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2 py-2 shadow-sm focus-within:ring-4 focus-within:ring-slate-500/5 focus-within:border-slate-400 transition-all">
                 <input 
                   type="date" 
-                  className="bg-transparent border-none p-1 text-xs font-semibold text-slate-900 focus:ring-0 outline-none w-full"
+                  className="bg-transparent border-none p-1 text-xs font-semibold text-slate-900 focus:ring-0 outline-none w-[16ch]"
                   value={startDate}
                   onChange={(e) => onStartDateChange(e.target.value)}
                 />
                 <span className="text-slate-300 font-bold mx-1">-</span>
                 <input 
                   type="date" 
-                  className="bg-transparent border-none p-1 text-xs font-semibold text-slate-900 focus:ring-0 outline-none w-full"
+                  className="bg-transparent border-none p-1 text-xs font-semibold text-slate-900 focus:ring-0 outline-none w-[16ch]"
                   value={endDate}
                   onChange={(e) => onEndDateChange(e.target.value)}
                 />
@@ -130,7 +130,7 @@ const PosTab = ({
                       <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">#{s.id}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-semibold text-slate-900">{new Date(s.created_at).toLocaleDateString('tr-TR')}</div>
+                      <div className="text-sm font-semibold text-slate-900">{new Date(s.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                       <div className="text-[10px] text-slate-400 font-medium">{new Date(s.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-500">
@@ -138,7 +138,7 @@ const PosTab = ({
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-900">
-                        {Number(s.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{s.currency}</span>
+                        {Number(s.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(s.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold tracking-tight flex items-center mt-0.5">
                         <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[s.payment_method] || s.payment_method}
@@ -201,12 +201,12 @@ const PosTab = ({
                     <div className="text-base font-bold text-slate-900 leading-tight">{s.customer_name || (lang === 'tr' ? 'İsimsiz Müşteri' : 'Unnamed Customer')}</div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center">
                       <Clock className="h-3 w-3 mr-1" />
-                      {new Date(s.created_at).toLocaleDateString('tr-TR')} • {new Date(s.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(s.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })} • {new Date(s.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                   <div className="text-right space-y-2">
                     <div className="text-base font-bold text-slate-900 tabular-nums">
-                      {Number(s.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium">{s.currency}</span>
+                      {Number(s.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium">{(s.currency || 'TRY').substring(0, 3)}</span>
                     </div>
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
                       s.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 

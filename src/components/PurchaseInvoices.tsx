@@ -459,7 +459,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="w-[16ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
             />
           </div>
           <div className="w-full md:w-44 space-y-1.5">
@@ -468,7 +468,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="w-[16ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
             />
           </div>
           <button 
@@ -668,7 +668,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         required
                         value={invoiceDate}
                         onChange={(e) => setInvoiceDate(e.target.value)}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                        className="w-[16ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -679,7 +679,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                       <select
                         value={currency}
                         onChange={(e) => setCurrency(e.target.value)}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                        className="w-[10ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                       >
                         <option value="TRY">TRY</option>
                         <option value="USD">USD</option>
@@ -803,7 +803,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                         value={item.tax_rate}
                                         onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
                                         onFocus={(e) => e.target.select()}
-                                        className="w-full px-2 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                        maxLength={2}
+                                        max={99}
+                                        className="w-[8ch] px-2 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                       />
                                       <datalist id="tax-rates">
                                         <option value="0" />
@@ -885,7 +887,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                     value={item.tax_rate}
                                     onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
                                     onFocus={(e) => e.target.select()}
-                                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    maxLength={2}
+                                    max={99}
+                                    className="w-[8ch] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                                   />
                                   <datalist id="tax-rates-mobile">
                                     <option value="0" />

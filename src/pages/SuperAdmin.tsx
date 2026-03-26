@@ -974,7 +974,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700">{st.subscriptionEndDate}</label>
-                  <input type="date" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.subscription_end} onChange={e => setNewStore({...newStore, subscription_end: e.target.value})} />
+                  <input type="date" required className="mt-1 block w-[16ch] p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.subscription_end} onChange={e => setNewStore({...newStore, subscription_end: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

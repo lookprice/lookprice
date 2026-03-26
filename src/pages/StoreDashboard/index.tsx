@@ -1805,24 +1805,36 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">{lang === 'tr' ? 'Satış Detayı' : 'Sale Details'}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">#{selectedSale.id} • {new Date(selectedSale.created_at).toLocaleString('tr-TR')}</p>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    #{selectedSale.id} • {new Date(selectedSale.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </p>
                 </div>
                 <button onClick={() => setShowSaleDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                   <X className="h-5 w-5 text-gray-400" />
                 </button>
               </div>
               <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-gray-50 rounded-2xl">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t.customer}</p>
-                    <p className="font-bold text-gray-900">{selectedSale.customer_name || "-"}</p>
+                    <p className="font-bold text-gray-900 truncate">{selectedSale.customer_name || "-"}</p>
                     {selectedSale.customer_phone && (
                       <p className="text-xs text-gray-500 mt-1 font-medium">{selectedSale.customer_phone}</p>
                     )}
                   </div>
                   <div className="p-4 bg-indigo-50 rounded-2xl">
                     <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t.amount}</p>
-                    <p className="text-xl font-black text-indigo-600">{Number(selectedSale.total_amount).toLocaleString('tr-TR')} {selectedSale.currency}</p>
+                    <p className="text-xl font-black text-indigo-600">{Number(selectedSale.total_amount).toLocaleString('tr-TR')} {selectedSale.currency?.substring(0, 3)}</p>
+                  </div>
+                  <div className="p-4 bg-emerald-50 rounded-2xl">
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{t.paymentMethod || 'Ödeme Şekli'}</p>
+                    <p className="font-bold text-emerald-600 uppercase text-xs">
+                      {selectedSale.payment_method === 'cash' ? (lang === 'tr' ? 'Nakit' : 'Cash') :
+                       selectedSale.payment_method === 'credit_card' ? (lang === 'tr' ? 'Kredi Kartı' : 'Credit Card') :
+                       selectedSale.payment_method === 'bank' ? (lang === 'tr' ? 'Havale/EFT' : 'Bank Transfer') :
+                       selectedSale.payment_method === 'term' ? (lang === 'tr' ? 'Vadeli' : 'Term') :
+                       selectedSale.payment_method || '-'}
+                    </p>
                   </div>
                 </div>
 
@@ -1858,7 +1870,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <tr key={idx}>
                             <td className="px-4 py-3 text-gray-900">
                               <div className="font-bold">{item.product_name}</div>
-                              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{item.barcode || `#${item.product_id}`}</div>
+                              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                                {item.barcode ? item.barcode.toString().padStart(13, '0').slice(-13) : `#${item.product_id}`}
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-center">
                               {selectedSale.status === 'pending' ? (
@@ -1885,10 +1899,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                       onChange={(e) => handleUpdateSaleItem(idx, 'unit_price', e.target.value)}
                                       onFocus={(e) => e.target.select()}
                                     />
-                                    <span className="text-[10px] font-bold text-gray-400">{item.currency || selectedSale.currency}</span>
+                                    <span className="text-[10px] font-bold text-gray-400">{item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
                                   </div>
                                   <div className="text-[10px] font-black text-gray-900">
-                                    {t.total}: {Number(item.total_price).toLocaleString('tr-TR')} {item.currency || selectedSale.currency}
+                                    {t.total}: {Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}
                                   </div>
                                   <button 
                                     onClick={() => handleRemoveSaleItem(idx)}
@@ -1898,7 +1912,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                   </button>
                                 </div>
                               ) : (
-                                <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {item.currency || selectedSale.currency}</span>
+                                <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
                               )}
                             </td>
                           </tr>
@@ -1914,7 +1928,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-bold text-gray-900 leading-tight">{item.product_name}</div>
-                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{item.barcode || `#${item.product_id}`}</div>
+                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                              {item.barcode ? item.barcode.toString().padStart(13, '0').slice(-13) : `#${item.product_id}`}
+                            </div>
                           </div>
                           {selectedSale.status === 'pending' && (
                             <button 
@@ -1953,16 +1969,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                   onChange={(e) => handleUpdateSaleItem(idx, 'unit_price', e.target.value)}
                                   onFocus={(e) => e.target.select()}
                                 />
-                                <span className="text-[10px] font-bold text-gray-400">{item.currency || selectedSale.currency}</span>
+                                <span className="text-[10px] font-bold text-gray-400">{item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
                               </div>
                             ) : (
-                              <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {item.currency || selectedSale.currency}</span>
+                              <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
                             )}
                           </div>
                         </div>
                         {selectedSale.status === 'pending' && (
                           <div className="text-right text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                            {t.total}: {Number(item.total_price).toLocaleString('tr-TR')} {item.currency || selectedSale.currency}
+                            {t.total}: {Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}
                           </div>
                         )}
                       </div>
@@ -1970,12 +1986,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                 </div>
 
-                {selectedSale.notes && (
-                  <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">{t.notes}</p>
-                    <p className="text-sm text-orange-700">{selectedSale.notes}</p>
-                  </div>
-                )}
+                {/* Removed duplicate notes block */}
 
                 {selectedSale.status === 'pending' && !isViewer && (
                   <div className="p-4 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
@@ -2167,7 +2178,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       type="date" 
                       value={reportStartDate} 
                       onChange={(e) => setReportStartDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                      className="w-[16ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                     />
                   </div>
                   <div className="space-y-1">
@@ -2176,7 +2187,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       type="date" 
                       value={reportEndDate} 
                       onChange={(e) => setReportEndDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                      className="w-[16ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                     />
                   </div>
                   <button 
@@ -2277,7 +2288,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     type="date" 
                     value={transactionStartDate}
                     onChange={(e) => setTransactionStartDate(e.target.value)}
-                    className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-[16ch] px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -2286,7 +2297,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     type="date" 
                     value={transactionEndDate}
                     onChange={(e) => setTransactionEndDate(e.target.value)}
-                    className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-[16ch] px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
                 <button 
@@ -2533,7 +2544,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     required 
                     value={newTransactionDate}
                     onChange={(e) => setNewTransactionDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                    className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                   />
                 </div>
 
@@ -2608,7 +2619,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <input 
                       type="date" 
                       required 
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
+                      className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
                     />
@@ -2689,9 +2700,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <input 
                     name="barcode" 
                     required 
+                    maxLength={13}
                     defaultValue={editingProduct?.barcode} 
                     placeholder="869..."
-                    className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
+                    className="w-[16ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
                   />
                 </div>
 
@@ -2751,7 +2763,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <select 
                       name="currency" 
                       defaultValue={editingProduct?.currency || branding.default_currency} 
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                      className="w-[10ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
                     >
                       <option value="TRY">TRY</option>
                       <option value="USD">USD</option>
@@ -2779,7 +2791,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <select 
                       name="cost_currency" 
                       defaultValue={editingProduct?.cost_currency || branding.default_currency} 
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                      className="w-[10ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
                     >
                       <option value="TRY">TRY</option>
                       <option value="USD">USD</option>
@@ -2796,9 +2808,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     name="tax_rate" 
                     type="number" 
                     step="0.1"
+                    maxLength={2}
+                    max={99}
                     defaultValue={editingProduct?.tax_rate !== undefined ? editingProduct.tax_rate : (branding?.default_tax_rate || 20)} 
                     onFocus={(e) => e.target.select()}
-                    className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
+                    className="w-[8ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
                   />
                 </div>
 
@@ -3290,6 +3304,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                 setQuotationItems(newItems);
                               }}
                               onFocus={(e) => e.target.select()}
+                              maxLength={2}
+                              max={99}
                               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-indigo-500 transition-all" 
                             />
                           </div>
@@ -3405,7 +3421,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         value={quickProductForm.tax_rate}
                         onChange={(e) => setQuickProductForm({ ...quickProductForm, tax_rate: e.target.value })}
                         onFocus={(e) => e.target.select()}
-                        className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
+                        maxLength={2}
+                        max={99}
+                        className="w-[8ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
                       />
                     </div>
                     <div className="space-y-1">
@@ -3413,7 +3431,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <input 
                         value={quickProductForm.barcode}
                         onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                        maxLength={13}
+                        className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                       />
                     </div>
                   </div>

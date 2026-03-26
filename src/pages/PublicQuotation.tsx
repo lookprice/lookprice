@@ -487,7 +487,7 @@ const PublicQuotation = () => {
                           value={dueDate}
                           onChange={(e) => setDueDate(e.target.value)}
                           required
-                          className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
+                          className="w-[16ch] px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
                         />
                       </div>
                     )}
