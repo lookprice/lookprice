@@ -555,6 +555,11 @@ export const translations = {
       subscriptionEnd: "Abonelik Bitişi",
       cancel: "İptal",
       register: "Kaydet",
+      activeStores: "Aktif Mağazalar",
+      newRequests: "Yeni Talepler",
+      totalStores: "Toplam Mağaza",
+      newLeads: "Yeni Satış Fırsatları",
+      registrationRequests: "Mağaza Başvuruları"
     }
   },
   en: {
@@ -1115,6 +1120,11 @@ export const translations = {
       subscriptionEnd: "Subscription End",
       cancel: "Cancel",
       register: "Register",
+      activeStores: "Active Stores",
+      newRequests: "New Requests",
+      totalStores: "Total Stores",
+      newLeads: "New Sales Leads",
+      registrationRequests: "Store Applications"
     }
   },
   de: {

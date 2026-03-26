@@ -11,8 +11,18 @@ import {
   LogOut,
   TrendingUp,
   Package,
-  Scan
+  Scan,
+  Users,
+  Database,
+  Activity,
+  Clock,
+  Filter,
+  Download,
+  FileSpreadsheet,
+  Mail,
+  Phone
 } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -21,9 +31,10 @@ import { DEVELOPED_COUNTRIES } from "../constants";
 
 interface SuperAdminDashboardProps {
   token: string;
+  onLogout: () => void;
 }
 
-export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps) {
+export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashboardProps) {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const st = translations[lang].superAdmin;
@@ -46,6 +57,48 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
   const [deletePassword, setDeletePassword] = useState("");
   const [storeSearchTerm, setStoreSearchTerm] = useState("");
   const [leadSearchTerm, setLeadSearchTerm] = useState("");
+  const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [leadFilter, setLeadFilter] = useState<'all' | 'new' | 'contacted' | 'converted'>('all');
+
+  const exportStoresToExcel = () => {
+    const exportData = stores.map(s => ({
+      'Mağaza Adı': s.name,
+      'Slug': s.slug,
+      'Admin Email': s.admin_email,
+      'İletişim Kişisi': s.contact_person || 'N/A',
+      'Telefon': s.phone || 'N/A',
+      'Email': s.email || 'N/A',
+      'Adres': s.address || 'N/A',
+      'Ülke': s.country,
+      'Plan': s.plan,
+      'Bitiş Tarihi': new Date(s.subscription_end).toLocaleDateString(),
+      'Durum': new Date(s.subscription_end) > new Date() ? 'Aktif' : 'Süresi Dolmuş'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Mağazalar");
+    XLSX.writeFile(wb, "magazalar_listesi.xlsx");
+  };
+
+  const filteredStores = stores.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
+      s.slug.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
+      s.email?.toLowerCase().includes(storeSearchTerm.toLowerCase());
+    const matchesFilter = storeFilter === 'all' || 
+      (storeFilter === 'active' && new Date(s.subscription_end) > new Date()) ||
+      (storeFilter === 'expired' && new Date(s.subscription_end) <= new Date());
+    return matchesSearch && matchesFilter;
+  });
+
+  const filteredLeads = leads.filter(l => {
+    const matchesSearch = l.store_name.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
+      l.company_title?.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
+      l.email?.toLowerCase().includes(leadSearchTerm.toLowerCase());
+    const matchesFilter = leadFilter === 'all' || l.status === leadFilter;
+    return matchesSearch && matchesFilter;
+  });
+
   const [newStore, setNewStore] = useState({
     name: "",
     slug: "",
@@ -180,17 +233,6 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
     }
   };
 
-  const filteredStores = stores.filter(s => 
-    s.name.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
-    s.slug.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
-    s.email?.toLowerCase().includes(storeSearchTerm.toLowerCase())
-  );
-
-  const filteredLeads = leads.filter(l =>
-    l.store_name.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
-    l.company_title?.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
-    l.email?.toLowerCase().includes(leadSearchTerm.toLowerCase())
-  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -199,51 +241,80 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Süper Admin Paneli</h1>
           <p className="text-sm text-gray-500 font-medium mt-0.5">Sistemdeki tüm mağazaları ve talepleri yönetin</p>
         </div>
-        <button 
-          onClick={() => setShowAdd(true)}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm flex items-center text-sm"
-        >
-          <Plus className="mr-2 h-4 w-4" /> {st.registerNewStore}
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={onLogout}
+            className="text-rose-600 px-4 py-2.5 rounded-xl font-bold hover:bg-rose-50 transition-all flex items-center text-sm border border-rose-100"
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Çıkış Yap
+          </button>
+          <button 
+            onClick={() => setShowAdd(true)}
+            className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm flex items-center text-sm"
+          >
+            <Plus className="mr-2 h-4 w-4" /> {st.registerNewStore}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
-            <Store className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Aktif Mağazalar</p>
-            <h3 className="text-xl font-bold text-gray-900">{stats.activeStores} / {stats.totalStores}</h3>
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
-            <TrendingUp className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Yeni Talepler</p>
-            <h3 className="text-xl font-bold text-gray-900">{leads.filter(l => l.status === 'new').length}</h3>
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="p-2.5 bg-orange-50 rounded-xl text-orange-600">
-            <Scan className="h-5 w-5" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Toplam Tarama</p>
-              <span className="text-[9px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
-                +{stats.scansLast24h} Bugün
-              </span>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-indigo-50 rounded-lg">
+              <Store className="h-5 w-5 text-indigo-600" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900">{stats.totalScans.toLocaleString('tr-TR')}</h3>
+            <TrendingUp className="h-4 w-4 text-green-500" />
           </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.activeStores}</p>
+          <p className="text-2xl font-bold text-gray-900">{stores.filter(s => new Date(s.subscription_end) > new Date()).length}</p>
+        </div>
+
+        <div 
+          onClick={() => {
+            const el = document.getElementById('requests-section');
+            el?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:border-amber-300 transition-all"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <Plus className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.registrationRequests}</p>
+          <p className="text-2xl font-bold text-gray-900">{registrationRequests.length}</p>
+        </div>
+
+        <div 
+          onClick={() => {
+            const el = document.getElementById('leads-section');
+            el?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:border-emerald-300 transition-all"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-emerald-50 rounded-lg">
+              <Users className="h-5 w-5 text-emerald-600" />
+            </div>
+          </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.newLeads}</p>
+          <p className="text-2xl font-bold text-gray-900">{leads.filter(l => l.status === 'new').length}</p>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-purple-50 rounded-lg">
+              <Database className="h-5 w-5 text-purple-600" />
+            </div>
+          </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.totalStores}</p>
+          <p className="text-2xl font-bold text-gray-900">{stores.length}</p>
         </div>
       </div>
 
       <div className="space-y-8">
-        <section>
+        <section id="requests-section">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center">
               <Plus className="mr-2 h-5 w-5 text-indigo-600" /> Mağaza Başvuruları
@@ -316,128 +387,69 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
           </div>
         </section>
 
-        <section>
+        <section id="leads-section" className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center">
-              <TrendingUp className="mr-2 h-5 w-5 text-indigo-600" /> Gelen Talepler
+              <Users className="mr-2 h-5 w-5 text-indigo-600" /> {st.newRequests}
             </h2>
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-              <input 
-                type="text"
-                placeholder={lang === 'tr' ? "Talep ara..." : "Search leads..."}
-                className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 transition-all"
-                value={leadSearchTerm}
-                onChange={(e) => setLeadSearchTerm(e.target.value)}
-              />
+            <div className="flex items-center space-x-2">
+              <select 
+                value={leadFilter}
+                onChange={(e) => setLeadFilter(e.target.value as any)}
+                className="text-xs border-gray-200 rounded-lg bg-white p-1.5 focus:ring-indigo-500"
+              >
+                <option value="all">Tüm Talepler</option>
+                <option value="new">Yeni</option>
+                <option value="contacted">İletişime Geçildi</option>
+                <option value="converted">Tamamlandı</option>
+              </select>
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.customerStore}</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.contact}</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.status}</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.probability}</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.date}</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{st.action}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredLeads.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm font-medium">{st.noLeads}</td>
-                    </tr>
-                  ) : (
-                    filteredLeads.map((l) => (
-                      <tr key={l.id} className="hover:bg-gray-50/50 transition-colors group">
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-gray-900 text-sm">{l.store_name}</div>
-                          <div className="text-[10px] text-gray-400">{l.company_title}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-xs text-gray-900">{l.email}</div>
-                          <div className="text-[10px] text-gray-400">{l.phone}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                            l.status === 'new' ? 'bg-indigo-100 text-indigo-700' :
-                            l.status === 'contacted' ? 'bg-orange-100 text-orange-700' :
-                            l.status === 'demo' ? 'bg-blue-100 text-blue-700' :
-                            l.status === 'sold' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {l.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full ${
-                                l.probability > 70 ? 'bg-green-500' :
-                                l.probability > 30 ? 'bg-orange-500' : 'bg-red-500'
-                              }`}
-                              style={{ width: `${l.probability}%` }}
-                            />
-                          </div>
-                          <span className="text-[9px] font-bold text-gray-400 mt-0.5 block">%{l.probability}</span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">
-                          {new Date(l.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button 
-                            onClick={() => setSelectedLead(l)}
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Leads List */}
-            <div className="md:hidden divide-y divide-gray-50">
-              {filteredLeads.length === 0 ? (
-                <div className="px-6 py-12 text-center text-gray-500 font-medium">{st.noLeads}</div>
-              ) : (
-                filteredLeads.map((l) => (
-                  <div key={l.id} className="p-6 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-gray-900">{l.store_name}</div>
-                        <div className="text-xs text-gray-400">{l.company_title}</div>
-                      </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        l.status === 'new' ? 'bg-indigo-100 text-indigo-700' :
-                        l.status === 'contacted' ? 'bg-orange-100 text-orange-700' :
-                        l.status === 'demo' ? 'bg-blue-100 text-blue-700' :
-                        l.status === 'sold' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {l.status}
-                      </span>
+          
+          <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+            <div className="flex space-x-4 min-w-max md:min-w-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-x-0">
+              {filteredLeads.map((lead) => (
+                <div key={lead.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 w-[280px] md:w-auto relative overflow-hidden group">
+                  <div className={`absolute top-0 left-0 w-1 h-full ${
+                    lead.probability > 70 ? 'bg-red-500' : lead.probability > 40 ? 'bg-orange-500' : 'bg-blue-500'
+                  }`} />
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-bold text-sm text-gray-900 line-clamp-1">{lead.store_name}</h3>
+                      <p className="text-[10px] text-gray-500">{lead.contact_name}</p>
                     </div>
-                    <div className="flex justify-between items-end">
-                      <div className="text-xs text-gray-500 space-y-1">
-                        <div>{l.email}</div>
-                        <div>{l.phone}</div>
-                        <div className="pt-1">{new Date(l.created_at).toLocaleDateString()}</div>
-                      </div>
-                      <button 
-                        onClick={() => setSelectedLead(l)}
-                        className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm"
-                      >
-                        Yönet
-                      </button>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                      lead.status === 'new' ? 'bg-blue-50 text-blue-600' :
+                      lead.status === 'contacted' ? 'bg-amber-50 text-amber-600' :
+                      'bg-emerald-50 text-emerald-600'
+                    }`}>
+                      {lead.status === 'new' ? 'Yeni' : lead.status === 'contacted' ? 'İletişim' : 'Tamam'}
+                    </span>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-[10px] text-gray-500">
+                      <Phone className="h-3 w-3 mr-1.5" /> {lead.phone}
+                    </div>
+                    <div className="flex items-center text-[10px] text-gray-500">
+                      <Mail className="h-3 w-3 mr-1.5" /> {lead.email}
                     </div>
                   </div>
-                ))
-              )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-gray-400 uppercase font-bold">Olasılık</span>
+                      <span className={`text-xs font-bold ${
+                        lead.probability > 70 ? 'text-red-600' : lead.probability > 40 ? 'text-orange-600' : 'text-blue-600'
+                      }`}>{lead.probability}%</span>
+                    </div>
+                    <button 
+                      onClick={() => setSelectedLead(lead)}
+                      className="p-2 bg-gray-50 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -445,159 +457,127 @@ export default function SuperAdminDashboard({ token }: SuperAdminDashboardProps)
         <section>
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center">
-              <Store className="mr-2 h-5 w-5 text-indigo-600" /> Mağazalar
+              <Store className="mr-2 h-5 w-5 text-indigo-600" /> {st.allStores}
             </h2>
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-              <input 
-                type="text"
-                placeholder={lang === 'tr' ? "Mağaza ara..." : "Search stores..."}
-                className="w-full pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 transition-all"
-                value={storeSearchTerm}
-                onChange={(e) => setStoreSearchTerm(e.target.value)}
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 md:flex-none">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder={st.searchStore}
+                  className="w-full md:w-64 pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                  value={storeSearchTerm}
+                  onChange={e => setStoreSearchTerm(e.target.value)}
+                />
+              </div>
+              <select 
+                value={storeFilter}
+                onChange={(e) => setStoreFilter(e.target.value as any)}
+                className="text-sm border-gray-200 rounded-xl bg-white px-3 py-2 focus:ring-indigo-500 shadow-sm"
+              >
+                <option value="all">Tüm Durumlar</option>
+                <option value="active">Aktif</option>
+                <option value="expired">Süresi Dolan</option>
+              </select>
+              <button 
+                onClick={exportStoresToExcel}
+                className="p-2 bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 rounded-xl transition-all shadow-sm flex items-center gap-2 text-sm font-medium"
+                title="Excel'e Aktar"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span className="hidden md:inline">Dışarı Aktar</span>
+              </button>
+              <button 
+                onClick={() => setShowAdd(true)}
+                className="flex items-center justify-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>{st.addStore}</span>
+              </button>
             </div>
           </div>
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredStores.map((s) => (
-              <motion.div 
-                key={s.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group relative"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="h-9 w-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                    <Store className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => setEditingStore(s)}
-                      className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => setStoreToDelete(s)}
-                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                
-                <h3 className="text-sm font-bold text-gray-900 truncate">{s.name}</h3>
-                <p className="text-[10px] text-gray-400 font-medium mb-3 truncate">/{s.slug}</p>
-                
-                <div className="space-y-1.5 mb-4 border-t border-gray-50 pt-3">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-gray-400">Ürün</span>
-                    <span className="font-bold text-gray-900">{s.product_count || 0}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-gray-400">Plan</span>
-                    <span className={`font-bold uppercase tracking-wider text-[8px] px-1.5 py-0.5 rounded-full ${
-                      s.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
-                      s.plan === 'pro' ? 'bg-indigo-100 text-indigo-700' :
-                      s.plan === 'basic' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {s.plan || 'free'}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    onClick={() => setSelectedStore(s)}
-                    className="bg-gray-50 text-gray-600 py-1.5 rounded-lg font-bold hover:bg-indigo-50 hover:text-indigo-600 transition-all text-[10px]"
-                  >
-                    Detay
-                  </button>
-                  <button 
-                    onClick={() => window.open(`/dashboard/${s.slug}`, '_blank')}
-                    className="bg-indigo-50 text-indigo-600 py-1.5 rounded-lg font-bold hover:bg-indigo-100 transition-all text-[10px]"
-                  >
-                    Panel
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-            {/* Mobile Stores List */}
-          <div className="md:hidden space-y-3">
-            {filteredStores.length === 0 ? (
-              <div className="bg-white p-8 text-center text-gray-500 text-sm font-medium rounded-2xl border border-gray-100 shadow-sm">
-                Mağaza bulunamadı.
-              </div>
-            ) : (
-              filteredStores.map((s) => (
-                <motion.div 
-                  key={s.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-2">
-                      <div className="h-8 w-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
-                        <Store className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-sm">{s.name}</h3>
-                        <p className="text-[10px] text-gray-400">/{s.slug}</p>
-                      </div>
-                    </div>
-                    <div className="flex space-x-1">
-                      <button 
-                        onClick={() => setEditingStore(s)}
-                        className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg active:scale-90 transition-all"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button 
-                        onClick={() => setStoreToDelete(s)}
-                        className="p-1.5 bg-red-50 text-red-600 rounded-lg active:scale-90 transition-all"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 py-2 border-y border-gray-50">
-                    <div>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Ürün</p>
-                      <p className="font-bold text-gray-900 text-xs">{s.product_count || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Plan</p>
-                      <span className={`font-bold uppercase tracking-wider text-[8px] px-1.5 py-0.5 rounded-full ${
-                        s.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
-                        s.plan === 'pro' ? 'bg-indigo-100 text-indigo-700' :
-                        s.plan === 'basic' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {s.plan || 'free'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-2 pt-1">
-                    <button 
-                      onClick={() => setSelectedStore(s)}
-                      className="flex-1 bg-gray-50 text-gray-600 py-2 rounded-lg font-bold text-xs"
-                    >
-                      Detay
-                    </button>
-                    <button 
-                      onClick={() => window.open(`/dashboard/${s.slug}`, '_blank')}
-                      className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-xs"
-                    >
-                      Panel
-                    </button>
-                  </div>
-                </motion.div>
-              ))
-            )}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mağaza</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bitiş Tarihi</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Durum</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">İşlemler</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredStores.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500 text-sm font-medium">Mağaza bulunamadı.</td>
+                    </tr>
+                  ) : (
+                    filteredStores.map((store) => {
+                      const isExpired = new Date(store.subscription_end) <= new Date();
+                      return (
+                        <tr key={store.id} className="hover:bg-gray-50/50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg mr-3">
+                                {store.name[0]}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm text-gray-900">{store.name}</p>
+                                <p className="text-[10px] text-gray-400 font-mono">{store.slug}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-xs font-medium text-gray-600 capitalize">{store.plan}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center text-xs text-gray-600">
+                              <Clock className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
+                              {new Date(store.subscription_end).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
+                              isExpired ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                            }`}>
+                              {isExpired ? 'Süresi Doldu' : 'Aktif'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => setSelectedStore(store)}
+                                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                title={st.viewDetails}
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => setEditingStore(store)}
+                                className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                title={st.edit}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => setStoreToDelete(store)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                title={st.delete}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </div>

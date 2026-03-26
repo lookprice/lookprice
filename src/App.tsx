@@ -115,19 +115,13 @@ export default function App() {
           {/* Protected Routes */}
           <Route path="/dashboard/:slug?" element={
             token && user ? (
-              <>
-                <Navbar user={user} onLogout={handleLogout} />
-                <StoreDashboard user={user} onLogout={handleLogout} />
-              </>
+              <StoreDashboard user={user} onLogout={handleLogout} />
             ) : <Navigate to="/login" />
           } />
 
           <Route path="/admin" element={
             token && user?.role === 'superadmin' ? (
-              <>
-                <Navbar user={user} onLogout={handleLogout} />
-                <SuperAdminDashboard token={token} />
-              </>
+              <SuperAdminDashboard token={token} onLogout={handleLogout} />
             ) : <Navigate to="/login" />
           } />
 

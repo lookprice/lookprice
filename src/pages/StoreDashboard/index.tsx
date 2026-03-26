@@ -47,14 +47,12 @@ import {
   Copy,
   Check,
   Activity,
-  Sparkles,
   ImageIcon,
   Tag,
   Key,
   Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { GoogleGenAI, Type } from "@google/genai";
 import { translations } from "../../translations";
 import PurchaseInvoices from "../../components/PurchaseInvoices";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -87,62 +85,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showDescription, setShowDescription] = useState(false);
-  const [isEnriching, setIsEnriching] = useState(false);
-  const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0 });
-  const [enrichedData, setEnrichedData] = useState<any>(null);
-  const [aiReady, setAiReady] = useState(false);
-
-  const getApiKey = useCallback(() => {
-    // Check all possible sources for the API key
-    // We check globalThis.process explicitly to ensure we get the most up-to-date value
-    // especially after aistudio.openSelectKey()
-    const key = (
-      globalThis.process?.env?.GEMINI_API_KEY ||
-      globalThis.process?.env?.API_KEY ||
-      globalThis.process?.env?.VITE_GEMINI_API_KEY ||
-      globalThis.process?.env?.VITE_API_KEY ||
-      (window as any).process?.env?.GEMINI_API_KEY ||
-      (window as any).process?.env?.API_KEY ||
-      (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-      (import.meta as any).env?.VITE_API_KEY ||
-      (window as any).GEMINI_API_KEY ||
-      (window as any).API_KEY ||
-      (window as any)._env_?.GEMINI_API_KEY ||
-      (window as any)._env_?.API_KEY
-    );
-    
-    // If the key is literally "AI Studio Free Tier", it's a placeholder
-    if (key === "AI Studio Free Tier" || !key || key === "undefined" || key === "null" || key === "") return undefined;
-    
-    return key;
-  }, []);
-
-  useEffect(() => {
-    const checkAi = async () => {
-      if (getApiKey()) {
-        setAiReady(true);
-      } else if ((window as any).aistudio) {
-        try {
-          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-          setAiReady(hasKey);
-        } catch (e) {
-          setAiReady(false);
-        }
-      }
-    };
-    checkAi();
-    window.addEventListener('focus', checkAi);
-    return () => window.removeEventListener('focus', checkAi);
-  }, [getApiKey]);
-
-  const handleConnectAI = async () => {
-    if ((window as any).aistudio) {
-      await (window as any).aistudio.openSelectKey();
-      setAiReady(true);
-    } else {
-      alert(lang === 'tr' ? "AI Studio ortamı algılanamadı." : "AI Studio environment not detected.");
-    }
-  };
   const [showImportModal, setShowImportModal] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -516,7 +458,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
       setShowProductModal(false);
       setEditingProduct(null);
-      setEnrichedData(null);
       setShowDescription(false);
       fetchData();
     } catch (error) {
@@ -545,237 +486,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       } catch (error) {
         alert("Hata oluştu");
       }
-    }
-  };
-
-  const handleBulkEnrichAI = async () => {
-    const productsToEnrich = products.filter(p => !p.description || !p.image_url);
-    if (productsToEnrich.length === 0) {
-      alert(lang === 'tr' ? "Zenginleştirilecek ürün bulunamadı (tüm ürünlerin açıklaması ve görseli var)." : "No products found to enrich (all products have descriptions and images).");
-      return;
-    }
-
-    const confirmBulk = window.confirm(lang === 'tr' 
-      ? `${productsToEnrich.length} ürün AI ile zenginleştirilecek. Bu işlem biraz zaman alabilir. Devam etmek istiyor musunuz?` 
-      : `${productsToEnrich.length} products will be enriched with AI. This may take some time. Do you want to continue?`);
-    
-    if (!confirmBulk) return;
-
-    setIsEnriching(true);
-    setEnrichProgress({ current: 0, total: productsToEnrich.length });
-
-    try {
-      let apiKey = getApiKey();
-      
-      // AI Studio specific key selection
-      if (!apiKey && (window as any).aistudio) {
-        try {
-          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-          if (!hasKey) {
-            await (window as any).aistudio.openSelectKey();
-          }
-          apiKey = getApiKey();
-        } catch (e) {
-          console.warn("AI Studio key selection failed:", e);
-        }
-      }
-
-      if (!apiKey) {
-        const pEnv = globalThis.process?.env || {};
-        const imEnv = (import.meta as any).env || {};
-        const wKeys = Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"));
-        
-        console.error("Bulk enrich: API Key not found. Detailed Env check:", {
-          processEnv: Object.keys(pEnv).reduce((acc, key) => ({ ...acc, [key]: (pEnv as any)[key] ? "SET" : "EMPTY" }), {}),
-          importMetaEnv: Object.keys(imEnv).reduce((acc, key) => ({ ...acc, [key]: (imEnv as any)[key] ? "SET" : "EMPTY" }), {}),
-          windowKeys: wKeys.reduce((acc, key) => ({ ...acc, [key]: (window as any)[key] ? "SET" : "EMPTY" }), {})
-        });
-        throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-
-      for (let i = 0; i < productsToEnrich.length; i++) {
-        const p = productsToEnrich[i];
-        setEnrichProgress({ current: i + 1, total: productsToEnrich.length });
-
-        try {
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: `Sen bir e-ticaret uzmanısın. Ürün: ${p.name}, Barkod: ${p.barcode}. 
-            Bu ürün için profesyonel bir açıklama, kategori ve GERÇEK bir görsel URL'si bul.
-            Yanıtı JSON formatında ver: {"description": "...", "category": "...", "image_url": "..."}`,
-            config: {
-              tools: [{ googleSearch: {} }],
-              responseMimeType: "application/json"
-            }
-          }).catch(async (e) => {
-            // Fallback without googleSearch if it fails (some keys might not have it enabled)
-            console.warn("Google Search tool failed, retrying without it:", e);
-            return await ai.models.generateContent({
-              model: "gemini-3-flash-preview",
-              contents: `Sen bir e-ticaret uzmanısın. Ürün: ${p.name}, Barkod: ${p.barcode}. 
-              Bu ürün için profesyonel bir açıklama ve kategori bul.
-              Yanıtı JSON formatında ver: {"description": "...", "category": "..."}`,
-              config: {
-                responseMimeType: "application/json"
-              }
-            });
-          });
-
-          const result = JSON.parse(response.text || "{}");
-          if (result.description || result.image_url || result.category) {
-            await api.updateProduct(p.id, {
-              ...p,
-              description: p.description || result.description,
-              category: p.category || result.category,
-              image_url: p.image_url || result.image_url
-            }, user.role === 'superadmin' ? currentStoreId : undefined);
-          }
-        } catch (err) {
-          console.error(`Error enriching product ${p.id}:`, err);
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    } catch (error: any) {
-      console.error("Bulk enrich error:", error);
-      const errorMsg = error?.message || String(error);
-      if ((window as any).aistudio) {
-        await (window as any).aistudio.openSelectKey();
-      } else {
-        alert(lang === 'tr' 
-          ? `İşlem sırasında bir hata oluştu: ${errorMsg}\nLütfen API anahtarınızı kontrol edin.` 
-          : `An error occurred: ${errorMsg}\nPlease check your API key.`);
-      }
-    }
-
-    setIsEnriching(false);
-    setEnrichProgress({ current: 0, total: 0 });
-    fetchData();
-    alert(lang === 'tr' ? "Toplu zenginleştirme tamamlandı!" : "Bulk enrichment completed!");
-  };
-
-  const enrichProductWithAI = async (name: string, barcode: string, formElement?: HTMLFormElement) => {
-    if (!name && !barcode) {
-      alert(lang === 'tr' ? "Lütfen en azından bir ürün adı veya barkod girin." : "Please enter at least a product name or barcode.");
-      return;
-    }
-
-    setIsEnriching(true);
-    try {
-      let apiKey = getApiKey();
-      
-      // AI Studio specific key selection
-      if (!apiKey && (window as any).aistudio) {
-        try {
-          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-          if (!hasKey) {
-            await (window as any).aistudio.openSelectKey();
-          }
-          apiKey = getApiKey();
-        } catch (e) {
-          console.warn("AI Studio key selection failed:", e);
-        }
-      }
-
-      if (!apiKey) {
-        const pEnv = globalThis.process?.env || {};
-        const imEnv = (import.meta as any).env || {};
-        const wKeys = Object.keys(window).filter(k => k.includes("API") || k.includes("KEY"));
-        
-        console.error("Single enrich: API Key not found. Detailed Env check:", {
-          processEnv: Object.keys(pEnv).reduce((acc, key) => ({ ...acc, [key]: (pEnv as any)[key] ? "SET" : "EMPTY" }), {}),
-          importMetaEnv: Object.keys(imEnv).reduce((acc, key) => ({ ...acc, [key]: (imEnv as any)[key] ? "SET" : "EMPTY" }), {}),
-          windowKeys: wKeys.reduce((acc, key) => ({ ...acc, [key]: (window as any)[key] ? "SET" : "EMPTY" }), {})
-        });
-        throw new Error("API Key not found. Please ensure you have set GEMINI_API_KEY in Settings or selected a key via the AI Studio dialog.");
-      }
-      
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Sen bir e-ticaret ve ürün uzmanısın. Aşağıdaki ürün bilgilerini kullanarak ürün için profesyonel bir açıklama, kategori ve GERÇEK bir ürün görseli URL'si bul.
-        
-        Ürün Adı: ${name}
-        Barkod: ${barcode}
-        
-        GÖREVLERİN:
-        1. Ürün için 2-3 cümlelik profesyonel ve ikna edici bir açıklama yaz.
-        2. Ürün için en uygun ana kategoriyi belirle.
-        3. Google Search kullanarak bu ürünün GERÇEK, yüksek çözünürlüklü ve temiz (beyaz arka planlı tercih edilir) bir görsel URL'sini (image_url) bul.
-        
-        Yanıtı MUTLAKA şu JSON formatında ver:
-        {
-          "description": "...",
-          "category": "...",
-          "image_url": "https://..."
-        }`,
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              description: { type: Type.STRING },
-              category: { type: Type.STRING },
-              image_url: { type: Type.STRING }
-            }
-          }
-        }
-      }).catch(async (e) => {
-        // Fallback without googleSearch
-        console.warn("Google Search tool failed, retrying without it:", e);
-        return await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: `Sen bir e-ticaret ve ürün uzmanısın. Aşağıdaki ürün bilgilerini kullanarak ürün için profesyonel bir açıklama ve kategori bul.
-          
-          Ürün Adı: ${name}
-          Barkod: ${barcode}
-          
-          Yanıtı MUTLAKA şu JSON formatında ver:
-          {
-            "description": "...",
-            "category": "..."
-          }`,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                description: { type: Type.STRING },
-                category: { type: Type.STRING }
-              }
-            }
-          }
-        });
-      });
-
-      const result = JSON.parse(response.text || "{}");
-      setEnrichedData(result);
-      
-      const form = formElement || document.querySelector('form') as HTMLFormElement;
-      if (form) {
-        const descInput = form.querySelector('[name="description"]') as HTMLTextAreaElement;
-        const catInput = form.querySelector('[name="category"]') as HTMLInputElement;
-        const imgInput = form.querySelector('[name="image_url"]') as HTMLInputElement;
-        
-        if (descInput && !descInput.value) descInput.value = result.description || "";
-        if (catInput && !catInput.value) catInput.value = result.category || "";
-        if (imgInput && !imgInput.value) imgInput.value = result.image_url || "";
-      }
-    } catch (error: any) {
-      console.error("AI Enrichment error:", error);
-      const errorMsg = error?.message || String(error);
-      if ((window as any).aistudio) {
-        await (window as any).aistudio.openSelectKey();
-      } else {
-        alert(lang === 'tr' 
-          ? `AI zenginleştirme başarısız oldu: ${errorMsg}\nLütfen API anahtarınızı kontrol edin.` 
-          : `AI enrichment failed: ${errorMsg}\nPlease check your API key.`);
-      }
-    } finally {
-      setIsEnriching(false);
     }
   };
 
@@ -1703,63 +1413,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Header - Modern Control Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-40">
-          <div className="flex items-center space-x-4">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">
-              <Menu className="h-6 w-6" />
-            </button>
-            <div className="hidden md:flex flex-col">
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
-                {branding.store_name || branding.name}
-              </h2>
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Store ID:</span>
-                <span className="text-[10px] font-medium text-slate-600">{currentStoreId}</span>
-                <span className="text-slate-200">•</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Operator:</span>
-                <span className="text-[10px] font-medium text-slate-600">{user.email}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            {!aiReady && (window as any).aistudio && (
-              <button
-                onClick={handleConnectAI}
-                className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-200 text-[10px] font-bold uppercase tracking-wider hover:bg-amber-100 transition-all shadow-sm"
-              >
-                <Sparkles className="h-3 w-3" />
-                <span>{lang === 'tr' ? 'AI\'yı Bağla' : 'Connect AI'}</span>
-              </button>
-            )}
-            {aiReady && (
-              <div className="flex items-center space-x-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                <Sparkles className="h-3 w-3" />
-                <span>{lang === 'tr' ? 'AI Aktif' : 'AI Active'}</span>
-              </div>
-            )}
-            <div className="hidden sm:flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-1.5 space-x-4">
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Plan Tier</span>
-                <span className="text-[10px] font-bold text-indigo-600 uppercase">{branding.plan || 'Free'}</span>
-              </div>
-              <div className="w-px h-6 bg-slate-200" />
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Inventory Load</span>
-                <span className="text-[10px] font-bold text-slate-700">{products.length} / {planLimits[branding.plan || 'free']}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowQrModal(true)}
-              className="tech-button flex items-center space-x-2 bg-indigo-600 text-white hover:bg-indigo-700 border-none"
-            >
-              <Globe className="h-4 w-4" />
-              <span className="hidden md:inline">{lang === 'tr' ? 'Mağaza Linki' : 'Store Link'}</span>
-            </button>
-          </div>
-        </header>
+        {/* Mobile Sidebar Toggle (Floating) */}
+        <button 
+          onClick={() => setSidebarOpen(true)} 
+          className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-300 active:scale-95 transition-all"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
@@ -1838,20 +1498,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onDelete={handleDeleteProduct}
                         onExportReport={handleExportProducts}
                         onShowQr={() => setShowQrModal(true)}
-                        onEnrichAI={(p) => {
-                          setEditingProduct(p);
-                          setShowProductModal(true);
-                          setTimeout(() => {
-                            const form = document.querySelector('form') as HTMLFormElement;
-                            if (form) {
-                              enrichProductWithAI(p.name, p.barcode, form);
-                            }
-                          }, 100);
-                        }}
-                        onBulkEnrichAI={handleBulkEnrichAI}
-                        isEnriching={isEnriching}
-                        enrichProgress={enrichProgress}
-                        aiReady={aiReady}
                         branding={branding}
                       />
                     )}
@@ -3051,39 +2697,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                 {/* Row 2: Product Name */}
                 <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</label>
-                    <div className="flex items-center gap-2">
-                      {!(process.env.GEMINI_API_KEY || process.env.API_KEY) && (window as any).aistudio && (
-                        <button
-                          type="button"
-                          onClick={() => (window as any).aistudio.openSelectKey()}
-                          className="text-[10px] font-bold text-amber-600 hover:text-amber-700 transition-colors flex items-center gap-1"
-                        >
-                          <Key className="h-3 w-3" />
-                          {lang === 'tr' ? 'KEY SEÇ' : 'SELECT KEY'}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          const form = e.currentTarget.closest('form') as HTMLFormElement;
-                          const name = (form.querySelector('[name="name"]') as HTMLInputElement)?.value;
-                          const barcode = (form.querySelector('[name="barcode"]') as HTMLInputElement)?.value;
-                          enrichProductWithAI(name, barcode, form);
-                        }}
-                        disabled={isEnriching}
-                        className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors disabled:opacity-50"
-                      >
-                        {isEnriching ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-3 w-3" />
-                        )}
-                        {lang === 'tr' ? 'AI SİHİRBAZI' : 'AI MAGIC'}
-                      </button>
-                    </div>
-                  </div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</label>
                   <input 
                     name="name" 
                     required 
