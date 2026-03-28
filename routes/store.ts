@@ -2113,7 +2113,10 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
   const { status } = req.body;
   const userId = req.user.id;
 
+  console.log(`[DEBUG] PUT /stock-transfers/${id}/status - storeId: ${storeId}, status: ${status}, userId: ${userId}, role: ${req.user.role}`);
+
   if (!['pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled'].includes(status)) {
+    console.log(`[DEBUG] Invalid status: ${status}`);
     return res.status(400).json({ error: "Invalid status" });
   }
 
@@ -2128,12 +2131,14 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
     const transfer = transferRes.rows[0];
 
     if (!transfer) {
+      console.log(`[DEBUG] Transfer not found: ${id}`);
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Transfer not found" });
     }
 
     // Authorization check
     if (req.user.role !== 'superadmin' && transfer.from_store_id !== storeId && transfer.to_store_id !== storeId) {
+      console.log(`[DEBUG] Unauthorized: role=${req.user.role}, from=${transfer.from_store_id}, to=${transfer.to_store_id}, storeId=${storeId}`);
       await client.query("ROLLBACK");
       return res.status(403).json({ error: "Unauthorized" });
     }
@@ -2151,10 +2156,12 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
     }
 
     updateQuery += " WHERE id = $2";
+    console.log(`[DEBUG] Executing update query: ${updateQuery} with params:`, params);
     await client.query(updateQuery, params);
 
     // Stock movements if completed
     if (status === 'completed') {
+      console.log(`[DEBUG] Processing completed status for transfer ${id}`);
       const itemsRes = await client.query(
         "SELECT * FROM stock_transfer_items WHERE transfer_id = $1",
         [id]
@@ -2204,6 +2211,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
     }
 
     await client.query("COMMIT");
+    console.log(`[DEBUG] Transfer ${id} status updated to ${status} successfully`);
     res.json({ success: true });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -2249,11 +2257,11 @@ router.get("/notifications", async (req: any, res) => {
   try {
     // 1. New Stock Transfers
     // - Incoming (to_store_id) and status is 'shipped' (needs to be received)
-    // - Outgoing (from_store_id) and status is 'pending' (needs to be approved/prepared)
+    // - Outgoing (from_store_id) and status is 'pending', 'accepted', or 'preparing' (needs action)
     const transfersCount = await pool.query(
       `SELECT COUNT(*) FROM stock_transfers 
        WHERE (to_store_id = $1 AND status = 'shipped')
-          OR (from_store_id = $1 AND status = 'pending')`,
+          OR (from_store_id = $1 AND status IN ('pending', 'accepted', 'preparing'))`,
       [storeId]
     );
 

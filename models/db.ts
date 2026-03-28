@@ -434,6 +434,10 @@ export async function initDb() {
           ALTER TABLE stock_transfers ADD COLUMN shipped_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
         END IF;
       END $$;
+
+      -- Update stock_transfers status constraint
+      ALTER TABLE stock_transfers DROP CONSTRAINT IF EXISTS stock_transfers_status_check;
+      ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_status_check CHECK (status IN ('pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled'));
     `);
     console.log("Schema queries completed.");
 
