@@ -154,6 +154,20 @@ const ProductDetailModal: React.FC<{
   addToBasket: (p: Product) => void;
   primaryColor: string;
 }> = ({ product, store, t, onClose, addToBasket, primaryColor }) => {
+  const [branchStocks, setBranchStocks] = useState<any[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+
+  useEffect(() => {
+    if (product?.barcode && store?.slug) {
+      setLoadingBranches(true);
+      api.getPublicProductBranchStock(store.slug, product.barcode)
+        .then(res => {
+          if (!res.error) setBranchStocks(res);
+        })
+        .finally(() => setLoadingBranches(false));
+    }
+  }, [product?.barcode, store?.slug]);
+
   if (!product) return null;
 
   return (
@@ -220,6 +234,29 @@ const ProductDetailModal: React.FC<{
               {product.description || t.dashboard.noProductsDesc}
             </p>
           </div>
+
+          {/* Branch Availability Section */}
+          {branchStocks.length > 0 && (
+            <div className="mb-8 p-6 bg-gray-50 rounded-[32px] border border-gray-100">
+              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center">
+                <MapPin className="w-3 h-3 mr-1.5" style={{ color: primaryColor }} />
+                Mağaza Stok Durumu
+              </h4>
+              <div className="space-y-3">
+                {branchStocks.map((bs, i) => (
+                  <div key={i} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-1.5 h-1.5 rounded-full ${bs.stock_quantity > 0 ? 'bg-green-500' : 'bg-red-400'}`}></div>
+                      <span className="text-xs font-bold text-gray-700">{bs.store_name}</span>
+                    </div>
+                    <span className={`text-xs font-black ${bs.stock_quantity > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {bs.stock_quantity > 0 ? `${bs.stock_quantity} Adet` : 'Tükendi'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl">

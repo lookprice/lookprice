@@ -366,6 +366,36 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS twitter_url TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS about_text TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES stores(id) ON DELETE SET NULL;
+
+      CREATE TABLE IF NOT EXISTS stock_transfers (
+        id SERIAL PRIMARY KEY,
+        from_store_id INTEGER NOT NULL,
+        to_store_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled')),
+        notes TEXT,
+        created_by INTEGER,
+        prepared_by INTEGER,
+        shipped_by INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (from_store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (to_store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (prepared_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (shipped_by) REFERENCES users(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS stock_transfer_items (
+        id SERIAL PRIMARY KEY,
+        transfer_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        barcode TEXT,
+        product_name TEXT,
+        FOREIGN KEY (transfer_id) REFERENCES stock_transfers(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      );
 
       -- Update quotations table if needed
       DO $$ 

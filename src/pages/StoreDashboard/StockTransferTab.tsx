@@ -14,7 +14,9 @@ import {
   Loader2,
   ChevronRight,
   MapPin,
-  History
+  Printer,
+  History,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
@@ -40,6 +42,8 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
   const [productSearch, setProductSearch] = useState("");
   const [branchStock, setBranchStock] = useState<any[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
+
+  const [showDispatchNote, setShowDispatchNote] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -94,9 +98,19 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
     }
   };
 
-  const handleUpdateStatus = async (transferId: number, status: 'shipped' | 'completed' | 'cancelled') => {
+  const handleUpdateStatus = async (transferId: number, status: 'pending' | 'accepted' | 'preparing' | 'shipped' | 'completed' | 'cancelled') => {
     try {
       await api.updateStockTransferStatus(transferId, status, storeId);
+      fetchData();
+    } catch (error) {
+      alert(lang === 'tr' ? "Hata oluştu" : "An error occurred");
+    }
+  };
+
+  const handleDeleteTransfer = async (transferId: number) => {
+    if (!window.confirm(lang === 'tr' ? "Bu transfer kaydını silmek istediğinize emin misiniz?" : "Are you sure you want to delete this transfer record?")) return;
+    try {
+      await api.deleteStockTransfer(transferId);
       fetchData();
     } catch (error) {
       alert(lang === 'tr' ? "Hata oluştu" : "An error occurred");
@@ -106,11 +120,15 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <span className="flex items-center text-amber-600 bg-amber-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Clock className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Bekliyor' : 'Pending'}</span>;
+        return <span className="flex items-center text-amber-600 bg-amber-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Clock className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Talep Edildi' : 'Requested'}</span>;
+      case 'accepted':
+        return <span className="flex items-center text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><CheckCircle2 className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Kabul Edildi' : 'Accepted'}</span>;
+      case 'preparing':
+        return <span className="flex items-center text-purple-600 bg-purple-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Package className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Hazırlanıyor' : 'Preparing'}</span>;
       case 'shipped':
-        return <span className="flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Truck className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Yolda' : 'Shipped'}</span>;
-      case 'received':
-        return <span className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><CheckCircle2 className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Tamamlandı' : 'Received'}</span>;
+        return <span className="flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Truck className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Sevk Edildi' : 'Shipped'}</span>;
+      case 'completed':
+        return <span className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><CheckCircle2 className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Tamamlandı' : 'Completed'}</span>;
       case 'cancelled':
         return <span className="flex items-center text-red-600 bg-red-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><XCircle className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'İptal Edildi' : 'Cancelled'}</span>;
       default:
@@ -261,8 +279,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                 <thead>
                   <tr className="bg-gray-50/50 border-bottom border-gray-100">
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">ID</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Yön</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mağaza</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Transfer Akışı</th>
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ürünler</th>
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Durum</th>
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">İşlem</th>
@@ -271,7 +288,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                 <tbody className="divide-y divide-gray-50">
                   {transfers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 italic">
+                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500 italic">
                         Henüz bir transfer kaydı bulunmuyor.
                       </td>
                     </tr>
@@ -282,24 +299,23 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                         <tr key={transfer.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-3 text-xs font-mono text-gray-500">#{transfer.id}</td>
                           <td className="px-4 py-3">
-                            {isIncoming ? (
-                              <span className="flex items-center text-green-600 text-[10px] font-bold uppercase">
-                                <ArrowRight className="h-3 w-3 mr-1 rotate-180" /> Gelen
-                              </span>
-                            ) : (
-                              <span className="flex items-center text-blue-600 text-[10px] font-bold uppercase">
-                                <ArrowRight className="h-3 w-3 mr-1" /> Giden
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold text-gray-900">
-                                {isIncoming ? transfer.from_store_name : transfer.to_store_name}
-                              </span>
-                              <span className="text-[9px] text-gray-400">
-                                {new Date(transfer.created_at).toLocaleDateString()}
-                              </span>
+                            <div className="flex items-center space-x-2">
+                              <div className="flex flex-col items-end">
+                                <span className={`text-[10px] font-bold ${isIncoming ? 'text-gray-900' : 'text-indigo-600'}`}>
+                                  {transfer.from_store_name}
+                                </span>
+                                <span className="text-[8px] text-gray-400 uppercase tracking-tighter">Kaynak</span>
+                              </div>
+                              <ArrowRight className={`h-3 w-3 ${isIncoming ? 'text-green-500' : 'text-blue-500'}`} />
+                              <div className="flex flex-col items-start">
+                                <span className={`text-[10px] font-bold ${isIncoming ? 'text-indigo-600' : 'text-gray-900'}`}>
+                                  {transfer.to_store_name}
+                                </span>
+                                <span className="text-[8px] text-gray-400 uppercase tracking-tighter">Hedef</span>
+                              </div>
+                            </div>
+                            <div className="mt-1 text-[9px] text-gray-400">
+                              {new Date(transfer.created_at).toLocaleString()}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -322,29 +338,76 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                               {/* Actions based on status and direction */}
                               {!isViewer && (
                                 <>
-                                  {transfer.status === 'pending' && !isIncoming && (
-                                    <button
-                                      onClick={() => handleUpdateStatus(transfer.id, 'shipped')}
-                                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                      title="Gönderildi Olarak İşaretle"
-                                    >
-                                      <Truck className="h-4 w-4" />
-                                    </button>
+                                  {/* Sender Actions */}
+                                  {!isIncoming && (
+                                    <>
+                                      {transfer.status === 'pending' && (
+                                        <button
+                                          onClick={() => handleUpdateStatus(transfer.id, 'accepted')}
+                                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                          title="Kabul Et"
+                                        >
+                                          <CheckCircle2 className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                      {transfer.status === 'accepted' && (
+                                        <button
+                                          onClick={() => handleUpdateStatus(transfer.id, 'preparing')}
+                                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                          title="Hazırlanıyor"
+                                        >
+                                          <Package className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                      {transfer.status === 'preparing' && (
+                                        <button
+                                          onClick={() => handleUpdateStatus(transfer.id, 'shipped')}
+                                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                          title="Sevk Et"
+                                        >
+                                          <Truck className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </>
                                   )}
-                                  {transfer.status === 'shipped' && isIncoming && (
+
+                                  {/* Receiver Actions */}
+                                  {isIncoming && transfer.status === 'shipped' && (
                                     <button
                                       onClick={() => handleUpdateStatus(transfer.id, 'completed')}
                                       className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                      title="Teslim Alındı Olarak İşaretle"
+                                      title="Teslim Alındı (Stoklara İşle)"
                                     >
                                       <CheckCircle2 className="h-4 w-4" />
                                     </button>
                                   )}
-                                  {(transfer.status === 'pending' || transfer.status === 'shipped') && (
+
+                                  {/* General Actions */}
+                                  {(transfer.status === 'pending' || transfer.status === 'accepted' || transfer.status === 'preparing') && (
                                     <button
                                       onClick={() => handleUpdateStatus(transfer.id, 'cancelled')}
                                       className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                       title="İptal Et"
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </button>
+                                  )}
+
+                                  {(transfer.status === 'shipped' || transfer.status === 'completed') && (
+                                    <button
+                                      onClick={() => setShowDispatchNote(transfer)}
+                                      className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                      title="Sevk İrsaliyesi"
+                                    >
+                                      <Printer className="h-4 w-4" />
+                                    </button>
+                                  )}
+
+                                  {(transfer.status === 'completed' || transfer.status === 'cancelled') && (
+                                    <button
+                                      onClick={() => handleDeleteTransfer(transfer.id)}
+                                      className="p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+                                      title="Sil"
                                     >
                                       <XCircle className="h-4 w-4" />
                                     </button>
@@ -363,6 +426,96 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
           </div>
         </div>
       </div>
+
+      {/* Dispatch Note Modal */}
+      <AnimatePresence>
+        {showDispatchNote && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:p-0 print:bg-white">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-8 rounded-2xl max-w-3xl w-full relative max-h-[90vh] overflow-y-auto shadow-2xl print:shadow-none print:max-h-none print:rounded-none"
+            >
+              <button onClick={() => setShowDispatchNote(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 print:hidden"><XCircle className="h-5 w-5" /></button>
+              
+              <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
+                <div>
+                  <h1 className="text-2xl font-black text-indigo-600 tracking-tighter mb-1 uppercase">SEVK İRSALİYESİ</h1>
+                  <p className="text-xs text-gray-400 font-mono">Transfer ID: #{showDispatchNote.id}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-bold text-gray-900 uppercase">Tarih: {new Date(showDispatchNote.created_at).toLocaleDateString()}</div>
+                  <div className="text-[10px] text-gray-500 font-mono uppercase">Saat: {new Date(showDispatchNote.created_at).toLocaleTimeString()}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 mb-8">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">GÖNDEREN MAĞAZA</h3>
+                  <div className="text-sm font-bold text-slate-900">{showDispatchNote.from_store_name}</div>
+                  <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-tight">Hazırlayan: {showDispatchNote.prepared_by_email || 'Sistem'}</div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-tight">Sevk Eden: {showDispatchNote.shipped_by_email || 'Sistem'}</div>
+                </div>
+                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                  <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">ALICI MAĞAZA</h3>
+                  <div className="text-sm font-bold text-indigo-900">{showDispatchNote.to_store_name}</div>
+                  <div className="text-[10px] text-indigo-500 mt-1 uppercase tracking-tight">Talep Eden: {showDispatchNote.created_by_email || 'Sistem'}</div>
+                </div>
+              </div>
+
+              <div className="mb-8 overflow-hidden rounded-xl border border-gray-100">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase">Barkod</th>
+                      <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase">Ürün Adı</th>
+                      <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase text-right">Miktar</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {showDispatchNote.items?.map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3 text-xs font-mono text-gray-500">{item.barcode}</td>
+                        <td className="px-4 py-3 text-xs font-bold text-gray-900">{item.product_name}</td>
+                        <td className="px-4 py-3 text-xs font-bold text-gray-900 text-right">{item.quantity} Adet</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {showDispatchNote.notes && (
+                <div className="mb-8 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                  <h3 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Notlar</h3>
+                  <p className="text-xs text-amber-800 italic">{showDispatchNote.notes}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-dashed border-gray-200">
+                <div className="text-center">
+                  <div className="h-20 border-b border-gray-200 mb-2"></div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase">Teslim Eden İmza</p>
+                </div>
+                <div className="text-center">
+                  <div className="h-20 border-b border-gray-200 mb-2"></div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase">Teslim Alan İmza</p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end space-x-3 print:hidden">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Yazdır
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* New Transfer Modal */}
       <AnimatePresence>

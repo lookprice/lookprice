@@ -25,6 +25,7 @@ interface ProductsTabProps {
   onExportReport: () => void;
   onShowQr: () => void;
   branding?: any;
+  showStoreName?: boolean;
 }
 
 const ProductsTab = ({ 
@@ -36,7 +37,8 @@ const ProductsTab = ({
   onDelete,
   onExportReport,
   onShowQr,
-  branding
+  branding,
+  showStoreName
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -127,6 +129,7 @@ const ProductsTab = ({
               <tr className="bg-slate-50/50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.barcode}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.productName}</th>
+                {showStoreName && <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Şube' : 'Branch'}</th>}
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.price}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Maliyet' : 'Cost'}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.stock}</th>
@@ -151,7 +154,9 @@ const ProductsTab = ({
                 paginatedProducts.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-6 py-4">
-                      <span className="font-mono text-[11px] bg-slate-100 px-2 py-1 rounded-md text-slate-600 border border-slate-200">{p.barcode}</span>
+                      <span className="font-mono text-[11px] bg-slate-100 px-2 py-1 rounded-md text-slate-600 border border-slate-200">
+                        {p.barcode?.toString().padStart(13, '0').slice(-13)}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -180,16 +185,23 @@ const ProductsTab = ({
                         </div>
                       </div>
                     </td>
+                    {showStoreName && (
+                      <td className="px-6 py-4">
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 uppercase tracking-tighter">
+                          {p.store_name}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <span className="text-sm font-bold text-slate-900">
-                        {Number(p.price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{p.currency}</span>
+                        {Number(p.price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       {p.cost_price > 0 ? (
                         <div className="flex flex-col">
                           <span className="text-sm font-bold text-slate-600">
-                            {Number(p.cost_price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{p.cost_currency}</span>
+                            {Number(p.cost_price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
                           </span>
                           {(() => {
                             const profit = calculateProfitMargin(p);
@@ -260,8 +272,15 @@ const ProductsTab = ({
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0 mr-4">
                     <div className="text-sm font-bold text-slate-900 truncate">{p.name}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{p.barcode}</span>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-[10px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                        {p.barcode?.toString().padStart(13, '0').slice(-13)}
+                      </span>
+                      {showStoreName && (
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter">
+                          {p.store_name}
+                        </span>
+                      )}
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${Number(p.stock_quantity) <= Number(p.min_stock_level) ? 'text-rose-600 bg-rose-50 border border-rose-100' : 'text-slate-500 bg-slate-50 border border-slate-100'}`}>
                         {p.stock_quantity} {lang === 'tr' ? 'Adet' : 'Pcs'}
                       </span>
@@ -269,11 +288,11 @@ const ProductsTab = ({
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-slate-900 whitespace-nowrap">
-                      {Number(p.price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium">{p.currency}</span>
+                      {Number(p.price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium">{(p.currency || 'TRY').substring(0, 3)}</span>
                     </div>
                     {p.cost_price > 0 && (
                       <div className="text-xs font-bold text-slate-500 whitespace-nowrap mt-0.5">
-                        {lang === 'tr' ? 'Mal:' : 'Cost:'} {Number(p.cost_price).toLocaleString('tr-TR')} <span className="text-[9px] text-slate-400 font-medium">{p.cost_currency}</span>
+                        {lang === 'tr' ? 'Mal:' : 'Cost:'} {Number(p.cost_price).toLocaleString('tr-TR')} <span className="text-[9px] text-slate-400 font-medium">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
                         {(() => {
                           const profit = calculateProfitMargin(p);
                           if (!profit) return null;

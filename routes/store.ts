@@ -287,28 +287,51 @@ router.delete("/users/:id", async (req: any, res) => {
 router.get("/products", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
   const requestedStoreId = req.user.role === "superadmin" ? (req.query.storeId || currentStoreId) : (req.query.storeId || currentStoreId);
+  const includeBranches = req.query.includeBranches === 'true';
   
   if (requestedStoreId === undefined || requestedStoreId === null || requestedStoreId === "") return res.status(400).json({ error: "Store ID required" });
 
-  // If not superadmin, check if requested store is related (same parent or is parent/child)
-  if (req.user.role !== "superadmin" && Number(requestedStoreId) !== currentStoreId) {
-    try {
+  try {
+    let storeIds = [Number(requestedStoreId)];
+
+    if (includeBranches) {
+      // Find parent_id to get the whole group
+      const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [requestedStoreId]);
+      const parentId = storeRes.rows[0]?.parent_id || requestedStoreId;
+      
+      const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
+      storeIds = groupRes.rows.map(r => r.id);
+    }
+
+    // Authorization check for non-superadmins
+    if (req.user.role !== "superadmin") {
       const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [currentStoreId]);
       const currentParentId = currentStoreRes.rows[0]?.parent_id || currentStoreId;
 
-      const requestedStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [requestedStoreId]);
-      const requestedParentId = requestedStoreRes.rows[0]?.parent_id || requestedStoreId;
+      // Check if all requested storeIds belong to the same group as current user
+      const unauthorizedIds = await pool.query(
+        "SELECT id FROM stores WHERE id = ANY($1) AND id != $2 AND parent_id != $2",
+        [storeIds, currentParentId]
+      );
 
-      if (currentParentId !== requestedParentId) {
-        return res.status(403).json({ error: "Unauthorized to view this store's products" });
+      if (unauthorizedIds.rows.length > 0) {
+        return res.status(403).json({ error: "Unauthorized to view some of these stores' products" });
       }
-    } catch (error) {
-      return res.status(500).json({ error: "Failed to verify store relationship" });
     }
-  }
 
-  const products = await pool.query("SELECT * FROM products WHERE store_id = $1", [requestedStoreId]);
-  res.json(products.rows);
+    const products = await pool.query(
+      `SELECT p.*, s.name as store_name 
+       FROM products p 
+       JOIN stores s ON p.store_id = s.id 
+       WHERE p.store_id = ANY($1)
+       ORDER BY p.name ASC`, 
+      [storeIds]
+    );
+    res.json(products.rows);
+  } catch (error) {
+    console.error("Fetch products error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.post("/products", async (req: any, res) => {
@@ -1928,11 +1951,15 @@ router.get("/stock-transfers", async (req: any, res) => {
       `SELECT st.*, 
               fs.name as from_store_name, 
               ts.name as to_store_name,
-              u.email as created_by_email
+              u.email as created_by_email,
+              up.email as prepared_by_email,
+              us.email as shipped_by_email
        FROM stock_transfers st
        JOIN stores fs ON st.from_store_id = fs.id
        JOIN stores ts ON st.to_store_id = ts.id
        LEFT JOIN users u ON st.created_by = u.id
+       LEFT JOIN users up ON st.prepared_by = up.id
+       LEFT JOIN users us ON st.shipped_by = us.id
        WHERE st.from_store_id = $1 OR st.to_store_id = $1
        ORDER BY st.created_at DESC`,
       [storeId]
@@ -1997,8 +2024,9 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   const { id } = req.params;
   const { status } = req.body;
+  const userId = req.user.id;
 
-  if (!['shipped', 'completed', 'cancelled'].includes(status)) {
+  if (!['pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled'].includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
   }
 
@@ -2018,20 +2046,25 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
     }
 
     // Authorization check
-    if (status === 'shipped' && transfer.from_store_id !== storeId) {
+    if (req.user.role !== 'superadmin' && transfer.from_store_id !== storeId && transfer.to_store_id !== storeId) {
       await client.query("ROLLBACK");
-      return res.status(403).json({ error: "Only sender can ship" });
-    }
-    if (status === 'completed' && transfer.to_store_id !== storeId) {
-      await client.query("ROLLBACK");
-      return res.status(403).json({ error: "Only receiver can complete" });
+      return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Update status
-    await client.query(
-      "UPDATE stock_transfers SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
-      [status, id]
-    );
+    // Update status and tracking fields
+    let updateQuery = "UPDATE stock_transfers SET status = $1, updated_at = CURRENT_TIMESTAMP";
+    const params: any[] = [status, id];
+
+    if (status === 'preparing') {
+      updateQuery += ", prepared_by = $3";
+      params.push(userId);
+    } else if (status === 'shipped') {
+      updateQuery += ", shipped_by = $3";
+      params.push(userId);
+    }
+
+    updateQuery += " WHERE id = $2";
+    await client.query(updateQuery, params);
 
     // Stock movements if completed
     if (status === 'completed') {
@@ -2043,8 +2076,8 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
       for (const item of itemsRes.rows) {
         // Decrease from sender
         await client.query(
-          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
-          [item.quantity, item.product_id]
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, item.product_id, transfer.from_store_id]
         );
         await client.query(
           "INSERT INTO stock_movements (store_id, product_id, type, quantity, reason) VALUES ($1, $2, 'out', $3, $4)",
@@ -2087,9 +2120,114 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
     res.json({ success: true });
   } catch (error) {
     await client.query("ROLLBACK");
+    console.error("Update transfer status error:", error);
     res.status(500).json({ error: "Failed to update transfer status" });
   } finally {
     client.release();
+  }
+});
+
+// Delete stock transfer
+router.delete("/stock-transfers/:id", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.store_id;
+
+  try {
+    const transferRes = await pool.query(
+      "SELECT * FROM stock_transfers WHERE id = $1",
+      [id]
+    );
+    const transfer = transferRes.rows[0];
+
+    if (!transfer) {
+      return res.status(404).json({ error: "Transfer not found" });
+    }
+
+    if (req.user.role !== 'superadmin' && transfer.from_store_id !== storeId && transfer.to_store_id !== storeId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    await pool.query("DELETE FROM stock_transfers WHERE id = $1", [id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete transfer" });
+  }
+});
+
+// Get notifications/alerts counts
+router.get("/notifications", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    // 1. New Stock Transfers (Incoming and status is pending)
+    const transfersCount = await pool.query(
+      "SELECT COUNT(*) FROM stock_transfers WHERE to_store_id = $1 AND status = 'pending'",
+      [storeId]
+    );
+
+    // 2. New Technical Service (status is received)
+    const serviceCount = await pool.query(
+      "SELECT COUNT(*) FROM service_records WHERE store_id = $1 AND status = 'received'",
+      [storeId]
+    );
+
+    // 3. New Quotations (status is pending)
+    const quotationsCount = await pool.query(
+      "SELECT COUNT(*) FROM quotations WHERE store_id = $1 AND status = 'pending'",
+      [storeId]
+    );
+
+    // 4. New Sales (status is pending)
+    const salesCount = await pool.query(
+      "SELECT COUNT(*) FROM sales WHERE store_id = $1 AND status = 'pending'",
+      [storeId]
+    );
+
+    res.json({
+      transfers: parseInt(transfersCount.rows[0].count),
+      service: parseInt(serviceCount.rows[0].count),
+      quotations: parseInt(quotationsCount.rows[0].count),
+      sales: parseInt(salesCount.rows[0].count)
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+// Public: Get product stock across all branches of a store group
+router.get("/public/store/:slug/products/:barcode/stock", async (req, res) => {
+  const { slug, barcode } = req.params;
+  try {
+    // 1. Find the store by slug to get its store_group_id
+    const storeRes = await pool.query("SELECT id, store_group_id FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+    
+    const { store_group_id } = storeRes.rows[0];
+    if (!store_group_id) {
+      // If no store group, just return the stock of this store
+      const stockRes = await pool.query(`
+        SELECT s.name as store_name, p.stock_quantity
+        FROM products p
+        JOIN stores s ON p.store_id = s.id
+        WHERE s.slug = $1 AND p.barcode = $2
+      `, [slug, barcode]);
+      return res.json(stockRes.rows);
+    }
+
+    // 2. Get stock from all stores in the same group
+    const stockRes = await pool.query(`
+      SELECT s.name as store_name, COALESCE(p.stock_quantity, 0) as stock_quantity
+      FROM stores s
+      LEFT JOIN products p ON p.store_id = s.id AND p.barcode = $1
+      WHERE s.store_group_id = $2
+      ORDER BY s.is_main_store DESC, s.name ASC
+    `, [barcode, store_group_id]);
+
+    res.json(stockRes.rows);
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Stok bilgisi alınamadı" });
   }
 });
 

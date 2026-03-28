@@ -135,6 +135,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [includeZeroBalance, setIncludeZeroBalance] = useState(false);
+  const [includeBranches, setIncludeBranches] = useState(false);
   const [sales, setSales] = useState<any[]>([]);
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesStatusFilter, setSalesStatusFilter] = useState("all");
@@ -214,7 +215,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       setCurrentStoreId(targetStoreId);
 
       const [productsRes, analyticsRes, brandingRes, quotationsRes, companiesRes, usersRes] = await Promise.all([
-        api.getProducts(targetStoreId),
+        api.getProducts(targetStoreId, includeBranches),
         api.getAnalytics(targetStoreId),
         api.getBranding(targetStoreId),
         api.getQuotations(quotationSearch, quotationStatusFilter, targetStoreId),
@@ -232,7 +233,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     } finally {
       setLoading(false);
     }
-  }, [quotationSearch, quotationStatusFilter, includeZeroBalance, user.role, user.store_id, slug]);
+  }, [quotationSearch, quotationStatusFilter, includeZeroBalance, includeBranches, user.role, user.store_id, slug]);
 
   const fetchSales = useCallback(async () => {
     try {
@@ -283,9 +284,28 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     XLSX.writeFile(wb, `Kasa_Raporu_${reportStartDate}_${reportEndDate}.xlsx`);
   };
 
+  const [notifications, setNotifications] = useState<any>({
+    transfers: 0,
+    service: 0,
+    quotations: 0,
+    sales: 0
+  });
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = await api.getNotifications();
+      setNotifications(data);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [fetchData, fetchNotifications]);
 
   useEffect(() => {
     if (activeTab === 'pos') {
@@ -1302,13 +1322,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const navItems = [
     { id: "products", label: t.products, icon: Package },
     { id: "analytics", label: t.analytics, icon: LayoutDashboard },
-    { id: "quotations", label: lang === 'tr' ? 'Teklifler / Satış' : 'Quotations / Sales', icon: FileText },
+    { id: "quotations", label: lang === 'tr' ? 'Teklifler / Satış' : 'Quotations / Sales', icon: FileText, badge: notifications.quotations },
     { id: "procurements", label: lang === 'tr' ? 'Tedarik' : 'Procurement', icon: Truck },
-    { id: "service", label: lang === 'tr' ? 'Teknik Servis' : 'Technical Service', icon: Wrench },
-    { id: "stock_transfer", label: lang === 'tr' ? 'Stok Transferi' : 'Stock Transfer', icon: ArrowLeftRight },
+    { id: "service", label: lang === 'tr' ? 'Teknik Servis' : 'Technical Service', icon: Wrench, badge: notifications.service },
+    { id: "stock_transfer", label: lang === 'tr' ? 'Stok Transferi' : 'Stock Transfer', icon: ArrowLeftRight, badge: notifications.transfers },
     { id: "purchase_invoices", label: lang === 'tr' ? 'Alış Faturaları' : 'Purchase Invoices', icon: FileDown },
     { id: "companies", label: lang === 'tr' ? 'Cari Hesaplar' : 'Current Accounts', icon: Store },
-    { id: "pos", label: lang === 'tr' ? 'Satışlar' : 'Sales', icon: CreditCard },
+    { id: "pos", label: lang === 'tr' ? 'Satışlar' : 'Sales', icon: CreditCard, badge: notifications.sales },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
 
@@ -1367,14 +1387,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   setActiveTab(item.id);
                   setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   activeTab === item.id 
                     ? 'bg-indigo-50 text-indigo-600 shadow-sm' 
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <item.icon className={`h-4 w-4 ${activeTab === item.id ? 'text-indigo-600' : 'text-slate-400'}`} />
-                <span className="tracking-tight">{item.label}</span>
+                <div className="flex items-center space-x-3">
+                  <item.icon className={`h-4 w-4 ${activeTab === item.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span className="tracking-tight">{item.label}</span>
+                </div>
+                {item.badge > 0 && (
+                  <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
+                    {item.badge}
+                  </span>
+                )}
               </button>
             ))}
 
@@ -1460,6 +1487,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="flex items-center gap-3">
                 {activeTab === 'products' && (
                   <>
+                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                      <label className="flex items-center cursor-pointer gap-2">
+                        <div className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={includeBranches}
+                            onChange={() => setIncludeBranches(!includeBranches)}
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </div>
+                        <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+                          {lang === 'tr' ? 'Tüm Şubeler' : 'All Branches'}
+                        </span>
+                      </label>
+                    </div>
                     <button onClick={() => setShowImportModal(true)} className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all shadow-sm">
                       <Upload className="h-4 w-4" />
                       <span>Import Data</span>
@@ -1511,6 +1554,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onExportReport={handleExportProducts}
                         onShowQr={() => setShowQrModal(true)}
                         branding={branding}
+                        showStoreName={includeBranches}
                       />
                     )}
                     {activeTab === "analytics" && (

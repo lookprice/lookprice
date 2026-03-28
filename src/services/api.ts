@@ -68,7 +68,12 @@ export const api = {
   },
 
   // Store Methods
-  getProducts: (storeId?: number) => api.get(`/api/store/products${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getProducts: (storeId?: number, includeBranches = false) => {
+    let url = `/api/store/products?`;
+    if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
+    if (includeBranches) url += `includeBranches=true`;
+    return api.get(url);
+  },
   addProduct: (data: any, storeId?: number) => api.post(`/api/store/products${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateProduct: (id: number, data: any, storeId?: number) => api.put(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteProduct: (id: number, storeId?: number) => api.delete(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
@@ -142,6 +147,8 @@ export const api = {
   getStockTransfers: (storeId?: number) => api.get(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   createStockTransfer: (data: any, storeId?: number) => api.post(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateStockTransferStatus: (id: number, status: string, storeId?: number) => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
+  deleteStockTransfer: (id: number, storeId?: number) => api.delete(`/api/store/stock-transfers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getNotifications: () => api.get('/api/store/notifications'),
 
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
@@ -154,6 +161,7 @@ export const api = {
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
   getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
   createPublicSale: (data: any) => api.post("/api/public/sales", data),
+  getPublicProductBranchStock: (slug: string, barcode: string) => api.get(`/api/public/store/${slug}/products/${barcode}/stock`),
   requestDemo: (data: any) => api.post("/api/public/demo-request", data),
   requestRegistration: (data: any) => api.post("/api/public/register-request", data),
   
