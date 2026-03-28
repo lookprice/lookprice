@@ -1655,9 +1655,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                     {activeTab === "stock_transfer" && (
                       <StockTransferTab 
-                        storeId={currentStoreId}
+                        storeId={currentStoreId!}
                         products={products}
                         isViewer={isViewer}
+                        includeBranches={includeBranches}
                       />
                     )}
                     {activeTab === "companies" && (

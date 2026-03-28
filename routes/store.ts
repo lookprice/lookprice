@@ -294,43 +294,53 @@ router.delete("/users/:id", async (req: any, res) => {
 // StoreAdmin: Products
 router.get("/products", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
-  const requestedStoreId = req.user.role === "superadmin" ? (req.query.storeId || currentStoreId) : (req.query.storeId || currentStoreId);
+  const requestedStoreId = req.query.storeId || currentStoreId;
   const includeBranches = req.query.includeBranches === 'true';
   
-  if (requestedStoreId === undefined || requestedStoreId === null || requestedStoreId === "") return res.status(400).json({ error: "Store ID required" });
+  if (!requestedStoreId) return res.status(400).json({ error: "Store ID required" });
 
   try {
-    let storeIds = [Number(requestedStoreId)];
+    const storeIdNum = Number(requestedStoreId);
+    if (isNaN(storeIdNum)) return res.status(400).json({ error: "Invalid Store ID" });
+
+    let storeIds = [storeIdNum];
+
+    // Find parent_id to get the whole group for authorization and branch inclusion
+    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [storeIdNum]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    
+    const parentId = storeRes.rows[0].parent_id || storeIdNum;
 
     if (includeBranches) {
-      // Find parent_id to get the whole group
-      const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [requestedStoreId]);
-      const parentId = storeRes.rows[0]?.parent_id || requestedStoreId;
-      
       const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
       storeIds = groupRes.rows.map(r => r.id);
-      console.log(`Fetching products for group. Parent: ${parentId}, Store IDs: ${storeIds}`);
-    } else {
-      console.log(`Fetching products for single store: ${requestedStoreId}`);
     }
 
     // Authorization check for non-superadmins
     if (req.user.role !== "superadmin") {
-      const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [currentStoreId]);
-      const currentParentId = currentStoreRes.rows[0]?.parent_id || currentStoreId;
+      const currentStoreRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [currentStoreId]);
+      if (currentStoreRes.rows.length === 0) return res.status(403).json({ error: "User store not found" });
+      
+      const userParentId = currentStoreRes.rows[0].parent_id || currentStoreId;
+      const isUserParentStore = currentStoreRes.rows[0].parent_id === null;
 
-      // Check if all requested storeIds belong to the same group as current user
+      // Rule: Branches can only view their own products
+      if (!isUserParentStore && (storeIds.length > 1 || Number(storeIds[0]) !== Number(currentStoreId))) {
+        return res.status(403).json({ error: "Branches can only view their own products" });
+      }
+
+      // Rule: Parent store can view any store in their group
       const unauthorizedIds = await pool.query(
         "SELECT id FROM stores WHERE id = ANY($1) AND id != $2 AND parent_id != $2",
-        [storeIds, currentParentId]
+        [storeIds, userParentId]
       );
 
       if (unauthorizedIds.rows.length > 0) {
-        return res.status(403).json({ error: "Unauthorized to view some of these stores' products" });
+        return res.status(403).json({ error: "Unauthorized to view products from these stores" });
       }
     }
 
-    const products = await pool.query(
+    const productsRes = await pool.query(
       `SELECT p.*, s.name as store_name 
        FROM products p 
        JOIN stores s ON p.store_id = s.id 
@@ -338,7 +348,7 @@ router.get("/products", async (req: any, res) => {
        ORDER BY p.name ASC`, 
       [storeIds]
     );
-    res.json(products.rows);
+    res.json(productsRes.rows);
   } catch (error) {
     console.error("Fetch products error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -1954,10 +1964,53 @@ router.get("/branches/stock/:barcode", async (req: any, res) => {
 
 // Get stock transfers
 router.get("/stock-transfers", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+  const requestedStoreId = req.query.storeId || req.user.store_id;
+  const currentStoreId = req.user.store_id;
+  const includeBranches = req.query.includeBranches === 'true';
+  
+  if (!requestedStoreId) return res.status(400).json({ error: "Store ID required" });
 
   try {
+    const storeIdNum = Number(requestedStoreId);
+    if (isNaN(storeIdNum)) return res.status(400).json({ error: "Invalid Store ID" });
+
+    let storeIds = [storeIdNum];
+
+    // Find parent_id for authorization and group view
+    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [storeIdNum]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    
+    const parentId = storeRes.rows[0].parent_id || storeIdNum;
+
+    if (includeBranches) {
+      const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
+      storeIds = groupRes.rows.map(r => r.id);
+    }
+
+    // Authorization check for non-superadmins
+    if (req.user.role !== "superadmin") {
+      const currentStoreRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [currentStoreId]);
+      if (currentStoreRes.rows.length === 0) return res.status(403).json({ error: "User store not found" });
+      
+      const userParentId = currentStoreRes.rows[0].parent_id || currentStoreId;
+      const isUserParentStore = currentStoreRes.rows[0].parent_id === null;
+
+      // Rule: Branches can only view their own transfers
+      if (!isUserParentStore && (storeIds.length > 1 || Number(storeIds[0]) !== Number(currentStoreId))) {
+        return res.status(403).json({ error: "Branches can only view their own transfers" });
+      }
+
+      // Verify requested store belongs to the same group
+      const unauthorizedIds = await pool.query(
+        "SELECT id FROM stores WHERE id = ANY($1) AND id != $2 AND parent_id != $2",
+        [storeIds, userParentId]
+      );
+
+      if (unauthorizedIds.rows.length > 0) {
+        return res.status(403).json({ error: "Unauthorized to view transfers for these stores" });
+      }
+    }
+
     const transfersRes = await pool.query(
       `SELECT st.*, 
               fs.name as from_store_name, 
@@ -1971,9 +2024,9 @@ router.get("/stock-transfers", async (req: any, res) => {
        LEFT JOIN users u ON st.created_by = u.id
        LEFT JOIN users up ON st.prepared_by = up.id
        LEFT JOIN users us ON st.shipped_by = us.id
-       WHERE st.from_store_id = $1 OR st.to_store_id = $1
+       WHERE st.from_store_id = ANY($1) OR st.to_store_id = ANY($1)
        ORDER BY st.created_at DESC`,
-      [storeId]
+      [storeIds]
     );
 
     // Fetch items for each transfer
@@ -1987,6 +2040,7 @@ router.get("/stock-transfers", async (req: any, res) => {
 
     res.json(transfers);
   } catch (error) {
+    console.error("Error fetching stock transfers:", error);
     res.status(500).json({ error: "Failed to fetch stock transfers" });
   }
 });
@@ -2176,9 +2230,13 @@ router.get("/notifications", async (req: any, res) => {
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
   try {
-    // 1. New Stock Transfers (Incoming and status is pending or shipped)
+    // 1. New Stock Transfers
+    // - Incoming (to_store_id) and status is 'shipped' (needs to be received)
+    // - Outgoing (from_store_id) and status is 'pending' (needs to be approved/prepared)
     const transfersCount = await pool.query(
-      "SELECT COUNT(*) FROM stock_transfers WHERE to_store_id = $1 AND status IN ('pending', 'shipped')",
+      `SELECT COUNT(*) FROM stock_transfers 
+       WHERE (to_store_id = $1 AND status = 'shipped')
+          OR (from_store_id = $1 AND status = 'pending')`,
       [storeId]
     );
 

@@ -144,7 +144,7 @@ export const api = {
   // Branches & Stock Transfers
   getBranches: (storeId?: number) => api.get(`/api/store/branches${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getBranchStock: (barcode: string, storeId?: number) => api.get(`/api/store/branches/stock/${barcode}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  getStockTransfers: (storeId?: number) => api.get(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getStockTransfers: (storeId?: number, includeBranches?: boolean) => api.get(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}${includeBranches ? `&includeBranches=true` : ""}`),
   createStockTransfer: (data: any, storeId?: number) => api.post(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateStockTransferStatus: (id: number, status: string, storeId?: number) => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
   deleteStockTransfer: (id: number, storeId?: number) => api.delete(`/api/store/stock-transfers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

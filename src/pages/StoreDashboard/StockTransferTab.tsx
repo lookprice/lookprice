@@ -28,9 +28,10 @@ interface StockTransferTabProps {
   storeId: number;
   products: Product[];
   isViewer?: boolean;
+  includeBranches?: boolean;
 }
 
-export default function StockTransferTab({ storeId, products, isViewer }: StockTransferTabProps) {
+export default function StockTransferTab({ storeId, products, isViewer, includeBranches }: StockTransferTabProps) {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [branches, setBranches] = useState<any[]>([]);
@@ -47,14 +48,14 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
 
   useEffect(() => {
     fetchData();
-  }, [storeId]);
+  }, [storeId, includeBranches]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const [branchesRes, transfersRes] = await Promise.all([
         api.getBranches(storeId),
-        api.getStockTransfers(storeId)
+        api.getStockTransfers(storeId, includeBranches)
       ]);
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
       setTransfers(Array.isArray(transfersRes) ? transfersRes : []);
@@ -294,7 +295,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                     </tr>
                   ) : (
                     transfers.map(transfer => {
-                      const isIncoming = transfer.to_store_id === storeId;
+                      const isIncoming = Number(transfer.to_store_id) === Number(storeId);
                       return (
                         <tr key={transfer.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-3 text-xs font-mono text-gray-500">#{transfer.id}</td>
@@ -339,12 +340,12 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                             )}
                             {isIncoming && transfer.status === 'pending' && (
                               <div className="mt-1 text-[9px] text-amber-500 font-medium italic animate-pulse">
-                                {lang === 'tr' ? 'Onayınız bekleniyor...' : 'Waiting for your approval...'}
+                                {lang === 'tr' ? 'Karşı tarafın onaylaması bekleniyor...' : 'Waiting for other side to approve...'}
                               </div>
                             )}
                             {!isIncoming && transfer.status === 'pending' && (
                               <div className="mt-1 text-[9px] text-amber-500 font-medium italic animate-pulse">
-                                {lang === 'tr' ? 'Karşı tarafın onaylaması bekleniyor...' : 'Waiting for other side to approve...'}
+                                {lang === 'tr' ? 'Onayınız bekleniyor...' : 'Waiting for your approval...'}
                               </div>
                             )}
                           </td>
@@ -353,14 +354,14 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                               {/* Actions based on status and direction */}
                               {!isViewer && (
                                 <>
-                                  {/* Sender Actions */}
+                                  {/* Sender Actions (The one who HAS the stock) */}
                                   {!isIncoming && (
                                     <>
                                       {transfer.status === 'pending' && (
                                         <button
                                           onClick={() => handleUpdateStatus(transfer.id, 'accepted')}
                                           className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                          title="Kabul Et"
+                                          title={lang === 'tr' ? "Kabul Et" : "Accept"}
                                         >
                                           <CheckCircle2 className="h-4 w-4" />
                                         </button>
