@@ -502,11 +502,11 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mağaza</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bitiş Tarihi</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Durum</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">İşlemler</th>
+                    <th className="px-4 md:px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mağaza</th>
+                    <th className="px-4 md:px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan</th>
+                    <th className="px-4 md:px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bitiş Tarihi</th>
+                    <th className="px-4 md:px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Durum</th>
+                    <th className="px-4 md:px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -519,7 +519,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                       const isExpired = new Date(store.subscription_end) <= new Date();
                       return (
                         <tr key={store.id} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-6 py-4">
+                          <td className="px-4 md:px-6 py-4">
                             <div className="flex items-center">
                               <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg mr-3">
                                 {store.name[0]}
@@ -530,24 +530,24 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 md:px-6 py-4">
                             <span className="text-xs font-medium text-gray-600 capitalize">{store.plan}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 md:px-6 py-4">
                             <div className="flex items-center text-xs text-gray-600">
                               <Clock className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
                               {new Date(store.subscription_end).toLocaleDateString()}
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 md:px-6 py-4">
                             <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
                               isExpired ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
                             }`}>
                               {isExpired ? 'Süresi Doldu' : 'Aktif'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <td className="px-4 md:px-6 py-4 text-right">
+                            <div className="flex items-center justify-end space-x-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={() => setSelectedStore(store)}
                                 className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"

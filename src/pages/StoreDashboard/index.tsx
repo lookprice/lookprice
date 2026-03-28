@@ -51,7 +51,8 @@ import {
   Tag,
   Key,
   Loader2,
-  Truck
+  Truck,
+  Wrench
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
@@ -70,6 +71,7 @@ import CompaniesTab from "./CompaniesTab";
 import PosTab from "./PosTab";
 import SettingsTab from "./SettingsTab";
 import { ProcurementTab } from "./ProcurementTab";
+import { ServiceTab } from "./ServiceTab";
 
 interface StoreDashboardProps {
   user: User;
@@ -1300,6 +1302,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "analytics", label: t.analytics, icon: LayoutDashboard },
     { id: "quotations", label: lang === 'tr' ? 'Teklifler / Satış' : 'Quotations / Sales', icon: FileText },
     { id: "procurements", label: lang === 'tr' ? 'Tedarik' : 'Procurement', icon: Truck },
+    { id: "service", label: lang === 'tr' ? 'Teknik Servis' : 'Technical Service', icon: Wrench },
     { id: "purchase_invoices", label: lang === 'tr' ? 'Alış Faturaları' : 'Purchase Invoices', icon: FileDown },
     { id: "companies", label: lang === 'tr' ? 'Cari Hesaplar' : 'Current Accounts', icon: Store },
     { id: "pos", label: lang === 'tr' ? 'Satışlar' : 'Sales', icon: CreditCard },
@@ -1441,6 +1444,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   Bu modül, mağazanızın {activeTab === 'products' ? 'envanter verilerini' : 
                                        activeTab === 'pos' ? 'satış ve ödeme işlemlerini' :
                                        activeTab === 'quotations' ? 'teklif ve proforma süreçlerini' :
+                                       activeTab === 'service' ? 'teknik servis ve onarım süreçlerini' :
                                        activeTab === 'procurements' ? 'tedarik ve sipariş süreçlerini' :
                                        activeTab === 'purchase_invoices' ? 'alış faturalarını ve tedarik işlemlerini' :
                                        activeTab === 'companies' ? 'cari hesap ve finansal ilişkilerini' :
@@ -1549,6 +1553,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <ProcurementTab 
                         storeId={currentStoreId}
                         isViewer={isViewer}
+                      />
+                    )}
+                    {activeTab === "service" && (
+                      <ServiceTab 
+                        storeId={currentStoreId}
+                        isViewer={isViewer}
+                        products={products}
                       />
                     )}
                     {activeTab === "companies" && (

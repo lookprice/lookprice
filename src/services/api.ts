@@ -129,6 +129,13 @@ export const api = {
   deleteProcurement: (id: number, storeId?: number) => api.delete(`/api/store/procurements/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   querySupplierApis: (id: number, storeId?: number) => api.post(`/api/store/procurements/${id}/query${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
 
+  // Technical Service
+  getServiceRecords: (storeId?: number) => api.get(`/api/store/service-records${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getServiceRecord: (id: number, storeId?: number) => api.get(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addServiceRecord: (data: any, storeId?: number) => api.post(`/api/store/service-records${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateServiceRecord: (id: number, data: any, storeId?: number) => api.put(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteServiceRecord: (id: number, storeId?: number) => api.delete(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),

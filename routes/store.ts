@@ -1761,4 +1761,92 @@ router.post("/procurements/:id/query", async (req: any, res) => {
   }
 });
 
+// --- Technical Service ---
+
+router.get("/service-records", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const result = await pool.query("SELECT * FROM service_records WHERE store_id = $1 ORDER BY created_at DESC", [storeId]);
+  res.json(result.rows);
+});
+
+router.get("/service-records/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const { id } = req.params;
+  const recordRes = await pool.query("SELECT * FROM service_records WHERE id = $1 AND store_id = $2", [id, storeId]);
+  if (recordRes.rows.length === 0) return res.status(404).json({ error: "Service record not found" });
+  const itemsRes = await pool.query("SELECT * FROM service_items WHERE service_id = $1", [id]);
+  res.json({ ...recordRes.rows[0], items: itemsRes.rows });
+});
+
+router.post("/service-records", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const { customer_name, customer_phone, device_model, device_serial, issue_description, notes, items } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const recordRes = await client.query(
+      "INSERT INTO service_records (store_id, customer_name, customer_phone, device_model, device_serial, issue_description, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+      [storeId, customer_name, customer_phone, device_model, device_serial, issue_description, notes]
+    );
+    const serviceId = recordRes.rows[0].id;
+    let totalAmount = 0;
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        await client.query(
+          "INSERT INTO service_items (service_id, product_id, item_name, quantity, unit_price, tax_rate, total_price, type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+          [serviceId, item.product_id, item.item_name, item.quantity, item.unit_price, item.tax_rate, item.total_price, item.type]
+        );
+        totalAmount += Number(item.total_price);
+      }
+    }
+    await client.query("UPDATE service_records SET total_amount = $1 WHERE id = $2", [totalAmount, serviceId]);
+    await client.query("COMMIT");
+    res.json({ success: true, id: serviceId });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.put("/service-records/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const { id } = req.params;
+  const { customer_name, customer_phone, device_model, device_serial, issue_description, notes, status, items } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "UPDATE service_records SET customer_name = $1, customer_phone = $2, device_model = $3, device_serial = $4, issue_description = $5, notes = $6, status = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 AND store_id = $9",
+      [customer_name, customer_phone, device_model, device_serial, issue_description, notes, status, id, storeId]
+    );
+    let totalAmount = 0;
+    if (items && Array.isArray(items)) {
+      await client.query("DELETE FROM service_items WHERE service_id = $1", [id]);
+      for (const item of items) {
+        await client.query(
+          "INSERT INTO service_items (service_id, product_id, item_name, quantity, unit_price, tax_rate, total_price, type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+          [id, item.product_id, item.item_name, item.quantity, item.unit_price, item.tax_rate, item.total_price, item.type]
+        );
+        totalAmount += Number(item.total_price);
+      }
+    }
+    await client.query("UPDATE service_records SET total_amount = $1 WHERE id = $2", [totalAmount, id]);
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/service-records/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  await pool.query("DELETE FROM service_records WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
+  res.json({ success: true });
+});
+
 export default router;

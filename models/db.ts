@@ -284,6 +284,37 @@ export async function initDb() {
         FOREIGN KEY (supplier_id) REFERENCES supplier_apis(id) ON DELETE SET NULL
       );
 
+      CREATE TABLE IF NOT EXISTS service_records (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        customer_name TEXT NOT NULL,
+        customer_phone TEXT,
+        device_model TEXT NOT NULL,
+        device_serial TEXT,
+        issue_description TEXT,
+        status TEXT DEFAULT 'received' CHECK (status IN ('received', 'diagnosing', 'waiting_approval', 'repairing', 'ready', 'delivered', 'cancelled')),
+        notes TEXT,
+        total_amount DECIMAL(12,2) DEFAULT 0,
+        currency TEXT DEFAULT 'TRY',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS service_items (
+        id SERIAL PRIMARY KEY,
+        service_id INTEGER NOT NULL,
+        product_id INTEGER,
+        item_name TEXT NOT NULL,
+        quantity REAL DEFAULT 1,
+        unit_price DECIMAL(12,2) NOT NULL,
+        tax_rate DECIMAL(5,2) DEFAULT 20,
+        total_price DECIMAL(12,2) NOT NULL,
+        type TEXT DEFAULT 'part' CHECK (type IN ('part', 'labor')),
+        FOREIGN KEY (service_id) REFERENCES service_records(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+      );
+
       CREATE TABLE IF NOT EXISTS purchase_invoices (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,
