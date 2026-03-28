@@ -1968,6 +1968,8 @@ router.get("/stock-transfers", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
   const includeBranches = req.query.includeBranches === 'true';
   
+  console.log(`[DEBUG] GET /stock-transfers: requestedStoreId=${requestedStoreId}, currentStoreId=${currentStoreId}, includeBranches=${includeBranches}`);
+
   if (!requestedStoreId) return res.status(400).json({ error: "Store ID required" });
 
   try {
@@ -1978,7 +1980,10 @@ router.get("/stock-transfers", async (req: any, res) => {
 
     // Find parent_id for authorization and group view
     const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [storeIdNum]);
-    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    if (storeRes.rows.length === 0) {
+      console.log(`[DEBUG] Store ${storeIdNum} not found`);
+      return res.status(404).json({ error: "Store not found" });
+    }
     
     const parentId = storeRes.rows[0].parent_id || storeIdNum;
 
@@ -1986,6 +1991,8 @@ router.get("/stock-transfers", async (req: any, res) => {
       const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
       storeIds = groupRes.rows.map(r => r.id);
     }
+
+    console.log(`[DEBUG] Final storeIds for query: ${JSON.stringify(storeIds)}`);
 
     // Authorization check for non-superadmins
     if (req.user.role !== "superadmin") {
@@ -1997,6 +2004,7 @@ router.get("/stock-transfers", async (req: any, res) => {
 
       // Rule: Branches can only view their own transfers
       if (!isUserParentStore && (storeIds.length > 1 || Number(storeIds[0]) !== Number(currentStoreId))) {
+        console.log(`[DEBUG] Auth failed: Branch ${currentStoreId} trying to view multiple or other store transfers`);
         return res.status(403).json({ error: "Branches can only view their own transfers" });
       }
 
@@ -2007,6 +2015,7 @@ router.get("/stock-transfers", async (req: any, res) => {
       );
 
       if (unauthorizedIds.rows.length > 0) {
+        console.log(`[DEBUG] Auth failed: Unauthorized store IDs ${JSON.stringify(unauthorizedIds.rows.map(r => r.id))}`);
         return res.status(403).json({ error: "Unauthorized to view transfers for these stores" });
       }
     }
@@ -2029,10 +2038,15 @@ router.get("/stock-transfers", async (req: any, res) => {
       [storeIds]
     );
 
+    console.log(`[DEBUG] Found ${transfersRes.rows.length} transfers`);
+
     // Fetch items for each transfer
     const transfers = await Promise.all(transfersRes.rows.map(async (t) => {
       const itemsRes = await pool.query(
-        "SELECT * FROM stock_transfer_items WHERE transfer_id = $1",
+        `SELECT sti.*, COALESCE(sti.product_name, p.name) as product_name, COALESCE(sti.barcode, p.barcode) as barcode
+         FROM stock_transfer_items sti
+         LEFT JOIN products p ON sti.product_id = p.id
+         WHERE sti.transfer_id = $1`,
         [t.id]
       );
       return { ...t, items: itemsRes.rows };
@@ -2051,12 +2065,15 @@ router.post("/stock-transfers", async (req: any, res) => {
   const userId = req.user.id;
   const { from_store_id, to_store_id, notes, items } = req.body;
 
+  console.log(`[DEBUG] POST /stock-transfers: storeId=${storeId}, from=${from_store_id}, to=${to_store_id}, itemsCount=${items?.length}`);
+
   if (!from_store_id || !to_store_id || !items || items.length === 0) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
   // Authorization check: User must belong to either from_store or to_store
-  if (req.user.role !== 'superadmin' && from_store_id !== storeId && to_store_id !== storeId) {
+  if (req.user.role !== 'superadmin' && Number(from_store_id) !== Number(storeId) && Number(to_store_id) !== Number(storeId)) {
+    console.log(`[DEBUG] Auth failed for creation: User store ${storeId} not in [${from_store_id}, ${to_store_id}]`);
     return res.status(403).json({ error: "Unauthorized to create this transfer" });
   }
 
@@ -2075,7 +2092,7 @@ router.post("/stock-transfers", async (req: any, res) => {
       await client.query(
         `INSERT INTO stock_transfer_items (transfer_id, product_id, quantity, barcode, product_name)
          VALUES ($1, $2, $3, $4, $5)`,
-        [transferId, item.product_id, item.quantity, item.barcode, item.product_name]
+        [transferId, item.product_id, item.quantity, item.barcode, item.product_name || item.name]
       );
     }
 

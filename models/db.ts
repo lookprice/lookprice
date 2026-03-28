@@ -427,6 +427,12 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='expiry_date') THEN
           ALTER TABLE quotations ADD COLUMN expiry_date DATE;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_transfers' AND column_name='prepared_by') THEN
+          ALTER TABLE stock_transfers ADD COLUMN prepared_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_transfers' AND column_name='shipped_by') THEN
+          ALTER TABLE stock_transfers ADD COLUMN shipped_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+        END IF;
       END $$;
     `);
     console.log("Schema queries completed.");
