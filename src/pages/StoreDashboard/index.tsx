@@ -295,12 +295,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const data = await api.getNotifications();
+      const data = await api.getNotifications(currentStoreId);
       setNotifications(data);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     }
-  }, []);
+  }, [currentStoreId]);
 
   useEffect(() => {
     fetchData();
@@ -1659,6 +1659,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         products={products}
                         isViewer={isViewer}
                         includeBranches={includeBranches}
+                        onUpdate={fetchNotifications}
                       />
                     )}
                     {activeTab === "companies" && (

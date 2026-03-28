@@ -29,9 +29,10 @@ interface StockTransferTabProps {
   products: Product[];
   isViewer?: boolean;
   includeBranches?: boolean;
+  onUpdate?: () => void;
 }
 
-export default function StockTransferTab({ storeId, products, isViewer, includeBranches }: StockTransferTabProps) {
+export default function StockTransferTab({ storeId, products, isViewer, includeBranches, onUpdate }: StockTransferTabProps) {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [branches, setBranches] = useState<any[]>([]);
@@ -53,10 +54,17 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log(`[DEBUG] StockTransferTab fetchData: storeId=${storeId}, includeBranches=${includeBranches}`);
       const [branchesRes, transfersRes] = await Promise.all([
         api.getBranches(storeId),
         api.getStockTransfers(storeId, includeBranches)
       ]);
+      console.log(`[DEBUG] StockTransferTab API responses:`, { branchesRes, transfersRes });
+      
+      if (transfersRes && transfersRes.error) {
+        console.error("API Error fetching transfers:", transfersRes.error);
+      }
+
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
       setTransfers(Array.isArray(transfersRes) ? transfersRes : []);
     } catch (error) {
@@ -93,6 +101,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
       setTransferItems([]);
       setSelectedBranch(null);
       fetchData();
+      if (onUpdate) onUpdate();
       alert(lang === 'tr' ? "Transfer talebi oluşturuldu" : "Transfer request created");
     } catch (error) {
       alert(lang === 'tr' ? "Hata oluştu" : "An error occurred");
@@ -103,6 +112,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
     try {
       await api.updateStockTransferStatus(transferId, status, storeId);
       fetchData();
+      if (onUpdate) onUpdate();
     } catch (error) {
       alert(lang === 'tr' ? "Hata oluştu" : "An error occurred");
     }
@@ -113,6 +123,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
     try {
       await api.deleteStockTransfer(transferId);
       fetchData();
+      if (onUpdate) onUpdate();
     } catch (error) {
       alert(lang === 'tr' ? "Hata oluştu" : "An error occurred");
     }

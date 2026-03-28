@@ -2251,7 +2251,7 @@ router.delete("/stock-transfers/:id", async (req: any, res) => {
 
 // Get notifications/alerts counts
 router.get("/notifications", async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
   try {

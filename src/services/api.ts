@@ -148,7 +148,7 @@ export const api = {
   createStockTransfer: (data: any, storeId?: number) => api.post(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateStockTransferStatus: (id: number, status: string, storeId?: number) => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
   deleteStockTransfer: (id: number, storeId?: number) => api.delete(`/api/store/stock-transfers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  getNotifications: () => api.get('/api/store/notifications'),
+  getNotifications: (storeId?: number) => api.get(`/api/store/notifications${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
