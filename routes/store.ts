@@ -285,10 +285,29 @@ router.delete("/users/:id", async (req: any, res) => {
 
 // StoreAdmin: Products
 router.get("/products", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
-  if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
+  const currentStoreId = req.user.store_id;
+  const requestedStoreId = req.user.role === "superadmin" ? (req.query.storeId || currentStoreId) : (req.query.storeId || currentStoreId);
+  
+  if (requestedStoreId === undefined || requestedStoreId === null || requestedStoreId === "") return res.status(400).json({ error: "Store ID required" });
 
-  const products = await pool.query("SELECT * FROM products WHERE store_id = $1", [storeId]);
+  // If not superadmin, check if requested store is related (same parent or is parent/child)
+  if (req.user.role !== "superadmin" && Number(requestedStoreId) !== currentStoreId) {
+    try {
+      const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [currentStoreId]);
+      const currentParentId = currentStoreRes.rows[0]?.parent_id || currentStoreId;
+
+      const requestedStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [requestedStoreId]);
+      const requestedParentId = requestedStoreRes.rows[0]?.parent_id || requestedStoreId;
+
+      if (currentParentId !== requestedParentId) {
+        return res.status(403).json({ error: "Unauthorized to view this store's products" });
+      }
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to verify store relationship" });
+    }
+  }
+
+  const products = await pool.query("SELECT * FROM products WHERE store_id = $1", [requestedStoreId]);
   res.json(products.rows);
 });
 

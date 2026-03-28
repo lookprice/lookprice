@@ -94,7 +94,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
     }
   };
 
-  const handleUpdateStatus = async (transferId: number, status: 'shipped' | 'received' | 'cancelled') => {
+  const handleUpdateStatus = async (transferId: number, status: 'shipped' | 'completed' | 'cancelled') => {
     try {
       await api.updateStockTransferStatus(transferId, status, storeId);
       fetchData();
@@ -333,7 +333,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                                   )}
                                   {transfer.status === 'shipped' && isIncoming && (
                                     <button
-                                      onClick={() => handleUpdateStatus(transfer.id, 'received')}
+                                      onClick={() => handleUpdateStatus(transfer.id, 'completed')}
                                       className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                       title="Teslim Alındı Olarak İşaretle"
                                     >
