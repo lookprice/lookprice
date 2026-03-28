@@ -4,6 +4,8 @@ import autoTable from "jspdf-autotable";
 import { useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { 
+  ArrowLeftRight,
+  Bell,
   ChevronDown,
   ChevronUp,
   LayoutDashboard, 
@@ -52,8 +54,7 @@ import {
   Key,
   Loader2,
   Truck,
-  Wrench,
-  ArrowLeftRight
+  Wrench
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
@@ -173,8 +174,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [createCompanyFromSale, setCreateCompanyFromSale] = useState(false);
 
   const isViewer = user.role === 'viewer';
-  const publicUrl = `${window.location.origin}/s/${slug}`;
-  const scanUrl = `${window.location.origin}/scan/${slug}`;
+  const effectiveSlug = branding.parent_slug || slug;
+  const publicUrl = `${window.location.origin}/s/${effectiveSlug}`;
+  const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicUrl);
@@ -1302,8 +1304,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       await api.addUser(data, targetStoreId);
       setShowUserModal(false);
       fetchData();
-    } catch (error) {
-      alert("Hata oluştu");
+    } catch (error: any) {
+      alert(error.response?.data?.error || "Hata oluştu");
     }
   };
 
@@ -1322,13 +1324,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const navItems = [
     { id: "products", label: t.products, icon: Package },
     { id: "analytics", label: t.analytics, icon: LayoutDashboard },
-    { id: "quotations", label: lang === 'tr' ? 'Teklifler / Satış' : 'Quotations / Sales', icon: FileText, badge: notifications.quotations },
-    { id: "procurements", label: lang === 'tr' ? 'Tedarik' : 'Procurement', icon: Truck },
-    { id: "service", label: lang === 'tr' ? 'Teknik Servis' : 'Technical Service', icon: Wrench, badge: notifications.service },
-    { id: "stock_transfer", label: lang === 'tr' ? 'Stok Transferi' : 'Stock Transfer', icon: ArrowLeftRight, badge: notifications.transfers },
-    { id: "purchase_invoices", label: lang === 'tr' ? 'Alış Faturaları' : 'Purchase Invoices', icon: FileDown },
-    { id: "companies", label: lang === 'tr' ? 'Cari Hesaplar' : 'Current Accounts', icon: Store },
-    { id: "pos", label: lang === 'tr' ? 'Satışlar' : 'Sales', icon: CreditCard, badge: notifications.sales },
+    { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
+    { id: "procurements", label: t.procurements, icon: Truck },
+    { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
+    { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
+    { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+    { id: "companies", label: t.companies, icon: Store },
+    { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
 
@@ -1467,9 +1469,50 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
                   <span>Module: {activeTab.toUpperCase()}</span>
                 </div>
-                <h3 className="text-4xl font-bold text-slate-900 tracking-tight">
-                  {t[activeTab as keyof typeof t] || activeTab}
-                </h3>
+                <div className="flex items-center justify-between w-full">
+                  <h3 className="text-4xl font-bold text-slate-900 tracking-tight">
+                    {t[activeTab as keyof typeof t] || activeTab}
+                  </h3>
+                  
+                  {/* Top Right Notification Center */}
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      {notifications.transfers > 0 && (
+                        <button onClick={() => setActiveTab('stock_transfer')} className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group">
+                          <ArrowLeftRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-600" />
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full animate-bounce">
+                            {notifications.transfers}
+                          </span>
+                        </button>
+                      )}
+                      {notifications.service > 0 && (
+                        <button onClick={() => setActiveTab('service')} className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group">
+                          <Wrench className="h-5 w-5 text-slate-400 group-hover:text-amber-600" />
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full animate-bounce">
+                            {notifications.service}
+                          </span>
+                        </button>
+                      )}
+                      {notifications.sales > 0 && (
+                        <button onClick={() => setActiveTab('pos')} className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group">
+                          <CreditCard className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full animate-bounce">
+                            {notifications.sales}
+                          </span>
+                        </button>
+                      )}
+                      <div className="relative p-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+                        <Bell className="h-5 w-5 text-slate-400" />
+                        {(notifications.transfers + notifications.service + notifications.quotations + notifications.sales) > 0 && (
+                          <span className="absolute top-2 right-2 flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <p className="hidden md:block text-sm text-slate-500 max-w-2xl leading-relaxed">
                   Bu modül, mağazanızın {activeTab === 'products' ? 'envanter verilerini' : 
                                        activeTab === 'pos' ? 'satış ve ödeme işlemlerini' :
@@ -3175,7 +3218,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <form onSubmit={handleAddUser} className="p-6 space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.email}</label>
-                  <input name="username" type="email" required className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
+                  <input name="email" type="email" required className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.password}</label>

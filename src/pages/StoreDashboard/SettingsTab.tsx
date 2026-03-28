@@ -470,10 +470,10 @@ const SettingsTab = ({
                 <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200 group hover:bg-white hover:shadow-md transition-all">
                   <div className="flex items-center space-x-4">
                     <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-slate-900 font-bold border border-slate-200 shadow-sm group-hover:scale-110 transition-transform">
-                      {(u.username?.[0] || 'U').toUpperCase()}
+                      {(u.email?.[0] || 'U').toUpperCase()}
                     </div>
                     <div>
-                      <div className="font-bold text-slate-900 text-sm">{u.username}</div>
+                      <div className="font-bold text-slate-900 text-sm">{u.email}</div>
                       <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-0.5">{u.role}</div>
                     </div>
                   </div>

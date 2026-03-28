@@ -324,6 +324,11 @@ const StoreShowcase: React.FC = () => {
           api.getPublicStoreProducts(slug)
         ]);
 
+        if (storeRes.redirect) {
+          navigate(storeRes.redirect, { replace: true });
+          return;
+        }
+
         if (storeRes.error) throw new Error(storeRes.error);
         if (productsRes.error) throw new Error(productsRes.error);
 

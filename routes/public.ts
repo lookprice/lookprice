@@ -1,5 +1,5 @@
 import express from "express";
-import { pool } from "../models/db.js";
+import { pool } from "../models/db.ts";
 
 const router = express.Router();
 
@@ -11,11 +11,29 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
       id, name, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone
+      address, phone, parent_id
     FROM stores 
     WHERE slug = $1
   `, [slug]);
   let store = storeRes.rows[0];
+
+  if (store && store.parent_id) {
+    // If it's a branch, we use the parent's branding for the scan result
+    const parentRes = await pool.query(`
+      SELECT 
+        id, name, logo_url, primary_color, default_currency, background_image_url,
+        hero_title, hero_subtitle, hero_image_url, about_text,
+        instagram_url, facebook_url, twitter_url, whatsapp_number,
+        address, phone, slug
+      FROM stores 
+      WHERE id = $1
+    `, [store.parent_id]);
+    if (parentRes.rows[0]) {
+      const parentStore = parentRes.rows[0];
+      // Keep the branch ID for logging and stock checking if needed, but use parent branding
+      store = { ...parentStore, branch_id: store.id };
+    }
+  }
   
   if (!store && (slug === 'demo-store' || slug === 'demo')) {
     store = {
@@ -56,7 +74,7 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
   }
 
   // Log the scan
-  await pool.query("INSERT INTO scan_logs (store_id, product_id) VALUES ($1, $2)", [store.id, product.id]);
+  await pool.query("INSERT INTO scan_logs (store_id, product_id) VALUES ($1, $2)", [store.branch_id || store.id, product.id]);
 
   res.json({ ...product, store });
 });
@@ -82,11 +100,19 @@ router.get("/store/:slug", async (req, res) => {
       id, name, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone
+      address, phone, parent_id
     FROM stores 
     WHERE slug = $1
   `, [slug]);
   let store = storeRes.rows[0];
+
+  if (store && store.parent_id) {
+    // This is a branch. Redirect to parent store's website.
+    const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
+    if (parentRes.rows[0]) {
+      return res.json({ redirect: `/store/${parentRes.rows[0].slug}`, isBranch: true });
+    }
+  }
   
   if (!store && (slug === 'demo-store' || slug === 'demo')) {
     store = {

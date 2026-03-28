@@ -73,6 +73,10 @@ export default function CustomerScanPage() {
 
   const fetchStore = async () => {
     const res = await api.getPublicStore(slug!);
+    if (res.redirect) {
+      window.location.href = res.redirect;
+      return;
+    }
     if (!res.error) setStore(res);
   };
 

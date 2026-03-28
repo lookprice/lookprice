@@ -46,6 +46,14 @@ router.get("/info", async (req: any, res) => {
 
   const store = storeRes.rows[0];
   if (!store) return res.status(404).json({ error: "Store not found" });
+
+  if (store.parent_id) {
+    const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
+    if (parentRes.rows[0]) {
+      store.parent_slug = parentRes.rows[0].slug;
+    }
+  }
+
   res.json(store);
 });
 
@@ -301,6 +309,9 @@ router.get("/products", async (req: any, res) => {
       
       const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
       storeIds = groupRes.rows.map(r => r.id);
+      console.log(`Fetching products for group. Parent: ${parentId}, Store IDs: ${storeIds}`);
+    } else {
+      console.log(`Fetching products for single store: ${requestedStoreId}`);
     }
 
     // Authorization check for non-superadmins
@@ -1905,8 +1916,8 @@ router.get("/branches", async (req: any, res) => {
 
     // Get all stores with same parent_id or the parent itself
     const branchesRes = await pool.query(
-      "SELECT id, name, address, phone FROM stores WHERE id = $1 OR parent_id = $1",
-      [parentId]
+      "SELECT id, name, slug, address, phone FROM stores WHERE (id = $1 OR parent_id = $1) AND id != $2",
+      [parentId, storeId]
     );
     
     // Filter out current store
@@ -1984,10 +1995,15 @@ router.get("/stock-transfers", async (req: any, res) => {
 router.post("/stock-transfers", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   const userId = req.user.id;
-  const { to_store_id, notes, items } = req.body;
+  const { from_store_id, to_store_id, notes, items } = req.body;
 
-  if (!storeId || !to_store_id || !items || items.length === 0) {
+  if (!from_store_id || !to_store_id || !items || items.length === 0) {
     return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  // Authorization check: User must belong to either from_store or to_store
+  if (req.user.role !== 'superadmin' && from_store_id !== storeId && to_store_id !== storeId) {
+    return res.status(403).json({ error: "Unauthorized to create this transfer" });
   }
 
   const client = await pool.connect();
@@ -1997,7 +2013,7 @@ router.post("/stock-transfers", async (req: any, res) => {
     const transferRes = await client.query(
       `INSERT INTO stock_transfers (from_store_id, to_store_id, notes, created_by)
        VALUES ($1, $2, $3, $4) RETURNING id`,
-      [storeId, to_store_id, notes, userId]
+      [from_store_id, to_store_id, notes, userId]
     );
     const transferId = transferRes.rows[0].id;
 
@@ -2160,9 +2176,9 @@ router.get("/notifications", async (req: any, res) => {
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
   try {
-    // 1. New Stock Transfers (Incoming and status is pending)
+    // 1. New Stock Transfers (Incoming and status is pending or shipped)
     const transfersCount = await pool.query(
-      "SELECT COUNT(*) FROM stock_transfers WHERE to_store_id = $1 AND status = 'pending'",
+      "SELECT COUNT(*) FROM stock_transfers WHERE to_store_id = $1 AND status IN ('pending', 'shipped')",
       [storeId]
     );
 
@@ -2199,30 +2215,21 @@ router.get("/notifications", async (req: any, res) => {
 router.get("/public/store/:slug/products/:barcode/stock", async (req, res) => {
   const { slug, barcode } = req.params;
   try {
-    // 1. Find the store by slug to get its store_group_id
-    const storeRes = await pool.query("SELECT id, store_group_id FROM stores WHERE slug = $1", [slug]);
+    // 1. Find the store by slug to get its parent_id
+    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE slug = $1", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
     
-    const { store_group_id } = storeRes.rows[0];
-    if (!store_group_id) {
-      // If no store group, just return the stock of this store
-      const stockRes = await pool.query(`
-        SELECT s.name as store_name, p.stock_quantity
-        FROM products p
-        JOIN stores s ON p.store_id = s.id
-        WHERE s.slug = $1 AND p.barcode = $2
-      `, [slug, barcode]);
-      return res.json(stockRes.rows);
-    }
+    const { id, parent_id } = storeRes.rows[0];
+    const parentId = parent_id || id;
 
-    // 2. Get stock from all stores in the same group
+    // 2. Get stock from all stores in the same group (parent + siblings)
     const stockRes = await pool.query(`
       SELECT s.name as store_name, COALESCE(p.stock_quantity, 0) as stock_quantity
       FROM stores s
       LEFT JOIN products p ON p.store_id = s.id AND p.barcode = $1
-      WHERE s.store_group_id = $2
-      ORDER BY s.is_main_store DESC, s.name ASC
-    `, [barcode, store_group_id]);
+      WHERE s.id = $2 OR s.parent_id = $2
+      ORDER BY (s.parent_id IS NULL) DESC, s.name ASC
+    `, [barcode, parentId]);
 
     res.json(stockRes.rows);
   } catch (err: any) {

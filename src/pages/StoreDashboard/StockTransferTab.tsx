@@ -56,8 +56,8 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
         api.getBranches(storeId),
         api.getStockTransfers(storeId)
       ]);
-      setBranches(branchesRes);
-      setTransfers(transfersRes);
+      setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+      setTransfers(Array.isArray(transfersRes) ? transfersRes : []);
     } catch (error) {
       console.error("Error fetching stock transfer data:", error);
     } finally {
@@ -70,7 +70,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
       setLoadingStock(true);
       setSelectedBranch(branchId);
       const stockRes = await api.getProducts(branchId);
-      setBranchStock(stockRes);
+      setBranchStock(Array.isArray(stockRes) ? stockRes : []);
     } catch (error) {
       console.error("Error checking branch stock:", error);
     } finally {
@@ -126,7 +126,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
       case 'preparing':
         return <span className="flex items-center text-purple-600 bg-purple-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Package className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Hazırlanıyor' : 'Preparing'}</span>;
       case 'shipped':
-        return <span className="flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Truck className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Sevk Edildi' : 'Shipped'}</span>;
+        return <span className="flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><Truck className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Yolda' : 'On the Way'}</span>;
       case 'completed':
         return <span className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-full text-[10px] font-bold uppercase"><CheckCircle2 className="h-3 w-3 mr-1" /> {lang === 'tr' ? 'Tamamlandı' : 'Completed'}</span>;
       case 'cancelled':
@@ -152,7 +152,7 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
             <ArrowLeftRight className="h-5 w-5 mr-2 text-indigo-600" />
             {lang === 'tr' ? 'Şubeler Arası Stok Transferi' : 'Inter-branch Stock Transfer'}
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className="hidden md:block text-sm text-gray-500">
             {lang === 'tr' ? 'Diğer şubelerden stok talep edin veya gönderin' : 'Request or send stock from/to other branches'}
           </p>
         </div>
@@ -332,6 +332,21 @@ export default function StockTransferTab({ storeId, products, isViewer }: StockT
                           </td>
                           <td className="px-4 py-3">
                             {getStatusBadge(transfer.status)}
+                            {!isIncoming && transfer.status === 'shipped' && (
+                              <div className="mt-1 text-[9px] text-blue-500 font-medium italic animate-pulse">
+                                {lang === 'tr' ? 'Alıcının teslim alması bekleniyor...' : 'Waiting for receiver to accept...'}
+                              </div>
+                            )}
+                            {isIncoming && transfer.status === 'pending' && (
+                              <div className="mt-1 text-[9px] text-amber-500 font-medium italic animate-pulse">
+                                {lang === 'tr' ? 'Onayınız bekleniyor...' : 'Waiting for your approval...'}
+                              </div>
+                            )}
+                            {!isIncoming && transfer.status === 'pending' && (
+                              <div className="mt-1 text-[9px] text-amber-500 font-medium italic animate-pulse">
+                                {lang === 'tr' ? 'Karşı tarafın onaylaması bekleniyor...' : 'Waiting for other side to approve...'}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end space-x-1">
