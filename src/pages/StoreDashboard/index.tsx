@@ -85,7 +85,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const { slug } = useParams();
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
-  const [activeTab, setActiveTab] = useState("products");
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem(`storeDashboardTab_${user.store_id || 'admin'}`) || "products";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
+  }, [activeTab, user.store_id]);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentStoreId, setCurrentStoreId] = useState<number | undefined>(user.store_id);
