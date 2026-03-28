@@ -52,7 +52,8 @@ import {
   Key,
   Loader2,
   Truck,
-  Wrench
+  Wrench,
+  ArrowLeftRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
@@ -72,6 +73,7 @@ import PosTab from "./PosTab";
 import SettingsTab from "./SettingsTab";
 import { ProcurementTab } from "./ProcurementTab";
 import { ServiceTab } from "./ServiceTab";
+import StockTransferTab from "./StockTransferTab";
 
 interface StoreDashboardProps {
   user: User;
@@ -1303,6 +1305,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "quotations", label: lang === 'tr' ? 'Teklifler / Satış' : 'Quotations / Sales', icon: FileText },
     { id: "procurements", label: lang === 'tr' ? 'Tedarik' : 'Procurement', icon: Truck },
     { id: "service", label: lang === 'tr' ? 'Teknik Servis' : 'Technical Service', icon: Wrench },
+    { id: "stock_transfer", label: lang === 'tr' ? 'Stok Transferi' : 'Stock Transfer', icon: ArrowLeftRight },
     { id: "purchase_invoices", label: lang === 'tr' ? 'Alış Faturaları' : 'Purchase Invoices', icon: FileDown },
     { id: "companies", label: lang === 'tr' ? 'Cari Hesaplar' : 'Current Accounts', icon: Store },
     { id: "pos", label: lang === 'tr' ? 'Satışlar' : 'Sales', icon: CreditCard },
@@ -1440,11 +1443,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <h3 className="text-4xl font-bold text-slate-900 tracking-tight">
                   {t[activeTab as keyof typeof t] || activeTab}
                 </h3>
-                <p className="text-sm text-slate-500 max-w-2xl leading-relaxed">
+                <p className="hidden md:block text-sm text-slate-500 max-w-2xl leading-relaxed">
                   Bu modül, mağazanızın {activeTab === 'products' ? 'envanter verilerini' : 
                                        activeTab === 'pos' ? 'satış ve ödeme işlemlerini' :
                                        activeTab === 'quotations' ? 'teklif ve proforma süreçlerini' :
                                        activeTab === 'service' ? 'teknik servis ve onarım süreçlerini' :
+                                       activeTab === 'stock_transfer' ? 'şubeler arası stok transfer süreçlerini' :
                                        activeTab === 'procurements' ? 'tedarik ve sipariş süreçlerini' :
                                        activeTab === 'purchase_invoices' ? 'alış faturalarını ve tedarik işlemlerini' :
                                        activeTab === 'companies' ? 'cari hesap ve finansal ilişkilerini' :
@@ -1560,6 +1564,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         storeId={currentStoreId}
                         isViewer={isViewer}
                         products={products}
+                      />
+                    )}
+                    {activeTab === "stock_transfer" && (
+                      <StockTransferTab 
+                        storeId={currentStoreId}
+                        products={products}
+                        isViewer={isViewer}
                       />
                     )}
                     {activeTab === "companies" && (

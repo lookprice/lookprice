@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import { pool } from "../models/db.js";
-import { authenticate } from "../middleware/auth.js";
+import { pool } from "../models/db.ts";
+import { authenticate } from "../middleware/auth.ts";
 
 const router = express.Router();
 
@@ -40,12 +40,12 @@ router.get("/stores", async (req: any, res) => {
 });
 
 router.post("/stores", async (req: any, res) => {
-  const { name, slug, address, contact_person, phone, country, email, subscription_end, admin_email, admin_password, default_currency, language, plan } = req.body;
+  const { name, slug, address, contact_person, phone, country, email, subscription_end, admin_email, admin_password, default_currency, language, plan, parent_id } = req.body;
   try {
     await pool.query("BEGIN");
     const storeRes = await pool.query(
-      "INSERT INTO stores (name, slug, address, contact_person, phone, country, email, subscription_end, default_currency, language, plan) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
-      [name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, default_currency || 'TRY', language || 'tr', plan || 'free']
+      "INSERT INTO stores (name, slug, address, contact_person, phone, country, email, subscription_end, default_currency, language, plan, parent_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+      [name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null]
     );
     const storeId = storeRes.rows[0].id;
     const hashedPassword = bcrypt.hashSync(admin_password, 10);
@@ -59,14 +59,14 @@ router.post("/stores", async (req: any, res) => {
 });
 
 router.put("/stores/:id", async (req: any, res) => {
-  const { name, slug, address, contact_person, phone, country, email, subscription_end, default_currency, language, admin_password, plan } = req.body;
+  const { name, slug, address, contact_person, phone, country, email, subscription_end, default_currency, language, admin_password, plan, parent_id } = req.body;
   try {
     await pool.query("BEGIN");
     await pool.query(`
       UPDATE stores 
-      SET name = $1, slug = $2, address = $3, contact_person = $4, phone = $5, country = $6, email = $7, subscription_end = $8, default_currency = $9, language = $10, plan = $11
-      WHERE id = $12
-    `, [name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, default_currency || 'TRY', language || 'tr', plan || 'free', req.params.id]);
+      SET name = $1, slug = $2, address = $3, contact_person = $4, phone = $5, country = $6, email = $7, subscription_end = $8, default_currency = $9, language = $10, plan = $11, parent_id = $12
+      WHERE id = $13
+    `, [name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, req.params.id]);
 
     if (admin_password) {
       const hashedPassword = bcrypt.hashSync(admin_password, 10);

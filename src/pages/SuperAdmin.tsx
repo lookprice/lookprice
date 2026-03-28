@@ -112,7 +112,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     subscription_end: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
     default_currency: "TRY",
     language: "tr",
-    plan: "free" as const
+    plan: "free" as const,
+    parent_id: "" as string | number
   });
 
   const planLimits = {
@@ -166,7 +167,11 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const handleAddStore = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.addStore(newStore);
+      const payload = { 
+        ...newStore, 
+        parent_id: newStore.parent_id === "" ? null : Number(newStore.parent_id) 
+      };
+      await api.addStore(payload);
       setShowAdd(false);
       setNewStore({
         name: "",
@@ -174,13 +179,15 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         address: "",
         contact_person: "",
         phone: "",
+        country: "TR",
         email: "",
         admin_email: "",
         admin_password: "",
         subscription_end: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
         default_currency: "TRY",
         language: "tr",
-        plan: "free"
+        plan: "free",
+        parent_id: ""
       });
       fetchData();
     } catch (error) {
@@ -191,7 +198,11 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const handleUpdateStore = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.updateStore(editingStore.id, editingStore);
+      const payload = { 
+        ...editingStore, 
+        parent_id: editingStore.parent_id === "" ? null : Number(editingStore.parent_id) 
+      };
+      await api.updateStore(editingStore.id, payload);
       setEditingStore(null);
       fetchData();
     } catch (error) {
@@ -781,6 +792,19 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     placeholder={st.passwordNote}
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Üst Mağaza (Şube ise)</label>
+                  <select 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingStore.parent_id || ""} 
+                    onChange={e => setEditingStore({...editingStore, parent_id: e.target.value})}
+                  >
+                    <option value="">Bağımsız Mağaza</option>
+                    {stores.filter(s => s.id !== editingStore.id && !s.parent_id).map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="md:col-span-2 flex space-x-2 mt-2">
                   <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm">{st.update}</button>
                   <button type="button" onClick={() => setEditingStore(null)} className="flex-1 bg-gray-100 text-gray-900 py-2 rounded-lg font-bold text-sm">{st.close}</button>
@@ -1014,6 +1038,19 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     <option value="tr">Turkish</option>
                     <option value="en">English</option>
                     <option value="de">German</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">Üst Mağaza (Şube ise)</label>
+                  <select 
+                    className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={newStore.parent_id} 
+                    onChange={e => setNewStore({...newStore, parent_id: e.target.value})}
+                  >
+                    <option value="">Bağımsız Mağaza</option>
+                    {stores.filter(s => !s.parent_id).map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex justify-end space-x-2 pt-6">

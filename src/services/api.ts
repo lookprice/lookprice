@@ -136,6 +136,13 @@ export const api = {
   updateServiceRecord: (id: number, data: any, storeId?: number) => api.put(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteServiceRecord: (id: number, storeId?: number) => api.delete(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
+  // Branches & Stock Transfers
+  getBranches: (storeId?: number) => api.get(`/api/store/branches${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getBranchStock: (barcode: string, storeId?: number) => api.get(`/api/store/branches/stock/${barcode}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getStockTransfers: (storeId?: number) => api.get(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  createStockTransfer: (data: any, storeId?: number) => api.post(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateStockTransferStatus: (id: number, status: string, storeId?: number) => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
+
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),

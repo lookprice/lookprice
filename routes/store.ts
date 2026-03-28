@@ -1849,4 +1849,229 @@ router.delete("/service-records/:id", async (req: any, res) => {
   res.json({ success: true });
 });
 
+// --- BRANCHES & STOCK TRANSFERS ---
+
+// Get all branches (siblings and parent)
+router.get("/branches", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    // Find parent_id of current store
+    const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+    const parentId = currentStoreRes.rows[0]?.parent_id || storeId;
+
+    // Get all stores with same parent_id or the parent itself
+    const branchesRes = await pool.query(
+      "SELECT id, name, address, phone FROM stores WHERE id = $1 OR parent_id = $1",
+      [parentId]
+    );
+    
+    // Filter out current store
+    const branches = branchesRes.rows.filter(b => b.id !== storeId);
+    res.json(branches);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch branches" });
+  }
+});
+
+// Check stock in other branches
+router.get("/branches/stock/:barcode", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { barcode } = req.params;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+    const parentId = currentStoreRes.rows[0]?.parent_id || storeId;
+
+    const stockRes = await pool.query(
+      `SELECT s.name as store_name, p.stock_quantity, p.price, p.currency
+       FROM products p
+       JOIN stores s ON p.store_id = s.id
+       WHERE p.barcode = $1 AND (s.id = $2 OR s.parent_id = $2) AND s.id != $3`,
+      [barcode, parentId, storeId]
+    );
+    
+    res.json(stockRes.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch branch stock" });
+  }
+});
+
+// Get stock transfers
+router.get("/stock-transfers", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    const transfersRes = await pool.query(
+      `SELECT st.*, 
+              fs.name as from_store_name, 
+              ts.name as to_store_name,
+              u.email as created_by_email
+       FROM stock_transfers st
+       JOIN stores fs ON st.from_store_id = fs.id
+       JOIN stores ts ON st.to_store_id = ts.id
+       LEFT JOIN users u ON st.created_by = u.id
+       WHERE st.from_store_id = $1 OR st.to_store_id = $1
+       ORDER BY st.created_at DESC`,
+      [storeId]
+    );
+
+    // Fetch items for each transfer
+    const transfers = await Promise.all(transfersRes.rows.map(async (t) => {
+      const itemsRes = await pool.query(
+        "SELECT * FROM stock_transfer_items WHERE transfer_id = $1",
+        [t.id]
+      );
+      return { ...t, items: itemsRes.rows };
+    }));
+
+    res.json(transfers);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch stock transfers" });
+  }
+});
+
+// Create stock transfer
+router.post("/stock-transfers", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const userId = req.user.id;
+  const { to_store_id, notes, items } = req.body;
+
+  if (!storeId || !to_store_id || !items || items.length === 0) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const transferRes = await client.query(
+      `INSERT INTO stock_transfers (from_store_id, to_store_id, notes, created_by)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [storeId, to_store_id, notes, userId]
+    );
+    const transferId = transferRes.rows[0].id;
+
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO stock_transfer_items (transfer_id, product_id, quantity, barcode, product_name)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [transferId, item.product_id, item.quantity, item.barcode, item.product_name]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, transferId });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed to create stock transfer" });
+  } finally {
+    client.release();
+  }
+});
+
+// Update transfer status
+router.put("/stock-transfers/:id/status", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!['shipped', 'completed', 'cancelled'].includes(status)) {
+    return res.status(400).json({ error: "Invalid status" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const transferRes = await client.query(
+      "SELECT * FROM stock_transfers WHERE id = $1",
+      [id]
+    );
+    const transfer = transferRes.rows[0];
+
+    if (!transfer) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Transfer not found" });
+    }
+
+    // Authorization check
+    if (status === 'shipped' && transfer.from_store_id !== storeId) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "Only sender can ship" });
+    }
+    if (status === 'completed' && transfer.to_store_id !== storeId) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "Only receiver can complete" });
+    }
+
+    // Update status
+    await client.query(
+      "UPDATE stock_transfers SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [status, id]
+    );
+
+    // Stock movements if completed
+    if (status === 'completed') {
+      const itemsRes = await client.query(
+        "SELECT * FROM stock_transfer_items WHERE transfer_id = $1",
+        [id]
+      );
+
+      for (const item of itemsRes.rows) {
+        // Decrease from sender
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+          [item.quantity, item.product_id]
+        );
+        await client.query(
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, reason) VALUES ($1, $2, 'out', $3, $4)",
+          [transfer.from_store_id, item.product_id, item.quantity, `Transfer to store #${transfer.to_store_id}`]
+        );
+
+        // Increase at receiver (find or create product by barcode)
+        const receiverProductRes = await client.query(
+          "SELECT id FROM products WHERE store_id = $1 AND barcode = $2",
+          [transfer.to_store_id, item.barcode]
+        );
+
+        let receiverProductId;
+        if (receiverProductRes.rows.length > 0) {
+          receiverProductId = receiverProductRes.rows[0].id;
+          await client.query(
+            "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+            [item.quantity, receiverProductId]
+          );
+        } else {
+          // Create new product for receiver branch
+          const senderProductRes = await client.query("SELECT * FROM products WHERE id = $1", [item.product_id]);
+          const sp = senderProductRes.rows[0];
+          const newProductRes = await client.query(
+            `INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, tax_rate, description, stock_quantity, unit, category)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+            [transfer.to_store_id, sp.barcode, sp.name, sp.price, sp.currency, sp.cost_price, sp.cost_currency, sp.tax_rate, sp.description, item.quantity, sp.unit, sp.category]
+          );
+          receiverProductId = newProductRes.rows[0].id;
+        }
+
+        await client.query(
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, reason) VALUES ($1, $2, 'in', $3, $4)",
+          [transfer.to_store_id, receiverProductId, item.quantity, `Transfer from store #${transfer.from_store_id}`]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed to update transfer status" });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
