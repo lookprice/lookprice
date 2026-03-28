@@ -800,13 +800,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                       <input
                                         type="number"
                                         step="1"
+                                        min="0"
+                                        max="99"
                                         list="tax-rates"
-                                        value={item.tax_rate}
+                                        value={item.tax_rate === '0' ? '0' : (item.tax_rate ? Math.round(Number(item.tax_rate)) : '')}
                                         onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
                                         onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                                         onFocus={(e) => e.target.select()}
-                                        maxLength={2}
-                                        max={99}
                                         className="w-[8ch] px-2 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                       />
                                       <datalist id="tax-rates">
@@ -1318,7 +1318,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                     value={quickProductForm.barcode}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
                     maxLength={13}
-                    className="w-[18ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-[22ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
                 <div>

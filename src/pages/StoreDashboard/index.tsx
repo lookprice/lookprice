@@ -1518,7 +1518,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           setQuotationItems((q.items || []).map((item: any) => ({
                             ...item,
                             unit_price: Number(item.unit_price),
-                            total_price: Number(item.total_price)
+                            total_price: Number(item.total_price),
+                            tax_rate: Math.round(Number(item.tax_rate) || 0)
                           }))); 
                           setShowQuotationModal(true); 
                         }}
@@ -2703,7 +2704,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     maxLength={13}
                     defaultValue={editingProduct?.barcode} 
                     placeholder="869..."
-                    className="w-[18ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
+                    className="w-[22ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
                   />
                 </div>
 
@@ -2802,20 +2803,20 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
 
                 {/* Row 3.7: Tax Rate */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KDV ORANI (%)' : 'TAX RATE (%)'}</label>
-                  <input 
-                    name="tax_rate" 
-                    type="number" 
-                    step="1"
-                    maxLength={2}
-                    max={99}
-                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                    defaultValue={editingProduct?.tax_rate !== undefined ? editingProduct.tax_rate : (branding?.default_tax_rate || 20)} 
-                    onFocus={(e) => e.target.select()}
-                    className="w-[8ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
-                  />
-                </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KDV ORANI (%)' : 'TAX RATE (%)'}</label>
+                    <input 
+                      name="tax_rate" 
+                      type="number" 
+                      step="1"
+                      min="0"
+                      max="99"
+                      onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                      defaultValue={Math.round(editingProduct?.tax_rate !== undefined ? editingProduct.tax_rate : (branding?.default_tax_rate || 20))} 
+                      onFocus={(e) => e.target.select()}
+                      className="w-[8ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
+                    />
+                  </div>
 
                 {/* Row 4: Stock, Unit, Min Stock */}
                 <div className="grid grid-cols-12 gap-4">
@@ -3224,7 +3225,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                 barcode: p.barcode,
                                 quantity: 1,
                                 unit_price: Number(p.price),
-                                tax_rate: Number(p.tax_rate) || branding.default_tax_rate || 20,
+                                tax_rate: Math.round(Number(p.tax_rate) || branding.default_tax_rate || 20),
                                 total_price: Number(p.price)
                               }]);
                             }
@@ -3298,7 +3299,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <input 
                               type="number" 
                               step="1"
-                              value={item.tax_rate === 0 ? '' : item.tax_rate}
+                              min="0"
+                              max="99"
+                              value={item.tax_rate === 0 ? '' : Math.round(item.tax_rate)}
                               onChange={(e) => {
                                 const tax = parseInt(e.target.value) || 0;
                                 const newItems = [...quotationItems];
@@ -3307,8 +3310,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                               }}
                               onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                               onFocus={(e) => e.target.select()}
-                              maxLength={2}
-                              max={99}
                               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-indigo-500 transition-all" 
                             />
                           </div>
@@ -3421,13 +3422,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <input 
                         type="number"
                         step="1"
+                        min="0"
+                        max="99"
                         required
-                        value={quickProductForm.tax_rate}
+                        value={quickProductForm.tax_rate === '0' ? '0' : (quickProductForm.tax_rate ? Math.round(Number(quickProductForm.tax_rate)) : '')}
                         onChange={(e) => setQuickProductForm({ ...quickProductForm, tax_rate: e.target.value })}
                         onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                         onFocus={(e) => e.target.select()}
-                        maxLength={2}
-                        max={99}
                         className="w-[8ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
                       />
                     </div>
@@ -3437,7 +3438,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         value={quickProductForm.barcode}
                         onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
                         maxLength={13}
-                        className="w-[18ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                        className="w-[22ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                       />
                     </div>
                   </div>

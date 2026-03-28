@@ -179,7 +179,7 @@ const SettingsTab = ({
                     maxLength={2}
                     onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                     className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    value={branding.default_tax_rate !== undefined ? branding.default_tax_rate : 20}
+                    value={branding.default_tax_rate !== undefined ? Math.round(branding.default_tax_rate) : 20}
                     onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value) || 0)}
                     onFocus={(e) => e.target.select()}
                   />
