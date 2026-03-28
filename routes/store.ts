@@ -2174,7 +2174,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
           [item.quantity, item.product_id, transfer.from_store_id]
         );
         await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, reason) VALUES ($1, $2, 'out', $3, $4)",
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
           [transfer.from_store_id, item.product_id, item.quantity, `Transfer to store #${transfer.to_store_id}`]
         );
 
@@ -2204,7 +2204,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
         }
 
         await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, reason) VALUES ($1, $2, 'in', $3, $4)",
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
           [transfer.to_store_id, receiverProductId, item.quantity, `Transfer from store #${transfer.from_store_id}`]
         );
       }
