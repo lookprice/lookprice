@@ -117,6 +117,18 @@ export const api = {
 
   uploadFile: (formData: FormData) => api.upload("/api/upload", formData),
   
+  // Supplier APIs
+  getSupplierApis: (storeId?: number) => api.get(`/api/store/supplier-apis${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addSupplierApi: (data: any, storeId?: number) => api.post(`/api/store/supplier-apis${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateSupplierApi: (id: number, data: any, storeId?: number) => api.put(`/api/store/supplier-apis/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteSupplierApi: (id: number, storeId?: number) => api.delete(`/api/store/supplier-apis/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+
+  // Procurements
+  getProcurements: (storeId?: number) => api.get(`/api/store/procurements${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  updateProcurement: (id: number, data: any, storeId?: number) => api.put(`/api/store/procurements/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteProcurement: (id: number, storeId?: number) => api.delete(`/api/store/procurements/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  querySupplierApis: (id: number, storeId?: number) => api.post(`/api/store/procurements/${id}/query${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),

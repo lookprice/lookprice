@@ -50,7 +50,8 @@ import {
   ImageIcon,
   Tag,
   Key,
-  Loader2
+  Loader2,
+  Truck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
@@ -68,6 +69,7 @@ import QuotationsTab from "./QuotationsTab";
 import CompaniesTab from "./CompaniesTab";
 import PosTab from "./PosTab";
 import SettingsTab from "./SettingsTab";
+import { ProcurementTab } from "./ProcurementTab";
 
 interface StoreDashboardProps {
   user: User;
@@ -1297,6 +1299,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "products", label: t.products, icon: Package },
     { id: "analytics", label: t.analytics, icon: LayoutDashboard },
     { id: "quotations", label: lang === 'tr' ? 'Teklifler / Satış' : 'Quotations / Sales', icon: FileText },
+    { id: "procurements", label: lang === 'tr' ? 'Tedarik' : 'Procurement', icon: Truck },
     { id: "purchase_invoices", label: lang === 'tr' ? 'Alış Faturaları' : 'Purchase Invoices', icon: FileDown },
     { id: "companies", label: lang === 'tr' ? 'Cari Hesaplar' : 'Current Accounts', icon: Store },
     { id: "pos", label: lang === 'tr' ? 'Satışlar' : 'Sales', icon: CreditCard },
@@ -1438,6 +1441,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   Bu modül, mağazanızın {activeTab === 'products' ? 'envanter verilerini' : 
                                        activeTab === 'pos' ? 'satış ve ödeme işlemlerini' :
                                        activeTab === 'quotations' ? 'teklif ve proforma süreçlerini' :
+                                       activeTab === 'procurements' ? 'tedarik ve sipariş süreçlerini' :
                                        activeTab === 'purchase_invoices' ? 'alış faturalarını ve tedarik işlemlerini' :
                                        activeTab === 'companies' ? 'cari hesap ve finansal ilişkilerini' :
                                        activeTab === 'analytics' ? 'performans metriklerini' : 'sistem yapılandırmasını'} 
@@ -1539,6 +1543,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         api={api} 
                         branding={branding}
                         onSave={fetchData}
+                      />
+                    )}
+                    {activeTab === "procurements" && (
+                      <ProcurementTab 
+                        storeId={currentStoreId}
+                        isViewer={isViewer}
                       />
                     )}
                     {activeTab === "companies" && (

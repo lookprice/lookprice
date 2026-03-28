@@ -3,8 +3,8 @@ import multer from "multer";
 import * as XLSX from "xlsx";
 import fs from "fs";
 import bcrypt from "bcryptjs";
-import { pool } from "../models/db.js";
-import { authenticate } from "../middleware/auth.js";
+import { pool } from "../models/db.ts";
+import { authenticate } from "../middleware/auth.ts";
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
@@ -685,6 +685,7 @@ router.delete("/quotations/:id", async (req: any, res) => {
           }
         }
         // Delete related records
+        await client.query("DELETE FROM procurements WHERE sale_id = $1", [sale.id]);
         await client.query("DELETE FROM sale_items WHERE sale_id = $1", [sale.id]);
         await client.query("DELETE FROM sale_payments WHERE sale_id = $1", [sale.id]);
         await client.query("DELETE FROM current_account_transactions WHERE sale_id = $1", [sale.id]);
@@ -743,7 +744,10 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       );
       const saleId = saleRes.rows[0].id;
 
-      const itemsRes = await client.query("SELECT * FROM quotation_items WHERE quotation_id = $1", [quotation.id]);
+      const itemsRes = await client.query(
+        "SELECT qi.*, p.stock_quantity FROM quotation_items qi LEFT JOIN products p ON qi.product_id = p.id WHERE qi.quotation_id = $1", 
+        [quotation.id]
+      );
       for (const item of itemsRes.rows) {
         await client.query(
           "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
@@ -751,6 +755,17 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
         );
         
         if (item.product_id) {
+          const stockNeeded = item.quantity;
+          const currentStock = item.stock_quantity || 0;
+
+          if (currentStock < stockNeeded) {
+            const missingQuantity = stockNeeded - (currentStock > 0 ? currentStock : 0);
+            await client.query(
+              "INSERT INTO procurements (store_id, sale_id, product_id, product_name, barcode, quantity, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')",
+              [storeId, saleId, item.product_id, item.product_name, item.barcode, missingQuantity]
+            );
+          }
+
           await client.query(
             "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
             [item.quantity, item.product_id]
@@ -1301,6 +1316,7 @@ router.delete("/sales/:id", async (req: any, res) => {
     }
 
     // Delete related records
+    await client.query("DELETE FROM procurements WHERE sale_id = $1", [sale.id]);
     await client.query("DELETE FROM current_account_transactions WHERE sale_id = $1", [sale.id]);
     await client.query("DELETE FROM sale_items WHERE sale_id = $1", [sale.id]);
     await client.query("DELETE FROM sale_payments WHERE sale_id = $1", [sale.id]);
@@ -1638,6 +1654,110 @@ router.delete("/purchase-invoices/:id", async (req: any, res) => {
     res.status(400).json({ error: e.message });
   } finally {
     client.release();
+  }
+});
+
+// StoreAdmin: Supplier APIs
+router.get("/supplier-apis", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+  const apis = await pool.query("SELECT * FROM supplier_apis WHERE store_id = $1", [storeId]);
+  res.json(apis.rows);
+});
+
+router.post("/supplier-apis", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const { name, api_url, api_key } = req.body;
+  await pool.query("INSERT INTO supplier_apis (store_id, name, api_url, api_key) VALUES ($1, $2, $3, $4)", [storeId, name, api_url, api_key]);
+  res.json({ success: true });
+});
+
+router.put("/supplier-apis/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const { id } = req.params;
+  const { name, api_url, api_key } = req.body;
+  await pool.query("UPDATE supplier_apis SET name = $1, api_url = $2, api_key = $3 WHERE id = $4 AND store_id = $5", [name, api_url, api_key, id, storeId]);
+  res.json({ success: true });
+});
+
+router.delete("/supplier-apis/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  await pool.query("DELETE FROM supplier_apis WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
+  res.json({ success: true });
+});
+
+// StoreAdmin: Procurements
+router.get("/procurements", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const procurements = await pool.query(`
+    SELECT pr.*, s.customer_name as sale_customer_name 
+    FROM procurements pr 
+    LEFT JOIN sales s ON pr.sale_id = s.id 
+    WHERE pr.store_id = $1 
+    ORDER BY pr.created_at DESC
+  `, [storeId]);
+  res.json(procurements.rows);
+});
+
+router.put("/procurements/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const { id } = req.params;
+  const { status, supplier_id, supplier_stock, supplier_price } = req.body;
+  await pool.query(`
+    UPDATE procurements 
+    SET status = $1, supplier_id = $2, supplier_stock = $3, supplier_price = $4 
+    WHERE id = $5 AND store_id = $6
+  `, [status, supplier_id, supplier_stock, supplier_price, id, storeId]);
+  res.json({ success: true });
+});
+
+router.delete("/procurements/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  await pool.query("DELETE FROM procurements WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
+  res.json({ success: true });
+});
+
+router.post("/procurements/:id/query", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const { id } = req.params;
+  
+  try {
+    const procRes = await pool.query("SELECT * FROM procurements WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (procRes.rows.length === 0) return res.status(404).json({ error: "Procurement not found" });
+    const procurement = procRes.rows[0];
+    
+    const apisRes = await pool.query("SELECT * FROM supplier_apis WHERE store_id = $1", [storeId]);
+    const apis = apisRes.rows;
+    
+    const results = [];
+    for (const api of apis) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(`${api.api_url}?barcode=${procurement.barcode}`, {
+          headers: api.api_key ? { 'Authorization': `Bearer ${api.api_key}` } : {},
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        
+        if (response.ok) {
+          const data = await response.json();
+          results.push({
+            supplier_id: api.id,
+            supplier_name: api.name,
+            stock: data.stock,
+            price: data.price
+          });
+        }
+      } catch (err) {
+        console.error(`Error querying API ${api.name}:`, err);
+      }
+    }
+    
+    res.json(results);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

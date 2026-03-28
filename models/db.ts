@@ -255,6 +255,35 @@ export async function initDb() {
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS supplier_apis (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        api_url TEXT NOT NULL,
+        api_key TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS procurements (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        sale_id INTEGER,
+        product_id INTEGER,
+        product_name TEXT NOT NULL,
+        barcode TEXT,
+        quantity REAL NOT NULL,
+        status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'ordered', 'received', 'cancelled')),
+        supplier_id INTEGER,
+        supplier_stock REAL,
+        supplier_price REAL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+        FOREIGN KEY (supplier_id) REFERENCES supplier_apis(id) ON DELETE SET NULL
+      );
+
       CREATE TABLE IF NOT EXISTS purchase_invoices (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,
