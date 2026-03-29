@@ -129,6 +129,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [mileageLogs, setMileageLogs] = useState<VehicleMileageLog[]>([]);
   const [incidents, setIncidents] = useState<VehicleIncident[]>([]);
 
+  // Action Modal States
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showMileageModal, setShowMileageModal] = useState(false);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+
+  const [documentFormData, setDocumentFormData] = useState<Partial<VehicleDocument>>({ type: 'insurance', status: 'valid' } as any);
+  const [maintenanceFormData, setMaintenanceFormData] = useState<Partial<VehicleMaintenance>>({ type: 'routine', status: 'planned' } as any);
+  const [assignmentFormData, setAssignmentFormData] = useState<Partial<VehicleAssignment>>({ status: 'active' } as any);
+  const [mileageFormData, setMileageFormData] = useState<Partial<VehicleMileageLog>>({});
+  const [incidentFormData, setIncidentFormData] = useState<Partial<VehicleIncident>>({ type: 'accident', status: 'open' });
+
   // Form States
   const [formData, setFormData] = useState<Partial<Vehicle>>({
     plate: '',
@@ -227,6 +240,92 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setVehicles(vehicles.filter(v => v.id !== id));
     } catch (error) {
       alert('Araç silinirken bir hata oluştu.');
+    }
+  };
+
+  const handleAddDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVehicle) return;
+    try {
+      const res = await api.createVehicleDocument(selectedVehicle.id, documentFormData);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setDocuments([...documents, res]);
+      setShowDocumentModal(false);
+      setDocumentFormData({ type: 'insurance', status: 'valid' } as any);
+    } catch (error) {
+      alert('Evrak eklenirken bir hata oluştu.');
+    }
+  };
+
+  const handleAddMaintenance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVehicle) return;
+    try {
+      const res = await api.createVehicleMaintenance(selectedVehicle.id, maintenanceFormData);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setMaintenance([...maintenance, res]);
+      setShowMaintenanceModal(false);
+      setMaintenanceFormData({ type: 'routine', status: 'planned' } as any);
+    } catch (error) {
+      alert('Bakım kaydı eklenirken bir hata oluştu.');
+    }
+  };
+
+  const handleAddAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVehicle) return;
+    try {
+      const res = await api.createVehicleAssignment(selectedVehicle.id, assignmentFormData);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setAssignments([...assignments, res]);
+      setShowAssignmentModal(false);
+      setAssignmentFormData({ status: 'active' } as any);
+    } catch (error) {
+      alert('Zimmet eklenirken bir hata oluştu.');
+    }
+  };
+
+  const handleAddMileage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVehicle) return;
+    try {
+      const res = await api.createVehicleMileage(selectedVehicle.id, mileageFormData);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setMileageLogs([...mileageLogs, res]);
+      setShowMileageModal(false);
+      setMileageFormData({});
+      setVehicles(vehicles.map(v => v.id === selectedVehicle.id ? { ...v, current_mileage: res.mileage } : v));
+    } catch (error) {
+      alert('KM eklenirken bir hata oluştu.');
+    }
+  };
+
+  const handleAddIncident = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVehicle) return;
+    try {
+      const res = await api.createVehicleIncident(selectedVehicle.id, incidentFormData);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setIncidents([...incidents, res]);
+      setShowIncidentModal(false);
+      setIncidentFormData({ type: 'accident', status: 'open' });
+    } catch (error) {
+      alert('Olay eklenirken bir hata oluştu.');
     }
   };
 
@@ -712,7 +811,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="flex justify-between items-center">
                       <h4 className="text-lg font-bold text-gray-800">Resmi Evraklar & İzinler</h4>
                       {!isViewer && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+                        <button onClick={() => setShowDocumentModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <FilePlus className="w-4 h-4" />
                           Evrak Ekle
                         </button>
@@ -756,7 +855,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="flex justify-between items-center">
                       <h4 className="text-lg font-bold text-gray-800">Bakım & Onarım Geçmişi</h4>
                       {!isViewer && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+                        <button onClick={() => setShowMaintenanceModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <Plus className="w-4 h-4" />
                           Bakım Kaydı
                         </button>
@@ -815,7 +914,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="flex justify-between items-center">
                       <h4 className="text-lg font-bold text-gray-800">Zimmet & Kullanıcı Takibi</h4>
                       {!isViewer && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+                        <button onClick={() => setShowAssignmentModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <UserCheck className="w-4 h-4" />
                           Zimmetle
                         </button>
@@ -859,7 +958,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="flex justify-between items-center">
                       <h4 className="text-lg font-bold text-gray-800">Kilometre Geçmişi</h4>
                       {!isViewer && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+                        <button onClick={() => setShowMileageModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <History className="w-4 h-4" />
                           KM Güncelle
                         </button>
@@ -897,7 +996,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="flex justify-between items-center">
                       <h4 className="text-lg font-bold text-gray-800">Kaza & Arıza Kayıtları</h4>
                       {!isViewer && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm">
+                        <button onClick={() => setShowIncidentModal(true)} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           Olay Kaydı
                         </button>
@@ -937,6 +1036,345 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </div>
                 )}
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Document Modal */}
+      <AnimatePresence>
+        {showDocumentModal && selectedVehicle && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 className="text-xl font-bold text-gray-800">Evrak Ekle</h3>
+                <button onClick={() => setShowDocumentModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleAddDocument} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Evrak Tipi</label>
+                  <select
+                    required
+                    value={documentFormData.type || ''}
+                    onChange={(e) => setDocumentFormData({ ...documentFormData, type: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="insurance">Sigorta Poliçesi</option>
+                    <option value="inspection">Muayene Belgesi</option>
+                    <option value="tax">Vergi Dekontu</option>
+                    <option value="other">Diğer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Geçerlilik Tarihi</label>
+                  <input
+                    type="date"
+                    required
+                    value={documentFormData.expiry_date || ''}
+                    onChange={(e) => setDocumentFormData({ ...documentFormData, expiry_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                  <textarea
+                    value={documentFormData.notes || ''}
+                    onChange={(e) => setDocumentFormData({ ...documentFormData, notes: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button type="button" onClick={() => setShowDocumentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Maintenance Modal */}
+      <AnimatePresence>
+        {showMaintenanceModal && selectedVehicle && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 className="text-xl font-bold text-gray-800">Bakım Kaydı Ekle</h3>
+                <button onClick={() => setShowMaintenanceModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleAddMaintenance} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bakım Tipi</label>
+                  <select
+                    required
+                    value={maintenanceFormData.type || ''}
+                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, type: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="routine">Periyodik Bakım</option>
+                    <option value="repair">Onarım</option>
+                    <option value="tire">Lastik Değişimi</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                  <input
+                    type="date"
+                    required
+                    value={maintenanceFormData.date || ''}
+                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
+                  <input
+                    type="number"
+                    required
+                    value={maintenanceFormData.mileage || ''}
+                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, mileage: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Maliyet (TRY)</label>
+                  <input
+                    type="number"
+                    required
+                    value={maintenanceFormData.cost || ''}
+                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, cost: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Servis/Sağlayıcı</label>
+                  <input
+                    type="text"
+                    required
+                    value={maintenanceFormData.provider_name || ''}
+                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, provider_name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+                  <textarea
+                    value={maintenanceFormData.description || ''}
+                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button type="button" onClick={() => setShowMaintenanceModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Assignment Modal */}
+      <AnimatePresence>
+        {showAssignmentModal && selectedVehicle && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 className="text-xl font-bold text-gray-800">Zimmet Ekle</h3>
+                <button onClick={() => setShowAssignmentModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleAddAssignment} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kullanıcı ID</label>
+                  <input
+                    type="number"
+                    required
+                    value={assignmentFormData.user_id || ''}
+                    onChange={(e) => setAssignmentFormData({ ...assignmentFormData, user_id: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Başlangıç Tarihi</label>
+                  <input
+                    type="date"
+                    required
+                    value={assignmentFormData.start_date || ''}
+                    onChange={(e) => setAssignmentFormData({ ...assignmentFormData, start_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Başlangıç KM</label>
+                  <input
+                    type="number"
+                    required
+                    value={assignmentFormData.start_mileage || ''}
+                    onChange={(e) => setAssignmentFormData({ ...assignmentFormData, start_mileage: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                  <textarea
+                    value={assignmentFormData.notes || ''}
+                    onChange={(e) => setAssignmentFormData({ ...assignmentFormData, notes: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button type="button" onClick={() => setShowAssignmentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Mileage Modal */}
+      <AnimatePresence>
+        {showMileageModal && selectedVehicle && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 className="text-xl font-bold text-gray-800">KM Güncelle</h3>
+                <button onClick={() => setShowMileageModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleAddMileage} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                  <input
+                    type="date"
+                    required
+                    value={mileageFormData.date || ''}
+                    onChange={(e) => setMileageFormData({ ...mileageFormData, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Yeni KM</label>
+                  <input
+                    type="number"
+                    required
+                    value={mileageFormData.mileage || ''}
+                    onChange={(e) => setMileageFormData({ ...mileageFormData, mileage: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                  <textarea
+                    value={mileageFormData.notes || ''}
+                    onChange={(e) => setMileageFormData({ ...mileageFormData, notes: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button type="button" onClick={() => setShowMileageModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Incident Modal */}
+      <AnimatePresence>
+        {showIncidentModal && selectedVehicle && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 className="text-xl font-bold text-gray-800">Olay Kaydı Ekle</h3>
+                <button onClick={() => setShowIncidentModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleAddIncident} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Olay Tipi</label>
+                  <select
+                    required
+                    value={incidentFormData.type || ''}
+                    onChange={(e) => setIncidentFormData({ ...incidentFormData, type: e.target.value as any })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="accident">Kaza</option>
+                    <option value="breakdown">Arıza</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                  <input
+                    type="date"
+                    required
+                    value={incidentFormData.date || ''}
+                    onChange={(e) => setIncidentFormData({ ...incidentFormData, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+                  <textarea
+                    required
+                    value={incidentFormData.description || ''}
+                    onChange={(e) => setIncidentFormData({ ...incidentFormData, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tahmini Maliyet (TRY)</label>
+                  <input
+                    type="number"
+                    value={incidentFormData.cost || ''}
+                    onChange={(e) => setIncidentFormData({ ...incidentFormData, cost: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button type="button" onClick={() => setShowIncidentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
