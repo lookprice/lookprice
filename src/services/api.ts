@@ -194,4 +194,10 @@ export const api = {
   getAllFleetAssignments: (storeId?: number) => api.get(`/api/fleet/assignments${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
   getAllFleetMileage: (storeId?: number) => api.get(`/api/fleet/mileage${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
   getAllFleetIncidents: (storeId?: number) => api.get(`/api/fleet/incidents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  
+  // Driver Methods
+  getDrivers: (storeId?: number) => api.get(`/api/fleet/drivers${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  createDriver: (data: any) => api.post("/api/fleet/drivers", data),
+  updateDriver: (id: number, data: any) => api.put(`/api/fleet/drivers/${id}`, data),
+  deleteDriver: (id: number) => api.delete(`/api/fleet/drivers/${id}`),
 };
