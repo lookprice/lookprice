@@ -1,10 +1,10 @@
-import { initDB } from './models/db';
+import { initDb } from './models/db';
 import dotenv from 'dotenv';
 dotenv.config();
 
 async function run() {
   try {
-    await initDB();
+    await initDb();
     console.log("DB initialized successfully.");
   } catch (e) {
     console.error(e);

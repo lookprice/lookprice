@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.ts";
 import publicRoutes from "./routes/public.ts";
 import adminRoutes from "./routes/admin.ts";
 import storeRoutes from "./routes/store.ts";
+import fleetRoutes from "./routes/fleet.ts";
 import { authenticate } from "./middleware/auth.ts";
 import { pool } from "./models/db.ts";
 
@@ -90,6 +91,7 @@ async function startServer() {
   app.use("/api/public", publicRoutes);
   app.use("/api/admin", authenticate, adminRoutes);
   app.use("/api/store", authenticate, storeRoutes);
+  app.use("/api/fleet", authenticate, fleetRoutes);
 
   // CRM: Tickets (Special case, mounted at /api/tickets)
   app.get("/api/tickets", authenticate, async (req: any, res) => {

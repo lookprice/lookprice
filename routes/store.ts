@@ -2112,6 +2112,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
   const { id } = req.params;
   const { status } = req.body;
   const userId = req.user.id;
+  const lang = req.query.lang || 'tr';
 
   console.log(`[DEBUG] PUT /stock-transfers/${id}/status - storeId: ${storeId}, status: ${status}, userId: ${userId}, role: ${req.user.role}`);
 
@@ -2136,6 +2137,18 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
       return res.status(404).json({ error: "Transfer not found" });
     }
 
+    if (transfer.status === 'completed' || transfer.status === 'cancelled') {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Cannot change status of a completed or cancelled transfer" });
+    }
+
+    // Fetch items for stock operations
+    const itemsRes = await client.query(
+      "SELECT * FROM stock_transfer_items WHERE transfer_id = $1",
+      [id]
+    );
+    const items = itemsRes.rows;
+
     // Authorization check
     if (req.user.role !== 'superadmin' && transfer.from_store_id !== storeId && transfer.to_store_id !== storeId) {
       console.log(`[DEBUG] Unauthorized: role=${req.user.role}, from=${transfer.from_store_id}, to=${transfer.to_store_id}, storeId=${storeId}`);
@@ -2143,40 +2156,58 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Update status and tracking fields
-    let updateQuery = "UPDATE stock_transfers SET status = $1, updated_at = CURRENT_TIMESTAMP";
-    const params: any[] = [status, id];
+    // --- Stock Logic ---
 
-    if (status === 'preparing') {
-      updateQuery += ", prepared_by = $3";
-      params.push(userId);
-    } else if (status === 'shipped') {
-      updateQuery += ", shipped_by = $3";
-      params.push(userId);
-    }
+    // 1. Shipped: Deduct from sender
+    if (status === 'shipped' && transfer.status !== 'shipped') {
+      // Check stock availability first
+      for (const item of items) {
+        const productRes = await client.query(
+          "SELECT stock_quantity, name FROM products WHERE id = $1 AND store_id = $2",
+          [item.product_id, transfer.from_store_id]
+        );
+        const product = productRes.rows[0];
+        if (!product || product.stock_quantity < item.quantity) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ 
+            error: lang === 'tr' 
+              ? `Yetersiz stok: ${product?.name || 'Ürün bulunamadı'} (Mevcut: ${product?.stock_quantity || 0}, Talep: ${item.quantity})` 
+              : `Insufficient stock: ${product?.name || 'Product not found'} (Available: ${product?.stock_quantity || 0}, Requested: ${item.quantity})` 
+          });
+        }
+      }
 
-    updateQuery += " WHERE id = $2";
-    console.log(`[DEBUG] Executing update query: ${updateQuery} with params:`, params);
-    await client.query(updateQuery, params);
-
-    // Stock movements if completed
-    if (status === 'completed') {
-      console.log(`[DEBUG] Processing completed status for transfer ${id}`);
-      const itemsRes = await client.query(
-        "SELECT * FROM stock_transfer_items WHERE transfer_id = $1",
-        [id]
-      );
-
-      for (const item of itemsRes.rows) {
-        // Decrease from sender
+      // Deduct stock
+      for (const item of items) {
         await client.query(
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, item.product_id, transfer.from_store_id]
         );
         await client.query(
           "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
-          [transfer.from_store_id, item.product_id, item.quantity, `Transfer to store #${transfer.to_store_id}`]
+          [transfer.from_store_id, item.product_id, item.quantity, `Transfer Sevk Edildi (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`]
         );
+      }
+    }
+
+    // 2. Completed: Add to receiver
+    if (status === 'completed' && transfer.status !== 'completed') {
+      // If it wasn't shipped yet, we should probably deduct from sender now (though workflow usually goes through shipped)
+      // But if it was shipped, deduction already happened.
+      const wasShipped = transfer.status === 'shipped';
+      
+      for (const item of items) {
+        if (!wasShipped) {
+          // Deduct from sender if not already done
+          await client.query(
+            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+            [item.quantity, item.product_id, transfer.from_store_id]
+          );
+          await client.query(
+            "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
+            [transfer.from_store_id, item.product_id, item.quantity, `Transfer Tamamlandı (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`]
+          );
+        }
 
         // Increase at receiver (find or create product by barcode)
         const receiverProductRes = await client.query(
@@ -2205,10 +2236,40 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
 
         await client.query(
           "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
-          [transfer.to_store_id, receiverProductId, item.quantity, `Transfer from store #${transfer.from_store_id}`]
+          [transfer.to_store_id, receiverProductId, item.quantity, `Transfer Tamamlandı (ID: ${id}) - Gönderen Mağaza ID: ${transfer.from_store_id}`]
         );
       }
     }
+
+    // 3. Cancelled: Return to sender if it was already shipped
+    if (status === 'cancelled' && transfer.status === 'shipped') {
+      for (const item of items) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, item.product_id, transfer.from_store_id]
+        );
+        await client.query(
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
+          [transfer.from_store_id, item.product_id, item.quantity, `Transfer İptal Edildi (ID: ${id}) - Stok İade Edildi`]
+        );
+      }
+    }
+
+    // Update status and tracking fields
+    let updateQuery = "UPDATE stock_transfers SET status = $1, updated_at = CURRENT_TIMESTAMP";
+    const params: any[] = [status, id];
+
+    if (status === 'preparing') {
+      updateQuery += ", prepared_by = $3";
+      params.push(userId);
+    } else if (status === 'shipped') {
+      updateQuery += ", shipped_by = $3";
+      params.push(userId);
+    }
+
+    updateQuery += " WHERE id = $2";
+    console.log(`[DEBUG] Executing update query: ${updateQuery} with params:`, params);
+    await client.query(updateQuery, params);
 
     await client.query("COMMIT");
     console.log(`[DEBUG] Transfer ${id} status updated to ${status} successfully`);
@@ -2283,11 +2344,31 @@ router.get("/notifications", async (req: any, res) => {
       [storeId]
     );
 
+    // 5. Fleet Alerts (Expiring documents and upcoming maintenance)
+    // - Documents expiring in 30 days
+    const expiringDocsCount = await pool.query(
+      `SELECT COUNT(*) FROM vehicle_documents vd
+       JOIN vehicles v ON vd.vehicle_id = v.id
+       WHERE v.store_id = $1 AND vd.expiry_date <= CURRENT_DATE + INTERVAL '30 days' AND vd.expiry_date >= CURRENT_DATE`,
+      [storeId]
+    );
+
+    // - Maintenance due in 30 days or next_maintenance_mileage is close
+    const maintenanceDueCount = await pool.query(
+      `SELECT COUNT(*) FROM vehicle_maintenance vm
+       JOIN vehicles v ON vm.vehicle_id = v.id
+       WHERE v.store_id = $1 
+       AND vm.status = 'scheduled'
+       AND (vm.next_maintenance_date <= CURRENT_DATE + INTERVAL '30 days' OR (v.current_mileage >= vm.next_maintenance_mileage - 1000 AND vm.next_maintenance_mileage > 0))`,
+      [storeId]
+    );
+
     res.json({
       transfers: parseInt(transfersCount.rows[0].count),
       service: parseInt(serviceCount.rows[0].count),
       quotations: parseInt(quotationsCount.rows[0].count),
-      sales: parseInt(salesCount.rows[0].count)
+      sales: parseInt(salesCount.rows[0].count),
+      fleet: parseInt(expiringDocsCount.rows[0].count) + parseInt(maintenanceDueCount.rows[0].count)
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch notifications" });

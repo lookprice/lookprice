@@ -146,7 +146,7 @@ export const api = {
   getBranchStock: (barcode: string, storeId?: number) => api.get(`/api/store/branches/stock/${barcode}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getStockTransfers: (storeId?: number, includeBranches?: boolean) => api.get(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}${includeBranches ? `&includeBranches=true` : ""}`),
   createStockTransfer: (data: any, storeId?: number) => api.post(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
-  updateStockTransferStatus: (id: number, status: string, storeId?: number) => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
+  updateStockTransferStatus: (id: number, status: string, storeId?: number, lang = 'tr') => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}&lang=${lang}` : `?lang=${lang}`}`, { status }),
   deleteStockTransfer: (id: number, storeId?: number) => api.delete(`/api/store/stock-transfers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getNotifications: (storeId?: number) => api.get(`/api/store/notifications${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
@@ -167,4 +167,22 @@ export const api = {
   
   getPublicQuotation: (id: string) => api.get(`/api/public/quotations/${id}`),
   publicQuotationAction: (id: string, action: 'approve' | 'reject', notes?: string, paymentMethod?: string, dueDate?: string) => api.post(`/api/public/quotations/${id}/action`, { action, notes, paymentMethod, dueDate }),
+
+  // Fleet Management Methods
+  getVehicles: (storeId?: number) => api.get(`/api/fleet/vehicles${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  createVehicle: (data: any) => api.post("/api/fleet/vehicles", data),
+  updateVehicle: (id: number, data: any) => api.put(`/api/fleet/vehicles/${id}`, data),
+  deleteVehicle: (id: number) => api.delete(`/api/fleet/vehicles/${id}`),
+  getVehicleDocuments: (id: number) => api.get(`/api/fleet/vehicles/${id}/documents`),
+  createVehicleDocument: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/documents`, data),
+  deleteVehicleDocument: (id: number) => api.delete(`/api/fleet/vehicle-documents/${id}`),
+  getVehicleMaintenance: (id: number) => api.get(`/api/fleet/vehicles/${id}/maintenance`),
+  createVehicleMaintenance: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/maintenance`, data),
+  getVehicleAssignments: (id: number) => api.get(`/api/fleet/vehicles/${id}/assignments`),
+  createVehicleAssignment: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/assignments`, data),
+  updateVehicleAssignment: (id: number, data: any) => api.put(`/api/fleet/vehicle-assignments/${id}`, data),
+  getVehicleMileage: (id: number) => api.get(`/api/fleet/vehicles/${id}/mileage`),
+  createVehicleMileage: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/mileage`, data),
+  getVehicleIncidents: (id: number) => api.get(`/api/fleet/vehicles/${id}/incidents`),
+  createVehicleIncident: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/incidents`, data),
 };

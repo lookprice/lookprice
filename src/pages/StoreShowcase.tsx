@@ -33,6 +33,7 @@ import {
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 interface Product {
   id: number;
@@ -496,7 +497,8 @@ const StoreShowcase: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-24 font-sans selection:bg-blue-100 selection:text-blue-900">
+    <ErrorBoundary lang={lang}>
+      <div className="min-h-screen bg-white pb-24 font-sans selection:bg-blue-100 selection:text-blue-900">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b sticky top-0 z-[60] transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
@@ -1393,6 +1395,7 @@ const StoreShowcase: React.FC = () => {
         )}
       </AnimatePresence>
     </div>
+    </ErrorBoundary>
   );
 };
 

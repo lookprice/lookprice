@@ -435,6 +435,93 @@ export async function initDb() {
         END IF;
       END $$;
 
+      -- Fleet Management Tables
+      CREATE TABLE IF NOT EXISTS vehicles (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        plate TEXT NOT NULL,
+        brand TEXT NOT NULL,
+        model TEXT NOT NULL,
+        year INTEGER,
+        type TEXT CHECK (type IN ('personal', 'company')) DEFAULT 'company',
+        chassis_number TEXT,
+        engine_number TEXT,
+        current_mileage REAL DEFAULT 0,
+        status TEXT DEFAULT 'active' CHECK (status IN ('active', 'in_service', 'broken', 'sold')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        UNIQUE(store_id, plate)
+      );
+
+      CREATE TABLE IF NOT EXISTS vehicle_documents (
+        id SERIAL PRIMARY KEY,
+        vehicle_id INTEGER NOT NULL,
+        type TEXT NOT NULL, -- insurance, kasko, inspection, tax, permit, registration, etc.
+        document_url TEXT,
+        expiry_date DATE,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS vehicle_maintenance (
+        id SERIAL PRIMARY KEY,
+        vehicle_id INTEGER NOT NULL,
+        type TEXT NOT NULL, -- periodic, repair, tire, etc.
+        date DATE NOT NULL,
+        mileage REAL,
+        cost DECIMAL(12,2) DEFAULT 0,
+        currency TEXT DEFAULT 'TRY',
+        provider_name TEXT,
+        description TEXT,
+        status TEXT DEFAULT 'planned' CHECK (status IN ('planned', 'completed', 'cancelled')),
+        next_maintenance_date DATE,
+        next_maintenance_mileage REAL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS vehicle_assignments (
+        id SERIAL PRIMARY KEY,
+        vehicle_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE,
+        start_mileage REAL,
+        end_mileage REAL,
+        notes TEXT,
+        status TEXT DEFAULT 'active' CHECK (status IN ('active', 'returned')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS vehicle_mileage_logs (
+        id SERIAL PRIMARY KEY,
+        vehicle_id INTEGER NOT NULL,
+        date DATE DEFAULT CURRENT_DATE,
+        mileage REAL NOT NULL,
+        user_id INTEGER,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS vehicle_incidents (
+        id SERIAL PRIMARY KEY,
+        vehicle_id INTEGER NOT NULL,
+        type TEXT CHECK (type IN ('accident', 'breakdown')) NOT NULL,
+        date DATE NOT NULL,
+        description TEXT,
+        cost DECIMAL(12,2) DEFAULT 0,
+        status TEXT DEFAULT 'open' CHECK (status IN ('open', 'repaired', 'totaled')),
+        report_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+      );
+
       -- Update stock_transfers status constraint
       ALTER TABLE stock_transfers DROP CONSTRAINT IF EXISTS stock_transfers_status_check;
       ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_status_check CHECK (status IN ('pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled'));

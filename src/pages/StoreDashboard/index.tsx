@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { 
   ArrowLeftRight,
   Bell,
+  Car,
   ChevronDown,
   ChevronUp,
   LayoutDashboard, 
@@ -64,6 +65,7 @@ import { api } from "../../services/api";
 import { User, Product, Store as StoreType } from "../../types";
 import Logo from "../../components/Logo";
 import * as XLSX from 'xlsx';
+import ErrorBoundary from "../../components/ErrorBoundary";
 
 // Import Tabs
 import ProductsTab from "./ProductsTab";
@@ -75,6 +77,7 @@ import SettingsTab from "./SettingsTab";
 import { ProcurementTab } from "./ProcurementTab";
 import { ServiceTab } from "./ServiceTab";
 import StockTransferTab from "./StockTransferTab";
+import FleetTab from "./FleetTab";
 
 interface StoreDashboardProps {
   user: User;
@@ -297,7 +300,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     transfers: 0,
     service: 0,
     quotations: 0,
-    sales: 0
+    sales: 0,
+    fleet: 0
   });
 
   const fetchNotifications = useCallback(async () => {
@@ -1337,6 +1341,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
     { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
     { id: "companies", label: t.companies, icon: Store },
+    { id: "fleet", label: lang === 'tr' ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
     { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
@@ -1399,11 +1404,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   activeTab === item.id 
                     ? 'bg-indigo-50 text-indigo-600 shadow-sm' 
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <item.icon className={`h-4 w-4 ${activeTab === item.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <item.icon className={`h-4 w-4 ${activeTab === item.id ? 'text-indigo-600' : 'text-slate-500'}`} />
                   <span className="tracking-tight">{item.label}</span>
                 </div>
                 {item.badge > 0 && (
@@ -1527,6 +1532,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                        activeTab === 'service' ? 'teknik servis ve onarım süreçlerini' :
                                        activeTab === 'stock_transfer' ? 'şubeler arası stok transfer süreçlerini' :
                                        activeTab === 'procurements' ? 'tedarik ve sipariş süreçlerini' :
+                                       activeTab === 'fleet' ? 'araç envanteri ve filo yönetim süreçlerini' :
                                        activeTab === 'purchase_invoices' ? 'alış faturalarını ve tedarik işlemlerini' :
                                        activeTab === 'companies' ? 'cari hesap ve finansal ilişkilerini' :
                                        activeTab === 'analytics' ? 'performans metriklerini' : 'sistem yapılandırmasını'} 
@@ -1534,7 +1540,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </p>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {activeTab === 'products' && (
                   <>
                     <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
@@ -1586,7 +1592,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {loading ? (
+                <ErrorBoundary lang={lang}>
+                  {loading ? (
                   <div className="flex flex-col items-center justify-center h-64 tech-grid">
                     <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mb-4" />
                     <p className="tech-label">Synchronizing_Data...</p>
@@ -1669,6 +1676,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onUpdate={fetchNotifications}
                       />
                     )}
+                    {activeTab === "fleet" && (
+                      <FleetTab 
+                        storeId={currentStoreId!}
+                        isViewer={isViewer}
+                      />
+                    )}
                     {activeTab === "companies" && (
                       <CompaniesTab 
                         companies={companies}
@@ -1711,11 +1724,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                   </>
                 )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+              </ErrorBoundary>
+            </motion.div>
+          </AnimatePresence>
         </div>
-      </main>
+      </div>
+    </main>
 
       {/* Modals */}
       <AnimatePresence>

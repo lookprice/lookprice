@@ -28,6 +28,7 @@ import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import { DEVELOPED_COUNTRIES } from "../constants";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 interface SuperAdminDashboardProps {
   token: string;
@@ -246,7 +247,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <ErrorBoundary lang={lang}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Süper Admin Paneli</h1>
@@ -1062,6 +1064,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           </motion.div>
         </div>
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

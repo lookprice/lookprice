@@ -251,6 +251,7 @@ export const translations = {
     dashboard: {
       stock_transfer: "Stok Transferi",
       companies: "Cari Hesaplar",
+      fleet: "Filo Yönetimi",
       pos: "Satışlar",
       procurements: "Tedarik",
       service: "Teknik Servis",
@@ -817,6 +818,7 @@ export const translations = {
     dashboard: {
       stock_transfer: "Stock Transfer",
       companies: "Current Accounts",
+      fleet: "Fleet Management",
       pos: "Sales",
       procurements: "Procurement",
       service: "Technical Service",

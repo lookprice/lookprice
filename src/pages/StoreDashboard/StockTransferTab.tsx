@@ -92,11 +92,17 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
     if (!selectedBranch || transferItems.length === 0) return;
 
     try {
-      await api.createStockTransfer({
+      const res = await api.createStockTransfer({
         from_store_id: selectedBranch,
         to_store_id: storeId,
         items: transferItems
       }, storeId);
+
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+
       setShowNewTransfer(false);
       setTransferItems([]);
       setSelectedBranch(null);
@@ -110,7 +116,11 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
 
   const handleUpdateStatus = async (transferId: number, status: 'pending' | 'accepted' | 'preparing' | 'shipped' | 'completed' | 'cancelled') => {
     try {
-      await api.updateStockTransferStatus(transferId, status, storeId);
+      const res = await api.updateStockTransferStatus(transferId, status, storeId, lang);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
       fetchData();
       if (onUpdate) onUpdate();
     } catch (error) {
@@ -121,7 +131,11 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
   const handleDeleteTransfer = async (transferId: number) => {
     if (!window.confirm(lang === 'tr' ? "Bu transfer kaydını silmek istediğinize emin misiniz?" : "Are you sure you want to delete this transfer record?")) return;
     try {
-      await api.deleteStockTransfer(transferId);
+      const res = await api.deleteStockTransfer(transferId);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
       fetchData();
       if (onUpdate) onUpdate();
     } catch (error) {
@@ -625,7 +639,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                  <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-gray-100/50">
