@@ -225,6 +225,7 @@ export const LandingPage = () => {
             companyTitle: "",
             address: "",
             phone: "",
+            country: "TR",
             language: lang as string,
             currency: "TRY",
             uploadMethod: "manual",

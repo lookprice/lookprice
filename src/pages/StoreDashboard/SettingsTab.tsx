@@ -480,7 +480,7 @@ const SettingsTab = ({
                   {(currentUser?.role === 'admin' || currentUser?.role === 'storeadmin' || currentUser?.role === 'superadmin') && u.id !== currentUser?.id && (
                     <button 
                       onClick={() => onDeleteUser(u.id)}
-                      className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-rose-100"
+                      className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100"
                     >
                       <Lock className="h-4 w-4" />
                     </button>

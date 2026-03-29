@@ -11,6 +11,8 @@ import storeRoutes from "./routes/store.ts";
 import fleetRoutes from "./routes/fleet.ts";
 import { authenticate } from "./middleware/auth.ts";
 import { pool } from "./models/db.ts";
+import multer from "multer";
+import fs from "fs";
 
 dotenv.config();
 
@@ -29,6 +31,33 @@ async function startServer() {
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // Ensure uploads directory exists
+  const uploadsDir = path.join(__dirname, "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use("/uploads", express.static(uploadsDir));
+
+  // File Upload Route
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, "uploads/");
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + "-" + file.originalname);
+    },
+  });
+  const upload = multer({ storage });
+
+  app.post("/api/upload", authenticate, upload.single("file"), (req: any, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    res.json({ url: fileUrl });
+  });
 
   // Root route for debugging
   app.get("/api/health", (req, res) => {

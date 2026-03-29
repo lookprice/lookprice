@@ -122,8 +122,8 @@ const ProductsTab = ({
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden zebra-border">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
+        {/* Table View */}
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -232,7 +232,7 @@ const ProductsTab = ({
                     </td>
                     <td className="px-6 py-4 text-right">
                       {!isViewer && (
-                        <div className="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end space-x-1 transition-opacity">
                           <button 
                             onClick={() => onEdit(p)}
                             className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"
@@ -253,79 +253,6 @@ const ProductsTab = ({
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Mobile Compact List View */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin h-10 w-10 border-2 border-slate-900 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-slate-500 font-medium text-sm">{t.loading}</p>
-            </div>
-          ) : paginatedProducts.length === 0 ? (
-            <div className="p-12 text-center text-slate-400 font-medium text-sm">
-              {t.noProducts}
-            </div>
-          ) : (
-            paginatedProducts.map((p) => (
-              <div key={p.id} className="p-4 bg-white active:bg-slate-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0 mr-4">
-                    <div className="text-sm font-bold text-slate-900 truncate">{p.name}</div>
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <span className="text-[10px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                        {p.barcode?.toString().padStart(13, '0').slice(-13)}
-                      </span>
-                      {showStoreName && (
-                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter">
-                          {p.store_name}
-                        </span>
-                      )}
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${Number(p.stock_quantity) <= Number(p.min_stock_level) ? 'text-rose-600 bg-rose-50 border border-rose-100' : 'text-slate-500 bg-slate-50 border border-slate-100'}`}>
-                        {p.stock_quantity} {lang === 'tr' ? 'Adet' : 'Pcs'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900 whitespace-nowrap">
-                      {Number(p.price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium">{(p.currency || 'TRY').substring(0, 3)}</span>
-                    </div>
-                    {p.cost_price > 0 && (
-                      <div className="text-xs font-bold text-slate-500 whitespace-nowrap mt-0.5">
-                        {lang === 'tr' ? 'Mal:' : 'Cost:'} {Number(p.cost_price).toLocaleString('tr-TR')} <span className="text-[9px] text-slate-400 font-medium">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
-                        {(() => {
-                          const profit = calculateProfitMargin(p);
-                          if (!profit) return null;
-                          const isLoss = profit.margin < 0;
-                          return (
-                            <span className={`ml-1 text-[9px] font-bold ${isLoss ? 'text-rose-600' : 'text-emerald-600'}`}>
-                              ({isLoss ? '' : '+'}{profit.margin.toFixed(1)}%)
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    )}
-                    {!isViewer && (
-                      <div className="flex items-center justify-end gap-1 mt-2">
-                        <button 
-                          onClick={() => onEdit(p)}
-                          className="p-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-xl active:scale-90 transition-all"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => onDelete(p.id)}
-                          className="p-2 text-rose-600 bg-rose-50 border border-rose-100 rounded-xl active:scale-90 transition-all"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
 
         {totalPages > 1 && (

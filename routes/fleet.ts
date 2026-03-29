@@ -68,6 +68,24 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
 });
 
 // Delete a vehicle
+router.put('/vehicles/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE vehicles 
+       SET plate = $1, brand = $2, model = $3, year = $4, type = $5, chassis_number = $6, engine_number = $7, current_mileage = $8, status = $9, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $10 RETURNING *`,
+      [plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vehicle not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating vehicle:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.delete('/vehicles/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
@@ -80,6 +98,19 @@ router.delete('/vehicles/:id', authenticate, async (req: any, res) => {
 });
 
 // --- Documents ---
+router.get('/documents', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.user.store_id;
+  try {
+    const result = await pool.query(
+      'SELECT vd.*, v.plate FROM vehicle_documents vd JOIN vehicles v ON vd.vehicle_id = v.id WHERE v.store_id = $1 ORDER BY vd.expiry_date ASC',
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/vehicles/:id/documents', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
@@ -96,10 +127,27 @@ router.post('/vehicles/:id/documents', authenticate, async (req: any, res) => {
   try {
     const result = await pool.query(
       'INSERT INTO vehicle_documents (vehicle_id, type, document_url, expiry_date, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, type, document_url, expiry_date, notes]
+      [id, type, document_url, expiry_date || null, notes]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("Error adding document:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/vehicle-documents/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { type, document_url, expiry_date, notes } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE vehicle_documents SET type = $1, document_url = $2, expiry_date = $3, notes = $4 WHERE id = $5 RETURNING *',
+      [type, document_url, expiry_date || null, notes, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating document:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -115,6 +163,19 @@ router.delete('/vehicle-documents/:id', authenticate, async (req: any, res) => {
 });
 
 // --- Maintenance ---
+router.get('/maintenance', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.user.store_id;
+  try {
+    const result = await pool.query(
+      'SELECT vm.*, v.plate FROM vehicle_maintenance vm JOIN vehicles v ON vm.vehicle_id = v.id WHERE v.store_id = $1 ORDER BY vm.date DESC',
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/vehicles/:id/maintenance', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
@@ -132,15 +193,47 @@ router.post('/vehicles/:id/maintenance', authenticate, async (req: any, res) => 
     const result = await pool.query(
       `INSERT INTO vehicle_maintenance (vehicle_id, type, date, mileage, cost, currency, provider_name, description, status, next_maintenance_date, next_maintenance_mileage)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [id, type, date, mileage, cost, currency, provider_name, description, status, next_maintenance_date, next_maintenance_mileage]
+      [id, type, date || null, mileage, cost, currency, provider_name, description, status, next_maintenance_date || null, next_maintenance_mileage]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("Error adding maintenance:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/vehicle-maintenance/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { type, date, mileage, cost, currency, provider_name, description, status, next_maintenance_date, next_maintenance_mileage } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE vehicle_maintenance 
+       SET type = $1, date = $2, mileage = $3, cost = $4, currency = $5, provider_name = $6, description = $7, status = $8, next_maintenance_date = $9, next_maintenance_mileage = $10
+       WHERE id = $11 RETURNING *`,
+      [type, date || null, mileage, cost, currency, provider_name, description, status, next_maintenance_date || null, next_maintenance_mileage, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Maintenance record not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating maintenance:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // --- Assignments ---
+router.get('/assignments', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.user.store_id;
+  try {
+    const result = await pool.query(
+      'SELECT va.*, v.plate FROM vehicle_assignments va JOIN vehicles v ON va.vehicle_id = v.id WHERE v.store_id = $1 ORDER BY va.start_date DESC',
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
@@ -163,10 +256,11 @@ router.post('/vehicles/:id/assignments', authenticate, async (req: any, res) => 
   try {
     const result = await pool.query(
       'INSERT INTO vehicle_assignments (vehicle_id, user_id, start_date, start_mileage, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, user_id, start_date, start_mileage, notes]
+      [id, user_id, start_date || null, start_mileage, notes]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("Error adding assignment:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -177,15 +271,29 @@ router.put('/vehicle-assignments/:id', authenticate, async (req: any, res) => {
   try {
     const result = await pool.query(
       'UPDATE vehicle_assignments SET end_date = $1, end_mileage = $2, status = $3 WHERE id = $4 RETURNING *',
-      [end_date, end_mileage, status, id]
+      [end_date || null, end_mileage, status, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
+    console.error("Error updating assignment:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // --- Mileage Logs ---
+router.get('/mileage', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.user.store_id;
+  try {
+    const result = await pool.query(
+      'SELECT vml.*, v.plate FROM vehicle_mileage_logs vml JOIN vehicles v ON vml.vehicle_id = v.id WHERE v.store_id = $1 ORDER BY vml.date DESC',
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/vehicles/:id/mileage', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
@@ -203,17 +311,31 @@ router.post('/vehicles/:id/mileage', authenticate, async (req: any, res) => {
   try {
     const result = await pool.query(
       'INSERT INTO vehicle_mileage_logs (vehicle_id, date, mileage, user_id, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, date, mileage, userId, notes]
+      [id, date || null, mileage, userId, notes]
     );
     // Also update current_mileage in vehicles table
     await pool.query('UPDATE vehicles SET current_mileage = $1 WHERE id = $2', [mileage, id]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("Error adding mileage:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // --- Incidents ---
+router.get('/incidents', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.user.store_id;
+  try {
+    const result = await pool.query(
+      'SELECT vi.*, v.plate FROM vehicle_incidents vi JOIN vehicles v ON vi.vehicle_id = v.id WHERE v.store_id = $1 ORDER BY vi.date DESC',
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/vehicles/:id/incidents', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
@@ -230,10 +352,11 @@ router.post('/vehicles/:id/incidents', authenticate, async (req: any, res) => {
   try {
     const result = await pool.query(
       'INSERT INTO vehicle_incidents (vehicle_id, type, date, description, cost, status, report_url) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [id, type, date, description, cost, status, report_url]
+      [id, type, date || null, description, cost, status, report_url]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("Error adding incident:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

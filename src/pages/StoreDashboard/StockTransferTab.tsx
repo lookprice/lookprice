@@ -45,6 +45,15 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
   const [branchStock, setBranchStock] = useState<any[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 15;
+
+  const paginatedTransfers = transfers.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  const totalPages = Math.ceil(transfers.length / itemsPerPage);
+
   const [showDispatchNote, setShowDispatchNote] = useState<any>(null);
 
   useEffect(() => {
@@ -279,7 +288,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                                   setShowNewTransfer(true);
                                 }
                               }}
-                              className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                             >
                               <Plus className="h-4 w-4" />
                             </button>
@@ -312,14 +321,14 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {transfers.length === 0 ? (
+                  {paginatedTransfers.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500 italic">
                         Henüz bir transfer kaydı bulunmuyor.
                       </td>
                     </tr>
                   ) : (
-                    transfers.map(transfer => {
+                    paginatedTransfers.map(transfer => {
                       const isIncoming = Number(transfer.to_store_id) === Number(storeId);
                       return (
                         <tr key={transfer.id} className="hover:bg-gray-50/50 transition-colors">
@@ -464,6 +473,33 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                 </tbody>
               </table>
             </div>
+            
+            {totalPages > 1 && (
+              <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
+                <p className="text-xs font-medium text-slate-500">
+                  {transfers.length} {lang === 'tr' ? 'transfer' : 'transfers'}
+                </p>
+                <div className="flex items-center space-x-3">
+                  <button 
+                    disabled={page === 1}
+                    onClick={() => setPage(p => p - 1)}
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+                  >
+                    {lang === 'tr' ? 'Önceki' : 'Prev'}
+                  </button>
+                  <div className="text-xs font-bold text-slate-600 tabular-nums">
+                    {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
+                  </div>
+                  <button 
+                    disabled={page === totalPages}
+                    onClick={() => setPage(p => p + 1)}
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+                  >
+                    {lang === 'tr' ? 'Sonraki' : 'Next'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

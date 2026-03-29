@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { 
   Search, 
   Filter, 
@@ -41,6 +41,15 @@ const PosTab = ({
 }: PosTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
+
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 15;
+
+  const paginatedSales = sales.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  const totalPages = Math.ceil(sales.length / itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -92,8 +101,8 @@ const PosTab = ({
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto zebra-border border-2">
+        {/* Table View */}
+        <div className="overflow-x-auto zebra-border border-2">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -113,14 +122,14 @@ const PosTab = ({
                     <p className="text-slate-500 text-sm font-medium">{t.loading}</p>
                   </td>
                 </tr>
-              ) : sales.length === 0 ? (
+              ) : paginatedSales.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
                     {t.noSales}
                   </td>
                 </tr>
               ) : (
-                sales.map((s) => (
+                paginatedSales.map((s) => (
                   <tr 
                     key={s.id} 
                     className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
@@ -153,7 +162,7 @@ const PosTab = ({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end items-center space-x-2 transition-opacity">
                         <button 
                           onClick={() => onViewDetails(s)}
                           className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"
@@ -177,65 +186,32 @@ const PosTab = ({
           </table>
         </div>
 
-        {/* Mobile Card View */}
-        <div className="md:hidden space-y-4 p-4 bg-slate-50/30">
-          {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin h-10 w-10 border-2 border-slate-900 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-slate-500 font-medium text-sm">{t.loading}</p>
-            </div>
-          ) : sales.length === 0 ? (
-            <div className="p-12 text-center text-slate-400 font-medium text-sm">
-              {t.noSales}
-            </div>
-          ) : (
-            sales.map((s) => (
-              <div 
-                key={s.id} 
-                className="bg-white rounded-2xl p-5 shadow-sm border-4 zebra-border-bold space-y-4 active:scale-[0.98] transition-all group"
-                onClick={() => onViewDetails(s)}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
+            <p className="text-xs font-medium text-slate-500">
+              {sales.length} {lang === 'tr' ? 'satış' : 'sales'}
+            </p>
+            <div className="flex items-center space-x-3">
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
               >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <span className="inline-block px-2 py-1 bg-slate-100 text-slate-900 rounded-lg text-[10px] font-bold tracking-wider border border-slate-200">#{s.id}</span>
-                    <div className="text-base font-bold text-slate-900 leading-tight">{s.customer_name || (lang === 'tr' ? 'İsimsiz Müşteri' : 'Unnamed Customer')}</div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {new Date(s.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })} • {new Date(s.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                  <div className="text-right space-y-2">
-                    <div className="text-base font-bold text-slate-900 tabular-nums">
-                      {Number(s.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium">{(s.currency || 'TRY').substring(0, 3)}</span>
-                    </div>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
-                      s.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                      s.status === 'cancelled' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-amber-50 text-amber-600 border-amber-100'
-                    }`}>
-                      {s.status === 'completed' ? t.completed : s.status === 'cancelled' ? t.cancelled : t.pending}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="pt-2 flex gap-2">
-                  <button 
-                    onClick={() => onViewDetails(s)}
-                    className="flex-1 flex items-center justify-center space-x-2 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 transition-all"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                    <span>{lang === 'tr' ? 'DETAY' : 'DETAILS'}</span>
-                  </button>
-                  <button 
-                    onClick={() => onDeleteSale(s.id)}
-                    className="p-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl active:scale-95 transition-all"
-                  >
-                    <XCircle className="h-5 w-5" />
-                  </button>
-                </div>
+                {lang === 'tr' ? 'Önceki' : 'Prev'}
+              </button>
+              <div className="text-xs font-bold text-slate-600 tabular-nums">
+                {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
               </div>
-            ))
-          )}
-        </div>
+              <button 
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              >
+                {lang === 'tr' ? 'Sonraki' : 'Next'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

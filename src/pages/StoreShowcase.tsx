@@ -1260,6 +1260,7 @@ const StoreShowcase: React.FC = () => {
             t={t} 
             onClose={() => setSelectedProduct(null)} 
             addToBasket={addToBasket} 
+            primaryColor={primaryColor}
           />
         )}
       </AnimatePresence>

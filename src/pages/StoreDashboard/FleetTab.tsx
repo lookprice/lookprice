@@ -8,6 +8,8 @@ import {
   UserCheck, 
   History, 
   AlertTriangle, 
+  AlertCircle,
+  Eye,
   MoreVertical, 
   Edit2, 
   Trash2, 
@@ -20,9 +22,11 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  X,
   Camera,
   FilePlus,
-  Info
+  Info,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
@@ -31,6 +35,8 @@ import { tr } from 'date-fns/locale';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { translations } from '../../translations';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Vehicle {
   id: number;
@@ -73,6 +79,7 @@ interface VehicleMaintenance {
   status: 'planned' | 'completed' | 'cancelled';
   next_maintenance_date: string;
   next_maintenance_mileage: number;
+  invoice_url: string | null;
 }
 
 interface VehicleAssignment {
@@ -114,14 +121,24 @@ interface FleetTabProps {
 }
 
 const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
+  const { lang } = useLanguage();
+  const t = translations[lang].dashboard;
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [activeMainTab, setActiveMainTab] = useState<'vehicles' | 'documents' | 'maintenance' | 'assignments' | 'mileage' | 'incidents'>('vehicles');
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'docs' | 'maintenance' | 'assignments' | 'mileage' | 'incidents'>('info');
   
+  // All Fleet Data (for main tabs)
+  const [allDocuments, setAllDocuments] = useState<any[]>([]);
+  const [allMaintenance, setAllMaintenance] = useState<any[]>([]);
+  const [allAssignments, setAllAssignments] = useState<any[]>([]);
+  const [allMileage, setAllMileage] = useState<any[]>([]);
+  const [allIncidents, setAllIncidents] = useState<any[]>([]);
+
   // Detail Data
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
   const [maintenance, setMaintenance] = useState<VehicleMaintenance[]>([]);
@@ -136,7 +153,27 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [showMileageModal, setShowMileageModal] = useState(false);
   const [showIncidentModal, setShowIncidentModal] = useState(false);
 
-  const [documentFormData, setDocumentFormData] = useState<Partial<VehicleDocument>>({ type: 'insurance', status: 'valid' } as any);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [editingDocument, setEditingDocument] = useState<VehicleDocument | null>(null);
+  const [editingMaintenance, setEditingMaintenance] = useState<VehicleMaintenance | null>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  const safeFormatDate = (dateString: string | Date | null | undefined, formatStr = 'dd.MM.yyyy', options?: any) => {
+    if (!dateString) return '-';
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return '-';
+      return format(d, formatStr, options);
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const [documentFormData, setDocumentFormData] = useState<Partial<VehicleDocument>>({ type: t.vehicleLicense, status: 'valid' } as any);
   const [maintenanceFormData, setMaintenanceFormData] = useState<Partial<VehicleMaintenance>>({ type: 'routine', status: 'planned' } as any);
   const [assignmentFormData, setAssignmentFormData] = useState<Partial<VehicleAssignment>>({ status: 'active' } as any);
   const [mileageFormData, setMileageFormData] = useState<Partial<VehicleMileageLog>>({});
@@ -157,6 +194,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
 
   useEffect(() => {
     fetchVehicles();
+    fetchAllFleetData();
   }, [storeId]);
 
   const fetchVehicles = async () => {
@@ -171,6 +209,25 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
+  const fetchAllFleetData = async () => {
+    try {
+      const [docs, maint, assign, mileage, inc] = await Promise.all([
+        api.getAllFleetDocuments(storeId),
+        api.getAllFleetMaintenance(storeId),
+        api.getAllFleetAssignments(storeId),
+        api.getAllFleetMileage(storeId),
+        api.getAllFleetIncidents(storeId)
+      ]);
+      setAllDocuments(docs);
+      setAllMaintenance(maint);
+      setAllAssignments(assign);
+      setAllMileage(mileage);
+      setAllIncidents(inc);
+    } catch (error) {
+      console.error('Error fetching all fleet data:', error);
+    }
+  };
+
   const fetchVehicleDetails = async (vehicle: Vehicle) => {
     try {
       const [docs, maint, assign, mileage, inc] = await Promise.all([
@@ -180,11 +237,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         api.getVehicleMileage(vehicle.id),
         api.getVehicleIncidents(vehicle.id)
       ]);
-      setDocuments(docs);
-      setMaintenance(maint);
-      setAssignments(assign);
-      setMileageLogs(mileage);
-      setIncidents(inc);
+      setDocuments(Array.isArray(docs) ? docs : []);
+      setMaintenance(Array.isArray(maint) ? maint : []);
+      setAssignments(Array.isArray(assign) ? assign : []);
+      setMileageLogs(Array.isArray(mileage) ? mileage : []);
+      setIncidents(Array.isArray(inc) ? inc : []);
     } catch (error) {
       console.error('Error fetching vehicle details:', error);
     }
@@ -212,7 +269,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         status: 'active'
       });
     } catch (error) {
-      alert('Araç eklenirken bir hata oluştu.');
+      alert(t.errorOccurred);
     }
   };
 
@@ -229,7 +286,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setShowAddModal(false);
       setSelectedVehicle(null);
     } catch (error) {
-      alert('Araç güncellenirken bir hata oluştu.');
+      alert(t.errorOccurred);
     }
   };
 
@@ -239,7 +296,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       await api.deleteVehicle(id);
       setVehicles(vehicles.filter(v => v.id !== id));
     } catch (error) {
-      alert('Araç silinirken bir hata oluştu.');
+      alert(t.errorOccurred);
     }
   };
 
@@ -247,16 +304,60 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     e.preventDefault();
     if (!selectedVehicle) return;
     try {
-      const res = await api.createVehicleDocument(selectedVehicle.id, documentFormData);
-      if (res.error) {
-        alert(res.error);
-        return;
+      let document_url = documentFormData.document_url || '';
+      
+      if (documentFile) {
+        const formData = new FormData();
+        formData.append('file', documentFile);
+        const uploadRes = await api.uploadFile(formData);
+        if (uploadRes.url) {
+          document_url = uploadRes.url;
+        }
       }
-      setDocuments([...documents, res]);
+
+      if (editingDocument) {
+        const res = await api.updateVehicleDocument(editingDocument.id, { ...documentFormData, document_url });
+        if (res.error) {
+          alert(res.error);
+          return;
+        }
+        setDocuments(documents.map(d => d.id === editingDocument.id ? res : d));
+      } else {
+        const res = await api.createVehicleDocument(selectedVehicle.id, { ...documentFormData, document_url });
+        if (res.error) {
+          alert(res.error);
+          return;
+        }
+        setDocuments([...documents, res]);
+      }
+      
       setShowDocumentModal(false);
+      setEditingDocument(null);
+      setDocumentFile(null);
       setDocumentFormData({ type: 'insurance', status: 'valid' } as any);
     } catch (error) {
-      alert('Evrak eklenirken bir hata oluştu.');
+      alert('Evrak kaydedilirken bir hata oluştu.');
+    }
+  };
+
+  const handleEditDocument = (doc: VehicleDocument) => {
+    setEditingDocument(doc);
+    setDocumentFormData({
+      type: doc.type,
+      expiry_date: doc.expiry_date ? doc.expiry_date.split('T')[0] : '',
+      notes: doc.notes,
+      document_url: doc.document_url
+    } as any);
+    setShowDocumentModal(true);
+  };
+
+  const handleDeleteDocument = async (id: number) => {
+    if (!window.confirm('Bu evrakı silmek istediğinize emin misiniz?')) return;
+    try {
+      await api.deleteVehicleDocument(id);
+      setDocuments(documents.filter(d => d.id !== id));
+    } catch (error) {
+      alert('Evrak silinirken bir hata oluştu.');
     }
   };
 
@@ -264,17 +365,45 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     e.preventDefault();
     if (!selectedVehicle) return;
     try {
-      const res = await api.createVehicleMaintenance(selectedVehicle.id, maintenanceFormData);
-      if (res.error) {
-        alert(res.error);
-        return;
+      if (editingMaintenance) {
+        const res = await api.updateVehicleMaintenance(editingMaintenance.id, maintenanceFormData);
+        if (res.error) {
+          alert(res.error);
+          return;
+        }
+        setMaintenance(maintenance.map(m => m.id === editingMaintenance.id ? res : m));
+      } else {
+        const res = await api.createVehicleMaintenance(selectedVehicle.id, maintenanceFormData);
+        if (res.error) {
+          alert(res.error);
+          return;
+        }
+        setMaintenance([...maintenance, res]);
       }
-      setMaintenance([...maintenance, res]);
+      
       setShowMaintenanceModal(false);
+      setEditingMaintenance(null);
       setMaintenanceFormData({ type: 'routine', status: 'planned' } as any);
     } catch (error) {
-      alert('Bakım kaydı eklenirken bir hata oluştu.');
+      alert('Bakım kaydı kaydedilirken bir hata oluştu.');
     }
+  };
+
+  const handleEditMaintenance = (m: VehicleMaintenance) => {
+    setEditingMaintenance(m);
+    setMaintenanceFormData({
+      type: m.type,
+      date: m.date ? m.date.split('T')[0] : '',
+      mileage: m.mileage,
+      cost: m.cost,
+      currency: m.currency,
+      provider_name: m.provider_name,
+      description: m.description,
+      status: m.status,
+      next_maintenance_date: m.next_maintenance_date ? m.next_maintenance_date.split('T')[0] : '',
+      next_maintenance_mileage: m.next_maintenance_mileage
+    } as any);
+    setShowMaintenanceModal(true);
   };
 
   const handleAddAssignment = async (e: React.FormEvent) => {
@@ -329,11 +458,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
-  const filteredVehicles = vehicles.filter(v => 
-    v.plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.model.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredVehicles = vehicles.filter(v => {
+    const matchesSearch = v.plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          v.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          v.model.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || v.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(filteredVehicles.length / itemsPerPage);
+  const paginatedVehicles = filteredVehicles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -347,38 +481,38 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'active': return 'Aktif';
-      case 'in_service': return 'Serviste';
-      case 'broken': return 'Arızalı';
-      case 'sold': return 'Satıldı';
+      case 'active': return t.active;
+      case 'in_service': return t.inService;
+      case 'broken': return t.broken;
+      case 'sold': return t.sold;
       default: return status;
     }
   };
 
   const exportToExcel = () => {
     const data = vehicles.map(v => ({
-      'Plaka': v.plate,
-      'Marka': v.brand,
-      'Model': v.model,
-      'Yıl': v.year,
-      'Tip': v.type === 'company' ? 'Şirket' : 'Şahsi',
-      'KM': v.current_mileage,
-      'Durum': getStatusText(v.status),
-      'Şasi No': v.chassis_number,
-      'Motor No': v.engine_number
+      [t.plate]: v.plate,
+      [t.brand]: v.brand,
+      [t.model]: v.model,
+      [t.year]: v.year,
+      [t.vehicleType]: v.type === 'company' ? t.company : t.personal,
+      [t.currentMileage]: v.current_mileage,
+      [t.status]: getStatusText(v.status),
+      [t.chassisNumber]: v.chassis_number,
+      [t.engineNumber]: v.engine_number
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Filo");
-    XLSX.writeFile(wb, `Filo_Raporu_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, t.fleet);
+    XLSX.writeFile(wb, `Fleet_Report_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
   };
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    doc.text("Filo Durum Raporu", 14, 15);
+    doc.text(t.fleet, 14, 15);
     autoTable(doc, {
       startY: 20,
-      head: [['Plaka', 'Marka', 'Model', 'Yıl', 'Tip', 'KM', 'Durum']],
+      head: [[t.plate, t.brand, t.model, t.year, t.vehicleType, t.currentMileage, t.status]],
       body: vehicles.map(v => [
         v.plate,
         v.brand,
@@ -392,6 +526,379 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     doc.save(`Filo_Raporu_${format(new Date(), 'dd_MM_yyyy')}.pdf`);
   };
 
+  const getVehiclePlate = (id: number) => vehicles.find(v => v.id === id)?.plate || `ID: ${id}`;
+
+  const renderMainTabContent = () => {
+    switch (activeMainTab) {
+      case 'vehicles':
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Vehicle Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.status}</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Uyarılar</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {paginatedVehicles.map((vehicle) => (
+                    <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors group">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                            <Car className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">{vehicle.plate}</p>
+                            <p className="text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getStatusColor(vehicle.status)}`}>
+                          {getStatusText(vehicle.status)}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
+                          <MapPin className="w-3 h-3 text-gray-400" />
+                          {(vehicle.current_mileage || 0).toLocaleString()}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          {(vehicle.expiring_docs || 0) > 0 && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
+                              <AlertCircle className="w-3 h-3" />
+                              {vehicle.expiring_docs} EVRAK
+                            </div>
+                          )}
+                          {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && allMaintenance.find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
+                              <Wrench className="w-3 h-3" />
+                              BAKIM
+                            </div>
+                          )}
+                          {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
+                            <span className="text-xs text-green-500 font-medium">Sorun Yok</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedVehicle(vehicle);
+                              setShowDetailModal(true);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Detaylar"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                          {!isViewer && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedVehicle(vehicle);
+                                  setFormData(vehicle);
+                                  setShowAddModal(true);
+                                }}
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                title="Düzenle"
+                              >
+                                <Edit2 className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteVehicle(vehicle.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Sil"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {paginatedVehicles.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-500">
+                        {t.noVehicles}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                <span className="text-sm text-gray-600">
+                  Toplam <span className="font-bold">{filteredVehicles.length}</span> araçtan <span className="font-bold">{(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredVehicles.length)}</span> arası gösteriliyor
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Önceki
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${
+                          currentPage === i + 1 ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Sonraki
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 'documents':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {allDocuments.map(doc => (
+              <div key={doc.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {doc.document_url && (
+                      <a 
+                        href={doc.document_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                        title="İndir / Görüntüle"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    )}
+                    {!isViewer && (
+                      <button 
+                        onClick={() => {
+                          const vehicle = vehicles.find(v => v.id === doc.vehicle_id);
+                          if (vehicle) {
+                            setSelectedVehicle(vehicle);
+                            handleEditDocument(doc);
+                          }
+                        }} 
+                        className="p-1.5 text-amber-600 hover:bg-amber-50 rounded"
+                        title="Düzenle"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <h4 className="font-bold text-gray-900">{doc.type}</h4>
+                <p className="text-sm text-gray-500 mb-2">{getVehiclePlate(doc.vehicle_id)}</p>
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-50">
+                  <span className={`text-xs font-medium ${new Date(doc.expiry_date) < new Date() ? 'text-red-600' : 'text-gray-500'}`}>
+                    Vade: {safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {allDocuments.length === 0 && <div className="col-span-3 py-12 text-center text-gray-400">Evrak bulunamadı.</div>}
+          </div>
+        );
+      case 'maintenance':
+        return (
+          <div className="space-y-4">
+            {allMaintenance.map(m => (
+              <div key={m.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center hover:border-blue-200 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
+                    <Wrench className="w-7 h-7 text-orange-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">{m.type}</h4>
+                    <p className="text-sm text-gray-500">
+                      <span className="font-bold text-blue-600">{getVehiclePlate(m.vehicle_id)}</span> | {safeFormatDate(m.date, 'dd.MM.yyyy')} | {m.provider_name}
+                    </p>
+                    <div className="flex gap-4 mt-1">
+                      {m.next_maintenance_date && (
+                        <p className="text-[10px] text-amber-600 font-bold uppercase">
+                          Sonraki Tarih: {safeFormatDate(m.next_maintenance_date, 'dd.MM.yyyy')}
+                        </p>
+                      )}
+                      {m.next_maintenance_mileage && (
+                        <p className="text-[10px] text-amber-600 font-bold uppercase">
+                          Sonraki KM: {m.next_maintenance_mileage.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{(m.cost || 0).toLocaleString()} {m.currency}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                      m.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                    }`}>
+                      {m.status === 'completed' ? 'Tamamlandı' : 'Planlandı'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {m.invoice_url && (
+                      <a 
+                        href={m.invoice_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="Faturayı İndir"
+                      >
+                        <Download className="w-5 h-5" />
+                      </a>
+                    )}
+                    {!isViewer && (
+                      <button 
+                        onClick={() => {
+                          const vehicle = vehicles.find(v => v.id === m.vehicle_id);
+                          if (vehicle) {
+                            setSelectedVehicle(vehicle);
+                            handleEditMaintenance(m);
+                          }
+                        }} 
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg"
+                        title="Düzenle"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {allMaintenance.length === 0 && <div className="py-12 text-center text-gray-400">Bakım kaydı bulunamadı.</div>}
+          </div>
+        );
+      case 'assignments':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {allAssignments.map(a => (
+              <div key={a.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                      <UserCheck className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900">{a.user_email}</h4>
+                      <p className="text-xs text-gray-500">{getVehiclePlate(a.vehicle_id)}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                    a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {a.status === 'active' ? 'Aktif' : 'İade Edildi'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                  <div>
+                    <p className="text-gray-400 uppercase font-bold mb-1">Başlangıç</p>
+                    <p>{safeFormatDate(a.start_date, 'dd.MM.yyyy')}</p>
+                    <p>{(a.start_mileage || 0).toLocaleString()} KM</p>
+                  </div>
+                  {a.end_date && (
+                    <div>
+                      <p className="text-gray-400 uppercase font-bold mb-1">Bitiş</p>
+                      <p>{safeFormatDate(a.end_date, 'dd.MM.yyyy')}</p>
+                      <p>{(a.end_mileage || 0).toLocaleString()} KM</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {allAssignments.length === 0 && <div className="col-span-2 py-12 text-center text-gray-400">Zimmet kaydı bulunamadı.</div>}
+          </div>
+        );
+      case 'mileage':
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="p-4 font-bold text-gray-500">Tarih</th>
+                  <th className="p-4 font-bold text-gray-500">{t.vehicles}</th>
+                  <th className="p-4 font-bold text-gray-500">KM</th>
+                  <th className="p-4 font-bold text-gray-500">Notlar</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {allMileage.map(log => (
+                  <tr key={log.id}>
+                    <td className="p-4">{safeFormatDate(log.date, 'dd.MM.yyyy HH:mm')}</td>
+                    <td className="p-4 font-bold text-blue-600">{getVehiclePlate(log.vehicle_id)}</td>
+                    <td className="p-4 font-bold">{(log.mileage || 0).toLocaleString()} KM</td>
+                    <td className="p-4 text-gray-500">{log.notes || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {allMileage.length === 0 && <div className="py-12 text-center text-gray-400">KM kaydı bulunamadı.</div>}
+          </div>
+        );
+      case 'incidents':
+        return (
+          <div className="space-y-4">
+            {allIncidents.map(i => (
+              <div key={i.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
+                    <AlertTriangle className="w-7 h-7 text-red-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">{i.type}</h4>
+                    <p className="text-sm text-gray-500">
+                      <span className="font-bold text-blue-600">{getVehiclePlate(i.vehicle_id)}</span> | {safeFormatDate(i.date, 'dd.MM.yyyy')}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">{i.description}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-red-600">{(i.cost || 0).toLocaleString()} TRY</p>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                    i.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {i.status === 'resolved' ? 'Çözüldü' : 'Bekliyor'}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {allIncidents.length === 0 && <div className="py-12 text-center text-gray-400">Olay kaydı bulunamadı.</div>}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -401,7 +908,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             <Car className="w-8 h-8 text-blue-600" />
             Filo Yönetimi
           </h2>
-          <p className="text-gray-500 text-sm">Araç envanteri, bakım ve evrak takibi</p>
+          <p className="text-gray-500 text-sm">{t.fleet}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -438,146 +945,134 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Yeni Araç
+              {t.addVehicle}
             </button>
           )}
         </div>
       </div>
 
-      {/* Search & Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="md:col-span-2 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Plaka, marka veya model ara..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          />
+      {/* Main Tabs */}
+      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl mb-6 overflow-x-auto">
+        <button
+          onClick={() => setActiveMainTab('vehicles')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeMainTab === 'vehicles' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Car className="w-4 h-4" />
+          {t.vehicles}
+        </button>
+        <button
+          onClick={() => setActiveMainTab('documents')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeMainTab === 'documents' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Tüm Evraklar
+        </button>
+        <button
+          onClick={() => setActiveMainTab('maintenance')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeMainTab === 'maintenance' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Wrench className="w-4 h-4" />
+          Bakım-Onarım
+        </button>
+        <button
+          onClick={() => setActiveMainTab('assignments')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeMainTab === 'assignments' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <UserCheck className="w-4 h-4" />
+          Zimmetler
+        </button>
+        <button
+          onClick={() => setActiveMainTab('mileage')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeMainTab === 'mileage' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          KM Kayıtları
+        </button>
+        <button
+          onClick={() => setActiveMainTab('incidents')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeMainTab === 'incidents' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4" />
+          Olaylar
+        </button>
+      </div>
+
+      {/* Search, Filter & Stats */}
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
+            <span className="text-blue-700 font-medium">{t.totalVehicles}</span>
+            <span className="text-2xl font-bold text-blue-800">{vehicles.length}</span>
+          </div>
+          <div className="bg-green-50 p-3 rounded-lg border border-green-100 flex items-center justify-between">
+            <span className="text-green-700 font-medium">{t.activeVehicles}</span>
+            <span className="text-2xl font-bold text-green-800">
+              {vehicles.filter(v => v.status === 'active').length}
+            </span>
+          </div>
+          <div className={`p-3 rounded-lg border flex items-center justify-between ${vehicles.some(v => Number(v.expiring_docs) > 0) ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
+            <span className={vehicles.some(v => Number(v.expiring_docs) > 0) ? 'text-amber-700 font-medium' : 'text-gray-500 font-medium'}>Evrak Uyarısı</span>
+            <span className={`text-2xl font-bold ${vehicles.some(v => Number(v.expiring_docs) > 0) ? 'text-amber-800' : 'text-gray-400'}`}>
+              {vehicles.reduce((acc, v) => acc + (Number(v.expiring_docs) || 0), 0)}
+            </span>
+          </div>
+          <div className={`p-3 rounded-lg border flex items-center justify-between ${vehicles.some(v => Number(v.maintenance_due) > 0) ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+            <span className={vehicles.some(v => Number(v.maintenance_due) > 0) ? 'text-red-700 font-medium' : 'text-gray-500 font-medium'}>Bakım Uyarısı</span>
+            <span className={`text-2xl font-bold ${vehicles.some(v => Number(v.maintenance_due) > 0) ? 'text-red-800' : 'text-gray-400'}`}>
+              {vehicles.reduce((acc, v) => acc + (Number(v.maintenance_due) || 0), 0)}
+            </span>
+          </div>
         </div>
-        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
-          <span className="text-blue-700 font-medium">Toplam Araç</span>
-          <span className="text-2xl font-bold text-blue-800">{vehicles.length}</span>
-        </div>
-        <div className="bg-green-50 p-3 rounded-lg border border-green-100 flex items-center justify-between">
-          <span className="text-green-700 font-medium">Aktif Araç</span>
-          <span className="text-2xl font-bold text-green-800">
-            {vehicles.filter(v => v.status === 'active').length}
-          </span>
-        </div>
-        <div className={`p-3 rounded-lg border flex items-center justify-between ${vehicles.some(v => Number(v.expiring_docs) > 0) ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
-          <span className={vehicles.some(v => Number(v.expiring_docs) > 0) ? 'text-amber-700 font-medium' : 'text-gray-500 font-medium'}>Evrak Uyarısı</span>
-          <span className={`text-2xl font-bold ${vehicles.some(v => Number(v.expiring_docs) > 0) ? 'text-amber-800' : 'text-gray-400'}`}>
-            {vehicles.reduce((acc, v) => acc + (Number(v.expiring_docs) || 0), 0)}
-          </span>
-        </div>
-        <div className={`p-3 rounded-lg border flex items-center justify-between ${vehicles.some(v => Number(v.maintenance_due) > 0) ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
-          <span className={vehicles.some(v => Number(v.maintenance_due) > 0) ? 'text-red-700 font-medium' : 'text-gray-500 font-medium'}>Bakım Uyarısı</span>
-          <span className={`text-2xl font-bold ${vehicles.some(v => Number(v.maintenance_due) > 0) ? 'text-red-800' : 'text-gray-400'}`}>
-            {vehicles.reduce((acc, v) => acc + (Number(v.maintenance_due) || 0), 0)}
-          </span>
+
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder={`${t.plate}, ${t.brand.toLowerCase()} or ${t.model.toLowerCase()}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="all">Tüm Durumlar</option>
+              <option value="active">Aktif</option>
+              <option value="in_service">Serviste</option>
+              <option value="broken">Arızalı</option>
+              <option value="sold">Satıldı</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Vehicle Grid */}
+      {/* Main Content */}
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVehicles.map((vehicle) => (
-            <motion.div
-              key={vehicle.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
-            >
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <Car className="w-7 h-7 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">{vehicle.plate}</h3>
-                      <p className="text-sm text-gray-500">{vehicle.brand} {vehicle.model}</p>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(vehicle.status)}`}>
-                    {getStatusText(vehicle.status)}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span>{vehicle.year}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span>{vehicle.current_mileage.toLocaleString()} KM</span>
-                  </div>
-                </div>
-
-                {/* Alerts */}
-                {(Number(vehicle.expiring_docs) > 0 || Number(vehicle.maintenance_due) > 0) && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {Number(vehicle.expiring_docs) > 0 && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 rounded text-[10px] font-bold border border-amber-200 uppercase tracking-wider">
-                        <FileText className="w-3 h-3" />
-                        Evrak ({vehicle.expiring_docs})
-                      </div>
-                    )}
-                    {Number(vehicle.maintenance_due) > 0 && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded text-[10px] font-bold border border-red-200 uppercase tracking-wider animate-pulse">
-                        <Wrench className="w-3 h-3" />
-                        Bakım ({vehicle.maintenance_due})
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <button
-                    onClick={() => {
-                      setSelectedVehicle(vehicle);
-                      fetchVehicleDetails(vehicle);
-                      setActiveDetailTab('info');
-                      setShowDetailModal(true);
-                    }}
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
-                  >
-                    Detayları Gör
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  {!isViewer && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setFormData(vehicle);
-                          setSelectedVehicle(vehicle);
-                          setShowAddModal(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteVehicle(vehicle.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+      ) : renderMainTabContent()}
 
       {/* Add/Edit Modal */}
       <AnimatePresence>
@@ -591,16 +1086,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 className="text-xl font-bold text-gray-800">
-                  {selectedVehicle ? 'Aracı Düzenle' : 'Yeni Araç Ekle'}
+                  {selectedVehicle ? t.editVehicle : t.addVehicle}
                 </h3>
                 <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="w-6 h-6" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
               <form onSubmit={selectedVehicle ? handleUpdateVehicle : handleCreateVehicle} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Plaka</label>
+                    <label className="text-sm font-medium text-gray-700">{t.plate}</label>
                     <input
                       required
                       type="text"
@@ -611,14 +1106,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Araç Tipi</label>
+                    <label className="text-sm font-medium text-gray-700">{t.vehicleType}</label>
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     >
-                      <option value="company">Şirket Aracı</option>
-                      <option value="personal">Şahsi Araç</option>
+                      <option value="company">{t.company}</option>
+                      <option value="personal">{t.personal}</option>
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -735,9 +1230,23 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <p className="text-gray-500">{selectedVehicle.brand} {selectedVehicle.model} ({selectedVehicle.year})</p>
                   </div>
                 </div>
-                <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                  <MoreVertical className="w-6 h-6 text-gray-500" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {!isViewer && (
+                    <button
+                      onClick={() => {
+                        setFormData(selectedVehicle);
+                        setShowAddModal(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Düzenle
+                    </button>
+                  )}
+                  <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <X className="w-6 h-6 text-gray-500" />
+                  </button>
+                </div>
               </div>
 
               {/* Tabs */}
@@ -781,12 +1290,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           <p className="font-medium text-gray-700">{selectedVehicle.engine_number || 'Belirtilmemiş'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-400 uppercase font-bold">Araç Tipi</p>
-                          <p className="font-medium text-gray-700">{selectedVehicle.type === 'company' ? 'Şirket Aracı' : 'Şahsi Araç'}</p>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.vehicleType}</p>
+                          <p className="font-medium text-gray-700">{selectedVehicle.type === 'company' ? t.company : t.personal}</p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-400 uppercase font-bold">Kayıt Tarihi</p>
-                          <p className="font-medium text-gray-700">{format(new Date(selectedVehicle.created_at), 'dd MMMM yyyy', { locale: tr })}</p>
+                          <p className="font-medium text-gray-700">{safeFormatDate(selectedVehicle.created_at, 'dd MMMM yyyy', { locale: tr })}</p>
                         </div>
                       </div>
                     </div>
@@ -795,7 +1304,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                           <p className="text-xs text-blue-600 uppercase font-bold mb-1">Güncel KM</p>
-                          <p className="text-2xl font-bold text-blue-800">{selectedVehicle.current_mileage.toLocaleString()} KM</p>
+                          <p className="text-2xl font-bold text-blue-800">{(selectedVehicle.current_mileage || 0).toLocaleString()} KM</p>
                         </div>
                         <div className={`p-4 rounded-xl border ${getStatusColor(selectedVehicle.status)}`}>
                           <p className="text-xs uppercase font-bold mb-1 opacity-70">Durum</p>
@@ -826,17 +1335,36 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             </div>
                             <div>
                               <p className="font-bold text-gray-800">{doc.type}</p>
-                              <p className="text-xs text-gray-500">Vade: {format(new Date(doc.expiry_date), 'dd.MM.yyyy')}</p>
+                              <p className="text-xs text-gray-500">Vade: {safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                              <Download className="w-4 h-4" />
-                            </button>
-                            {!isViewer && (
-                              <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                                <Trash2 className="w-4 h-4" />
+                            {doc.document_url && (
+                              <button 
+                                onClick={() => window.open(doc.document_url, '_blank')}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                                title="İndir / Görüntüle"
+                              >
+                                <Download className="w-4 h-4" />
                               </button>
+                            )}
+                            {!isViewer && (
+                              <>
+                                <button 
+                                  onClick={() => handleEditDocument(doc)}
+                                  className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg"
+                                  title="Düzenle"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                  title="Sil"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -871,11 +1399,31 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               </div>
                               <div>
                                 <p className="font-bold text-gray-800">{m.type}</p>
-                                <p className="text-xs text-gray-500">{format(new Date(m.date), 'dd MMMM yyyy', { locale: tr })} - {m.provider_name}</p>
+                                <p className="text-xs text-gray-500">{safeFormatDate(m.date, 'dd MMMM yyyy', { locale: tr })} - {m.provider_name}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold text-gray-900">{m.cost.toLocaleString()} {m.currency}</p>
+                            <div className="text-right flex flex-col items-end gap-2">
+                              <div className="flex items-center gap-2">
+                                {m.invoice_url && (
+                                  <button 
+                                    onClick={() => window.open(m.invoice_url!, '_blank')}
+                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                    title="Fatura İndir"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {!isViewer && (
+                                  <button 
+                                    onClick={() => handleEditMaintenance(m)}
+                                    className="p-1 text-amber-600 hover:bg-amber-50 rounded"
+                                    title="Düzenle"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <p className="font-bold text-gray-900">{(m.cost || 0).toLocaleString()} {m.currency}</p>
+                              </div>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                 m.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                               }`}>
@@ -888,12 +1436,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-4 text-xs">
                               <div className="flex items-center gap-1 text-blue-600">
                                 <Calendar className="w-3 h-3" />
-                                Sonraki Bakım: {format(new Date(m.next_maintenance_date), 'dd.MM.yyyy')}
+                                Sonraki Bakım: {safeFormatDate(m.next_maintenance_date, 'dd.MM.yyyy')}
                               </div>
                               {m.next_maintenance_mileage && (
                                 <div className="flex items-center gap-1 text-blue-600">
                                   <MapPin className="w-3 h-3" />
-                                  Sonraki KM: {m.next_maintenance_mileage.toLocaleString()}
+                                  Sonraki KM: {(m.next_maintenance_mileage || 0).toLocaleString()}
                                 </div>
                               )}
                             </div>
@@ -930,8 +1478,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             <div>
                               <p className="font-bold text-gray-800">{a.user_email}</p>
                               <p className="text-xs text-gray-500">
-                                {format(new Date(a.start_date), 'dd.MM.yyyy')} 
-                                {a.end_date ? ` - ${format(new Date(a.end_date), 'dd.MM.yyyy')}` : ' (Devam Ediyor)'}
+                                {safeFormatDate(a.start_date, 'dd.MM.yyyy')} 
+                                {a.end_date ? ` - ${safeFormatDate(a.end_date, 'dd.MM.yyyy')}` : ' (Devam Ediyor)'}
                               </p>
                             </div>
                           </div>
@@ -974,8 +1522,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             </div>
                             <div className="flex-1 p-3 bg-gray-50 rounded-lg border border-gray-100 flex justify-between items-center">
                               <div>
-                                <p className="font-bold text-gray-800">{log.mileage.toLocaleString()} KM</p>
-                                <p className="text-xs text-gray-500">{format(new Date(log.date), 'dd MMMM yyyy', { locale: tr })}</p>
+                                <p className="font-bold text-gray-800">{(log.mileage || 0).toLocaleString()} KM</p>
+                                <p className="text-xs text-gray-500">{safeFormatDate(log.date, 'dd MMMM yyyy', { locale: tr })}</p>
                               </div>
                               {log.notes && <p className="text-xs text-gray-400 italic">"{log.notes}"</p>}
                             </div>
@@ -1012,7 +1560,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               </div>
                               <div>
                                 <p className="font-bold text-gray-800">{inc.type === 'accident' ? 'Kaza' : 'Arıza'}</p>
-                                <p className="text-xs text-gray-500">{format(new Date(inc.date), 'dd.MM.yyyy')}</p>
+                                <p className="text-xs text-gray-500">{safeFormatDate(inc.date, 'dd.MM.yyyy')}</p>
                               </div>
                             </div>
                             <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
@@ -1023,7 +1571,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           </div>
                           <p className="text-sm text-gray-700">{inc.description}</p>
                           {inc.cost > 0 && (
-                            <p className="text-sm font-bold text-red-600 mt-2">Maliyet: {inc.cost.toLocaleString()} TRY</p>
+                            <p className="text-sm font-bold text-red-600 mt-2">Maliyet: {(inc.cost || 0).toLocaleString()} TRY</p>
                           )}
                         </div>
                       ))}
@@ -1052,8 +1600,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="text-xl font-bold text-gray-800">Evrak Ekle</h3>
-                <button onClick={() => setShowDocumentModal(false)} className="text-gray-400 hover:text-gray-600">
+                <h3 className="text-xl font-bold text-gray-800">
+                  {editingDocument ? 'Evrak Düzenle' : 'Evrak Ekle'}
+                </h3>
+                <button onClick={() => {
+                  setShowDocumentModal(false);
+                  setEditingDocument(null);
+                  setDocumentFile(null);
+                }} className="text-gray-400 hover:text-gray-600">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -1066,11 +1620,31 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     onChange={(e) => setDocumentFormData({ ...documentFormData, type: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="registration">{t.vehicleLicense}</option>
                     <option value="insurance">Sigorta Poliçesi</option>
                     <option value="inspection">Muayene Belgesi</option>
                     <option value="tax">Vergi Dekontu</option>
                     <option value="other">Diğer</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dosya Yükle</label>
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-400 cursor-pointer transition-colors">
+                      <Upload className="w-5 h-5 text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        {documentFile ? documentFile.name : 'Dosya Seç'}
+                      </span>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                  </div>
+                  {documentFormData.document_url && !documentFile && (
+                    <p className="text-xs text-blue-600 mt-1 truncate">Mevcut: {documentFormData.document_url}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Geçerlilik Tarihi</label>
@@ -1112,63 +1686,96 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="text-xl font-bold text-gray-800">Bakım Kaydı Ekle</h3>
-                <button onClick={() => setShowMaintenanceModal(false)} className="text-gray-400 hover:text-gray-600">
+                <h3 className="text-xl font-bold text-gray-800">
+                  {editingMaintenance ? 'Bakım Kaydı Düzenle' : 'Bakım Kaydı Ekle'}
+                </h3>
+                <button onClick={() => {
+                  setShowMaintenanceModal(false);
+                  setEditingMaintenance(null);
+                }} className="text-gray-400 hover:text-gray-600">
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              <form onSubmit={handleAddMaintenance} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bakım Tipi</label>
-                  <select
-                    required
-                    value={maintenanceFormData.type || ''}
-                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, type: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="routine">Periyodik Bakım</option>
-                    <option value="repair">Onarım</option>
-                    <option value="tire">Lastik Değişimi</option>
-                  </select>
+              <form onSubmit={handleAddMaintenance} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bakım Tipi</label>
+                    <select
+                      required
+                      value={maintenanceFormData.type || ''}
+                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, type: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="routine">Periyodik Bakım</option>
+                      <option value="repair">Onarım</option>
+                      <option value="tire">Lastik Değişimi</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                    <input
+                      type="date"
+                      required
+                      value={maintenanceFormData.date || ''}
+                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, date: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
+                    <input
+                      type="number"
+                      required
+                      value={maintenanceFormData.mileage || ''}
+                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, mileage: Number(e.target.value) })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Maliyet (TRY)</label>
+                    <input
+                      type="number"
+                      required
+                      value={maintenanceFormData.cost || ''}
+                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, cost: Number(e.target.value) })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-xl space-y-4">
+                  <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Gelecek Bakım Planı</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sonraki Bakım Tarihi</label>
+                      <input
+                        type="date"
+                        value={maintenanceFormData.next_maintenance_date || ''}
+                        onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, next_maintenance_date: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sonraki Bakım KM</label>
+                      <input
+                        type="number"
+                        value={maintenanceFormData.next_maintenance_mileage || ''}
+                        onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, next_maintenance_mileage: Number(e.target.value) })}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Örn: 110000"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
-                  <input
-                    type="date"
-                    required
-                    value={maintenanceFormData.date || ''}
-                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
-                  <input
-                    type="number"
-                    required
-                    value={maintenanceFormData.mileage || ''}
-                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, mileage: Number(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Maliyet (TRY)</label>
-                  <input
-                    type="number"
-                    required
-                    value={maintenanceFormData.cost || ''}
-                    onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, cost: Number(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Servis/Sağlayıcı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Servis / Sağlayıcı</label>
                   <input
                     type="text"
-                    required
                     value={maintenanceFormData.provider_name || ''}
                     onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, provider_name: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Örn: ABC Servis"
                   />
                 </div>
                 <div>
@@ -1179,6 +1786,45 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     rows={2}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fatura / Belge Yükle</label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            const res = await api.uploadFile(formData);
+                            if (res.url) {
+                              setMaintenanceFormData({ ...maintenanceFormData, invoice_url: res.url });
+                            }
+                          } catch (err) {
+                            console.error('Upload failed:', err);
+                            alert('Dosya yüklenirken bir hata oluştu.');
+                          }
+                        }
+                      }}
+                      className="hidden"
+                      id="maintenance-file-upload"
+                    />
+                    <label
+                      htmlFor="maintenance-file-upload"
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      <Upload className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Dosya Seç</span>
+                    </label>
+                    {maintenanceFormData.invoice_url && (
+                      <div className="flex items-center gap-2 text-green-600 text-xs font-medium">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Yüklendi
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                   <button type="button" onClick={() => setShowMaintenanceModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>

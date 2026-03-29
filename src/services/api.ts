@@ -175,9 +175,11 @@ export const api = {
   deleteVehicle: (id: number) => api.delete(`/api/fleet/vehicles/${id}`),
   getVehicleDocuments: (id: number) => api.get(`/api/fleet/vehicles/${id}/documents`),
   createVehicleDocument: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/documents`, data),
+  updateVehicleDocument: (id: number, data: any) => api.put(`/api/fleet/vehicle-documents/${id}`, data),
   deleteVehicleDocument: (id: number) => api.delete(`/api/fleet/vehicle-documents/${id}`),
   getVehicleMaintenance: (id: number) => api.get(`/api/fleet/vehicles/${id}/maintenance`),
   createVehicleMaintenance: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/maintenance`, data),
+  updateVehicleMaintenance: (id: number, data: any) => api.put(`/api/fleet/vehicle-maintenance/${id}`, data),
   getVehicleAssignments: (id: number) => api.get(`/api/fleet/vehicles/${id}/assignments`),
   createVehicleAssignment: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/assignments`, data),
   updateVehicleAssignment: (id: number, data: any) => api.put(`/api/fleet/vehicle-assignments/${id}`, data),
@@ -185,4 +187,11 @@ export const api = {
   createVehicleMileage: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/mileage`, data),
   getVehicleIncidents: (id: number) => api.get(`/api/fleet/vehicles/${id}/incidents`),
   createVehicleIncident: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/incidents`, data),
+  
+  // Store-wide Fleet Methods
+  getAllFleetDocuments: (storeId?: number) => api.get(`/api/fleet/documents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetMaintenance: (storeId?: number) => api.get(`/api/fleet/maintenance${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetAssignments: (storeId?: number) => api.get(`/api/fleet/assignments${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetMileage: (storeId?: number) => api.get(`/api/fleet/mileage${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetIncidents: (storeId?: number) => api.get(`/api/fleet/incidents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
 };

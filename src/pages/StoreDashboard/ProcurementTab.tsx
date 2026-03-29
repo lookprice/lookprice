@@ -60,6 +60,9 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
   const [editingApi, setEditingApi] = useState<Partial<SupplierApi> | null>(null);
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 15;
+
   useEffect(() => {
     fetchData();
   }, [storeId]);
@@ -164,6 +167,12 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
     );
   }
 
+  const paginatedProcurements = procurements.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  const totalPages = Math.ceil(procurements.length / itemsPerPage);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -222,7 +231,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                           <p className="text-xs text-gray-500 truncate max-w-[200px]">{api.api_url}</p>
                         </div>
                         {!isViewer && (
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1 transition-opacity">
                             <button
                               onClick={() => {
                                 setEditingApi(api);
@@ -264,7 +273,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {procurements.length === 0 ? (
+              {paginatedProcurements.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
@@ -275,7 +284,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                   </td>
                 </tr>
               ) : (
-                procurements.map(item => (
+                paginatedProcurements.map(item => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
@@ -355,7 +364,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-2 transition-opacity">
                         {!isViewer && (
                           <>
                             {item.status !== 'received' && (
@@ -393,6 +402,33 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500">
+              {procurements.length} kayıt
+            </p>
+            <div className="flex items-center space-x-3">
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+              >
+                Önceki
+              </button>
+              <div className="text-xs font-medium text-gray-600 tabular-nums">
+                {page} <span className="text-gray-300 mx-1">/</span> {totalPages}
+              </div>
+              <button 
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+              >
+                Sonraki
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* API Modal */}

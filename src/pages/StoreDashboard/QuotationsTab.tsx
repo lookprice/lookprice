@@ -108,8 +108,8 @@ const QuotationsTab = ({
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden zebra-border">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
+        {/* Table View */}
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -135,17 +135,17 @@ const QuotationsTab = ({
                       {q.customer_title && <div className="text-xs text-slate-400 truncate max-w-[240px] mt-0.5">{q.customer_title}</div>}
                     </td>
                     <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                      {new Date(q.created_at).toLocaleDateString('tr-TR')}
+                      {new Date(q.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-900">
-                        {Number(q.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{q.currency}</span>
+                        {Number(q.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(q.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold tracking-tight flex items-center mt-0.5">
                         <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[q.payment_method] || q.payment_method || (lang === 'tr' ? 'Belirtilmedi' : 'Not specified')}
                         {q.due_date && (
                           <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">
-                            {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(q.due_date).toLocaleDateString('tr-TR')}
+                            {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(q.due_date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         )}
                       </div>
@@ -169,7 +169,7 @@ const QuotationsTab = ({
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end space-x-1 transition-opacity">
                           <button 
                             onClick={() => onViewDetails(q)}
                             className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"
@@ -241,80 +241,6 @@ const QuotationsTab = ({
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Mobile Compact List View */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {paginatedQuotations.length === 0 ? (
-            <div className="p-12 text-center text-slate-400 font-medium text-sm">
-              {t.noQuotations}
-            </div>
-          ) : (
-            paginatedQuotations.map((q) => (
-              <div key={q.id} className="p-4 bg-white active:bg-slate-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0 mr-4">
-                    <div className="text-sm font-bold text-slate-900 truncate">{q.customer_name}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-slate-400 font-medium">{new Date(q.created_at).toLocaleDateString('tr-TR')}</span>
-                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-                        q.status === 'approved' || q.status === 'completed' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 
-                        q.status === 'cancelled' ? 'text-rose-600 bg-rose-50 border-rose-100' :
-                        'text-amber-600 bg-amber-50 border-amber-100'
-                      }`}>
-                        {q.status === 'approved' || q.status === 'completed' ? (lang === 'tr' ? 'Tamamlandı' : 'Completed') : 
-                         q.status === 'cancelled' ? (lang === 'tr' ? 'İptal' : 'Cancelled') :
-                         (lang === 'tr' ? 'Beklemede' : 'Pending')}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900 whitespace-nowrap">
-                      {Number(q.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium">{q.currency}</span>
-                    </div>
-                    <div className="text-[9px] text-slate-400 uppercase font-bold tracking-tight flex items-center justify-end mt-0.5">
-                      <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[q.payment_method] || q.payment_method || (lang === 'tr' ? 'Belirtilmedi' : 'Not specified')}
-                    </div>
-                    {q.due_date && (
-                      <div className="text-[9px] text-amber-600 uppercase font-bold tracking-tight flex items-center justify-end mt-0.5">
-                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(q.due_date).toLocaleDateString('tr-TR')}
-                      </div>
-                    )}
-                    <div className="flex items-center justify-end gap-1 mt-2">
-                      <button 
-                        onClick={() => onViewDetails(q)}
-                        className="p-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-xl active:scale-90 transition-all"
-                      >
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </button>
-                      <button 
-                        onClick={() => onGeneratePDF(q)}
-                        className="p-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-xl active:scale-90 transition-all"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </button>
-                      {!isViewer && q.status === 'pending' && (
-                        <button 
-                          onClick={() => onEdit(q)}
-                          className="p-2 text-amber-600 bg-amber-50 border border-amber-100 rounded-xl active:scale-90 transition-all"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {!isViewer && (
-                        <button 
-                          onClick={() => onDelete(q.id)}
-                          className="p-2 text-rose-600 bg-rose-50 border border-rose-100 rounded-xl active:scale-90 transition-all"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
 
         {totalPages > 1 && (

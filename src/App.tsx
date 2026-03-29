@@ -9,6 +9,7 @@ import Logo from "./components/Logo.tsx";
 import { LandingPage } from "./components/LandingPage.tsx";
 import StoreDashboard from "./pages/StoreDashboard/index.tsx";
 import Navbar from "./components/Navbar.tsx";
+import { User } from "./types";
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "./contexts/LanguageContext.tsx";
@@ -16,12 +17,7 @@ import { translations } from "./translations.ts";
 import { useParams } from "react-router-dom";
 
 // --- Types ---
-interface User {
-  email: string;
-  role: 'superadmin' | 'storeadmin' | 'editor' | 'viewer';
-  store_id?: number;
-  store_slug?: string;
-}
+// User interface is imported from ./types
 
 const NavigateWithParams = () => {
   const { slug } = useParams();
