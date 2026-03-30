@@ -2538,6 +2538,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         setAssignmentFormData({ 
                           ...assignmentFormData, 
                           driver_id: driverId,
+                          user_id: driverId,
                           user_email: driver?.email || ''
                         });
                       }}
