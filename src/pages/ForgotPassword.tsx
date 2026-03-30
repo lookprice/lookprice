@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
-import Logo from "../components/Logo";
+import { AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react";
 import { api } from "../services/api";
+import { useLanguage } from "../contexts/LanguageContext";
+import { translations } from "../translations";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { lang } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,60 +27,91 @@ export default function ForgotPasswordPage() {
         console.log("Debug Token:", res.debug_token);
       }
     } else {
-      setError(res.error || "İşlem başarısız");
+      setError(res.error || (lang === 'tr' ? "İşlem başarısız" : "Operation failed"));
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505] text-white font-sans px-4 selection:bg-indigo-500/30">
+      {/* Top Navigation / Back Button */}
+      <div className="fixed top-8 left-8 z-[100]">
+        <button 
+          onClick={() => navigate('/login')}
+          className="flex items-center space-x-2 text-white/50 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="text-sm font-medium">{lang === 'tr' ? 'Girişe Dön' : 'Back to Login'}</span>
+        </button>
+      </div>
+
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-md bg-[#111] p-10 rounded-3xl shadow-2xl border border-white/10"
       >
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Logo size={64} className="text-indigo-600" />
+        <div className="text-center mb-10">
+          <div className="flex justify-center mb-6">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+              <div className="w-6 h-6 bg-black rounded-sm" />
+            </div>
           </div>
-          <h2 className="text-3xl font-extrabold text-gray-900">Şifremi Unuttum</h2>
-          <p className="mt-2 text-gray-600">E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.</p>
+          <h2 className="text-3xl font-medium tracking-tight text-white">
+            {lang === 'tr' ? 'Şifremi Unuttum' : 'Forgot Password'}
+          </h2>
+          <p className="mt-3 text-white/40 font-light">
+            {lang === 'tr' 
+              ? 'E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.' 
+              : 'Enter your email address and we will send you a password reset link.'}
+          </p>
         </div>
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center text-sm">
-              <AlertCircle className="h-4 w-4 mr-2" /> {error}
+            <div className="bg-red-500/10 text-red-400 p-4 rounded-xl flex items-center text-sm border border-red-500/20">
+              <AlertCircle className="h-5 w-5 mr-3 flex-shrink-0" /> 
+              <span className="font-medium">{error}</span>
             </div>
           )}
           {message && (
-            <div className="bg-green-50 text-green-600 p-3 rounded-lg flex items-center text-sm">
-              <CheckCircle2 className="h-4 w-4 mr-2" /> {message}
+            <div className="bg-emerald-500/10 text-emerald-400 p-4 rounded-xl flex items-center text-sm border border-emerald-500/20">
+              <CheckCircle2 className="h-5 w-5 mr-3 flex-shrink-0" /> 
+              <span className="font-medium">{message}</span>
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">E-posta Adresi</label>
-            <input 
-              type="email" 
-              required 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              placeholder="admin@example.com"
-            />
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">
+                {lang === 'tr' ? 'E-posta Adresi' : 'Email Address'}
+              </label>
+              <input 
+                type="email" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-white placeholder-white/20"
+                placeholder="admin@example.com"
+              />
+            </div>
           </div>
+          
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 disabled:opacity-50"
+            className="w-full py-4 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-all disabled:opacity-50 mt-8"
           >
-            {loading ? "Gönderiliyor..." : "Sıfırlama Bağlantısı Gönder"}
+            {loading 
+              ? (lang === 'tr' ? "Gönderiliyor..." : "Sending...") 
+              : (lang === 'tr' ? "Sıfırlama Bağlantısı Gönder" : "Send Reset Link")}
           </button>
-          <div className="text-center">
+          
+          <div className="mt-8 text-center">
             <button 
               type="button"
               onClick={() => navigate("/login")}
-              className="text-sm text-indigo-600 hover:underline font-medium"
+              className="text-sm text-white/40 hover:text-white font-medium transition-colors"
             >
-              Giriş Sayfasına Dön
+              {lang === 'tr' ? 'Giriş Sayfasına Dön' : 'Return to Login'}
             </button>
           </div>
         </form>

@@ -479,11 +479,43 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
     }
 
     await client.query("BEGIN");
+    const importLogs: any[] = [];
     for (const item of data as any[]) {
       const barcode = String(item[mapping.barcode] || "").trim();
       const name = String(item[mapping.name] || "").trim();
-      const priceStr = String(item[mapping.price] || "0").replace(/[^0-9.,]/g, "").replace(",", ".");
-      const price = parseFloat(priceStr);
+      const rawPrice = item[mapping.price];
+      let price = 0;
+      if (rawPrice !== undefined && rawPrice !== null) {
+        let s = String(rawPrice).trim();
+        // Remove currency symbols and other non-numeric chars except . and ,
+        s = s.replace(/[^0-9.,]/g, "");
+        
+        if (s.includes('.') && s.includes(',')) {
+          if (s.lastIndexOf('.') > s.lastIndexOf(',')) {
+            s = s.replace(/,/g, "");
+          } else {
+            s = s.replace(/\./g, "").replace(",", ".");
+          }
+        } else if (s.includes(',')) {
+          // Check if it's a thousands separator (e.g. 1,200) or decimal (e.g. 195,00)
+          // In Turkish context, comma is usually decimal.
+          // If there's only one comma and it's followed by 2 digits at the end, it's decimal.
+          if (s.match(/,\d{2}$/)) {
+            s = s.replace(",", ".");
+          } else if (s.match(/,\d{3}/)) {
+            // Likely thousands separator
+            s = s.replace(",", "");
+          } else {
+            // Default to decimal for single comma
+            s = s.replace(",", ".");
+          }
+        }
+        price = parseFloat(s) || 0;
+      }
+
+      if (importLogs.length < 20 || barcode === '9789750718533') {
+        importLogs.push({ barcode, name, price, rawPrice: item[mapping.price] });
+      }
 
       if (barcode && name && !isNaN(price)) {
         const existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, barcode]);
@@ -506,15 +538,13 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
         if (existing.rows.length > 0) {
           // Update existing product
           const existingId = existing.rows[0].id;
-          const existingStock = existing.rows[0].stock_quantity || 0;
           
-          let updateQuery = "UPDATE products SET updated_at = CURRENT_TIMESTAMP";
-          let updateParams: any[] = [existingId];
-          let paramIdx = 2;
+          let updateQuery = "UPDATE products SET updated_at = CURRENT_TIMESTAMP, name = $2, price = $3";
+          let updateParams: any[] = [existingId, name, price];
+          let paramIdx = 4;
 
           if (hasStockUpdate) {
             updateQuery += `, stock_quantity = $${paramIdx}`;
-            // Replace existing stock
             updateParams.push(stockQuantity);
             paramIdx++;
           }
@@ -522,6 +552,30 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
           if (hasCategoryUpdate) {
             updateQuery += `, category = $${paramIdx}`;
             updateParams.push(category);
+            paramIdx++;
+          }
+
+          if (mapping.description && item[mapping.description] !== undefined) {
+            updateQuery += `, description = $${paramIdx}`;
+            updateParams.push(item[mapping.description] || '');
+            paramIdx++;
+          }
+
+          if (mapping.unit && item[mapping.unit] !== undefined) {
+            updateQuery += `, unit = $${paramIdx}`;
+            updateParams.push(String(item[mapping.unit]).trim() || 'Adet');
+            paramIdx++;
+          }
+
+          if (mapping.currency && item[mapping.currency] !== undefined) {
+            updateQuery += `, currency = $${paramIdx}`;
+            updateParams.push(item[mapping.currency] || 'TRY');
+            paramIdx++;
+          }
+
+          if (mapping.min_stock_level && item[mapping.min_stock_level] !== undefined) {
+            updateQuery += `, min_stock_level = $${paramIdx}`;
+            updateParams.push(parseInt(String(item[mapping.min_stock_level])) || 5);
             paramIdx++;
           }
 
@@ -550,10 +604,21 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
       }
     }
     await client.query("COMMIT");
-    fs.unlinkSync(req.file.path);
+    
+    try {
+      // Log the import process for debugging - use a safer path
+      const logPath = path.join(process.cwd(), 'import_log.json');
+      fs.writeFileSync(logPath, JSON.stringify(importLogs, null, 2));
+      console.log(`Import log written to ${logPath}`);
+    } catch (logError) {
+      console.error("Failed to write import log:", logError);
+    }
+
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.json({ success: true, count: successCount, total: data.length });
   } catch (e: any) {
-    await client.query("ROLLBACK");
+    console.error("Import error:", e);
+    if (client) await client.query("ROLLBACK");
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(400).json({ error: e.message });
   } finally {

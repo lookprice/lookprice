@@ -9,7 +9,8 @@ import {
   AlertTriangle,
   Download,
   QrCode,
-  Package
+  Package,
+  Tag
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -23,6 +24,7 @@ interface ProductsTabProps {
   onEdit: (product: any) => void;
   onDelete: (id: number) => void;
   onExportReport: () => void;
+  onFixBookTax?: () => void;
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
@@ -36,6 +38,7 @@ const ProductsTab = ({
   onEdit, 
   onDelete,
   onExportReport,
+  onFixBookTax,
   onShowQr,
   branding,
   showStoreName
@@ -109,6 +112,15 @@ const ProductsTab = ({
           </button>
           {!isViewer && (
             <>
+              {onFixBookTax && (
+                <button 
+                  onClick={onFixBookTax}
+                  className="flex-1 md:flex-none flex items-center justify-center bg-white text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+                  title={lang === 'tr' ? 'Kitap KDV\'lerini Sıfırla' : 'Reset Book VATs'}
+                >
+                  <Tag className="h-4 w-4 mr-2 text-indigo-500" /> {lang === 'tr' ? 'Kitap KDV' : 'Book VAT'}
+                </button>
+              )}
               <button 
                 onClick={onDeleteAll}
                 className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all border border-transparent hover:border-red-100"

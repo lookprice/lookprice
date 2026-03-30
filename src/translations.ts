@@ -239,7 +239,7 @@ export const translations: Record<string, any> = {
     },
     auth: {
       loginTitle: "Giriş Yap",
-      registerTitle: "Kayıt Ol",
+      registerTitle: "Kaydol",
       email: "E-posta",
       password: "Şifre",
       forgotPassword: "Şifremi Unuttum",

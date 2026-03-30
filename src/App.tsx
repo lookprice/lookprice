@@ -6,7 +6,7 @@ import SuperAdminDashboard from "./pages/SuperAdmin.tsx";
 import PublicQuotation from "./pages/PublicQuotation.tsx";
 import StoreShowcase from "./pages/StoreShowcase.tsx";
 import Logo from "./components/Logo.tsx";
-import { LandingPage } from "./components/LandingPage.tsx";
+import { LandingPage } from "./components/LandingPageNew.tsx";
 import StoreDashboard from "./pages/StoreDashboard/index.tsx";
 import Navbar from "./components/Navbar.tsx";
 import { User } from "./types";
@@ -82,18 +82,8 @@ export default function App() {
           <Route path="/s/:slug" element={<StoreShowcase />} />
           <Route path="/store/:slug" element={<StoreShowcase />} />
           <Route path="/quotation/:id" element={<PublicQuotation />} />
-          <Route path="/forgot-password" element={
-            <>
-              <Navbar user={null} onLogout={handleLogout} />
-              <ForgotPasswordPage />
-            </>
-          } />
-          <Route path="/reset-password/:token" element={
-            <>
-              <Navbar user={null} onLogout={handleLogout} />
-              <ResetPasswordPage />
-            </>
-          } />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           
           {/* Auth Routes */}
           <Route path="/login" element={
@@ -101,10 +91,7 @@ export default function App() {
               user?.role === 'superadmin' ? <Navigate to="/admin" /> : 
               user?.store_slug ? <Navigate to={`/dashboard/${user.store_slug}`} /> : <Navigate to="/dashboard" />
             ) : (
-              <>
-                <Navbar user={null} onLogout={handleLogout} />
-                <LoginPage onLogin={handleLogin} />
-              </>
+              <LoginPage onLogin={handleLogin} />
             )
           } />
 
@@ -122,10 +109,7 @@ export default function App() {
           } />
 
           <Route path="/" element={
-            <>
-              <Navbar user={token ? user : null} onLogout={handleLogout} />
-              <LandingPage />
-            </>
+            <LandingPage />
           } />
         </Routes>
       </div>

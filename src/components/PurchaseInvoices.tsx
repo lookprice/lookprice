@@ -17,6 +17,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 15;
+
   // Form state
   const [companyId, setCompanyId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -263,6 +266,12 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     return matchesSearch && matchesStartDate && matchesEndDate;
   });
 
+  const paginatedInvoices = filteredInvoices.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+
   const totalDeductibleTax = filteredInvoices.reduce((sum: number, inv: any) => sum + Number(inv.tax_amount || 0), 0);
 
   const filteredProducts = products.filter((p: any) => 
@@ -357,12 +366,15 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const handleQuickProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const isKitap = quickProductForm.name.toLocaleLowerCase('tr-TR').includes('kitap');
       const newProduct = await api.addProduct({
         ...quickProductForm,
         price: Number(quickProductForm.price),
         currency: branding?.default_currency || 'TRY',
+        tax_rate: isKitap ? 0 : (branding?.default_tax_rate || 20),
         stock_quantity: 0,
-        status: 'active'
+        status: 'active',
+        category: isKitap ? 'Kitap' : ''
       }, role === 'superadmin' ? storeId : undefined);
       
       setProducts([...products, newProduct]);
@@ -492,7 +504,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredInvoices.map((invoice: any) => (
+              {paginatedInvoices.map((invoice: any) => (
                 <tr key={invoice.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="p-4 text-sm text-slate-600">
                     {new Date(invoice.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
@@ -539,7 +551,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   </td>
                 </tr>
               ))}
-              {filteredInvoices.length === 0 && (
+              {paginatedInvoices.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-500">
                     {isTr ? "Fatura bulunamadı." : "No invoices found."}
@@ -549,6 +561,33 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             </tbody>
           </table>
         </div>
+        
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
+            <p className="text-xs font-medium text-slate-500">
+              {filteredInvoices.length} {isTr ? 'fatura' : 'invoices'}
+            </p>
+            <div className="flex items-center space-x-3">
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              >
+                {isTr ? 'Önceki' : 'Prev'}
+              </button>
+              <div className="text-xs font-bold text-slate-600 tabular-nums">
+                {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
+              </div>
+              <button 
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              >
+                {isTr ? 'Sonraki' : 'Next'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* New Invoice Modal */}

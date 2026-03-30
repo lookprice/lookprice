@@ -482,6 +482,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
 
+    // Force tax_rate to 0 if category is "Kitap"
+    if (String(data.category).trim().toLocaleLowerCase('tr-TR') === 'kitap') {
+      data.tax_rate = '0';
+    }
+
     // Validation
     const barcode = String(data.barcode || '').trim();
     if (!barcode) {
@@ -524,6 +529,31 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         fetchData();
       } catch (error) {
         alert("Hata oluştu");
+      }
+    }
+  };
+
+  const handleFixBookTax = async () => {
+    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    const bookProducts = products.filter(p => p.category?.trim().toLocaleLowerCase('tr-TR') === 'kitap' && p.tax_rate !== 0);
+    
+    if (bookProducts.length === 0) {
+      alert(lang === 'tr' ? "KDV'si 0 olmayan kitap bulunamadı." : "No books with non-zero VAT found.");
+      return;
+    }
+
+    if (window.confirm(lang === 'tr' ? `${bookProducts.length} adet kitabın KDV'si 0 yapılacak. Emin misiniz?` : `VAT will be set to 0 for ${bookProducts.length} books. Are you sure?`)) {
+      try {
+        setLoading(true);
+        for (const p of bookProducts) {
+          await api.updateProduct(p.id, { ...p, tax_rate: 0 }, targetStoreId);
+        }
+        alert(lang === 'tr' ? "Kitap KDV'leri başarıyla güncellendi." : "Book VATs updated successfully.");
+        fetchData();
+      } catch (error) {
+        alert("Hata oluştu");
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -630,14 +660,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     e.preventDefault();
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     try {
+      const isKitap = quickProductForm.name.toLocaleLowerCase('tr-TR').includes('kitap');
       const newProduct = await api.addProduct({
         name: quickProductForm.name,
         price: Number(quickProductForm.price),
         barcode: quickProductForm.barcode || `M-${Date.now()}`,
         currency: branding.default_currency || 'TRY',
-        tax_rate: Number(quickProductForm.tax_rate) || branding.default_tax_rate || 20,
+        tax_rate: isKitap ? 0 : (Number(quickProductForm.tax_rate) || branding.default_tax_rate || 20),
         stock: 0,
-        status: 'active'
+        status: 'active',
+        category: isKitap ? 'Kitap' : ''
       }, targetStoreId);
 
       setQuotationItems([...quotationItems, {
@@ -1609,6 +1641,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
                         onDelete={handleDeleteProduct}
                         onExportReport={handleExportProducts}
+                        onFixBookTax={handleFixBookTax}
                         onShowQr={() => setShowQrModal(true)}
                         branding={branding}
                         showStoreName={includeBranches}
@@ -2870,6 +2903,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <input 
                       name="category" 
                       defaultValue={editingProduct?.category} 
+                      onChange={(e) => {
+                        if (e.target.value.trim().toLocaleLowerCase('tr-TR') === 'kitap') {
+                          const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
+                          if (taxInput) taxInput.value = '0';
+                        }
+                      }}
                       placeholder={lang === 'tr' ? 'Örn: Elektronik' : 'e.g. Electronics'}
                       className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
                     />
