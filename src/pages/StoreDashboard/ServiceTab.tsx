@@ -89,6 +89,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     doc.setFontSize(18);
     doc.text(replaceTurkishChars(`Teknik Servis Raporu - #${record.id}`), 10, 15);
     
+    // Store Info Placeholder
+    doc.setFontSize(10);
+    doc.text(replaceTurkishChars(`Magaza: [Magaza Adi]`), 150, 15);
+    doc.text(replaceTurkishChars(`Adres: [Adres Bilgisi]`), 150, 20);
+    
     doc.setFontSize(12);
     doc.text(replaceTurkishChars(`Musteri: ${record.customer_name}`), 10, 25);
     doc.text(replaceTurkishChars(`Cihaz: ${record.device_model}`), 10, 32);
@@ -115,7 +120,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     doc.text(replaceTurkishChars(`Toplam Tutar: ${record.total_amount} ${record.currency}`), 10, finalY);
     
     doc.setFontSize(10);
-    doc.text(replaceTurkishChars('Bu belge teknik servis islemleri icin hazirlanmistir.'), 10, finalY + 20);
+    doc.text(replaceTurkishChars('Servis Notlari:'), 10, finalY + 10);
+    doc.text(replaceTurkishChars('--------------------------------------------------'), 10, finalY + 13);
+    doc.text(replaceTurkishChars('Garanti Sartlari: Yapilan islemler 3 ay garantilidir.'), 10, finalY + 17);
+    doc.text(replaceTurkishChars('Servisimizden alinan hizmetler icin tesekkur ederiz.'), 10, finalY + 21);
     
     doc.save(`teknik_servis_${record.id}.pdf`);
   };
@@ -301,30 +309,34 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
   const handleConvertToSale = async () => {
     if (!selectedRecord) return;
+    console.log("Converting to sale:", selectedRecord);
     try {
       // 1. Check if company exists, if not, create it
       let companyId = null;
-      // We need to access companies list. Assuming it's available or we can fetch it.
-      // Since we are in ServiceTab, let's try to fetch companies or use a prop if passed.
-      // Actually, let's just try to find it first.
       const companies = await api.getCompanies(true, storeId);
+      console.log("Companies:", companies);
       const existingCompany = companies.find((c: any) => c.title.toLowerCase().trim() === selectedRecord.customer_name.toLowerCase().trim());
       
       if (existingCompany) {
+        console.log("Existing company found:", existingCompany);
         companyId = existingCompany.id;
       } else {
+        console.log("Creating new company:", selectedRecord.customer_name);
         const newCompany = await api.addCompany({
           title: selectedRecord.customer_name,
           phone: selectedRecord.customer_phone,
           balance: 0
         }, storeId);
+        console.log("New company created:", newCompany);
         companyId = newCompany.id;
       }
 
       // 2. Update Service Record status
+      console.log("Updating service record status to completed");
       await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'completed' }, storeId);
       
       // 3. Create Sale
+      console.log("Creating quotation");
       const sale = await api.addQuotation({
         customer_name: selectedRecord.customer_name,
         customer_phone: selectedRecord.customer_phone,
@@ -335,8 +347,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         payment_method: paymentMethod === 'company' ? 'term' : paymentMethod,
         company_id: companyId
       }, storeId);
+      console.log("Quotation created:", sale);
       
       // 4. Update Inventory (Stock)
+      console.log("Updating inventory");
       for (const item of selectedRecord.items || []) {
         if (item.product_id) {
           await api.updateProductStock(item.product_id, -item.quantity, storeId);
@@ -345,8 +359,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
       // 5. If payment method is not 'term' (company), add cash/bank transaction
       if (paymentMethod !== 'company') {
-        // Assuming there's a way to add a general transaction or kasa record
-        // Based on previous context, we might need to add a transaction to the company if it's a payment
+        console.log("Adding company transaction");
         await api.addCompanyTransaction(companyId, {
           amount: selectedRecord.total_amount,
           type: 'payment',
@@ -361,7 +374,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       alert("Satış başarıyla oluşturuldu.");
     } catch (err) {
       console.error("Error converting to sale:", err);
-      alert("Satışa dönüştürülürken bir hata oluştu.");
+      alert("Satışa dönüştürülürken bir hata oluştu: " + err);
     }
   };
 

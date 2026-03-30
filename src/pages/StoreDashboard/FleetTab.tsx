@@ -737,10 +737,15 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       [t.chassisNumber]: v.chassis_number,
       [t.engineNumber]: v.engine_number
     }));
-    const ws = XLSX.utils.json_to_sheet(data);
+    const docData = allDocuments.map(d => ({
+      'Plaka': d.plate,
+      'Tür': d.type,
+      'Son Geçerlilik': d.expiry_date
+    }));
+    const ws = XLSX.utils.json_to_sheet(docData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t.fleet);
-    XLSX.writeFile(wb, `Fleet_Report_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
+    XLSX.writeFile(wb, `Filo_Raporu_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
   };
 
   const exportToPDF = () => {
@@ -2221,30 +2226,33 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         </button>
                       )}
                     </div>
-                    <div className="space-y-4">
-                      {assignments.map((a) => (
-                        <div key={a.id} className="p-4 border border-gray-200 rounded-xl flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                              <UserCheck className="w-6 h-6 text-purple-600" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-800">{a.user_email}</p>
-                              <p className="text-xs text-gray-500">
-                                {safeFormatDate(a.start_date, 'dd.MM.yyyy')} 
-                                {a.end_date ? ` - ${safeFormatDate(a.end_date, 'dd.MM.yyyy')}` : ' (Devam Ediyor)'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                            }`}>
-                              {a.status === 'active' ? 'Aktif Zimmet' : 'İade Edildi'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left text-gray-500">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3">Kullanıcı E-postası</th>
+                            <th className="px-6 py-3">Başlangıç Tarihi</th>
+                            <th className="px-6 py-3">Bitiş Tarihi</th>
+                            <th className="px-6 py-3">Durum</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {assignments.map((a) => (
+                            <tr key={a.id} className="bg-white border-b hover:bg-gray-50">
+                              <td className="px-6 py-4 font-medium text-gray-900">{a.user_email}</td>
+                              <td className="px-6 py-4">{safeFormatDate(a.start_date, 'dd.MM.yyyy')}</td>
+                              <td className="px-6 py-4">{a.end_date ? safeFormatDate(a.end_date, 'dd.MM.yyyy') : 'Devam Ediyor'}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {a.status === 'active' ? 'Aktif Zimmet' : 'İade Edildi'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                       {(assignments || []).length === 0 && (
                         <div className="py-12 text-center text-gray-400">
                           Henüz zimmet kaydı bulunmuyor.
