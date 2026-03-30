@@ -10,6 +10,7 @@ import {
   AlertTriangle, 
   AlertCircle,
   Eye,
+  User,
   MoreVertical, 
   Edit2, 
   Trash2, 
@@ -28,7 +29,9 @@ import {
   Info,
   Upload,
   Phone,
-  ClipboardList
+  ClipboardList,
+  RefreshCw,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
@@ -53,6 +56,7 @@ interface Driver {
   status: 'active' | 'inactive';
   created_at: string;
   documents?: { id: number; type: string; url: string; expiry_date?: string }[];
+  expiring_docs?: number;
 }
 
 interface Vehicle {
@@ -81,6 +85,8 @@ interface VehicleDocument {
   expiry_date: string;
   notes: string;
   created_at: string;
+  is_recurring: boolean;
+  recurrence_period?: string;
 }
 
 interface VehicleMaintenance {
@@ -145,8 +151,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showDriverDetailModal, setShowDriverDetailModal] = useState(false);
   const [activeMainTab, setActiveMainTab] = useState<'vehicles' | 'drivers' | 'maintenance' | 'assignments' | 'mileage' | 'incidents' | 'obligations'>('vehicles');
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'docs' | 'maintenance' | 'assignments' | 'mileage' | 'incidents'>('info');
   
@@ -156,6 +164,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [allAssignments, setAllAssignments] = useState<any[]>([]);
   const [allMileage, setAllMileage] = useState<any[]>([]);
   const [allIncidents, setAllIncidents] = useState<any[]>([]);
+  const [allDriverDocuments, setAllDriverDocuments] = useState<any[]>([]);
 
   // Detail Data
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
@@ -180,11 +189,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [driverFile, setDriverFile] = useState<File | null>(null);
-
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
-
+  const [newDriverDoc, setNewDriverDoc] = useState<any>({
+    type: '',
+    expiry_date: '',
+    is_recurring: false,
+    recurrence_period: '1 year'
+  });
   const safeFormatDate = (dateString: string | Date | null | undefined, formatStr = 'dd.MM.yyyy', options?: any) => {
     if (!dateString) return '-';
     try {
@@ -196,9 +206,53 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
-  const [documentFormData, setDocumentFormData] = useState<any>({ type: 'registration', status: 'valid' });
+  const getAlerts = () => {
+    const alerts: { type: string; message: string; icon: any; color: string }[] = [];
+    
+    vehicles.forEach(v => {
+      if (v.maintenance_due && v.current_mileage >= v.maintenance_due) {
+        alerts.push({ type: 'maintenance', message: `${v.plate} için servis zamanı geldi! (${v.current_mileage} KM)`, icon: Wrench, color: 'text-red-600' });
+      }
+    });
+
+    const now = new Date();
+    const soon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    allDocuments.forEach(d => {
+      // Skip "Ruhsat-Koçan" documents
+      if (d.type === 'Ruhsat-Koçan') return;
+
+      if (d.expiry_date && new Date(d.expiry_date) < soon) {
+        alerts.push({ type: 'document', message: `${d.type} belgesi yaklaşıyor! (Vade: ${safeFormatDate(d.expiry_date)})`, icon: FileText, color: 'text-orange-600' });
+      }
+    });
+
+    allDriverDocuments.forEach(d => {
+      if (d.expiry_date && new Date(d.expiry_date) < soon) {
+        alerts.push({ type: 'document', message: `${d.driver_name} için ${d.type} belgesi yaklaşıyor! (Vade: ${safeFormatDate(d.expiry_date)})`, icon: UserCheck, color: 'text-orange-600' });
+      }
+    });
+
+    return alerts;
+  };
+
+  const alerts = getAlerts();
+
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  const [documentFormData, setDocumentFormData] = useState<any>({ 
+    type: 'registration', 
+    status: 'valid',
+    is_recurring: false,
+    recurrence_period: '1 year'
+  });
   const [maintenanceFormData, setMaintenanceFormData] = useState<Partial<VehicleMaintenance>>({ type: 'routine', status: 'planned' } as any);
-  const [assignmentFormData, setAssignmentFormData] = useState<Partial<VehicleAssignment>>({ status: 'active' } as any);
+  const [assignmentFormData, setAssignmentFormData] = useState<Partial<VehicleAssignment>>({ 
+    status: 'active',
+    start_date: new Date().toISOString().split('T')[0]
+  } as any);
   const [mileageFormData, setMileageFormData] = useState<Partial<VehicleMileageLog>>({});
   const [incidentFormData, setIncidentFormData] = useState<Partial<VehicleIncident>>({ type: 'accident', status: 'open' });
   const [driverFormData, setDriverFormData] = useState<Partial<Driver>>({ status: 'active' });
@@ -246,18 +300,20 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
 
   const fetchAllFleetData = async () => {
     try {
-      const [docs, maint, assign, mileage, inc] = await Promise.all([
+      const [docs, maint, assign, mileage, inc, driverDocs] = await Promise.all([
         api.getAllFleetDocuments(storeId),
         api.getAllFleetMaintenance(storeId),
         api.getAllFleetAssignments(storeId),
         api.getAllFleetMileage(storeId),
-        api.getAllFleetIncidents(storeId)
+        api.getAllFleetIncidents(storeId),
+        api.getAllFleetDriverDocuments(storeId)
       ]);
       setAllDocuments(docs);
       setAllMaintenance(maint);
       setAllAssignments(assign);
       setAllMileage(mileage);
       setAllIncidents(inc);
+      setAllDriverDocuments(driverDocs);
     } catch (error) {
       console.error('Error fetching all fleet data:', error);
     }
@@ -279,6 +335,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setIncidents(Array.isArray(inc) ? inc : []);
     } catch (error) {
       console.error('Error fetching vehicle details:', error);
+    }
+  };
+
+  const fetchDriverDetails = async (driver: Driver) => {
+    try {
+      const [docs, assign] = await Promise.all([
+        api.getDriverDocuments(driver.id),
+        api.getDriverAssignments(driver.id)
+      ]);
+      setDocuments(Array.isArray(docs) ? docs : []);
+      setAssignments(Array.isArray(assign) ? assign : []);
+    } catch (error) {
+      console.error('Error fetching driver details:', error);
     }
   };
 
@@ -351,14 +420,24 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       }
 
       if (editingDocument) {
-        const res = await api.updateVehicleDocument(editingDocument.id, { ...documentFormData, document_url });
+        const res = await api.updateVehicleDocument(editingDocument.id, { 
+          ...documentFormData, 
+          document_url,
+          is_recurring: documentFormData.is_recurring,
+          recurrence_period: documentFormData.recurrence_period
+        });
         if (res.error) {
           alert(res.error);
           return;
         }
         setDocuments((documents || []).map(d => d.id === editingDocument.id ? res : d));
       } else {
-        const res = await api.createVehicleDocument(selectedVehicle.id, { ...documentFormData, document_url });
+        const res = await api.createVehicleDocument(selectedVehicle.id, { 
+          ...documentFormData, 
+          document_url,
+          is_recurring: documentFormData.is_recurring,
+          recurrence_period: documentFormData.recurrence_period
+        });
         if (res.error) {
           alert(res.error);
           return;
@@ -369,7 +448,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setShowDocumentModal(false);
       setEditingDocument(null);
       setDocumentFile(null);
-      setDocumentFormData({ type: 'insurance', status: 'valid' } as any);
+      setDocumentFormData({ 
+        type: 'insurance', 
+        status: 'valid',
+        is_recurring: false,
+        recurrence_period: '1 year'
+      } as any);
     } catch (error) {
       alert('Evrak kaydedilirken bir hata oluştu.');
     }
@@ -381,7 +465,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       type: doc.type,
       expiry_date: doc.expiry_date ? doc.expiry_date.split('T')[0] : '',
       notes: doc.notes,
-      document_url: doc.document_url
+      document_url: doc.document_url,
+      is_recurring: doc.is_recurring,
+      recurrence_period: doc.recurrence_period || '1 year'
     } as any);
     setShowDocumentModal(true);
   };
@@ -458,16 +544,30 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     e.preventDefault();
     if (!selectedVehicle) return;
     try {
-      const res = await api.createVehicleAssignment(selectedVehicle.id, assignmentFormData);
-      if (res.error) {
-        alert(res.error);
-        return;
+      if (assignmentFormData.status === 'returned' && (assignmentFormData as any).id) {
+        const res = await api.updateVehicleAssignment((assignmentFormData as any).id, assignmentFormData);
+        if (res.error) {
+          alert(res.error);
+          return;
+        }
+        setAssignments((assignments || []).map(a => a.id === (assignmentFormData as any).id ? res : a));
+        setAllAssignments((allAssignments || []).map(a => a.id === (assignmentFormData as any).id ? res : a));
+      } else {
+        const res = await api.createVehicleAssignment(selectedVehicle.id, assignmentFormData);
+        if (res.error) {
+          alert(res.error);
+          return;
+        }
+        setAssignments([...(assignments || []), res]);
+        setAllAssignments([...(allAssignments || []), res]);
       }
-      setAssignments([...(assignments || []), res]);
       setShowAssignmentModal(false);
-      setAssignmentFormData({ status: 'active' } as any);
+      setAssignmentFormData({ 
+        status: 'active',
+        start_date: new Date().toISOString().split('T')[0]
+      } as any);
     } catch (error) {
-      alert('Zimmet eklenirken bir hata oluştu.');
+      alert('Zimmet işlemi sırasında bir hata oluştu.');
     }
   };
 
@@ -506,23 +606,31 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
-  const handleUploadDriverDocument = async (e: React.ChangeEvent<HTMLInputElement>, driverId: number) => {
-    const file = e.target.files?.[0];
-    const typeInput = document.getElementById('newDocType') as HTMLInputElement;
-    const type = typeInput.value;
-    if (!file || !type) {
+  const handleUploadDriverDocument = async (driverId: number) => {
+    if (!driverFile || !newDriverDoc.type) {
       alert('Lütfen dosya seçin ve evrak türünü girin.');
       return;
     }
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
+    formData.append('file', driverFile);
+    formData.append('type', newDriverDoc.type);
+    formData.append('expiry_date', newDriverDoc.expiry_date);
+    formData.append('is_recurring', String(newDriverDoc.is_recurring));
+    formData.append('recurrence_period', newDriverDoc.recurrence_period);
     
     try {
       const res = await api.uploadDriverDocument(driverId, formData);
       setDrivers(drivers.map(d => d.id === driverId ? { ...d, documents: [...(d.documents || []), res] } : d));
-      setEditingDriver({ ...editingDriver!, documents: [...(editingDriver!.documents || []), res] });
-      typeInput.value = '';
+      if (editingDriver && editingDriver.id === driverId) {
+        setEditingDriver({ ...editingDriver, documents: [...(editingDriver.documents || []), res] });
+      }
+      setDriverFile(null);
+      setNewDriverDoc({
+        type: '',
+        expiry_date: '',
+        is_recurring: false,
+        recurrence_period: '1 year'
+      });
     } catch (error) {
       alert('Evrak yüklenirken bir hata oluştu.');
     }
@@ -606,6 +714,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
+  const getCurrentDriverName = (vehicleId: number) => {
+    const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicleId && a.status === 'active');
+    if (!activeAssignment) return '-';
+    if (activeAssignment.driver_id) {
+      const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
+      return driver ? driver.name : activeAssignment.user_email;
+    }
+    return activeAssignment.user_email;
+  };
+
   const exportToExcel = () => {
     const data = (vehicles || []).map(v => ({
       [t.plate]: v.plate,
@@ -615,6 +733,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       [t.vehicleType]: v.type === 'company' ? t.company : t.personal,
       [t.currentMileage]: v.current_mileage,
       [t.status]: getStatusText(v.status),
+      'Sürücü': getCurrentDriverName(v.id),
       [t.chassisNumber]: v.chassis_number,
       [t.engineNumber]: v.engine_number
     }));
@@ -629,7 +748,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     doc.text(t.fleet, 14, 15);
     autoTable(doc, {
       startY: 20,
-      head: [[t.plate, t.brand, t.model, t.year, t.vehicleType, t.currentMileage, t.status]],
+      head: [[t.plate, t.brand, t.model, t.year, t.vehicleType, t.currentMileage, t.status, 'Sürücü']],
       body: (vehicles || []).map(v => [
         v.plate,
         v.brand,
@@ -637,7 +756,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         v.year,
         v.type === 'company' ? 'Şirket' : 'Şahsi',
         v.current_mileage,
-        getStatusText(v.status)
+        getStatusText(v.status),
+        getCurrentDriverName(v.id)
       ]),
     });
     doc.save(`Filo_Raporu_${format(new Date(), 'dd_MM_yyyy')}.pdf`);
@@ -646,16 +766,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const getVehiclePlate = (id: number) => (vehicles || []).find(v => v.id === id)?.plate || `ID: ${id}`;
 
   const renderVehiclesTab = () => {
-    const filteredVehicles = (vehicles || []).filter(v => {
-      const matchesSearch = (v.plate?.toLowerCase() || '').includes((searchQuery || '').toLowerCase()) ||
-                            (v.brand?.toLowerCase() || '').includes((searchQuery || '').toLowerCase()) ||
-                            (v.model?.toLowerCase() || '').includes((searchQuery || '').toLowerCase());
-      const matchesStatus = statusFilter === 'all' || v.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-
-    const totalPages = Math.ceil(filteredVehicles.length / itemsPerPage);
+    const filteredVehicles = (vehicles || []).filter(v => 
+      (v.plate?.toLowerCase() || '').includes((searchQuery || '').toLowerCase()) ||
+      (v.brand?.toLowerCase() || '').includes((searchQuery || '').toLowerCase()) ||
+      (v.model?.toLowerCase() || '').includes((searchQuery || '').toLowerCase())
+    );
     const paginatedVehicles = filteredVehicles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const totalPages = Math.ceil(filteredVehicles.length / itemsPerPage);
 
     return (
       <div className="space-y-4">
@@ -677,16 +794,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   {getStatusText(vehicle.status)}
                 </span>
               </div>
-
-              <div className="grid grid-cols-2 gap-4 py-3 border-y border-gray-50">
-                <div className="space-y-1">
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Mevcut KM</span>
-                  <div className="flex items-center gap-1 text-sm font-black text-gray-700">
-                    <MapPin className="w-3 h-3 text-gray-400" />
-                    {(vehicle.current_mileage || 0).toLocaleString()}
-                  </div>
-                </div>
-                <div className="space-y-1">
+              <div className="space-y-1">
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Uyarılar</span>
                   <div className="flex flex-wrap gap-1">
                     {(vehicle.expiring_docs || 0) > 0 && (
@@ -694,6 +802,20 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         {vehicle.expiring_docs} EVRAK
                       </div>
                     )}
+                    {(() => {
+                      const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicle.id && a.status === 'active');
+                      if (activeAssignment && activeAssignment.driver_id) {
+                        const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
+                        if (driver && (driver.expiring_docs || 0) > 0) {
+                          return (
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
+                              ŞÖFÖR EVRAK ({driver.expiring_docs})
+                            </div>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
                     {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
                       <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
                         BAKIM
@@ -704,203 +826,166 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     )}
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedVehicle(vehicle);
+                      fetchVehicleDetails(vehicle);
+                      setShowDetailModal(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Detaylar
+                  </button>
+                  {!isViewer && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedVehicle(vehicle);
+                          setFormData({
+                            plate: vehicle.plate,
+                            brand: vehicle.brand,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            type: vehicle.type,
+                            chassis_number: vehicle.chassis_number,
+                            engine_number: vehicle.engine_number,
+                            current_mileage: vehicle.current_mileage,
+                            status: vehicle.status
+                          });
+                          setShowAddModal(true);
+                        }}
+                        className="p-2.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 hover:bg-amber-100 transition-all"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteVehicle(vehicle.id)}
+                        className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-all"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
+            ))}
+          </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedVehicle(vehicle);
-                    fetchVehicleDetails(vehicle);
-                    setShowDetailModal(true);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
-                >
-                  <Eye className="w-4 h-4" />
-                  Detaylar
-                </button>
-                {!isViewer && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setSelectedVehicle(vehicle);
-                        setFormData({
-                          plate: vehicle.plate,
-                          brand: vehicle.brand,
-                          model: vehicle.model,
-                          year: vehicle.year,
-                          type: vehicle.type,
-                          chassis_number: vehicle.chassis_number,
-                          engine_number: vehicle.engine_number,
-                          current_mileage: vehicle.current_mileage,
-                          status: vehicle.status
-                        });
-                        setShowAddModal(true);
-                      }}
-                      className="p-2.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 hover:bg-amber-100 transition-all"
-                    >
-                      <Edit2 className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteVehicle(vehicle.id)}
-                      className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-all"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Desktop Table View */}
-        <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.status}</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Uyarılar</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {paginatedVehicles.map((vehicle) => (
-                  <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors group">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                          <Car className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{vehicle.plate}</p>
-                          <p className="text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getStatusColor(vehicle.status)}`}>
-                        {getStatusText(vehicle.status)}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
-                        <MapPin className="w-3 h-3 text-gray-400" />
-                        {(vehicle.current_mileage || 0).toLocaleString()}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex gap-2">
-                        {(vehicle.expiring_docs || 0) > 0 && (
-                          <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
-                            <AlertCircle className="w-3 h-3" />
-                            {vehicle.expiring_docs} EVRAK
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.status}</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Uyarılar</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {paginatedVehicles.map((vehicle) => (
+                    <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors group">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                            <Car className="w-6 h-6" />
                           </div>
-                        )}
-                        {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
-                          <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                            <Wrench className="w-3 h-3" />
-                            BAKIM
+                          <div>
+                            <p className="font-bold text-gray-900">{vehicle.plate}</p>
+                            <p className="text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
                           </div>
-                        )}
-                        {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
-                          <span className="text-xs text-green-500 font-medium">Sorun Yok</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex justify-end gap-2">
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getStatusColor(vehicle.status)}`}>
+                          {getStatusText(vehicle.status)}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
+                          <MapPin className="w-3 h-3 text-gray-400" />
+                          {(vehicle.current_mileage || 0).toLocaleString()}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          {(vehicle.expiring_docs || 0) > 0 && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
+                              <AlertCircle className="w-3 h-3" />
+                              {vehicle.expiring_docs} EVRAK
+                            </div>
+                          )}
+                          {(() => {
+                            const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicle.id && a.status === 'active');
+                            if (activeAssignment && activeAssignment.driver_id) {
+                              const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
+                              if (driver && (driver.expiring_docs || 0) > 0) {
+                                return (
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
+                                    <AlertCircle className="w-3 h-3" />
+                                    ŞÖFÖR EVRAK ({driver.expiring_docs})
+                                  </div>
+                                );
+                              }
+                            }
+                            return null;
+                          })()}
+                          {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
+                              BAKIM
+                            </div>
+                          )}
+                          {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
+                            <span className="text-[10px] text-green-500 font-bold">SORUN YOK</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
                         <button
                           onClick={() => {
                             setSelectedVehicle(vehicle);
                             fetchVehicleDetails(vehicle);
                             setShowDetailModal(true);
                           }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Detaylar"
+                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
                         >
                           <Eye className="w-5 h-5" />
                         </button>
-                        {!isViewer && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setSelectedVehicle(vehicle);
-                                setFormData({
-                                  plate: vehicle.plate,
-                                  brand: vehicle.brand,
-                                  model: vehicle.model,
-                                  year: vehicle.year,
-                                  type: vehicle.type,
-                                  chassis_number: vehicle.chassis_number,
-                                  engine_number: vehicle.engine_number,
-                                  current_mileage: vehicle.current_mileage,
-                                  status: vehicle.status
-                                });
-                                setShowAddModal(true);
-                              }}
-                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title="Düzenle"
-                            >
-                              <Edit2 className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteVehicle(vehicle.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Sil"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {paginatedVehicles.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500">
-                      {t.noVehicles}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-gray-100 flex items-center justify-between">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 border border-gray-200 rounded-xl disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-all"
+                >
+                  Geri
+                </button>
+                <div className="flex items-center gap-1">
+                  <span className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-lg text-sm font-bold">{currentPage}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-sm font-bold text-gray-600">{totalPages}</span>
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 border border-gray-200 rounded-xl disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-all"
+                >
+                  İleri
+                </button>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm text-gray-600">
-              Toplam <span className="font-bold">{filteredVehicles.length}</span> araçtan <span className="font-bold">{(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredVehicles.length)}</span> arası gösteriliyor
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 border border-gray-200 rounded-xl disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-all"
-              >
-                Geri
-              </button>
-              <div className="flex items-center gap-1">
-                <span className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-lg text-sm font-bold">{currentPage}</span>
-                <span className="text-gray-400">/</span>
-                <span className="text-sm font-bold text-gray-600">{totalPages}</span>
-              </div>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 border border-gray-200 rounded-xl disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-all"
-              >
-                İleri
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     );
   };
 
@@ -953,9 +1038,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    setEditingDriver(driver);
-                    setDriverFormData(driver);
-                    setShowDriverModal(true);
+                    setSelectedDriver(driver);
+                    fetchDriverDetails(driver);
+                    setShowDriverDetailModal(true);
                   }}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
                 >
@@ -1031,7 +1116,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         </div>
                         <div>
                           <p className="font-bold text-gray-900">{driver.name}</p>
-                          <p className="text-xs text-gray-500">{driver.license_class} Sınıfı</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-gray-500">{driver.license_class} Sınıfı</p>
+                            {(driver.expiring_docs || 0) > 0 && (
+                              <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-black animate-pulse">
+                                {driver.expiring_docs} EKSİK/VADE
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -1046,6 +1138,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedDriver(driver);
+                            fetchDriverDetails(driver);
+                            setShowDriverDetailModal(true);
+                          }}
+                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
                         {!isViewer && (
                           <>
                             <button
@@ -1228,6 +1330,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 if (vehicle) {
                   setSelectedVehicle(vehicle);
                   setAssignmentFormData({
+                    id: a.id,
                     vehicle_id: a.vehicle_id,
                     user_email: a.user_email,
                     start_date: a.start_date,
@@ -1412,28 +1515,87 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   );
 
   const renderObligationsTab = () => {
-    const obligations = allDocuments.filter(d => ['insurance', 'kasko', 'tax', 'inspection'].includes(d.type));
+    const vehicleObligations = allDocuments.filter(d => ['insurance', 'kasko', 'tax', 'inspection'].includes(d.type));
+    const driverObligations = allDriverDocuments.map(d => ({ ...d, is_driver_doc: true }));
+    const obligations = [...vehicleObligations, ...driverObligations].sort((a, b) => {
+      if (!a.expiry_date) return 1;
+      if (!b.expiry_date) return -1;
+      return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
+    });
+
     return (
       <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-black text-gray-900">Poliçeler, Vergiler ve Resmi İşlemler</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setEditingVehicle(null);
+                setDocumentFormData({ type: 'insurance', status: 'valid' });
+                setShowDocumentModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Araç Belgesi
+            </button>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-left">
+          <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Araç</th>
-                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Tür</th>
-                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Vade Tarihi</th>
-                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Durum</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Varlık / Kişi</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Tür</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Vade Tarihi</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Tekrarlama</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Durum</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider text-right">İşlem</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {obligations.map(doc => {
-                const isExpired = new Date(doc.expiry_date) < new Date();
-                const isExpiringSoon = new Date(doc.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                const expiryDate = doc.expiry_date ? new Date(doc.expiry_date) : null;
+                const now = new Date();
+                const isExpired = expiryDate && expiryDate < now;
+                const isExpiringSoon = expiryDate && !isExpired && expiryDate < new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+                
                 return (
-                  <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4 text-sm font-bold text-gray-700">{getVehiclePlate(doc.vehicle_id)}</td>
-                    <td className="p-4 text-sm text-gray-700">{doc.type}</td>
-                    <td className="p-4 text-sm font-bold text-gray-900">{safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}</td>
+                  <tr key={`${doc.is_driver_doc ? 'd' : 'v'}-${doc.id}`} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        {doc.is_driver_doc ? (
+                          <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center text-orange-600">
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+                            <Car className="w-4 h-4" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-bold text-gray-900">{doc.is_driver_doc ? doc.driver_name : doc.plate}</p>
+                          <p className="text-[10px] text-gray-400 uppercase font-black">{doc.is_driver_doc ? 'ŞÖFÖR' : 'ARAÇ'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-black uppercase">
+                        {doc.type}
+                      </span>
+                    </td>
+                    <td className="p-4 font-bold text-gray-900">{safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}</td>
+                    <td className="p-4">
+                      {doc.is_recurring ? (
+                        <span className="flex items-center gap-1 text-blue-600 font-bold text-xs uppercase">
+                          <RefreshCw className="w-3 h-3" />
+                          {doc.recurrence_period === '1 year' ? 'Yıllık' : doc.recurrence_period === '6 months' ? '6 Aylık' : '2 Yıllık'}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs uppercase">Tek Seferlik</span>
+                      )}
+                    </td>
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                         isExpired ? 'bg-red-100 text-red-700' : isExpiringSoon ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
@@ -1441,13 +1603,22 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         {isExpired ? 'Süresi Doldu' : isExpiringSoon ? 'Yaklaşıyor' : 'Aktif'}
                       </span>
                     </td>
+                    <td className="p-4 text-right">
+                      <a href={doc.document_url || doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg inline-block">
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </td>
                   </tr>
                 );
               })}
               {obligations.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-gray-500">
-                    Kayıtlı poliçe veya vergi bulunamadı.
+                  <td colSpan={5} className="p-12 text-center">
+                    <div className="max-w-xs mx-auto">
+                      <ShieldCheck className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                      <p className="text-gray-500 font-bold">Kayıtlı poliçe veya vergi bulunamadı.</p>
+                      <p className="text-xs text-gray-400 mt-1">Araç veya şoför belgelerini ekleyerek buradan takip edebilirsiniz.</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -2217,6 +2388,30 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+                <div className="flex items-center gap-2 py-2">
+                  <input
+                    type="checkbox"
+                    id="is_recurring"
+                    checked={documentFormData.is_recurring || false}
+                    onChange={(e) => setDocumentFormData({ ...documentFormData, is_recurring: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="is_recurring" className="text-sm font-medium text-gray-700">Yıllık Tekrarlayan Belge</label>
+                </div>
+                {documentFormData.is_recurring && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tekrarlama Periyodu</label>
+                    <select
+                      value={documentFormData.recurrence_period || '1 year'}
+                      onChange={(e) => setDocumentFormData({ ...documentFormData, recurrence_period: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="1 year">1 Yıl</option>
+                      <option value="6 months">6 Ay</option>
+                      <option value="2 years">2 Yıl</option>
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
                   <textarea
@@ -2499,15 +2694,52 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       <option value="inactive">Pasif</option>
                     </select>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Sürücü Belgeleri</label>
-                    <div className="space-y-2 mb-4">
-                      {driverFormData.documents?.map((doc, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
-                          <span>{doc.type}</span>
-                          <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Görüntüle</a>
+                  <div className="md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">Yeni Belge Ekle</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Belge Türü</label>
+                        <input
+                          type="text"
+                          placeholder="Örn: Psikoteknik, SRC..."
+                          value={newDriverDoc.type}
+                          onChange={(e) => setNewDriverDoc({ ...newDriverDoc, type: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Geçerlilik Tarihi</label>
+                        <input
+                          type="date"
+                          value={newDriverDoc.expiry_date}
+                          onChange={(e) => setNewDriverDoc({ ...newDriverDoc, expiry_date: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="driver_is_recurring"
+                          checked={newDriverDoc.is_recurring}
+                          onChange={(e) => setNewDriverDoc({ ...newDriverDoc, is_recurring: e.target.checked })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="driver_is_recurring" className="text-xs font-bold text-gray-500 uppercase">Yıllık Tekrarlayan</label>
+                      </div>
+                      {newDriverDoc.is_recurring && (
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Periyot</label>
+                          <select
+                            value={newDriverDoc.recurrence_period}
+                            onChange={(e) => setNewDriverDoc({ ...newDriverDoc, recurrence_period: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="1 year">1 Yıl</option>
+                            <option value="6 months">6 Ay</option>
+                            <option value="2 years">2 Yıl</option>
+                          </select>
                         </div>
-                      ))}
+                      )}
                     </div>
                     <div className="flex items-center gap-4">
                       <input
@@ -2518,16 +2750,26 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       />
                       <label
                         htmlFor="driver-file-upload"
-                        className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors shadow-sm"
                       >
                         <Upload className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-600">Yeni Belge Ekle</span>
+                        <span className="text-sm font-medium text-gray-600">Dosya Seç</span>
                       </label>
                       {driverFile && (
                         <div className="flex items-center gap-2 text-green-600 text-xs font-medium">
                           <CheckCircle2 className="w-4 h-4" />
                           {driverFile.name}
                         </div>
+                      )}
+                      {editingDriver && (
+                        <button
+                          type="button"
+                          onClick={() => handleUploadDriverDocument(editingDriver.id)}
+                          disabled={!driverFile || !newDriverDoc.type}
+                          className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                        >
+                          Belgeyi Yükle
+                        </button>
                       )}
                     </div>
                   </div>
@@ -2549,13 +2791,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           </div>
                         </div>
                       ))}
-                      <div className="flex gap-2">
-                        <input type="text" placeholder="Evrak Türü" className="flex-1 px-3 py-2 border rounded-lg" id="newDocType" />
-                        <input type="file" onChange={(e) => handleUploadDriverDocument(e, editingDriver.id)} className="hidden" id="docUpload" />
-                        <label htmlFor="docUpload" className="px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
-                          <Upload className="w-4 h-4" />
-                        </label>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -2564,6 +2799,150 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Driver Detail Modal */}
+      <AnimatePresence>
+        {showDriverDetailModal && selectedDriver && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                    <User className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">{selectedDriver.name}</h3>
+                    <p className="text-gray-500">{selectedDriver.email} • {selectedDriver.phone}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!isViewer && (
+                    <button
+                      onClick={() => {
+                        setEditingDriver(selectedDriver);
+                        setDriverFormData(selectedDriver);
+                        setShowDriverDetailModal(false);
+                        setShowDriverModal(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Düzenle
+                    </button>
+                  )}
+                  <button onClick={() => setShowDriverDetailModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <X className="w-6 h-6 text-gray-500" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Left Column: Info */}
+                  <div className="md:col-span-1 space-y-6">
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Sürücü Bilgileri</h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Kan Grubu</span>
+                          <span className="text-sm font-bold text-red-600">{selectedDriver.blood_type || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Durum</span>
+                          <span className={`text-sm font-bold ${selectedDriver.status === 'active' ? 'text-green-600' : 'text-gray-400'}`}>
+                            {selectedDriver.status === 'active' ? 'Aktif' : 'Pasif'}
+                          </span>
+                        </div>
+                        <div className="pt-3 border-t border-gray-200">
+                          <p className="text-xs text-gray-400 mb-1">Adres</p>
+                          <p className="text-sm text-gray-700">{selectedDriver.address || 'Belirtilmemiş'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Documents & Assignments */}
+                  <div className="md:col-span-2 space-y-6">
+                    {/* Documents */}
+                    <div>
+                      <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        Sürücü Belgeleri
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {(documents || []).map((doc: any) => (
+                          <div key={doc.id} className="p-3 border border-gray-100 rounded-xl bg-white shadow-sm flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                                <FileText className="w-6 h-6 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-gray-800">{doc.type}</p>
+                                <p className="text-xs text-gray-500">
+                                  {doc.expiry_date ? `Skt: ${safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}` : 'Süresiz'}
+                                </p>
+                              </div>
+                            </div>
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Download className="w-5 h-5" />
+                            </a>
+                          </div>
+                        ))}
+                        {(documents || []).length === 0 && (
+                          <div className="col-span-full py-8 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            Henüz belge yüklenmemiş.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Assignments */}
+                    <div>
+                      <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Car className="w-5 h-5 text-blue-600" />
+                        Zimmetli Araçlar
+                      </h4>
+                      <div className="space-y-3">
+                        {(assignments || []).filter(a => a.status === 'active').map((assign: any) => (
+                          <div key={assign.id} className="p-4 border border-blue-100 bg-blue-50/30 rounded-xl flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                                <Car className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-gray-800">{assign.vehicle_plate}</p>
+                                <p className="text-xs text-gray-500">Zimmet Tarihi: {safeFormatDate(assign.assigned_at, 'dd.MM.yyyy')}</p>
+                              </div>
+                            </div>
+                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase">Aktif Zimmet</span>
+                          </div>
+                        ))}
+                        {(assignments || []).filter(a => a.status === 'active').length === 0 && (
+                          <div className="py-8 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            Şu an zimmetli araç bulunmuyor.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
