@@ -322,10 +322,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       }
 
       // 2. Update Service Record status
-      await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'delivered' }, storeId);
+      await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'completed' }, storeId);
       
       // 3. Create Sale
-      await api.addQuotation({
+      const sale = await api.addQuotation({
         customer_name: selectedRecord.customer_name,
         customer_phone: selectedRecord.customer_phone,
         items: selectedRecord.items,
@@ -341,6 +341,18 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         if (item.product_id) {
           await api.updateProductStock(item.product_id, -item.quantity, storeId);
         }
+      }
+
+      // 5. If payment method is not 'term' (company), add cash/bank transaction
+      if (paymentMethod !== 'company') {
+        // Assuming there's a way to add a general transaction or kasa record
+        // Based on previous context, we might need to add a transaction to the company if it's a payment
+        await api.addCompanyTransaction(companyId, {
+          amount: selectedRecord.total_amount,
+          type: 'payment',
+          description: `Servis Satışı - ${selectedRecord.id}`,
+          date: new Date().toISOString()
+        }, storeId);
       }
       
       setShowConversionModal(false);
