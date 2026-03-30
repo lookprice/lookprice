@@ -326,76 +326,51 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     if (!selectedRecord) return;
     console.log("Converting to sale:", selectedRecord);
     try {
-      // 1. Check if company exists, if not, create it
-      let companyId = null;
-      const companies = await api.getCompanies(true, storeId);
-      console.log("Companies:", companies);
-      const existingCompany = companies.find((c: any) => c.title.toLowerCase().trim() === selectedRecord.customer_name.toLowerCase().trim());
-      
-      if (existingCompany) {
-        console.log("Existing company found:", existingCompany);
-        companyId = existingCompany.id;
-      } else {
-        console.log("Creating new company:", selectedRecord.customer_name);
-        const newCompany = await api.addCompany({
-          title: selectedRecord.customer_name,
-          phone: selectedRecord.customer_phone,
-          balance: 0
-        }, storeId);
-        console.log("New company created:", newCompany);
-        companyId = newCompany.id;
-      }
-
-      // 2. Update Service Record status
+      // 1. Update Service Record status to completed
       console.log("Updating service record status to completed");
       await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'completed' }, storeId);
       
-      // 3. Create Sale
+      // 2. Create Quotation
+      // The backend addQuotation will handle company creation if it doesn't exist
       console.log("Creating quotation");
-      const sale = await api.addQuotation({
+      const quotResult = await api.addQuotation({
         customer_name: selectedRecord.customer_name,
         customer_phone: selectedRecord.customer_phone,
         items: (selectedRecord.items || []).map(item => ({
-          product_name: item.item_name, // Map item_name to product_name
+          product_id: item.product_id, // CRITICAL: pass product_id for stock update
+          product_name: item.item_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.total_price
         })),
         total_amount: selectedRecord.total_amount,
         currency: selectedRecord.currency,
-        status: 'completed',
         payment_method: paymentMethod === 'company' ? 'term' : paymentMethod,
-        company_id: companyId
+        notes: `Teknik Servis #${selectedRecord.id} - ${selectedRecord.device_model}`
       }, storeId);
-      console.log("Quotation created:", sale);
-      
-      // 4. Update Inventory (Stock)
-      console.log("Updating inventory");
-      for (const item of selectedRecord.items || []) {
-        if (item.product_id) {
-          // Changed from updateProductStock to updateProduct to fix 404
-          await api.updateProduct(item.product_id, { stock: -item.quantity }, storeId);
-        }
-      }
 
-      // 5. If payment method is not 'term' (company), add cash/bank transaction
-      if (paymentMethod !== 'company') {
-        console.log("Adding company transaction");
-        await api.addCompanyTransaction(companyId, {
-          amount: selectedRecord.total_amount,
-          type: 'payment',
-          description: `Servis Satışı - ${selectedRecord.id}`,
-          date: new Date().toISOString()
+      if (quotResult && quotResult.id) {
+        console.log("Quotation created with ID:", quotResult.id);
+        
+        // 3. Approve Quotation
+        // This handles: Sale creation, Stock update, Stock movements, Current account transactions, Sale payments
+        console.log("Approving quotation to create sale and update stock");
+        await api.approveQuotation(quotResult.id, {
+          payment_method: paymentMethod === 'company' ? 'term' : paymentMethod
         }, storeId);
+        
+        console.log("Conversion completed successfully");
+      } else {
+        throw new Error("Teklif oluşturulamadı.");
       }
       
       setShowConversionModal(false);
       setShowDetailsModal(false);
       fetchRecords();
-      alert("Satış başarıyla oluşturuldu.");
-    } catch (err) {
+      alert("Satış başarıyla oluşturuldu ve stoklar güncellendi.");
+    } catch (err: any) {
       console.error("Error converting to sale:", err);
-      alert("Satışa dönüştürülürken bir hata oluştu: " + err);
+      alert("Satışa dönüştürülürken bir hata oluştu: " + (err.message || err));
     }
   };
 
