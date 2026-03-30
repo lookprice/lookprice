@@ -264,6 +264,59 @@ const SettingsTab = ({
                   </select>
                 </div>
               </div>
+
+              <div className="md:col-span-2 pt-6 mt-6 border-t border-slate-100">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100">
+                    <CreditCard className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 leading-tight">{lang === 'tr' ? 'Yazarkasa / POS Entegrasyonu' : 'Fiscal / POS Integration'}</h3>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">{lang === 'tr' ? 'Mali onaylı cihaz ayarlarını yönetin' : 'Manage fiscal device settings'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/50">
+                  <div className="flex items-center justify-between md:col-span-2 bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'Mali Onaylı Cihaz Aktif' : 'Fiscal Device Active'}</p>
+                      <p className="text-xs text-slate-500">{lang === 'tr' ? 'Satışlarda mali fiş simülasyonu ve yazdırma aktif edilir.' : 'Enables fiscal receipt simulation and printing.'}</p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => onBrandingChange('fiscal_active', !branding.fiscal_active)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.fiscal_active ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.fiscal_active ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
+                  {branding.fiscal_active && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Cihaz Markası' : 'Device Brand'}</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-semibold text-sm text-slate-900"
+                          placeholder="Örn: BEKO, HUGIN, VERA"
+                          value={branding.fiscal_brand || ""}
+                          onChange={(e) => onBrandingChange('fiscal_brand', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Terminal ID / Seri No' : 'Terminal ID / Serial No'}</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-semibold text-sm text-slate-900"
+                          placeholder="Örn: BEK00123456"
+                          value={branding.fiscal_terminal_id || ""}
+                          onChange={(e) => onBrandingChange('fiscal_terminal_id', e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 pt-8 border-t border-slate-100 flex justify-end">

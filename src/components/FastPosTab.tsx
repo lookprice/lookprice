@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   X,
   Barcode,
-  Package
+  Package,
+  Printer
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -33,8 +34,11 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSaleId, setLastSaleId] = useState<number | null>(null);
+  const [lastFiscal, setLastFiscal] = useState<any>(null);
+  const [lastCart, setLastCart] = useState<any[]>([]);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (searchInputRef.current) {
@@ -111,8 +115,9 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
     
     try {
       setCompleting(true);
+      const currentCart = [...cart];
       const res = await api.createPosSale({
-        items: cart,
+        items: currentCart,
         total,
         paymentMethod,
         customerName: 'Hızlı Satış',
@@ -121,22 +126,31 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
 
       if (res.success) {
         setLastSaleId(res.saleId);
+        setLastFiscal(res.fiscal);
+        setLastCart(currentCart);
         setShowSuccess(true);
         setCart([]);
         if (onSaleComplete) onSaleComplete();
         
-        setTimeout(() => {
-          setShowSuccess(false);
-          if (searchInputRef.current) {
-            searchInputRef.current.focus();
-          }
-        }, 3000);
+        // Don't auto-close if fiscal is active, user might want to print
+        if (!res.fiscal) {
+          setTimeout(() => {
+            setShowSuccess(false);
+            if (searchInputRef.current) {
+              searchInputRef.current.focus();
+            }
+          }, 3000);
+        }
       }
     } catch (error: any) {
       alert(error.message || "Satış tamamlanırken bir hata oluştu.");
     } finally {
       setCompleting(false);
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -320,21 +334,77 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl"
+              className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl print:shadow-none print:p-0 print:max-w-none"
             >
-              <div className="h-20 w-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="h-12 w-12" />
+              <div className="print:hidden">
+                <div className="h-20 w-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="h-12 w-12" />
+                </div>
+                <h2 className="text-2xl font-black text-slate-900 mb-2">{lang === 'tr' ? 'Satış Başarılı!' : 'Sale Successful!'}</h2>
+                <p className="text-slate-500 font-medium mb-6">
+                  {lang === 'tr' ? `Satış #${lastSaleId} başarıyla kaydedildi.` : `Sale #${lastSaleId} recorded successfully.`}
+                </p>
               </div>
-              <h2 className="text-2xl font-black text-slate-900 mb-2">{lang === 'tr' ? 'Satış Başarılı!' : 'Sale Successful!'}</h2>
-              <p className="text-slate-500 font-medium mb-6">
-                {lang === 'tr' ? `Satış #${lastSaleId} başarıyla kaydedildi.` : `Sale #${lastSaleId} recorded successfully.`}
-              </p>
-              <button 
-                onClick={() => setShowSuccess(false)}
-                className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all"
-              >
-                {lang === 'tr' ? 'Devam Et' : 'Continue'}
-              </button>
+
+              {/* Printable Receipt Content */}
+              <div className="hidden print:block text-left font-mono text-[10px] leading-tight p-4">
+                <div className="text-center border-b border-dashed border-slate-300 pb-2 mb-2">
+                  <h3 className="font-bold text-sm uppercase">SATIŞ FİŞİ</h3>
+                  <p>Mağaza ID: {storeId}</p>
+                  <p>{new Date().toLocaleString('tr-TR')}</p>
+                </div>
+                
+                <div className="space-y-1 mb-2">
+                  {lastCart.map((item, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span>{item.quantity}x {item.name}</span>
+                      <span>{(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="border-t border-dashed border-slate-300 pt-2 font-bold">
+                  <div className="flex justify-between text-sm">
+                    <span>TOPLAM</span>
+                    <span>{lastCart.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2)} ₺</span>
+                  </div>
+                  <p className="mt-1">Ödeme: {paymentMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI'}</p>
+                </div>
+
+                {lastFiscal && (
+                  <div className="mt-4 pt-2 border-t border-dashed border-slate-300 text-[8px] text-center">
+                    <p>FİŞ NO: {lastFiscal.receiptNo}</p>
+                    <p>Z NO: {lastFiscal.zNo}</p>
+                    <p>CİHAZ: {lastFiscal.brand} - {lastFiscal.terminal}</p>
+                    <p className="mt-2 font-bold">MALİ MÜHÜR</p>
+                  </div>
+                )}
+                
+                <div className="mt-4 text-center text-[8px]">
+                  <p>Bizi tercih ettiğiniz için teşekkürler!</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 print:hidden">
+                <button 
+                  onClick={handlePrint}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <Printer className="h-5 w-5" />
+                  {lang === 'tr' ? 'Fiş Yazdır' : 'Print Receipt'}
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowSuccess(false);
+                    if (searchInputRef.current) {
+                      searchInputRef.current.focus();
+                    }
+                  }}
+                  className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all"
+                >
+                  {lang === 'tr' ? 'Devam Et' : 'Continue'}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

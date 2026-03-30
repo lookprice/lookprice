@@ -1428,6 +1428,25 @@ router.post("/pos/sale", async (req: any, res) => {
       }
     }
 
+    // 3. Fiscal Simulation
+    const storeBrandingRes = await client.query("SELECT fiscal_active, fiscal_brand, fiscal_terminal_id FROM stores WHERE id = $1", [storeId]);
+    const branding = storeBrandingRes.rows[0];
+    let fiscalResult = null;
+    
+    if (branding && branding.fiscal_active) {
+      fiscalResult = {
+        success: true,
+        receiptNo: `F-${Math.floor(Math.random() * 1000000)}`,
+        zNo: `Z-${Math.floor(Math.random() * 10000)}`,
+        brand: branding.fiscal_brand,
+        terminal: branding.fiscal_terminal_id,
+        timestamp: new Date().toISOString()
+      };
+      
+      const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${branding.fiscal_brand}`;
+      await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, saleId]);
+    }
+
     await client.query("COMMIT");
 
     // Log the action
@@ -1439,10 +1458,10 @@ router.post("/pos/sale", async (req: any, res) => {
       saleId, 
       `Hızlı POS Satışı: ${total} ₺, Ödeme: ${paymentMethod}`,
       null,
-      { saleId, total, itemsCount: items.length }
+      { saleId, total, itemsCount: items.length, fiscal: fiscalResult }
     );
 
-    res.json({ success: true, saleId });
+    res.json({ success: true, saleId, fiscal: fiscalResult });
   } catch (e: any) {
     await client.query("ROLLBACK");
     console.error("Fast POS sale error:", e);
