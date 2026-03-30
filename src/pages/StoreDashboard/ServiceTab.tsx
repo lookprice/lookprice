@@ -355,7 +355,12 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       const sale = await api.addQuotation({
         customer_name: selectedRecord.customer_name,
         customer_phone: selectedRecord.customer_phone,
-        items: selectedRecord.items,
+        items: (selectedRecord.items || []).map(item => ({
+          product_name: item.item_name, // Map item_name to product_name
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price
+        })),
         total_amount: selectedRecord.total_amount,
         currency: selectedRecord.currency,
         status: 'completed',
