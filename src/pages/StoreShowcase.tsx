@@ -28,9 +28,9 @@ import {
   Star,
   Eye,
   Filter,
-  ArrowUpDown,
-  CreditCard
+  ArrowUpDown
 } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
