@@ -36,11 +36,11 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import * as XLSX from "xlsx";
-import Logo from "./Logo.tsx";
-import { translations } from "../translations.ts";
-import { api } from "../services/api.ts";
-import { useLanguage } from "../contexts/LanguageContext.tsx";
-import { DEVELOPED_COUNTRIES } from "../constants.ts";
+import Logo from "./Logo";
+import { translations } from "../translations";
+import { api } from "../services/api";
+import { useLanguage } from "../contexts/LanguageContext";
+import { DEVELOPED_COUNTRIES } from "../constants";
 
 export const LandingPage = () => {
   const navigate = useNavigate();

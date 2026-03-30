@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useLanguage } from "../contexts/LanguageContext.tsx";
-import { translations } from "../translations.ts";
-import { api } from "../services/api.ts";
+import { useLanguage } from "../contexts/LanguageContext";
+import { translations } from "../translations";
+import { api } from "../services/api";
 
 export const LandingPage = () => {
   const navigate = useNavigate();
