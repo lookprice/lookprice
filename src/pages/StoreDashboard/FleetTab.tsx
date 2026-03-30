@@ -306,14 +306,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         api.getAllFleetAssignments(storeId),
         api.getAllFleetMileage(storeId),
         api.getAllFleetIncidents(storeId),
-        api.getAllFleetDriverDocuments(storeId)
+        api.getAllFleetDriverDocuments(storeId).catch(() => [])
       ]);
       setAllDocuments(docs);
       setAllMaintenance(maint);
       setAllAssignments(assign);
       setAllMileage(mileage);
       setAllIncidents(inc);
-      setAllDriverDocuments(driverDocs);
+      setAllDriverDocuments(Array.isArray(driverDocs) ? driverDocs : []);
     } catch (error) {
       console.error('Error fetching all fleet data:', error);
     }

@@ -74,26 +74,50 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
   const generatePDF = (record: ServiceRecord) => {
     const doc = new jsPDF();
-    doc.text(`Servis Detayı - ${record.id}`, 10, 10);
-    doc.text(`Müşteri: ${record.customer_name}`, 10, 20);
-    doc.text(`Cihaz: ${record.device_model}`, 10, 30);
-    doc.text(`Durum: ${record.status}`, 10, 40);
+    
+    // Helper to replace Turkish characters
+    const replaceTurkishChars = (str: string) => {
+      return str
+        .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+        .replace(/ı/g, 'i').replace(/İ/g, 'I')
+        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+        .replace(/ş/g, 's').replace(/Ş/g, 'S')
+        .replace(/ü/g, 'u').replace(/Ü/g, 'U');
+    };
+
+    doc.setFontSize(18);
+    doc.text(replaceTurkishChars(`Teknik Servis Raporu - #${record.id}`), 10, 15);
+    
+    doc.setFontSize(12);
+    doc.text(replaceTurkishChars(`Musteri: ${record.customer_name}`), 10, 25);
+    doc.text(replaceTurkishChars(`Cihaz: ${record.device_model}`), 10, 32);
+    doc.text(replaceTurkishChars(`Durum: ${record.status}`), 10, 39);
+    doc.text(replaceTurkishChars(`Tarih: ${new Date().toLocaleDateString()}`), 10, 46);
     
     const tableData = (record.items || []).map(item => [
-      item.item_name,
+      replaceTurkishChars(item.item_name),
       item.quantity,
       `${item.unit_price} ${record.currency}`,
       `${item.total_price} ${record.currency}`
     ]);
     
     autoTable(doc, {
-      head: [['Ürün/Hizmet', 'Miktar', 'Birim Fiyat', 'Toplam']],
+      head: [['Urun/Hizmet', 'Miktar', 'Birim Fiyat', 'Toplam']],
       body: tableData,
-      startY: 50
+      startY: 55,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] },
     });
     
-    doc.text(`Toplam Tutar: ${record.total_amount} ${record.currency}`, 10, (doc as any).lastAutoTable.finalY + 10);
-    doc.save(`servis_${record.id}.pdf`);
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(14);
+    doc.text(replaceTurkishChars(`Toplam Tutar: ${record.total_amount} ${record.currency}`), 10, finalY);
+    
+    doc.setFontSize(10);
+    doc.text(replaceTurkishChars('Bu belge teknik servis islemleri icin hazirlanmistir.'), 10, finalY + 20);
+    
+    doc.save(`teknik_servis_${record.id}.pdf`);
   };
 
   const generateExcel = () => {
