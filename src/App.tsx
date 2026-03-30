@@ -3,7 +3,7 @@ import ForgotPasswordPage from "./pages/ForgotPassword";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
-import ReturnExchangePage from "./pages/ReturnExchangePage";
+import ReturnExchangePage from "./pages/ReturnExchange";
 import GuestCheckoutPage from "./pages/GuestCheckoutPage";
 import LoginPage from "./pages/Login";
 import ResetPasswordPage from "./pages/ResetPassword";
