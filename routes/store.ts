@@ -2,12 +2,13 @@ import express from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import fs from "fs";
+import path from "path";
 import bcrypt from "bcryptjs";
 import { pool } from "../models/db.ts";
 import { authenticate } from "../middleware/auth.ts";
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
 router.use(authenticate);
 

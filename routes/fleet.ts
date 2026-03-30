@@ -253,10 +253,13 @@ router.get('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
 router.post('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const { user_id, start_date, start_mileage, notes } = req.body;
+  if (!user_id || !start_date) {
+    return res.status(400).json({ error: 'Missing required fields: user_id and start_date are required' });
+  }
   try {
     const result = await pool.query(
       'INSERT INTO vehicle_assignments (vehicle_id, user_id, start_date, start_mileage, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, user_id, start_date || null, start_mileage, notes]
+      [id, user_id, start_date, start_mileage, notes]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -357,6 +360,63 @@ router.post('/vehicles/:id/incidents', authenticate, async (req: any, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding incident:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- Drivers ---
+router.get('/drivers', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.user.store_id;
+  try {
+    const result = await pool.query('SELECT * FROM drivers WHERE store_id = $1 ORDER BY name ASC', [storeId]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching drivers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/drivers', authenticate, async (req: any, res) => {
+  const { name, license_number, license_class, blood_type, phone, email, address, status } = req.body;
+  const storeId = req.body.store_id || req.user.store_id;
+  try {
+    const result = await pool.query(
+      `INSERT INTO drivers (store_id, name, license_number, license_class, blood_type, phone, email, address, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [storeId, name, license_number, license_class, blood_type, phone, email, address, status || 'active']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating driver:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/drivers/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { name, license_number, license_class, blood_type, phone, email, address, status } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE drivers 
+       SET name = $1, license_number = $2, license_class = $3, blood_type = $4, phone = $5, email = $6, address = $7, status = $8
+       WHERE id = $9 RETURNING *`,
+      [name, license_number, license_class, blood_type, phone, email, address, status, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Driver not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating driver:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/drivers/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM drivers WHERE id = $1', [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting driver:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -435,6 +435,21 @@ export async function initDb() {
         END IF;
       END $$;
 
+      CREATE TABLE IF NOT EXISTS drivers (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        license_number TEXT,
+        license_class TEXT,
+        blood_type TEXT,
+        phone TEXT,
+        email TEXT,
+        address TEXT,
+        status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+      );
+
       -- Fleet Management Tables
       CREATE TABLE IF NOT EXISTS vehicles (
         id SERIAL PRIMARY KEY,

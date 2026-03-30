@@ -24,6 +24,8 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  app.set("trust proxy", true);
+
   // Initialize Database
   console.log("Calling initDb...");
   await initDb();
@@ -33,7 +35,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // Ensure uploads directory exists
-  const uploadsDir = path.join(__dirname, "uploads");
+  const uploadsDir = path.join(process.cwd(), "uploads");
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
@@ -42,7 +44,7 @@ async function startServer() {
   // File Upload Route
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, "uploads/");
+      cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -55,7 +57,7 @@ async function startServer() {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    const fileUrl = `/uploads/${req.file.filename}`;
     res.json({ url: fileUrl });
   });
 
@@ -79,7 +81,7 @@ async function startServer() {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: blob: https:; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com;"
+      "connect-src 'self' wss://*.run.app:* https://*.google-analytics.com https://*.analytics.google.com https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com;"
     );
     next();
   });
@@ -161,7 +163,7 @@ async function startServer() {
     
     // Inject process.env into index.html
     app.use("*", async (req, res, next) => {
-      if (req.originalUrl.startsWith("/api")) return next();
+      if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/uploads")) return next();
       if (req.headers.accept && req.headers.accept.includes("text/html")) {
         try {
           const fs = await import("fs");
@@ -220,7 +222,7 @@ async function startServer() {
     
     // For all other routes, serve index.html with injected process.env
     app.get("*", async (req, res, next) => {
-      if (req.originalUrl.startsWith("/api")) return next();
+      if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/uploads")) return next();
       
       try {
         const fs = await import("fs");

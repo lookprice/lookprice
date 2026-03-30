@@ -1561,7 +1561,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 className="text-xl font-bold text-gray-800">
