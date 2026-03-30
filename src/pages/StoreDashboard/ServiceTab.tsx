@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { 
   Wrench, 
   Plus, 
@@ -21,7 +24,8 @@ import {
   Loader2,
   Printer,
   Check,
-  Save
+  Save,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from '../../types';
@@ -62,7 +66,42 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   const [editingRecord, setEditingRecord] = useState<Partial<ServiceRecord> | null>(null);
   const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showConversionModal, setShowConversionModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [selectedRecord, setSelectedRecord] = useState<ServiceRecord | null>(null);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 15;
+
+  const generatePDF = (record: ServiceRecord) => {
+    const doc = new jsPDF();
+    doc.text(`Servis Detayı - ${record.id}`, 10, 10);
+    doc.text(`Müşteri: ${record.customer_name}`, 10, 20);
+    doc.text(`Cihaz: ${record.device_model}`, 10, 30);
+    doc.text(`Durum: ${record.status}`, 10, 40);
+    
+    const tableData = (record.items || []).map(item => [
+      item.item_name,
+      item.quantity,
+      `${item.unit_price} ${record.currency}`,
+      `${item.total_price} ${record.currency}`
+    ]);
+    
+    autoTable(doc, {
+      head: [['Ürün/Hizmet', 'Miktar', 'Birim Fiyat', 'Toplam']],
+      body: tableData,
+      startY: 50
+    });
+    
+    doc.text(`Toplam Tutar: ${record.total_amount} ${record.currency}`, 10, (doc as any).lastAutoTable.finalY + 10);
+    doc.save(`servis_${record.id}.pdf`);
+  };
+
+  const generateExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(records.filter(r => statusFilter === 'all' || r.status === statusFilter));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Servis Kayıtları");
+    XLSX.writeFile(wb, "servis_kayitlari.xlsx");
+  };
 
   useEffect(() => {
     fetchRecords();
@@ -220,28 +259,113 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     return matchesSearch && matchesStatus;
   });
 
+  const paginatedRecords = filteredRecords.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+
   const totalServiceAmount = serviceItems.reduce((sum, item) => sum + item.total_price, 0);
+
+  const handleConvertToSale = async () => {
+    if (!selectedRecord) return;
+    try {
+      // 1. Update Service Record status
+      await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'cancelled' }, storeId);
+      
+      // 2. Create Sale
+      await api.addQuotation({
+        customer_name: selectedRecord.customer_name,
+        customer_phone: selectedRecord.customer_phone,
+        items: selectedRecord.items,
+        total_amount: selectedRecord.total_amount,
+        currency: selectedRecord.currency,
+        status: 'completed',
+        payment_method: paymentMethod
+      }, storeId);
+      
+      // 3. Update Inventory (Stock)
+      for (const item of selectedRecord.items || []) {
+        if (item.product_id) {
+          await api.updateProductStock(item.product_id, -item.quantity, storeId);
+        }
+      }
+      
+      setShowConversionModal(false);
+      setShowDetailsModal(false);
+      fetchRecords();
+      alert("Satış başarıyla oluşturuldu.");
+    } catch (err) {
+      console.error("Error converting to sale:", err);
+      alert("Satışa dönüştürülürken bir hata oluştu.");
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* Conversion Modal */}
+      <AnimatePresence>
+        {showConversionModal && selectedRecord && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-900">Satışa Dönüştür</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Ödeme Yöntemi</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="cash">Nakit</option>
+                    <option value="credit_card">Kredi Kartı</option>
+                    <option value="bank_transfer">Havale/EFT</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button onClick={() => setShowConversionModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">İptal</button>
+                  <button onClick={handleConvertToSale} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Onayla</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Teknik Servis</h2>
           <p className="text-gray-500">Cihaz kayıtlarını ve onarım süreçlerini yönetin.</p>
         </div>
-        {!isViewer && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setEditingRecord({ status: 'received' });
-              setServiceItems([]);
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+            onClick={generateExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
           >
-            <Plus className="w-4 h-4" />
-            Yeni Servis Kaydı
+            <FileText className="w-4 h-4" />
+            Excel Raporu
           </button>
-        )}
+          {!isViewer && (
+            <button
+              onClick={() => {
+                setEditingRecord({ status: 'received' });
+                setServiceItems([]);
+                setShowModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Servis Kaydı
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
@@ -293,7 +417,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto" />
                   </td>
                 </tr>
-              ) : filteredRecords.length === 0 ? (
+              ) : paginatedRecords.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
@@ -303,7 +427,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map(record => (
+                paginatedRecords.map(record => (
                   <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
@@ -359,6 +483,33 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500">
+              {filteredRecords.length} kayıt
+            </p>
+            <div className="flex items-center space-x-3">
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+              >
+                Önceki
+              </button>
+              <div className="text-xs font-medium text-gray-600 tabular-nums">
+                {page} <span className="text-gray-300 mx-1">/</span> {totalPages}
+              </div>
+              <button 
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+              >
+                Sonraki
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Service Modal */}
@@ -624,9 +775,27 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   <FileText className="w-5 h-5 text-indigo-600" />
                   Servis Detayı #{selectedRecord.id}
                 </h2>
-                <button onClick={() => setShowDetailsModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                  <XCircle className="h-6 w-6 text-slate-400" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {selectedRecord.status === 'delivered' && (
+                    <button
+                      onClick={() => setShowConversionModal(true)}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-bold flex items-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Satışa Dönüştür
+                    </button>
+                  )}
+                  <button
+                    onClick={() => generatePDF(selectedRecord)}
+                    className="p-2 hover:bg-slate-100 rounded-full transition-colors text-indigo-600"
+                    title="PDF İndir"
+                  >
+                    <Download className="h-6 w-6" />
+                  </button>
+                  <button onClick={() => setShowDetailsModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <XCircle className="h-6 w-6 text-slate-400" />
+                  </button>
+                </div>
               </div>
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-6">

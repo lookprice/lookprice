@@ -797,9 +797,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               <div className="space-y-1">
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Uyarılar</span>
                   <div className="flex flex-wrap gap-1">
-                    {(vehicle.expiring_docs || 0) > 0 && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
-                        {vehicle.expiring_docs} EVRAK
+                    {allDocuments
+                      .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                      .map((d, idx) => (
+                        <div key={idx} className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
+                          {d.type}
+                        </div>
+                      ))
+                    }
+                    {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
+                        SERVİS
                       </div>
                     )}
                     {(() => {
@@ -913,30 +921,36 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       </td>
                       <td className="p-4">
                         <div className="flex gap-2">
-                          {(vehicle.expiring_docs || 0) > 0 && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
-                              <AlertCircle className="w-3 h-3" />
-                              {vehicle.expiring_docs} EVRAK
-                            </div>
-                          )}
+                          {allDocuments
+                            .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                            .map((d, idx) => (
+                              <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
+                                <AlertCircle className="w-3 h-3" />
+                                {d.type}
+                              </div>
+                            ))
+                          }
                           {(() => {
                             const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicle.id && a.status === 'active');
                             if (activeAssignment && activeAssignment.driver_id) {
                               const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
-                              if (driver && (driver.expiring_docs || 0) > 0) {
-                                return (
-                                  <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
-                                    <AlertCircle className="w-3 h-3" />
-                                    ŞÖFÖR EVRAK ({driver.expiring_docs})
-                                  </div>
-                                );
+                              if (driver) {
+                                return allDriverDocuments
+                                  .filter(d => d.driver_id === driver.id && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                                  .map((d, idx) => (
+                                    <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
+                                      <AlertCircle className="w-3 h-3" />
+                                      {driver.name} {d.type}
+                                    </div>
+                                  ));
                               }
                             }
                             return null;
                           })()}
-                          {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
+                          {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
                             <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                              BAKIM
+                              <AlertCircle className="w-3 h-3" />
+                              SERVİS
                             </div>
                           )}
                           {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
@@ -1882,9 +1896,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-gray-700">Güncel KM</label>
                     <input
-                      type="number"
-                      value={formData.current_mileage}
-                      onChange={(e) => setFormData({ ...formData, current_mileage: parseFloat(e.target.value) })}
+                      type="text"
+                      value={formData.current_mileage.toLocaleString()}
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/\./g, '');
+                        const parsedValue = parseFloat(rawValue);
+                        setFormData({ ...formData, current_mileage: isNaN(parsedValue) ? 0 : parsedValue });
+                      }}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
@@ -2154,7 +2172,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                     <Edit2 className="w-4 h-4" />
                                   </button>
                                 )}
-                                <p className="font-bold text-gray-900">{(m.cost || 0).toLocaleString()} {m.currency}</p>
+                                <p className="font-bold text-gray-900">{(m.cost || 0).toLocaleString()} {m.currency || 'TL'}</p>
                               </div>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                 m.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'

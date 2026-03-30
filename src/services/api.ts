@@ -76,9 +76,13 @@ export const api = {
   },
   addProduct: (data: any, storeId?: number) => api.post(`/api/store/products${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateProduct: (id: number, data: any, storeId?: number) => api.put(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateProductStock: (id: number, quantityChange: number, storeId?: number) => api.post(`/api/store/products/${id}/stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { quantityChange }),
   deleteProduct: (id: number, storeId?: number) => api.delete(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   importProducts: (formData: FormData, storeId?: number) => api.upload(`/api/store/import${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, formData),
+  
+  getDriverDocuments: (id: number, storeId?: number) => api.get(`/api/store/drivers/${id}/documents${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getDriverAssignments: (id: number, storeId?: number) => api.get(`/api/store/drivers/${id}/assignments${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   
   getAnalytics: (storeId?: number) => api.get(`/api/store/analytics${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getBranding: (storeId?: number, slug?: string) => api.get(`/api/store/info${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : (slug ? `?slug=${slug}` : "")}`),
@@ -194,6 +198,7 @@ export const api = {
   getAllFleetAssignments: (storeId?: number) => api.get(`/api/fleet/assignments${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
   getAllFleetMileage: (storeId?: number) => api.get(`/api/fleet/mileage${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
   getAllFleetIncidents: (storeId?: number) => api.get(`/api/fleet/incidents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetDriverDocuments: (storeId?: number) => api.get(`/api/fleet/driver-documents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
   
   // Driver Methods
   getDrivers: (storeId?: number) => api.get(`/api/fleet/drivers${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
