@@ -498,6 +498,51 @@ const SettingsTab = ({
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center space-x-3 mb-8">
               <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">{lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Methods'}</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">{lang === 'tr' ? 'Aktif etmek istediğiniz ödeme yöntemlerini seçin' : 'Select payment methods to enable'}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="text-sm font-bold text-slate-900 cursor-pointer">Iyzico</label>
+                <button 
+                  type="button"
+                  onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_enabled: !branding.payment_settings?.iyzico_enabled })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.iyzico_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.iyzico_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="text-sm font-bold text-slate-900 cursor-pointer">PayPal</label>
+                <button 
+                  type="button"
+                  onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_enabled: !branding.payment_settings?.paypal_enabled })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.paypal_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.paypal_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="text-sm font-bold text-slate-900 cursor-pointer">Payoneer</label>
+                <button 
+                  type="button"
+                  onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_enabled: !branding.payment_settings?.payoneer_enabled })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.payoneer_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.payoneer_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
                 <Globe className="h-5 w-5" />
               </div>
               <div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useParams } from "react-router-dom";
@@ -66,6 +66,7 @@ import { User, Product, Store as StoreType } from "../../types";
 import Logo from "../../components/Logo";
 import * as XLSX from 'xlsx';
 import ErrorBoundary from "../../components/ErrorBoundary";
+import { useReactToPrint } from 'react-to-print';
 
 // Import Tabs
 import ProductsTab from "./ProductsTab";
@@ -80,6 +81,7 @@ import { ProcurementTab } from "./ProcurementTab";
 import { ServiceTab } from "./ServiceTab";
 import StockTransferTab from "./StockTransferTab";
 import FleetTab from "./FleetTab";
+import ShippingSlip from "../../components/ShippingSlip";
 
 interface StoreDashboardProps {
   user: User;
@@ -114,6 +116,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     barcode: "",
     name: "",
     category: "",
+    sub_category: "",
+    brand: "",
+    author: "",
     price: "",
     description: "",
     stock_quantity: "",
@@ -144,6 +149,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [editingQuotation, setEditingQuotation] = useState<any>(null);
   const [quotationSearch, setQuotationSearch] = useState("");
   const [quotationStatusFilter, setQuotationStatusFilter] = useState("all");
+  const shippingSlipRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({ contentRef: shippingSlipRef });
   const [companies, setCompanies] = useState<any[]>([]);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
@@ -2063,11 +2070,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     #{selectedSale.id} • {new Date(selectedSale.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </p>
                 </div>
-                <button onClick={() => setShowSaleDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handlePrint()} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title={lang === 'tr' ? 'Kargo Fişini Yazdır' : 'Print Shipping Slip'}>
+                    <Printer className="h-5 w-5 text-gray-400" />
+                  </button>
+                  <button onClick={() => setShowSaleDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
               </div>
               <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div style={{ display: 'none' }}>
+                  <ShippingSlip ref={shippingSlipRef} sale={selectedSale} store={branding} />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-gray-50 rounded-2xl">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t.customer}</p>
@@ -3115,7 +3130,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   />
                 </div>
 
-                {/* Row 2.5: Category & Image URL */}
+                {/* Row 2.5: Category & Sub-Category */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
@@ -3135,9 +3150,67 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           if (taxInput) taxInput.value = '0';
                         }
                       }}
-                      placeholder={lang === 'tr' ? 'Örn: Elektronik' : 'e.g. Electronics'}
+                      placeholder={lang === 'tr' ? 'Örn: Ofis' : 'e.g. Office'}
                       className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ALT KATEGORİ' : 'SUB-CATEGORY'}
+                    </label>
+                    <input 
+                      name="sub_category" 
+                      defaultValue={editingProduct?.sub_category} 
+                      placeholder={lang === 'tr' ? 'Örn: Dosyalama' : 'e.g. Filing'}
+                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2.6: Brand & Author */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <Globe className="h-2.5 w-2.5" /> {lang === 'tr' ? 'MARKA' : 'BRAND'}
+                    </label>
+                    <input 
+                      name="brand" 
+                      defaultValue={editingProduct?.brand} 
+                      placeholder={lang === 'tr' ? 'Örn: Apple' : 'e.g. Apple'}
+                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <UserIcon className="h-2.5 w-2.5" /> {lang === 'tr' ? 'YAZAR (KİTAP İÇİN)' : 'AUTHOR (FOR BOOKS)'}
+                    </label>
+                    <input 
+                      name="author" 
+                      defaultValue={editingProduct?.author} 
+                      placeholder={lang === 'tr' ? 'Örn: Sabahattin Ali' : 'e.g. Orwell'}
+                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2.7: Labels & Image URL */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ETİKETLER (VİRGÜLLE AYIRIN)' : 'LABELS (COMMA SEPARATED)'}
+                    </label>
+                    <input 
+                      name="labels_input" 
+                      defaultValue={Array.isArray(editingProduct?.labels) ? editingProduct.labels.join(', ') : ''} 
+                      placeholder={lang === 'tr' ? 'Yeni, Çok Satanlar' : 'New, Bestseller'}
+                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                      onBlur={(e) => {
+                        const labels = e.target.value.split(',').map(l => l.trim()).filter(l => l !== '');
+                        const hiddenInput = e.target.closest('form')?.querySelector('input[name="labels"]') as HTMLInputElement;
+                        if (hiddenInput) hiddenInput.value = JSON.stringify(labels);
+                      }}
+                    />
+                    <input type="hidden" name="labels" defaultValue={JSON.stringify(editingProduct?.labels || [])} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
@@ -3371,6 +3444,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           { key: 'barcode', label: t.barcode, required: true },
                           { key: 'name', label: t.productName, required: true },
                           { key: 'category', label: lang === 'tr' ? 'Kategori' : 'Category', required: false },
+                          { key: 'sub_category', label: lang === 'tr' ? 'Alt Kategori' : 'Sub-Category', required: false },
+                          { key: 'brand', label: lang === 'tr' ? 'Marka' : 'Brand', required: false },
+                          { key: 'author', label: lang === 'tr' ? 'Yazar' : 'Author', required: false },
                           { key: 'price', label: t.price, required: true },
                           { key: 'description', label: t.description, required: false },
                           { key: 'stock_quantity', label: t.stock, required: false },

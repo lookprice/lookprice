@@ -1,5 +1,10 @@
 import CustomerScanPage from "./pages/CustomerScan.tsx";
 import ForgotPasswordPage from "./pages/ForgotPassword.tsx";
+import RegisterPage from "./pages/RegisterPage.tsx";
+import ProfilePage from "./pages/ProfilePage.tsx";
+import OrderTrackingPage from "./pages/OrderTrackingPage.tsx";
+import ReturnExchangePage from "./pages/ReturnExchangePage.tsx";
+import GuestCheckoutPage from "./pages/GuestCheckoutPage.tsx";
 import LoginPage from "./pages/Login.tsx";
 import ResetPasswordPage from "./pages/ResetPassword.tsx";
 import SuperAdminDashboard from "./pages/SuperAdmin.tsx";
@@ -94,6 +99,30 @@ export default function App() {
               <LoginPage onLogin={handleLogin} />
             )
           } />
+          <Route path="/register" element={
+            token ? (
+              user?.role === 'superadmin' ? <Navigate to="/admin" /> : 
+              user?.store_slug ? <Navigate to={`/dashboard/${user.store_slug}`} /> : <Navigate to="/dashboard" />
+            ) : (
+              <RegisterPage />
+            )
+          } />
+          <Route path="/profile" element={
+            token ? (
+              <ProfilePage />
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/orders" element={
+            token ? (
+              <OrderTrackingPage />
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/return" element={
+            token ? (
+              <ReturnExchangePage />
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/guest-checkout" element={<GuestCheckoutPage />} />
 
           {/* Protected Routes */}
           <Route path="/dashboard/:slug?" element={

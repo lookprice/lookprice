@@ -42,8 +42,31 @@ interface Product {
   description?: string;
   image_url?: string;
   category?: string;
+  sub_category?: string;
+  brand?: string;
+  author?: string;
+  labels?: string[];
   unit?: string;
   barcode?: string;
+}
+
+interface FAQEntry {
+  question: string;
+  answer: string;
+}
+
+interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  image_url?: string;
+  date: string;
+}
+
+interface LegalPage {
+  title: string;
+  content: string;
 }
 
 interface StoreInfo {
@@ -64,6 +87,14 @@ interface StoreInfo {
   whatsapp_number?: string;
   address?: string;
   phone?: string;
+  faq?: FAQEntry[];
+  blog_posts?: BlogPost[];
+  legal_pages?: {
+    kvkk?: LegalPage;
+    privacy?: LegalPage;
+    sales_agreement?: LegalPage;
+    pre_info?: LegalPage;
+  };
 }
 
 interface BasketItem extends Product {
@@ -77,7 +108,9 @@ const ProductCard: React.FC<{
   addToBasket: (p: Product) => void,
   onView: (p: Product) => void,
   primaryColor: string
-}> = ({ product, store, t, addToBasket, onView, primaryColor }) => (
+}> = ({ product, store, t, addToBasket, onView, primaryColor }) => {
+  const { lang } = useLanguage();
+  return (
   <motion.div 
     layout
     initial={{ opacity: 0, y: 20 }}
@@ -97,6 +130,22 @@ const ProductCard: React.FC<{
           <Package className="w-12 h-12" />
         </div>
       )}
+      
+      {/* Product Labels */}
+      {product.labels && product.labels.length > 0 && (
+        <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+          {product.labels.map((label, idx) => (
+            <span 
+              key={idx} 
+              className="px-2 py-1 bg-white/90 backdrop-blur-sm text-[9px] font-black uppercase tracking-widest rounded shadow-sm"
+              style={{ color: primaryColor }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
         <button 
           onClick={() => onView(product)}
@@ -115,25 +164,46 @@ const ProductCard: React.FC<{
     </div>
     <div className="p-4">
       <div className="mb-2 flex items-center justify-between">
-        <span 
-          className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded"
-          style={{ color: primaryColor, backgroundColor: `${primaryColor}10` }}
-        >
-          {product.category || t.dashboard.uncategorized}
-        </span>
+        <div className="flex flex-col">
+          <span 
+            className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded w-fit"
+            style={{ color: primaryColor, backgroundColor: `${primaryColor}10` }}
+          >
+            {product.category || t.dashboard.uncategorized}
+          </span>
+          {product.sub_category && (
+            <span className="text-[9px] text-gray-400 font-medium mt-0.5 ml-1">
+              {product.sub_category}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1 text-yellow-400">
           <Star className="w-3 h-3 fill-current" />
           <span className="text-[10px] font-bold text-gray-500">4.8</span>
         </div>
       </div>
+      
+      {product.brand && (
+        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+          {lang === 'tr' ? 'MARKA' : 'BRAND'}: {product.brand}
+        </div>
+      )}
+
       <h3 
-        className="font-semibold text-gray-900 line-clamp-2 h-12 mb-2 transition-colors cursor-pointer group-hover:opacity-80" 
+        className="font-semibold text-gray-900 line-clamp-2 h-10 mb-1 transition-colors cursor-pointer group-hover:opacity-80 text-sm" 
         onClick={() => onView(product)}
         style={{ color: primaryColor }}
       >
         {product.name}
       </h3>
-      <div className="flex items-center justify-between mt-4">
+
+      {product.author && (
+        <div className="text-[10px] text-gray-400 italic mb-2">
+          {lang === 'tr' ? 'YAZAR' : 'AUTHOR'}: {product.author}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mt-auto">
         <div className="flex flex-col">
           <span className="text-lg font-bold text-gray-900">
             {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
@@ -145,7 +215,8 @@ const ProductCard: React.FC<{
       </div>
     </div>
   </motion.div>
-);
+  );
+};
 
 const ProductDetailModal: React.FC<{
   product: Product | null;
@@ -155,6 +226,7 @@ const ProductDetailModal: React.FC<{
   addToBasket: (p: Product) => void;
   primaryColor: string;
 }> = ({ product, store, t, onClose, addToBasket, primaryColor }) => {
+  const { lang } = useLanguage();
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
 
@@ -209,17 +281,45 @@ const ProductDetailModal: React.FC<{
         </div>
 
         <div className="md:w-1/2 p-8 overflow-y-auto">
-          <div className="mb-4">
+          <div className="mb-4 flex flex-wrap gap-2">
+            {product.labels?.map((label, idx) => (
+              <span 
+                key={idx}
+                className="text-[10px] uppercase tracking-widest font-black px-3 py-1 rounded-full text-white shadow-sm"
+                style={{ backgroundColor: primaryColor }}
+              >
+                {label}
+              </span>
+            ))}
             <span 
-              className="text-xs uppercase tracking-widest font-bold px-3 py-1 rounded-full"
+              className="text-[10px] uppercase tracking-widest font-black px-3 py-1 rounded-full"
               style={{ color: primaryColor, backgroundColor: `${primaryColor}10` }}
             >
               {product.category || t.dashboard.uncategorized}
             </span>
+            {product.sub_category && (
+              <span className="text-[10px] uppercase tracking-widest font-black px-3 py-1 rounded-full bg-gray-100 text-gray-500">
+                {product.sub_category}
+              </span>
+            )}
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-4 leading-tight">
+          <h2 className="text-3xl font-black text-gray-900 mb-2 leading-tight">
             {product.name}
           </h2>
+          {(product.brand || product.author) && (
+            <div className="flex flex-col gap-1 mb-4">
+              {product.brand && (
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                  {lang === 'tr' ? 'MARKA' : 'BRAND'}: <span className="text-gray-900">{product.brand}</span>
+                </div>
+              )}
+              {product.author && (
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                  {lang === 'tr' ? 'YAZAR' : 'AUTHOR'}: <span className="text-gray-900">{product.author}</span>
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-4 mb-6">
             <span className="text-3xl font-extrabold" style={{ color: primaryColor }}>
               {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
@@ -308,12 +408,28 @@ const StoreShowcase: React.FC = () => {
   const [isBasketOpen, setIsBasketOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [customerInfo, setCustomerInfo] = useState({ name: "", phone: "", address: "" });
+  const [customerInfo, setCustomerInfo] = useState({ name: "", phone: "", address: "", email: "", password: "" });
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
+  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery'>('credit_card');
+  const [customer, setCustomer] = useState<any>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [showFaq, setShowFaq] = useState(false);
+  const [showBlog, setShowBlog] = useState(false);
+  const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
+  const [showLegal, setShowLegal] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+
+  useEffect(() => {
+    const savedCustomer = localStorage.getItem('customer');
+    if (savedCustomer) {
+      setCustomer(JSON.parse(savedCustomer));
+    }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -335,6 +451,17 @@ const StoreShowcase: React.FC = () => {
 
         setStore(storeRes);
         setProducts(productsRes);
+        
+        // If customer is logged in, sync their info to checkout
+        if (customer) {
+          setCustomerInfo({
+            name: customer.name || "",
+            phone: customer.phone || "",
+            address: customer.address || "",
+            email: customer.email || "",
+            password: ""
+          });
+        }
       } catch (err: any) {
         setError(err.message || t.dashboard.storeLoadingError);
       } finally {
@@ -343,7 +470,68 @@ const StoreShowcase: React.FC = () => {
     };
 
     fetchData();
-  }, [slug]);
+  }, [slug, customer?.id]);
+
+  const handleCustomerLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.customerLogin({
+        email: customerInfo.email,
+        password: customerInfo.password,
+        storeId: store?.id
+      });
+      if (res.error) throw new Error(res.error);
+      setCustomer(res.customer);
+      localStorage.setItem('customer', JSON.stringify(res.customer));
+      localStorage.setItem('customerToken', res.token);
+      setShowAuthModal(false);
+      setCustomerInfo(prev => ({
+        ...prev,
+        name: res.customer.name,
+        phone: res.customer.phone,
+        address: res.customer.address
+      }));
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleCustomerRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.customerRegister({
+        name: customerInfo.name,
+        email: customerInfo.email,
+        password: customerInfo.password,
+        phone: customerInfo.phone,
+        address: customerInfo.address,
+        storeId: store?.id
+      });
+      if (res.error) throw new Error(res.error);
+      
+      // Auto login after registration
+      const loginRes = await api.customerLogin({
+        email: customerInfo.email,
+        password: customerInfo.password,
+        storeId: store?.id
+      });
+      
+      if (loginRes.error) throw new Error(loginRes.error);
+      
+      setCustomer(loginRes.customer);
+      localStorage.setItem('customer', JSON.stringify(loginRes.customer));
+      localStorage.setItem('customerToken', loginRes.token);
+      setShowAuthModal(false);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleLogout = () => {
+    setCustomer(null);
+    localStorage.removeItem('customer');
+    localStorage.removeItem('customerToken');
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -360,12 +548,13 @@ const StoreShowcase: React.FC = () => {
   }, [products]);
 
   const categories = useMemo(() => {
-    const cats = new Set<string>();
+    const cats = new Map<string, Set<string>>();
     products.forEach(p => {
-      if (p.category) cats.add(p.category);
-      else cats.add(t.dashboard.uncategorized);
+      const cat = p.category || t.dashboard.uncategorized;
+      if (!cats.has(cat)) cats.set(cat, new Set());
+      if (p.sub_category) cats.get(cat)!.add(p.sub_category);
     });
-    return Array.from(cats).sort();
+    return cats;
   }, [products, t]);
 
   const sortedAndFilteredProducts = useMemo(() => {
@@ -374,12 +563,15 @@ const StoreShowcase: React.FC = () => {
     let result = baseProducts.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
+        (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.brand && p.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const productCategory = p.category || t.dashboard.uncategorized;
       const matchesCategory = !selectedCategory || productCategory === selectedCategory;
+      const matchesSubCategory = !selectedSubCategory || p.sub_category === selectedSubCategory;
       
-      return matchesSearch && matchesCategory;
+      return matchesSearch && matchesCategory && matchesSubCategory;
     });
 
     if (sortBy === 'priceAsc') {
@@ -529,6 +721,33 @@ const StoreShowcase: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
+            {customer ? (
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => navigate(`/s/${slug}/profile`)}
+                  className="p-3 bg-gray-100 hover:bg-gray-200 rounded-2xl transition-all flex items-center gap-2"
+                >
+                  <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center text-white text-[10px] font-bold">
+                    {customer.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-xs font-bold text-gray-700 hidden lg:block">{customer.name}</span>
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="p-3 bg-gray-100 hover:bg-red-50 hover:text-red-600 rounded-2xl transition-all"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                className="p-3 bg-gray-100 hover:bg-gray-200 rounded-2xl transition-all flex items-center gap-2 group"
+              >
+                <ShieldCheck className="w-6 h-6 text-gray-700 group-hover:text-blue-600 transition-colors" />
+                <span className="text-xs font-bold text-gray-700 hidden lg:block">{t.dashboard.login || 'Giriş Yap'}</span>
+              </button>
+            )}
             <button 
               onClick={() => setIsBasketOpen(true)}
               className="relative p-3 bg-gray-100 hover:bg-gray-200 rounded-2xl transition-all active:scale-95 group"
@@ -561,40 +780,75 @@ const StoreShowcase: React.FC = () => {
         </div>
 
         {/* Categories Bar */}
-        {categories.length > 0 && (
+        {categories.size > 0 && (
           <div className="border-t bg-white overflow-x-auto no-scrollbar">
-            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-2">
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest ${
-                  !selectedCategory 
-                    ? "text-white shadow-xl" 
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                }`}
-                style={{ 
-                  backgroundColor: !selectedCategory ? primaryColor : undefined,
-                  boxShadow: !selectedCategory ? `0 10px 25px -5px ${primaryColor}40` : undefined
-                }}
-              >
-                {t.dashboard.all}
-              </button>
-              {categories.map(cat => (
+            <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); }}
                   className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest ${
-                    selectedCategory === cat
+                    !selectedCategory 
                       ? "text-white shadow-xl" 
                       : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                   }`}
                   style={{ 
-                    backgroundColor: selectedCategory === cat ? primaryColor : undefined,
-                    boxShadow: selectedCategory === cat ? `0 10px 25px -5px ${primaryColor}40` : undefined
+                    backgroundColor: !selectedCategory ? primaryColor : undefined,
+                    boxShadow: !selectedCategory ? `0 10px 25px -5px ${primaryColor}40` : undefined
                   }}
                 >
-                  {cat}
+                  {t.dashboard.all}
                 </button>
-              ))}
+                {Array.from(categories.keys()).sort().map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => { setSelectedCategory(cat); setSelectedSubCategory(null); }}
+                    className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest ${
+                      selectedCategory === cat
+                        ? "text-white shadow-xl" 
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                    style={{ 
+                      backgroundColor: selectedCategory === cat ? primaryColor : undefined,
+                      boxShadow: selectedCategory === cat ? `0 10px 25px -5px ${primaryColor}40` : undefined
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Sub-categories row */}
+              {selectedCategory && categories.get(selectedCategory)!.size > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 pl-4 border-l-2 border-gray-100 ml-2"
+                >
+                  <button
+                    onClick={() => setSelectedSubCategory(null)}
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider ${
+                      !selectedSubCategory 
+                        ? "bg-gray-900 text-white" 
+                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                    }`}
+                  >
+                    {t.dashboard.all || 'Hepsi'}
+                  </button>
+                  {Array.from(categories.get(selectedCategory)!).sort().map(sub => (
+                    <button
+                      key={sub}
+                      onClick={() => setSelectedSubCategory(sub)}
+                      className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider ${
+                        selectedSubCategory === sub
+                          ? "bg-gray-900 text-white" 
+                          : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                      }`}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
             </div>
           </div>
         )}
@@ -703,7 +957,7 @@ const StoreShowcase: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 py-16" id="products-grid">
         {/* Shop By Category Section */}
-        {!selectedCategory && !searchQuery && categories.length > 0 && (
+        {!selectedCategory && !searchQuery && categories.size > 0 && (
           <section className="mb-20">
             <div className="flex items-center justify-between mb-10">
               <div>
@@ -712,7 +966,7 @@ const StoreShowcase: React.FC = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {categories.map((cat, idx) => (
+              {Array.from(categories.keys()).sort().map((cat, idx) => (
                 <motion.button
                   key={cat}
                   whileHover={{ y: -5 }}
@@ -1053,7 +1307,7 @@ const StoreShowcase: React.FC = () => {
             <div>
               <h4 className="font-black text-gray-900 uppercase tracking-widest text-sm mb-6">{t.dashboard.categories}</h4>
               <ul className="space-y-3">
-                {categories.slice(0, 5).map(cat => (
+                {Array.from(categories.keys()).sort().slice(0, 5).map(cat => (
                   <li key={cat}>
                     <button 
                       onClick={() => { setSelectedCategory(cat); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
@@ -1068,9 +1322,22 @@ const StoreShowcase: React.FC = () => {
           </div>
 
           <div className="pt-10 border-t flex flex-col md:flex-row items-center justify-between gap-6">
-            <p className="text-gray-400 text-xs font-medium">
-              © 2026 {store?.name}. Tüm hakları saklıdır.
-            </p>
+            <div className="flex flex-col gap-2">
+              <p className="text-gray-400 text-xs font-medium">
+                © 2026 {store?.name}. Tüm hakları saklıdır.
+              </p>
+              <div className="flex items-center gap-4 text-gray-400">
+                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
+                  <ShieldCheck className="w-4 h-4" />
+                  %100 GÜVENLİ ALIŞVERİŞ
+                </div>
+                <div className="h-4 w-px bg-gray-300 mx-1"></div>
+                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
+                  <CreditCard className="w-4 h-4" />
+                  KART / HAVALE / KAPIDA ÖDEME
+                </div>
+              </div>
+            </div>
             <div className="flex items-center gap-6">
               <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                 Powered by <StoreIcon className="w-3 h-3" /> LookPrice
@@ -1079,21 +1346,6 @@ const StoreShowcase: React.FC = () => {
           </div>
         </div>
       </footer>
-
-      {/* WhatsApp Floating Button */}
-      {store?.whatsapp_number && (
-        <a 
-          href={`https://wa.me/${store.whatsapp_number.replace(/\D/g, '')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fixed bottom-24 right-6 z-40 bg-green-500 text-white p-4 rounded-2xl shadow-2xl hover:scale-110 transition-transform md:bottom-6 group"
-        >
-          <MessageCircle className="w-8 h-8" />
-          <span className="absolute right-full mr-4 top-1/2 -translate-y-1/2 bg-white text-gray-900 px-4 py-2 rounded-xl text-sm font-bold shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-gray-100">
-            WhatsApp Destek
-          </span>
-        </a>
-      )}
 
       {/* Floating Basket Summary (Mobile) */}
       {basketCount > 0 && !isBasketOpen && (
@@ -1251,6 +1503,244 @@ const StoreShowcase: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* FAQ Modal */}
+      <AnimatePresence>
+        {showFaq && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFaq(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl relative z-10 overflow-hidden max-h-[80vh] flex flex-col"
+            >
+              <div className="p-8 border-b flex items-center justify-between">
+                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">{lang === 'tr' ? 'Sıkça Sorulan Sorular' : 'FAQ'}</h2>
+                <button onClick={() => setShowFaq(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="p-8 overflow-y-auto space-y-4">
+                {store?.faq?.length ? store.faq.map((item, i) => (
+                  <div key={i} className="p-6 bg-gray-50 rounded-3xl">
+                    <h4 className="font-black text-gray-900 mb-2">{item.question}</h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">{item.answer}</p>
+                  </div>
+                )) : (
+                  <p className="text-center text-gray-400 py-10">{lang === 'tr' ? 'Henüz soru eklenmemiş.' : 'No questions added yet.'}</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Blog Modal */}
+      <AnimatePresence>
+        {showBlog && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBlog(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
+            >
+              <div className="p-8 border-b flex items-center justify-between">
+                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">{lang === 'tr' ? 'Blog' : 'Blog'}</h2>
+                <button onClick={() => setShowBlog(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="p-8 overflow-y-auto">
+                {selectedBlogPost ? (
+                  <div className="space-y-6">
+                    <button onClick={() => setSelectedBlogPost(null)} className="text-blue-600 font-bold flex items-center gap-2 mb-4">
+                      <ChevronLeft className="w-4 h-4" /> {lang === 'tr' ? 'Geri Dön' : 'Back'}
+                    </button>
+                    {selectedBlogPost.image_url && <img src={selectedBlogPost.image_url} alt={selectedBlogPost.title} className="w-full h-64 object-cover rounded-3xl" />}
+                    <h3 className="text-3xl font-black text-gray-900">{selectedBlogPost.title}</h3>
+                    <div className="prose prose-blue max-w-none text-gray-600 leading-relaxed">
+                      {selectedBlogPost.content}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {store?.blog_posts?.length ? store.blog_posts.map((post, i) => (
+                      <div key={i} onClick={() => setSelectedBlogPost(post)} className="group cursor-pointer bg-gray-50 rounded-3xl overflow-hidden hover:shadow-xl transition-all">
+                        {post.image_url && <img src={post.image_url} alt={post.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />}
+                        <div className="p-6">
+                          <h4 className="font-black text-gray-900 mb-2 line-clamp-2">{post.title}</h4>
+                          <p className="text-gray-500 text-sm line-clamp-3">{post.content}</p>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="col-span-full text-center text-gray-400 py-10">{lang === 'tr' ? 'Henüz blog yazısı eklenmemiş.' : 'No blog posts added yet.'}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Legal Modal */}
+      <AnimatePresence>
+        {showLegal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLegal(null)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl relative z-10 overflow-hidden max-h-[85vh] flex flex-col"
+            >
+              <div className="p-8 border-b flex items-center justify-between">
+                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">
+                  {showLegal === 'kvkk' ? (lang === 'tr' ? 'KVKK ve Gizlilik Politikası' : 'Privacy Policy') : 
+                   showLegal === 'sales' ? (lang === 'tr' ? 'Mesafeli Satış Sözleşmesi' : 'Sales Agreement') : 
+                   (lang === 'tr' ? 'Ön Bilgilendirme Formu' : 'Pre-Information Form')}
+                </h2>
+                <button onClick={() => setShowLegal(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="p-8 overflow-y-auto prose prose-blue max-w-none text-gray-600 leading-relaxed">
+                {showLegal === 'kvkk' ? store?.legal_pages?.kvkk?.content : 
+                 showLegal === 'sales' ? store?.legal_pages?.sales_agreement?.content : 
+                 store?.legal_pages?.pre_info?.content}
+                {!store?.legal_pages?.[showLegal === 'kvkk' ? 'kvkk' : showLegal === 'sales' ? 'sales_agreement' : 'pre_info'] && (
+                  <p className="text-center text-gray-400 py-10">{lang === 'tr' ? 'İçerik henüz eklenmemiş.' : 'Content not added yet.'}</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAuthModal(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-md rounded-[40px] shadow-2xl relative z-10 overflow-hidden"
+            >
+              <div className="p-10">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">
+                    {authMode === 'login' ? (lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN') : (lang === 'tr' ? 'KAYIT OL' : 'REGISTER')}
+                  </h2>
+                  <button onClick={() => setShowAuthModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+                </div>
+
+                <form onSubmit={authMode === 'login' ? handleCustomerLogin : handleCustomerRegister} className="space-y-4">
+                  {authMode === 'register' && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.customerName}</label>
+                      <input 
+                        required
+                        type="text"
+                        value={customerInfo.name}
+                        onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                        style={{ borderFocusColor: primaryColor } as any}
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-POSTA</label>
+                    <input 
+                      required
+                      type="email"
+                      value={customerInfo.email}
+                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                      style={{ borderFocusColor: primaryColor } as any}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">ŞİFRE</label>
+                    <input 
+                      required
+                      type="password"
+                      value={customerInfo.password}
+                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, password: e.target.value }))}
+                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                      style={{ borderFocusColor: primaryColor } as any}
+                    />
+                  </div>
+                  {authMode === 'register' && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.phone}</label>
+                        <input 
+                          required
+                          type="tel"
+                          value={customerInfo.phone}
+                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.address}</label>
+                        <textarea 
+                          required
+                          value={customerInfo.address}
+                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, address: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900 resize-none"
+                          rows={2}
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <button 
+                    type="submit"
+                    className="w-full py-5 text-white rounded-2xl font-black text-xl transition-all shadow-2xl active:scale-95 mt-4"
+                    style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
+                  >
+                    {authMode === 'login' ? (lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN') : (lang === 'tr' ? 'KAYIT OL' : 'REGISTER')}
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                    className="w-full text-center text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors mt-4"
+                  >
+                    {authMode === 'login' ? (lang === 'tr' ? 'Hesabınız yok mu? Kayıt olun' : "Don't have an account? Register") : (lang === 'tr' ? 'Zaten hesabınız var mı? Giriş yapın' : 'Already have an account? Login')}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Product Detail Modal */}
       <AnimatePresence>
         {selectedProduct && (
@@ -1280,9 +1770,9 @@ const StoreShowcase: React.FC = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl relative z-10 overflow-hidden"
+              className="bg-white w-full max-w-md rounded-[32px] shadow-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <div className="p-10">
+              <div className="p-6 md:p-8 overflow-y-auto no-scrollbar">
                 {checkoutStatus === 'success' ? (
                   <div className="text-center py-10">
                     <div className="w-24 h-24 bg-green-100 text-green-600 rounded-[40px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-100">
@@ -1307,41 +1797,83 @@ const StoreShowcase: React.FC = () => {
                     </div>
 
                     <form onSubmit={handleCheckout} className="space-y-6">
-                      <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.customerName}</label>
-                        <input 
-                          required
-                          type="text"
-                          value={customerInfo.name}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                          style={{ borderFocusColor: primaryColor } as any}
-                          placeholder={t.dashboard.customerName}
-                        />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.customerName}</label>
+                          <input 
+                            required
+                            type="text"
+                            value={customerInfo.name}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                            placeholder={t.dashboard.customerName}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.phone}</label>
+                          <input 
+                            required
+                            type="tel"
+                            value={customerInfo.phone}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
+                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                            placeholder="05xx xxx xx xx"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.phone}</label>
-                        <input 
-                          required
-                          type="tel"
-                          value={customerInfo.phone}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
-                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                          style={{ borderFocusColor: primaryColor } as any}
-                          placeholder="05xx xxx xx xx"
-                        />
-                      </div>
+
                       <div className="space-y-2">
                         <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.address}</label>
                         <textarea 
                           required
-                          rows={3}
+                          rows={2}
                           value={customerInfo.address}
                           onChange={(e) => setCustomerInfo(prev => ({ ...prev, address: e.target.value }))}
-                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none resize-none font-bold text-gray-900"
+                          className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none resize-none font-bold text-gray-900"
                           style={{ borderFocusColor: primaryColor } as any}
                           placeholder={t.dashboard.address}
                         />
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</label>
+                        <div className="grid grid-cols-1 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('credit_card')}
+                            className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                            style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-sm ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi / Banka Kartı' : 'Credit / Debit Card'}</span>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('bank_transfer')}
+                            className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                            style={{ borderColor: paymentMethod === 'bank_transfer' ? primaryColor : undefined }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <RotateCcw className={`w-5 h-5 ${paymentMethod === 'bank_transfer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-sm ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('cash_on_delivery')}
+                            className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                            style={{ borderColor: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Truck className={`w-5 h-5 ${paymentMethod === 'cash_on_delivery' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-sm ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
+                            </div>
+                          </button>
+                        </div>
                       </div>
 
                       {checkoutStatus === 'error' && (
@@ -1355,7 +1887,7 @@ const StoreShowcase: React.FC = () => {
 
                       <div className="pt-6">
                         <div 
-                          className="flex items-center justify-between mb-8 p-6 rounded-[32px] text-white shadow-xl"
+                          className="flex items-center justify-between mb-6 p-5 rounded-2xl text-white shadow-xl"
                           style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
                         >
                           <div className="flex flex-col">
@@ -1365,14 +1897,14 @@ const StoreShowcase: React.FC = () => {
                               {t.dashboard.securePayment}
                             </span>
                           </div>
-                          <span className="text-3xl font-black">
+                          <span className="text-2xl font-black">
                             {basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
                           </span>
                         </div>
                         <button 
                           type="submit"
                           disabled={checkoutStatus === 'loading'}
-                          className="w-full py-5 bg-gray-900 text-white rounded-2xl font-black text-xl hover:bg-black transition-all shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-95 uppercase tracking-widest"
+                          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-95 uppercase tracking-widest"
                         >
                           {checkoutStatus === 'loading' ? (
                             <>
@@ -1396,6 +1928,18 @@ const StoreShowcase: React.FC = () => {
         )}
       </AnimatePresence>
     </div>
+    {/* WhatsApp Button */} 
+    {store?.whatsapp_number && (
+      <a 
+        href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9+]/g, '')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-28 md:bottom-8 right-4 md:right-8 z-[100] bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-xl flex items-center gap-3 transition-all active:scale-95"
+      >
+        <MessageCircle className="w-7 h-7" />
+        <span className="text-sm font-bold hidden md:block">{lang === 'tr' ? 'Yardım Al' : 'Get Help'}</span>
+      </a>
+    )}
     </ErrorBoundary>
   );
 };

@@ -158,10 +158,16 @@ export const api = {
   deleteStockTransfer: (id: number, storeId?: number) => api.delete(`/api/store/stock-transfers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getNotifications: (storeId?: number) => api.get(`/api/store/notifications${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
+  customerLogin: (data: any) => api.post("/api/public/customers/login", data),
+  customerRegister: (data: any) => api.post("/api/public/customers/register", data),
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),
   resetPassword: (token: string, newPassword: any) => api.post("/api/auth/reset-password", { token, newPassword }),
+  getProfile: () => api.get("/api/user/profile"),
+  updateProfile: (data: any) => api.put("/api/user/profile", data),
+  getMyOrders: () => api.get("/api/user/orders"),
+  requestReturn: (orderId: number, reason: string) => api.post(`/api/user/orders/${orderId}/return`, { reason }),
   
   // Public Methods
   getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products`),
@@ -169,6 +175,7 @@ export const api = {
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
   getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
   createPublicSale: (data: any) => api.post("/api/public/sales", data),
+  createGuestSale: (data: any) => api.post("/api/public/guest-sales", data),
   getPublicProductBranchStock: (slug: string, barcode: string) => api.get(`/api/public/store/${slug}/products/${barcode}/stock`),
   requestDemo: (data: any) => api.post("/api/public/demo-request", data),
   requestRegistration: (data: any) => api.post("/api/public/register-request", data),

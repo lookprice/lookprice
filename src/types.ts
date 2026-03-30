@@ -2,9 +2,12 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  role: 'superadmin' | 'storeadmin' | 'editor' | 'viewer';
+  role: 'superadmin' | 'storeadmin' | 'editor' | 'viewer' | 'customer';
   store_id?: number;
   store_slug?: string;
+  name?: string;
+  phone?: string;
+  address?: string;
 }
 
 export interface Product {
@@ -23,6 +26,10 @@ export interface Product {
   tax_rate: number;
   image_url: string;
   category: string;
+  sub_category?: string;
+  brand?: string;
+  author?: string;
+  labels?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -46,6 +53,12 @@ export interface Store {
   twitter_url?: string;
   whatsapp_number?: string;
   about_text?: string;
+  // Payment configuration
+  payment_settings?: {
+    iyzico_enabled: boolean;
+    paypal_enabled: boolean;
+    payoneer_enabled: boolean;
+  };
   created_at: string;
 }
 
@@ -77,7 +90,9 @@ export interface Sale {
   currency: string;
   payment_method: 'cash' | 'card' | 'bank' | 'term';
   due_date?: string;
-  status: 'completed' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'returned';
+  tracking_number?: string;
+  return_request_status?: 'none' | 'requested' | 'approved' | 'rejected' | 'completed';
   created_at: string;
   items?: any[];
 }

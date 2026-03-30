@@ -1,8 +1,8 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { pool } from "../models/db.js";
-import { authenticate } from "../middleware/auth.js";
+import { pool } from "../models/db.ts";
+import { authenticate } from "../middleware/auth.ts";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key";
@@ -38,6 +38,47 @@ router.post("/login", async (req, res) => {
       store_slug: user.store_slug 
     } 
   });
+});
+
+// Auth: Register
+router.post("/register", async (req, res) => {
+  const { name, email, password, phone, address, store_id } = req.body;
+  
+  try {
+    // Check if user exists
+    const existingUser = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: "Bu e-posta adresi zaten kayıtlı." });
+    }
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    
+    const newUser = await pool.query(`
+      INSERT INTO users (name, email, password, phone, address, role, store_id) 
+      VALUES ($1, $2, $3, $4, $5, 'customer', $6) 
+      RETURNING id, name, email, role, store_id
+    `, [name, email, hashedPassword, phone, address, store_id || null]);
+
+    const user = newUser.rows[0];
+    
+    const token = jwt.sign({ 
+      id: user.id, 
+      role: user.role, 
+      store_id: user.store_id 
+    }, JWT_SECRET);
+    
+    res.json({ 
+      token, 
+      user: { 
+        email: user.email, 
+        role: user.role, 
+        store_id: user.store_id 
+      } 
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ error: "Kayıt olurken bir hata oluştu." });
+  }
 });
 
 router.post("/change-password", authenticate, async (req: any, res) => {
