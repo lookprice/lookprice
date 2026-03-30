@@ -475,6 +475,7 @@ export async function initDb() {
         type TEXT NOT NULL, -- insurance, kasko, inspection, tax, permit, registration, etc.
         document_url TEXT,
         expiry_date DATE,
+        is_recurring BOOLEAN DEFAULT FALSE,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
@@ -569,8 +570,8 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='contact_person') THEN
           ALTER TABLE companies ADD COLUMN contact_person TEXT;
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='representative') THEN
-          ALTER TABLE companies ADD COLUMN representative TEXT;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicle_documents' AND column_name='is_recurring') THEN
+          ALTER TABLE vehicle_documents ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE;
         END IF;
       END $$;
     `);

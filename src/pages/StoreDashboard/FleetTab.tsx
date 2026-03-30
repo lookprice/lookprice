@@ -147,7 +147,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [activeMainTab, setActiveMainTab] = useState<'vehicles' | 'drivers' | 'maintenance' | 'assignments' | 'mileage' | 'incidents'>('vehicles');
+  const [activeMainTab, setActiveMainTab] = useState<'vehicles' | 'drivers' | 'maintenance' | 'assignments' | 'mileage' | 'incidents' | 'obligations'>('vehicles');
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'docs' | 'maintenance' | 'assignments' | 'mileage' | 'incidents'>('info');
   
   // All Fleet Data (for main tabs)
@@ -1378,6 +1378,53 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     </div>
   );
 
+  const renderObligationsTab = () => {
+    const obligations = allDocuments.filter(d => ['insurance', 'kasko', 'tax', 'inspection'].includes(d.type));
+    return (
+      <div className="space-y-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Araç</th>
+                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Tür</th>
+                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Vade Tarihi</th>
+                <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Durum</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {obligations.map(doc => {
+                const isExpired = new Date(doc.expiry_date) < new Date();
+                const isExpiringSoon = new Date(doc.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                return (
+                  <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4 text-sm font-bold text-gray-700">{getVehiclePlate(doc.vehicle_id)}</td>
+                    <td className="p-4 text-sm text-gray-700">{doc.type}</td>
+                    <td className="p-4 text-sm font-bold text-gray-900">{safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        isExpired ? 'bg-red-100 text-red-700' : isExpiringSoon ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {isExpired ? 'Süresi Doldu' : isExpiringSoon ? 'Yaklaşıyor' : 'Aktif'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {obligations.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-gray-500">
+                    Kayıtlı poliçe veya vergi bulunamadı.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   const renderMainTabContent = () => {
     switch (activeMainTab) {
       case 'vehicles': return renderVehiclesTab();
@@ -1386,6 +1433,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       case 'assignments': return renderAssignmentsTab();
       case 'mileage': return renderMileageTab();
       case 'incidents': return renderIncidentsTab();
+      case 'obligations': return renderObligationsTab();
       default: return null;
     }
   };
@@ -1457,7 +1505,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           { id: 'maintenance', icon: Wrench, label: 'Bakım' },
           { id: 'assignments', icon: ClipboardList, label: 'Zimmet' },
           { id: 'mileage', icon: History, label: 'KM' },
-          { id: 'incidents', icon: AlertTriangle, label: 'Olaylar' }
+          { id: 'incidents', icon: AlertTriangle, label: 'Olaylar' },
+          { id: 'obligations', icon: FileText, label: 'Poliçeler & Vergiler' }
         ].map((tab) => (
           <button
             key={tab.id}
