@@ -421,4 +421,47 @@ router.delete('/drivers/:id', authenticate, async (req: any, res) => {
   }
 });
 
+// Driver Document Routes
+router.post('/drivers/:id/documents', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { type, document_url, expiry_date, notes } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO driver_documents (driver_id, type, document_url, expiry_date, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [id, type, document_url, expiry_date || null, notes]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("Error adding driver document:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/driver-documents/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { type, document_url, expiry_date, notes } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE driver_documents SET type = $1, document_url = $2, expiry_date = $3, notes = $4 WHERE id = $5 RETURNING *',
+      [type, document_url, expiry_date || null, notes, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating driver document:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/driver-documents/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM driver_documents WHERE id = $1', [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting driver document:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

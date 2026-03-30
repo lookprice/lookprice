@@ -450,6 +450,17 @@ export async function initDb() {
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS driver_documents (
+        id SERIAL PRIMARY KEY,
+        driver_id INTEGER NOT NULL,
+        type TEXT NOT NULL, -- ehliyet, src, psikoteknik, etc.
+        document_url TEXT,
+        expiry_date DATE,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE CASCADE
+      );
+
       -- Fleet Management Tables
       CREATE TABLE IF NOT EXISTS vehicles (
         id SERIAL PRIMARY KEY,

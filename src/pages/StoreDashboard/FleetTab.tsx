@@ -506,6 +506,39 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
+  const handleUploadDriverDocument = async (e: React.ChangeEvent<HTMLInputElement>, driverId: number) => {
+    const file = e.target.files?.[0];
+    const typeInput = document.getElementById('newDocType') as HTMLInputElement;
+    const type = typeInput.value;
+    if (!file || !type) {
+      alert('Lütfen dosya seçin ve evrak türünü girin.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    
+    try {
+      const res = await api.uploadDriverDocument(driverId, formData);
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, documents: [...(d.documents || []), res] } : d));
+      setEditingDriver({ ...editingDriver!, documents: [...(editingDriver!.documents || []), res] });
+      typeInput.value = '';
+    } catch (error) {
+      alert('Evrak yüklenirken bir hata oluştu.');
+    }
+  };
+
+  const handleDeleteDriverDocument = async (docId: number) => {
+    if (!confirm('Bu evrağı silmek istediğinize emin misiniz?')) return;
+    try {
+      await api.deleteDriverDocument(docId);
+      setDrivers(drivers.map(d => ({ ...d, documents: (d.documents || []).filter(doc => doc.id !== docId) })));
+      setEditingDriver({ ...editingDriver!, documents: (editingDriver!.documents || []).filter(doc => doc.id !== docId) });
+    } catch (error) {
+      alert('Evrak silinirken bir hata oluştu.');
+    }
+  };
+
   const handleAddDriver = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -2499,6 +2532,33 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     </div>
                   </div>
                 </div>
+                {editingDriver && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Evraklar</label>
+                    <div className="space-y-2">
+                      {(editingDriver.documents || []).map((doc: any) => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium">{doc.type}</span>
+                          <div className="flex gap-2">
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                              <Download className="w-4 h-4" />
+                            </a>
+                            <button type="button" onClick={() => handleDeleteDriverDocument(doc.id)} className="text-red-600 hover:text-red-800">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <input type="text" placeholder="Evrak Türü" className="flex-1 px-3 py-2 border rounded-lg" id="newDocType" />
+                        <input type="file" onChange={(e) => handleUploadDriverDocument(e, editingDriver.id)} className="hidden" id="docUpload" />
+                        <label htmlFor="docUpload" className="px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
+                          <Upload className="w-4 h-4" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                   <button type="button" onClick={() => setShowDriverModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
                   <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>

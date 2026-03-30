@@ -200,4 +200,6 @@ export const api = {
   createDriver: (data: any) => api.post("/api/fleet/drivers", data),
   updateDriver: (id: number, data: any) => api.put(`/api/fleet/drivers/${id}`, data),
   deleteDriver: (id: number) => api.delete(`/api/fleet/drivers/${id}`),
+  uploadDriverDocument: (id: number, formData: FormData) => api.upload(`/api/fleet/drivers/${id}/documents`, formData),
+  deleteDriverDocument: (id: number) => api.delete(`/api/fleet/driver-documents/${id}`),
 };
