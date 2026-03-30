@@ -70,7 +70,20 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [selectedRecord, setSelectedRecord] = useState<ServiceRecord | null>(null);
   const [page, setPage] = useState(1);
+  const [storeInfo, setStoreInfo] = useState<any>(null);
   const itemsPerPage = 15;
+
+  useEffect(() => {
+    const fetchStoreInfo = async () => {
+      try {
+        const info = await api.getBranding(storeId);
+        setStoreInfo(info);
+      } catch (err) {
+        console.error("Error fetching store info:", err);
+      }
+    };
+    fetchStoreInfo();
+  }, [storeId]);
 
   const generatePDF = (record: ServiceRecord) => {
     const doc = new jsPDF();
@@ -89,10 +102,12 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     doc.setFontSize(18);
     doc.text(replaceTurkishChars(`Teknik Servis Raporu - #${record.id}`), 10, 15);
     
-    // Store Info Placeholder
-    doc.setFontSize(10);
-    doc.text(replaceTurkishChars(`Magaza: [Magaza Adi]`), 150, 15);
-    doc.text(replaceTurkishChars(`Adres: [Adres Bilgisi]`), 150, 20);
+    // Store Info
+    if (storeInfo) {
+      doc.setFontSize(10);
+      doc.text(replaceTurkishChars(`Magaza: ${storeInfo.name || ''}`), 150, 15);
+      doc.text(replaceTurkishChars(`Adres: ${storeInfo.address || ''}`), 150, 20);
+    }
     
     doc.setFontSize(12);
     doc.text(replaceTurkishChars(`Musteri: ${record.customer_name}`), 10, 25);
@@ -353,7 +368,8 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       console.log("Updating inventory");
       for (const item of selectedRecord.items || []) {
         if (item.product_id) {
-          await api.updateProductStock(item.product_id, -item.quantity, storeId);
+          // Changed from updateProductStock to updateProduct to fix 404
+          await api.updateProduct(item.product_id, { stock: -item.quantity }, storeId);
         }
       }
 
