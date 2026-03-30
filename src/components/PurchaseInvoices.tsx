@@ -366,15 +366,28 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const handleQuickProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const isKitap = quickProductForm.name.toLocaleLowerCase('tr-TR').includes('kitap');
+      const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
+      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
+      
+      let taxRate = branding?.default_tax_rate || 20;
+      let category = '';
+
+      if (matchedRule) {
+        taxRate = matchedRule.taxRate;
+        category = matchedRule.category;
+      } else if (productNameLower.includes('kitap')) {
+        taxRate = 0;
+        category = 'Kitap';
+      }
+
       const newProduct = await api.addProduct({
         ...quickProductForm,
         price: Number(quickProductForm.price),
         currency: branding?.default_currency || 'TRY',
-        tax_rate: isKitap ? 0 : (branding?.default_tax_rate || 20),
+        tax_rate: taxRate,
         stock_quantity: 0,
         status: 'active',
-        category: isKitap ? 'Kitap' : ''
+        category: category
       }, role === 'superadmin' ? storeId : undefined);
       
       setProducts([...products, newProduct]);

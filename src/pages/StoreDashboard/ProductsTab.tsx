@@ -24,7 +24,7 @@ interface ProductsTabProps {
   onEdit: (product: any) => void;
   onDelete: (id: number) => void;
   onExportReport: () => void;
-  onFixBookTax?: () => void;
+  onApplyTaxRule?: (category: string, taxRate: number) => void;
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
@@ -38,7 +38,7 @@ const ProductsTab = ({
   onEdit, 
   onDelete,
   onExportReport,
-  onFixBookTax,
+  onApplyTaxRule,
   onShowQr,
   branding,
   showStoreName
@@ -112,15 +112,16 @@ const ProductsTab = ({
           </button>
           {!isViewer && (
             <>
-              {onFixBookTax && (
+              {onApplyTaxRule && branding?.category_tax_rules?.map((rule: any, idx: number) => (
                 <button 
-                  onClick={onFixBookTax}
+                  key={idx}
+                  onClick={() => onApplyTaxRule(rule.category, rule.taxRate)}
                   className="flex-1 md:flex-none flex items-center justify-center bg-white text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-50 hover:border-indigo-300 transition-all"
-                  title={lang === 'tr' ? 'Kitap KDV\'lerini Sıfırla' : 'Reset Book VATs'}
+                  title={`${rule.category} kategorisindeki ürünlerin KDV'sini %${rule.taxRate} yap`}
                 >
-                  <Tag className="h-4 w-4 mr-2 text-indigo-500" /> {lang === 'tr' ? 'Kitap KDV' : 'Book VAT'}
+                  <Tag className="h-4 w-4 mr-2 text-indigo-500" /> {rule.category} KDV %{rule.taxRate}
                 </button>
-              )}
+              ))}
               <button 
                 onClick={onDeleteAll}
                 className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all border border-transparent hover:border-red-100"

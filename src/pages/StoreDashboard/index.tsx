@@ -482,8 +482,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
 
-    // Force tax_rate to 0 if category is "Kitap"
-    if (String(data.category).trim().toLocaleLowerCase('tr-TR') === 'kitap') {
+    // Apply category tax rules
+    const catName = String(data.category).trim().toLocaleLowerCase('tr-TR');
+    const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === catName);
+    if (matchedRule) {
+      data.tax_rate = String(matchedRule.taxRate);
+    } else if (catName === 'kitap') {
+      // Fallback for legacy "Kitap" rule if not explicitly in rules
       data.tax_rate = '0';
     }
 
@@ -533,22 +538,20 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const handleFixBookTax = async () => {
+  const handleApplyTaxRule = async (category: string, taxRate: number) => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    const bookProducts = products.filter(p => p.category?.trim().toLocaleLowerCase('tr-TR') === 'kitap' && p.tax_rate !== 0);
+    const matchingProducts = products.filter(p => p.category?.trim().toLocaleLowerCase('tr-TR') === category.trim().toLocaleLowerCase('tr-TR') && p.tax_rate !== taxRate);
     
-    if (bookProducts.length === 0) {
-      alert(lang === 'tr' ? "KDV'si 0 olmayan kitap bulunamadı." : "No books with non-zero VAT found.");
+    if (matchingProducts.length === 0) {
+      alert(lang === 'tr' ? `KDV'si %${taxRate} olmayan '${category}' ürünü bulunamadı.` : `No '${category}' products with non-${taxRate}% VAT found.`);
       return;
     }
 
-    if (window.confirm(lang === 'tr' ? `${bookProducts.length} adet kitabın KDV'si 0 yapılacak. Emin misiniz?` : `VAT will be set to 0 for ${bookProducts.length} books. Are you sure?`)) {
+    if (window.confirm(lang === 'tr' ? `${matchingProducts.length} adet '${category}' ürününün KDV'si %${taxRate} yapılacak. Emin misiniz?` : `VAT will be set to ${taxRate}% for ${matchingProducts.length} '${category}' products. Are you sure?`)) {
       try {
         setLoading(true);
-        for (const p of bookProducts) {
-          await api.updateProduct(p.id, { ...p, tax_rate: 0 }, targetStoreId);
-        }
-        alert(lang === 'tr' ? "Kitap KDV'leri başarıyla güncellendi." : "Book VATs updated successfully.");
+        await api.bulkUpdateTax(category, taxRate, targetStoreId);
+        alert(lang === 'tr' ? "KDV'ler başarıyla güncellendi." : "VATs updated successfully.");
         fetchData();
       } catch (error) {
         alert("Hata oluştu");
@@ -660,16 +663,29 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     e.preventDefault();
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     try {
-      const isKitap = quickProductForm.name.toLocaleLowerCase('tr-TR').includes('kitap');
+      const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
+      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
+      
+      let taxRate = Number(quickProductForm.tax_rate) || branding.default_tax_rate || 20;
+      let category = '';
+
+      if (matchedRule) {
+        taxRate = matchedRule.taxRate;
+        category = matchedRule.category;
+      } else if (productNameLower.includes('kitap')) {
+        taxRate = 0;
+        category = 'Kitap';
+      }
+
       const newProduct = await api.addProduct({
         name: quickProductForm.name,
         price: Number(quickProductForm.price),
         barcode: quickProductForm.barcode || `M-${Date.now()}`,
         currency: branding.default_currency || 'TRY',
-        tax_rate: isKitap ? 0 : (Number(quickProductForm.tax_rate) || branding.default_tax_rate || 20),
+        tax_rate: taxRate,
         stock: 0,
         status: 'active',
-        category: isKitap ? 'Kitap' : ''
+        category: category
       }, targetStoreId);
 
       setQuotationItems([...quotationItems, {
@@ -1641,7 +1657,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
                         onDelete={handleDeleteProduct}
                         onExportReport={handleExportProducts}
-                        onFixBookTax={handleFixBookTax}
+                        onApplyTaxRule={handleApplyTaxRule}
                         onShowQr={() => setShowQrModal(true)}
                         branding={branding}
                         showStoreName={includeBranches}
@@ -2904,7 +2920,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       name="category" 
                       defaultValue={editingProduct?.category} 
                       onChange={(e) => {
-                        if (e.target.value.trim().toLocaleLowerCase('tr-TR') === 'kitap') {
+                        const val = e.target.value.trim().toLocaleLowerCase('tr-TR');
+                        const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === val);
+                        if (matchedRule) {
+                          const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
+                          if (taxInput) taxInput.value = String(matchedRule.taxRate);
+                        } else if (val === 'kitap') {
                           const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
                           if (taxInput) taxInput.value = '0';
                         }

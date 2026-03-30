@@ -67,7 +67,8 @@ router.post("/branding", async (req: any, res) => {
     background_image_url, language, fiscal_brand, fiscal_terminal_id, 
     fiscal_active, currency_rates, plan, country, phone, address,
     hero_title, hero_subtitle, hero_image_url, instagram_url, 
-    facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate
+    facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
+    category_tax_rules
   } = req.body;
   await pool.query(
     `UPDATE stores SET 
@@ -77,8 +78,9 @@ router.post("/branding", async (req: any, res) => {
       currency_rates = $11, plan = $12, country = $13, phone = $14, 
       address = $15, hero_title = $16, hero_subtitle = $17, 
       hero_image_url = $18, instagram_url = $19, facebook_url = $20, 
-      twitter_url = $21, whatsapp_number = $22, about_text = $23, default_tax_rate = $24
-    WHERE id = $25`, 
+      twitter_url = $21, whatsapp_number = $22, about_text = $23, default_tax_rate = $24,
+      category_tax_rules = $25
+    WHERE id = $26`, 
     [
       name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
       background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -86,6 +88,7 @@ router.post("/branding", async (req: any, res) => {
       plan || 'free', country || 'TR', phone, address,
       hero_title, hero_subtitle, hero_image_url, instagram_url, 
       facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate || 20,
+      JSON.stringify(category_tax_rules || []),
       storeId
     ]
   );
@@ -429,6 +432,28 @@ router.delete("/products/:id", async (req: any, res) => {
   }
 });
 
+// StoreAdmin: Bulk Update Tax by Category
+router.put("/products/bulk-update-tax", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  const { category, taxRate } = req.body;
+  if (!category || taxRate === undefined) {
+    return res.status(400).json({ error: "Category and taxRate are required" });
+  }
+
+  try {
+    const result = await pool.query(
+      "UPDATE products SET tax_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE store_id = $2 AND LOWER(TRIM(category)) = LOWER(TRIM($3))",
+      [taxRate, storeId, category]
+    );
+    res.json({ success: true, count: result.rowCount });
+  } catch (e: any) {
+    console.error("Bulk tax update error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // StoreAdmin: Import Data
 router.post("/import", upload.single("file"), async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
@@ -517,7 +542,7 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
         importLogs.push({ barcode, name, price, rawPrice: item[mapping.price] });
       }
 
-      if (barcode && name && !isNaN(price)) {
+      if (barcode && !isNaN(price)) {
         const existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, barcode]);
 
         const currency = item[mapping.currency] || mapping.currency || 'TRY';
@@ -539,9 +564,15 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
           // Update existing product
           const existingId = existing.rows[0].id;
           
-          let updateQuery = "UPDATE products SET updated_at = CURRENT_TIMESTAMP, name = $2, price = $3";
-          let updateParams: any[] = [existingId, name, price];
-          let paramIdx = 4;
+          let updateQuery = "UPDATE products SET updated_at = CURRENT_TIMESTAMP, price = $2";
+          let updateParams: any[] = [existingId, price];
+          let paramIdx = 3;
+
+          if (name) {
+            updateQuery += `, name = $${paramIdx}`;
+            updateParams.push(name);
+            paramIdx++;
+          }
 
           if (hasStockUpdate) {
             updateQuery += `, stock_quantity = $${paramIdx}`;
@@ -590,7 +621,7 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
           `, [
             storeId,
             barcode,
-            name,
+            name || 'İsimsiz Ürün',
             price,
             currency,
             item[mapping.description] || '',

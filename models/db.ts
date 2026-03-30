@@ -62,6 +62,7 @@ export async function initDb() {
       );
 
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS default_tax_rate INTEGER DEFAULT 20;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS category_tax_rules JSONB DEFAULT '[]';
 
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -491,6 +492,20 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
       );
+
+      -- Add recurring fields to documents if they don't exist
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicle_documents' AND column_name='recurrence_period') THEN
+          ALTER TABLE vehicle_documents ADD COLUMN recurrence_period TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='driver_documents' AND column_name='is_recurring') THEN
+          ALTER TABLE driver_documents ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='driver_documents' AND column_name='recurrence_period') THEN
+          ALTER TABLE driver_documents ADD COLUMN recurrence_period TEXT;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS vehicle_maintenance (
         id SERIAL PRIMARY KEY,
