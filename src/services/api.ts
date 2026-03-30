@@ -68,8 +68,8 @@ export const api = {
   },
 
   // Store Methods
-  getProducts: (storeId?: number, includeBranches = false) => {
-    let url = `/api/store/products?`;
+  getProducts: (search = "", storeId?: number, includeBranches = false) => {
+    let url = `/api/store/products?search=${search}&`;
     if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
     if (includeBranches) url += `includeBranches=true`;
     return api.get(url);
@@ -87,6 +87,7 @@ export const api = {
   getDriverAssignments: (id: number, storeId?: number) => api.get(`/api/store/drivers/${id}/assignments${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   
   getAnalytics: (storeId?: number) => api.get(`/api/store/analytics${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getAuditLogs: (storeId?: number) => api.get(`/api/store/audit-logs${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getBranding: (storeId?: number, slug?: string) => api.get(`/api/store/info${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : (slug ? `?slug=${slug}` : "")}`),
   updateBranding: (data: any, storeId?: number) => api.post(`/api/store/branding${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   
@@ -106,6 +107,7 @@ export const api = {
   deleteCompanyTransaction: (companyId: number | string, id: number | string, storeId?: number) => api.delete(`/api/store/companies/${companyId}/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
   getSales: (status = "all", start = "", end = "", storeId?: number) => api.get(`/api/store/sales?status=${status}&startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  createPosSale: (data: any, storeId?: number) => api.post(`/api/store/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   completeSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/complete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   cancelSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   deleteSale: (id: number, storeId?: number) => api.delete(`/api/store/sales/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

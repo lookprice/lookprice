@@ -73,6 +73,8 @@ import AnalyticsTab from "./AnalyticsTab";
 import QuotationsTab from "./QuotationsTab";
 import CompaniesTab from "./CompaniesTab";
 import PosTab from "./PosTab";
+import FastPosTab from "../../components/FastPosTab";
+import AuditLogTab from "../../components/AuditLogTab";
 import SettingsTab from "./SettingsTab";
 import { ProcurementTab } from "./ProcurementTab";
 import { ServiceTab } from "./ServiceTab";
@@ -229,7 +231,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       setCurrentStoreId(targetStoreId);
 
       const [productsRes, analyticsRes, brandingRes, quotationsRes, companiesRes, usersRes] = await Promise.all([
-        api.getProducts(targetStoreId, includeBranches),
+        api.getProducts("", targetStoreId, includeBranches),
         api.getAnalytics(targetStoreId),
         api.getBranding(targetStoreId),
         api.getQuotations(quotationSearch, quotationStatusFilter, targetStoreId),
@@ -1437,6 +1439,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "companies", label: t.companies, icon: Store },
     { id: "fleet", label: lang === 'tr' ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
     { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
+    { id: "fast-pos", label: lang === 'tr' ? "Hızlı POS" : "Fast POS", icon: Scan },
+    { id: "audit-logs", label: lang === 'tr' ? "İşlem Geçmişi" : "Audit Logs", icon: History },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
 
@@ -1803,6 +1807,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onViewDetails={(s) => { setSelectedSale(s); setShowSaleDetailsModal(true); }}
                         onDeleteSale={handleDeleteSale}
                         onExportReport={() => { setShowDailyReportModal(true); fetchDailySalesReport(); }}
+                      />
+                    )}
+                    {activeTab === "fast-pos" && (
+                      <FastPosTab 
+                        storeId={currentStoreId} 
+                        onSaleComplete={fetchSales}
+                      />
+                    )}
+                    {activeTab === "audit-logs" && (
+                      <AuditLogTab 
+                        storeId={currentStoreId} 
                       />
                     )}
                     {activeTab === "settings" && (

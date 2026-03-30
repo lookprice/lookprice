@@ -87,7 +87,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
     try {
       setLoadingStock(true);
       setSelectedBranch(branchId);
-      const stockRes = await api.getProducts(branchId);
+      const stockRes = await api.getProducts("", branchId);
       setBranchStock(Array.isArray(stockRes) ? stockRes : []);
     } catch (error) {
       console.error("Error checking branch stock:", error);

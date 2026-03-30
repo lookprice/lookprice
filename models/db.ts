@@ -564,6 +564,21 @@ export async function initDb() {
         FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        user_id INTEGER,
+        action TEXT NOT NULL,
+        entity_type TEXT,
+        entity_id INTEGER,
+        details TEXT,
+        old_value JSONB,
+        new_value JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      );
+
       -- Update stock_transfers status constraint
       ALTER TABLE stock_transfers DROP CONSTRAINT IF EXISTS stock_transfers_status_check;
       ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_status_check CHECK (status IN ('pending', 'accepted', 'preparing', 'shipped', 'completed', 'cancelled'));
@@ -794,5 +809,25 @@ export async function initDb() {
   } finally {
     client.release();
     console.log("Database initialization finished.");
+  }
+}
+
+export async function logAction(
+  storeId: number, 
+  userId: number | null, 
+  action: string, 
+  entityType?: string, 
+  entityId?: number, 
+  details?: string, 
+  oldValue?: any, 
+  newValue?: any
+) {
+  try {
+    await pool.query(
+      "INSERT INTO audit_logs (store_id, user_id, action, entity_type, entity_id, details, old_value, new_value) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+      [storeId, userId, action, entityType, entityId, details, oldValue ? JSON.stringify(oldValue) : null, newValue ? JSON.stringify(newValue) : null]
+    );
+  } catch (e) {
+    console.error("Audit Log Error:", e);
   }
 }

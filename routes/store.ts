@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 import bcrypt from "bcryptjs";
-import { pool } from "../models/db.ts";
+import { pool, logAction } from "../models/db.ts";
 import { authenticate } from "../middleware/auth.ts";
 
 const router = express.Router();
@@ -344,14 +344,23 @@ router.get("/products", async (req: any, res) => {
       }
     }
 
-    const productsRes = await pool.query(
-      `SELECT p.*, s.name as store_name 
-       FROM products p 
-       JOIN stores s ON p.store_id = s.id 
-       WHERE p.store_id = ANY($1)
-       ORDER BY p.name ASC`, 
-      [storeIds]
-    );
+    const search = req.query.search as string;
+    let query = `
+      SELECT p.*, s.name as store_name 
+      FROM products p 
+      JOIN stores s ON p.store_id = s.id 
+      WHERE p.store_id = ANY($1)
+    `;
+    const params: any[] = [storeIds];
+
+    if (search) {
+      query += ` AND (LOWER(p.name) LIKE LOWER($2) OR p.barcode LIKE $2)`;
+      params.push(`%${search}%`);
+    }
+
+    query += ` ORDER BY p.name ASC`;
+
+    const productsRes = await pool.query(query, params);
     res.json(productsRes.rows);
   } catch (error) {
     console.error("Fetch products error:", error);
@@ -432,6 +441,19 @@ router.put("/products/bulk-update-price", async (req: any, res) => {
     }
 
     const result = await pool.query(query, params);
+    
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "bulk_price_update", 
+      "product", 
+      null, 
+      `Toplu fiyat güncelleme: ${target === 'all' ? 'Tüm ürünler' : category + ' kategorisi'}, ${direction === 'increase' ? 'Artış' : 'Azalış'}, ${type === 'percentage' ? '%' + value : value + ' ₺'}, Yuvarlama: ${rounding}`,
+      { target, category, type, value, direction, rounding },
+      { count: result.rowCount }
+    );
+
     res.json({ success: true, count: result.rowCount });
   } catch (e: any) {
     console.error("Bulk price update error:", e);
@@ -454,6 +476,19 @@ router.put("/products/bulk-update-tax", async (req: any, res) => {
       "UPDATE products SET tax_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE store_id = $2 AND LOWER(TRIM(category)) = LOWER(TRIM($3))",
       [taxRate, storeId, category]
     );
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "bulk_tax_update", 
+      "product", 
+      null, 
+      `Toplu KDV güncelleme: ${category} kategorisi, Yeni KDV: %${taxRate}`,
+      { category, oldTaxRate: 'unknown' },
+      { category, newTaxRate: taxRate, count: result.rowCount }
+    );
+
     res.json({ success: true, count: result.rowCount });
   } catch (e: any) {
     console.error("Bulk tax update error:", e);
@@ -470,6 +505,19 @@ router.put("/products/:id", async (req: any, res) => {
   try {
     await pool.query("UPDATE products SET barcode = $1, name = $2, price = $3, currency = $4, cost_price = $5, cost_currency = $6, description = $7, stock_quantity = $8, min_stock_level = $9, unit = $10, category = $11, image_url = $12, updated_at = CURRENT_TIMESTAMP WHERE id = $13 AND store_id = $14", 
       [String(barcode), name, parseFloat(price), currency || 'TRY', parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', parseInt(stock_quantity) || 0, parseInt(min_stock_level) || 5, unit || 'Adet', category || '', image_url || '', id, storeId]);
+    
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "product_update", 
+      "product", 
+      parseInt(id), 
+      `Ürün güncellendi: ${name} (${barcode})`,
+      null,
+      req.body
+    );
+
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -482,6 +530,19 @@ router.delete("/products/all", async (req: any, res) => {
     if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
     await pool.query("DELETE FROM products WHERE store_id = $1", [storeId]);
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "product_delete_all", 
+      "product", 
+      null, 
+      `Tüm ürünler silindi`,
+      null,
+      null
+    );
+
     res.json({ success: true });
   } catch (e: any) {
     console.error("Delete all products error:", e);
@@ -496,9 +557,42 @@ router.delete("/products/:id", async (req: any, res) => {
 
     const { id } = req.params;
     await pool.query("DELETE FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "product_delete", 
+      "product", 
+      parseInt(id), 
+      `Ürün silindi (ID: ${id})`,
+      null,
+      null
+    );
+
     res.json({ success: true });
   } catch (e: any) {
     console.error("Delete product error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// StoreAdmin: Audit Logs
+router.get("/audit-logs", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    const result = await pool.query(`
+      SELECT a.*, u.email as user_email 
+      FROM audit_logs a
+      LEFT JOIN users u ON a.user_id = u.id
+      WHERE a.store_id = $1
+      ORDER BY a.created_at DESC
+      LIMIT 100
+    `, [storeId]);
+    res.json(result.rows);
+  } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -1299,6 +1393,65 @@ router.get("/sales", async (req: any, res) => {
   }
 });
 
+// StoreAdmin: Fast POS Sale
+router.post("/pos/sale", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { items, total, paymentMethod, customerName, notes } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // 1. Create Sale
+    const saleRes = await client.query(
+      "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, notes) VALUES ($1, $2, 'TRY', 'completed', $3, $4, $5) RETURNING id",
+      [storeId, total || 0, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı']
+    );
+    const saleId = saleRes.rows[0].id;
+
+    // 2. Add Items and Update Stock
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.price);
+      await client.query(
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [saleId, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal]
+      );
+
+      if (item.id) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+          [item.quantity, item.id]
+        );
+        await client.query(
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
+          [storeId, item.id, item.quantity, `Hızlı POS Satışı #${saleId}`]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "pos_sale", 
+      "sale", 
+      saleId, 
+      `Hızlı POS Satışı: ${total} ₺, Ödeme: ${paymentMethod}`,
+      null,
+      { saleId, total, itemsCount: items.length }
+    );
+
+    res.json({ success: true, saleId });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    console.error("Fast POS sale error:", e);
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
 router.post("/sales/:id/complete", async (req: any, res) => {
   const { id } = req.params;
   const { paymentMethod, payments, companyId, dueDate } = req.body;
@@ -1428,6 +1581,19 @@ router.post("/sales/:id/complete", async (req: any, res) => {
     }
 
     await client.query("COMMIT");
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "sale_complete", 
+      "sale", 
+      parseInt(id), 
+      `Bekleyen satış tamamlandı: #${id}, Tutar: ${sale.total_amount} ₺`,
+      { oldStatus: 'pending' },
+      { newStatus: 'completed', paymentMethod: primaryMethod, fiscal: fiscalResult }
+    );
+
     res.json({ success: true, fiscal: fiscalResult });
   } catch (e: any) {
     await client.query("ROLLBACK");
@@ -1483,6 +1649,19 @@ router.post("/sales/:id/cancel", async (req: any, res) => {
     }
 
     await client.query("COMMIT");
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "sale_cancel", 
+      "sale", 
+      parseInt(req.params.id), 
+      `Satış iptal edildi: #${req.params.id}`,
+      { oldStatus: sale.status },
+      { newStatus: 'cancelled' }
+    );
+
     res.json({ success: true });
   } catch (e: any) {
     await client.query("ROLLBACK");
