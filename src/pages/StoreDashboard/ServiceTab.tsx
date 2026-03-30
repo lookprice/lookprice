@@ -121,7 +121,15 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   };
 
   const generateExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(records.filter(r => statusFilter === 'all' || r.status === statusFilter));
+    const data = records.filter(r => statusFilter === 'all' || r.status === statusFilter).map(r => ({
+      'Servis No': r.id,
+      'Müşteri Adı': r.customer_name,
+      'Cihaz Modeli': r.device_model,
+      'Durum': r.status,
+      'Tarih': r.created_at,
+      'Toplam Tutar': r.total_amount
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Servis Kayıtları");
     XLSX.writeFile(wb, "servis_kayitlari.xlsx");
@@ -294,10 +302,29 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   const handleConvertToSale = async () => {
     if (!selectedRecord) return;
     try {
-      // 1. Update Service Record status
-      await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'cancelled' }, storeId);
+      // 1. Check if company exists, if not, create it
+      let companyId = null;
+      // We need to access companies list. Assuming it's available or we can fetch it.
+      // Since we are in ServiceTab, let's try to fetch companies or use a prop if passed.
+      // Actually, let's just try to find it first.
+      const companies = await api.getCompanies(true, storeId);
+      const existingCompany = companies.find((c: any) => c.title.toLowerCase().trim() === selectedRecord.customer_name.toLowerCase().trim());
       
-      // 2. Create Sale
+      if (existingCompany) {
+        companyId = existingCompany.id;
+      } else {
+        const newCompany = await api.addCompany({
+          title: selectedRecord.customer_name,
+          phone: selectedRecord.customer_phone,
+          balance: 0
+        }, storeId);
+        companyId = newCompany.id;
+      }
+
+      // 2. Update Service Record status
+      await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'delivered' }, storeId);
+      
+      // 3. Create Sale
       await api.addQuotation({
         customer_name: selectedRecord.customer_name,
         customer_phone: selectedRecord.customer_phone,
@@ -305,10 +332,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         total_amount: selectedRecord.total_amount,
         currency: selectedRecord.currency,
         status: 'completed',
-        payment_method: paymentMethod
+        payment_method: paymentMethod === 'company' ? 'term' : paymentMethod,
+        company_id: companyId
       }, storeId);
       
-      // 3. Update Inventory (Stock)
+      // 4. Update Inventory (Stock)
       for (const item of selectedRecord.items || []) {
         if (item.product_id) {
           await api.updateProductStock(item.product_id, -item.quantity, storeId);
@@ -351,6 +379,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     <option value="cash">Nakit</option>
                     <option value="credit_card">Kredi Kartı</option>
                     <option value="bank_transfer">Havale/EFT</option>
+                    <option value="company">Cari Hesap</option>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">

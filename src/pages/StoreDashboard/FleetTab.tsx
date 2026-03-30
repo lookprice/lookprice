@@ -211,7 +211,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     
     vehicles.forEach(v => {
       if (v.maintenance_due && v.current_mileage >= v.maintenance_due) {
-        alerts.push({ type: 'maintenance', message: `${v.plate} için servis zamanı geldi! (${v.current_mileage} KM)`, icon: Wrench, color: 'text-red-600' });
+        alerts.push({ type: 'maintenance', message: `${v.plate} için ${t.fleet_terms.routine || 'Bakım'} zamanı geldi! (${v.current_mileage.toLocaleString('tr-TR')} KM)`, icon: Wrench, color: 'text-red-600' });
       }
     });
 
@@ -2148,11 +2148,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                 <Wrench className="w-6 h-6 text-orange-600" />
                               </div>
                               <div>
-                                <p className="font-bold text-gray-800">{m.type}</p>
+                                <p className="font-bold text-gray-800">{t.fleet_terms[m.type as keyof typeof t.fleet_terms] || m.type}</p>
                                 <p className="text-xs text-gray-500">{safeFormatDate(m.date, 'dd MMMM yyyy', { locale: tr })} - {m.provider_name}</p>
+                                <p className="text-xs text-gray-600 mt-1">{m.description}</p>
+                                <p className="text-xs text-gray-500">Kilometre: {m.mileage.toLocaleString('tr-TR')}</p>
                               </div>
                             </div>
                             <div className="text-right flex flex-col items-end gap-2">
+                              <p className="font-bold text-gray-800">{(m.cost || 0).toLocaleString('tr-TR')} {m.currency || 'TL'}</p>
                               <div className="flex items-center gap-2">
                                 {m.invoice_url && (
                                   <button 

@@ -578,6 +578,14 @@ export const translations: Record<string, any> = {
       newRequests: "Yeni Başvurular",
       totalStores: "Toplam Mağaza",
       newLeads: "Yeni Satış Talepleri",
+      fleet_terms: {
+        insurance: "Sigorta",
+        routine: "Periyodik Bakım",
+        tires: "Lastik Değişimi",
+        tax: "Vergi",
+        inspection: "Muayene",
+        kasko: "Kasko"
+      }
     },
     superAdmin: {
       customerStore: "Müşteri / Mağaza",
