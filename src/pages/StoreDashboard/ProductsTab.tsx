@@ -10,7 +10,8 @@ import {
   Download,
   QrCode,
   Package,
-  Tag
+  Tag,
+  Percent
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -25,6 +26,7 @@ interface ProductsTabProps {
   onDelete: (id: number) => void;
   onExportReport: () => void;
   onApplyTaxRule?: (category: string, taxRate: number) => void;
+  onBulkPriceUpdate?: () => void;
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
@@ -39,6 +41,7 @@ const ProductsTab = ({
   onDelete,
   onExportReport,
   onApplyTaxRule,
+  onBulkPriceUpdate,
   onShowQr,
   branding,
   showStoreName
@@ -122,6 +125,15 @@ const ProductsTab = ({
                   <Tag className="h-4 w-4 mr-2 text-indigo-500" /> {rule.category} KDV %{rule.taxRate}
                 </button>
               ))}
+              {onBulkPriceUpdate && (
+                <button 
+                  onClick={onBulkPriceUpdate}
+                  className="flex-1 md:flex-none flex items-center justify-center bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 hover:border-emerald-300 transition-all"
+                  title="Toplu Fiyat Güncelleme"
+                >
+                  <Percent className="h-4 w-4 mr-2 text-emerald-500" /> Toplu Fiyat
+                </button>
+              )}
               <button 
                 onClick={onDeleteAll}
                 className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all border border-transparent hover:border-red-100"

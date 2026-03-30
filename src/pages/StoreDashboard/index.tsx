@@ -100,6 +100,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [loading, setLoading] = useState(true);
   const [currentStoreId, setCurrentStoreId] = useState<number | undefined>(user.store_id);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
+  const [bulkPriceForm, setBulkPriceForm] = useState({ target: 'all', category: '', type: 'percentage', direction: 'increase', value: '', rounding: 'none' });
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showDescription, setShowDescription] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -248,6 +250,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [quotationSearch, quotationStatusFilter, includeZeroBalance, includeBranches, user.role, user.store_id, slug]);
 
   const fetchSales = useCallback(async () => {
+    if (!currentStoreId) return;
     try {
       setSalesLoading(true);
       const res = await api.getSales(salesStatusFilter, salesStartDate, salesEndDate, currentStoreId);
@@ -260,6 +263,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [salesStatusFilter, salesStartDate, salesEndDate, currentStoreId]);
 
   const fetchDailySalesReport = async () => {
+    if (!currentStoreId) return;
     try {
       setReportLoading(true);
       const res = await api.getDailySalesReport(reportStartDate, reportEndDate, currentStoreId);
@@ -305,6 +309,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   });
 
   const fetchNotifications = useCallback(async () => {
+    if (!currentStoreId) return;
     try {
       const data = await api.getNotifications(currentStoreId);
       setNotifications(data);
@@ -555,6 +560,47 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         fetchData();
       } catch (error) {
         alert("Hata oluştu");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleBulkPriceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkPriceForm.value || isNaN(Number(bulkPriceForm.value)) || Number(bulkPriceForm.value) <= 0) {
+      alert(lang === 'tr' ? 'Lütfen geçerli bir değer giriniz.' : 'Please enter a valid value.');
+      return;
+    }
+
+    if (bulkPriceForm.target === 'category' && !bulkPriceForm.category) {
+      alert(lang === 'tr' ? 'Lütfen bir kategori seçiniz.' : 'Please select a category.');
+      return;
+    }
+
+    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    
+    let message = lang === 'tr' 
+      ? `${bulkPriceForm.target === 'all' ? 'Tüm ürünlerin' : `'${bulkPriceForm.category}' kategorisindeki ürünlerin`} fiyatları `
+      : `${bulkPriceForm.target === 'all' ? 'All products' : `Products in '${bulkPriceForm.category}'`} prices will be `;
+    
+    if (bulkPriceForm.type === 'percentage') {
+      message += bulkPriceForm.direction === 'increase' ? `%${bulkPriceForm.value} artırılacak.` : `%${bulkPriceForm.value} düşürülecek.`;
+    } else {
+      message += bulkPriceForm.direction === 'increase' ? `${bulkPriceForm.value} ₺ artırılacak.` : `${bulkPriceForm.value} ₺ düşürülecek.`;
+    }
+    
+    message += lang === 'tr' ? '\n\nBu işlem geri alınamaz. Emin misiniz?' : '\n\nThis action cannot be undone. Are you sure?';
+
+    if (window.confirm(message)) {
+      try {
+        setLoading(true);
+        const res = await api.bulkUpdatePrice(bulkPriceForm, targetStoreId);
+        alert(lang === 'tr' ? `${res.data.count} ürünün fiyatı başarıyla güncellendi.` : `Prices of ${res.data.count} products updated successfully.`);
+        setShowBulkPriceModal(false);
+        fetchData();
+      } catch (error: any) {
+        alert(error.response?.data?.error || "Hata oluştu");
       } finally {
         setLoading(false);
       }
@@ -1658,6 +1704,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onDelete={handleDeleteProduct}
                         onExportReport={handleExportProducts}
                         onApplyTaxRule={handleApplyTaxRule}
+                        onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
                         onShowQr={() => setShowQrModal(true)}
                         branding={branding}
                         showStoreName={includeBranches}
@@ -2869,6 +2916,149 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             </motion.div>
           </div>
         )}
+        
+        {showBulkPriceModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="text-lg font-bold text-slate-800">
+                  {lang === 'tr' ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}
+                </h3>
+                <button onClick={() => setShowBulkPriceModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleBulkPriceSubmit} className="p-6 space-y-5">
+                {/* Target Selection */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {lang === 'tr' ? 'Hedef Ürünler' : 'Target Products'}
+                  </label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                    value={bulkPriceForm.target}
+                    onChange={e => setBulkPriceForm({...bulkPriceForm, target: e.target.value})}
+                  >
+                    <option value="all">{lang === 'tr' ? 'Tüm Ürünler' : 'All Products'}</option>
+                    <option value="category">{lang === 'tr' ? 'Belirli Bir Kategori' : 'Specific Category'}</option>
+                  </select>
+                </div>
+
+                {bulkPriceForm.target === 'category' && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      {lang === 'tr' ? 'Kategori Seçin' : 'Select Category'}
+                    </label>
+                    <select 
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                      value={bulkPriceForm.category}
+                      onChange={e => setBulkPriceForm({...bulkPriceForm, category: e.target.value})}
+                      required
+                    >
+                      <option value="">{lang === 'tr' ? 'Kategori Seçiniz...' : 'Select Category...'}</option>
+                      {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Direction & Type */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      {lang === 'tr' ? 'İşlem Yönü' : 'Direction'}
+                    </label>
+                    <select 
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                      value={bulkPriceForm.direction}
+                      onChange={e => setBulkPriceForm({...bulkPriceForm, direction: e.target.value})}
+                    >
+                      <option value="increase">{lang === 'tr' ? 'Zam Yap (Artır)' : 'Increase'}</option>
+                      <option value="decrease">{lang === 'tr' ? 'İndirim Yap (Düşür)' : 'Decrease'}</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      {lang === 'tr' ? 'Değer Tipi' : 'Value Type'}
+                    </label>
+                    <select 
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                      value={bulkPriceForm.type}
+                      onChange={e => setBulkPriceForm({...bulkPriceForm, type: e.target.value})}
+                    >
+                      <option value="percentage">{lang === 'tr' ? 'Yüzde (%)' : 'Percentage (%)'}</option>
+                      <option value="amount">{lang === 'tr' ? 'Tutar (₺)' : 'Amount (₺)'}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Value */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {bulkPriceForm.type === 'percentage' 
+                      ? (lang === 'tr' ? 'Yüzde Oranı (%)' : 'Percentage (%)') 
+                      : (lang === 'tr' ? 'Tutar Değeri' : 'Amount Value')}
+                  </label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0.01"
+                    required
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                    placeholder={lang === 'tr' ? 'Örn: 15' : 'e.g. 15'}
+                    value={bulkPriceForm.value}
+                    onChange={e => setBulkPriceForm({...bulkPriceForm, value: e.target.value})}
+                  />
+                </div>
+
+                {/* Rounding */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {lang === 'tr' ? 'Yuvarlama' : 'Rounding'}
+                  </label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                    value={bulkPriceForm.rounding}
+                    onChange={e => setBulkPriceForm({...bulkPriceForm, rounding: e.target.value})}
+                  >
+                    <option value="none">{lang === 'tr' ? 'Kuruşlu Kalsın (Örn: 14.53 ₺)' : 'No Rounding (e.g. 14.53)'}</option>
+                    <option value="round">{lang === 'tr' ? 'En Yakın Tam Sayıya Yuvarla (Örn: 15 ₺)' : 'Nearest Integer (e.g. 15)'}</option>
+                    <option value="ceil">{lang === 'tr' ? 'Yukarı Yuvarla (Örn: 15 ₺)' : 'Round Up (e.g. 15)'}</option>
+                    <option value="floor">{lang === 'tr' ? 'Aşağı Yuvarla (Örn: 14 ₺)' : 'Round Down (e.g. 14)'}</option>
+                  </select>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowBulkPriceModal(false)} 
+                    className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                  >
+                    {lang === 'tr' ? 'İptal' : 'Cancel'}
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={loading} 
+                    className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      lang === 'tr' ? 'Uygula' : 'Apply'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
         {showProductModal && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div 

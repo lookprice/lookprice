@@ -390,6 +390,77 @@ router.post("/products", async (req: any, res) => {
   }
 });
 
+// StoreAdmin: Bulk Update Price
+router.put("/products/bulk-update-price", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  const { target, category, type, value, direction, rounding } = req.body;
+
+  if (!value || isNaN(value) || value <= 0) {
+    return res.status(400).json({ error: "Geçerli bir değer giriniz." });
+  }
+
+  let priceCalc = "price";
+  const val = Number(value);
+
+  if (type === 'amount') {
+    if (direction === 'increase') priceCalc = `price + ${val}`;
+    else priceCalc = `GREATEST(price - ${val}, 0)`;
+  } else if (type === 'percentage') {
+    const multiplier = direction === 'increase' ? (1 + val / 100) : (1 - val / 100);
+    priceCalc = `price * ${multiplier}`;
+  }
+
+  if (rounding === 'round') {
+    priceCalc = `ROUND(CAST(${priceCalc} AS numeric), 0)`;
+  } else if (rounding === 'ceil') {
+    priceCalc = `CEIL(${priceCalc})`;
+  } else if (rounding === 'floor') {
+    priceCalc = `FLOOR(${priceCalc})`;
+  } else {
+    priceCalc = `ROUND(CAST(${priceCalc} AS numeric), 2)`;
+  }
+
+  try {
+    let query = `UPDATE products SET price = ${priceCalc}, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1`;
+    const params: any[] = [storeId];
+
+    if (target === 'category' && category) {
+      query += ` AND LOWER(TRIM(category)) = LOWER(TRIM($2))`;
+      params.push(category);
+    }
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, count: result.rowCount });
+  } catch (e: any) {
+    console.error("Bulk price update error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// StoreAdmin: Bulk Update Tax by Category
+router.put("/products/bulk-update-tax", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  const { category, taxRate } = req.body;
+  if (!category || taxRate === undefined) {
+    return res.status(400).json({ error: "Category and taxRate are required" });
+  }
+
+  try {
+    const result = await pool.query(
+      "UPDATE products SET tax_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE store_id = $2 AND LOWER(TRIM(category)) = LOWER(TRIM($3))",
+      [taxRate, storeId, category]
+    );
+    res.json({ success: true, count: result.rowCount });
+  } catch (e: any) {
+    console.error("Bulk tax update error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.put("/products/:id", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
@@ -428,28 +499,6 @@ router.delete("/products/:id", async (req: any, res) => {
     res.json({ success: true });
   } catch (e: any) {
     console.error("Delete product error:", e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// StoreAdmin: Bulk Update Tax by Category
-router.put("/products/bulk-update-tax", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
-  if (!storeId) return res.status(400).json({ error: "Store ID required" });
-
-  const { category, taxRate } = req.body;
-  if (!category || taxRate === undefined) {
-    return res.status(400).json({ error: "Category and taxRate are required" });
-  }
-
-  try {
-    const result = await pool.query(
-      "UPDATE products SET tax_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE store_id = $2 AND LOWER(TRIM(category)) = LOWER(TRIM($3))",
-      [taxRate, storeId, category]
-    );
-    res.json({ success: true, count: result.rowCount });
-  } catch (e: any) {
-    console.error("Bulk tax update error:", e);
     res.status(500).json({ error: e.message });
   }
 });
