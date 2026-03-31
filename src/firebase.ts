@@ -4,8 +4,8 @@ import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Import the Firebase configuration
-import firebaseConfig from './firebase-applet-config.json';
-console.log("Firebase config:", firebaseConfig);
+import firebaseConfig from '../firebase-applet-config.json';
+console.log("Firebase config:", JSON.stringify(firebaseConfig));
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
@@ -86,7 +86,7 @@ async function testConnection() {
     // Skip logging for other errors, as this is simply a connection test.
   }
 }
-testConnection();
+// testConnection();
 
 export { signInWithPopup, signOut, onAuthStateChanged };
 export type { User };
