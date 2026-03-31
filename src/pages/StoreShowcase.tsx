@@ -109,6 +109,19 @@ interface BasketItem extends Product {
   quantity: number;
 }
 
+const getLabels = (labels: any): string[] => {
+  if (Array.isArray(labels)) return labels;
+  if (typeof labels === 'string') {
+    try {
+      const parsed = JSON.parse(labels);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+};
+
 const ProductCard: React.FC<{ 
   product: Product, 
   store: StoreInfo | null, 
@@ -140,9 +153,9 @@ const ProductCard: React.FC<{
       )}
       
       {/* Product Labels */}
-      {product.labels && product.labels.length > 0 && (
+      {getLabels(product.labels).length > 0 && (
         <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
-          {product.labels.map((label, idx) => (
+          {getLabels(product.labels).map((label, idx) => (
             <span 
               key={idx} 
               className="px-2 py-1 bg-white/90 backdrop-blur-sm text-[9px] font-black uppercase tracking-widest rounded shadow-sm"
@@ -293,7 +306,7 @@ const ProductDetailModal: React.FC<{
 
         <div className="md:w-1/2 p-8 overflow-y-auto">
           <div className="mb-4 flex flex-wrap gap-2">
-            {product.labels?.map((label, idx) => (
+            {getLabels(product.labels).map((label, idx) => (
               <span 
                 key={idx}
                 className="text-[10px] uppercase tracking-widest font-black px-3 py-1 rounded-full text-white shadow-sm"
@@ -616,7 +629,7 @@ const StoreShowcase: React.FC = () => {
     }
 
     return result;
-  }, [products, shuffledProducts, searchQuery, selectedCategory, sortBy, t]);
+  }, [products, shuffledProducts, searchQuery, selectedCategory, selectedSubCategory, selectedBrand, sortBy, t]);
 
   const totalPages = Math.ceil(sortedAndFilteredProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = useMemo(() => {
