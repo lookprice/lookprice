@@ -50,21 +50,26 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   }, [storeId]);
 
   const fetchInvoicesData = async () => {
+    if (role === 'superadmin' && !storeId) return;
     setLoading(true);
     try {
       const [invRes, compRes, prodRes] = await Promise.all([
         fetch(`/api/store/purchase-invoices${role === 'superadmin' && storeId ? `?storeId=${storeId}` : ''}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
         api.getCompanies(false, role === 'superadmin' ? storeId : undefined),
-        api.getProducts(role === 'superadmin' ? storeId : undefined)
+        api.getProducts("", role === 'superadmin' ? storeId : undefined)
       ]);
       
       if (invRes.ok) {
-        setInvoices(await invRes.json());
+        const invData = await invRes.json();
+        setInvoices(Array.isArray(invData) ? invData : []);
       }
-      setCompanies(compRes);
-      setProducts(prodRes);
+      setCompanies(Array.isArray(compRes) ? compRes : []);
+      setProducts(Array.isArray(prodRes) ? prodRes : []);
     } catch (error) {
       console.error("Error fetching purchase invoices data:", error);
+      setInvoices([]);
+      setCompanies([]);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -242,7 +247,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method || 'term');
       setCurrency(data.currency || 'TRY');
-      setItems(data.items.map((item: any) => ({
+      setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,
         barcode: item.barcode,
@@ -259,8 +264,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const totals = calculateTotals();
 
   const filteredInvoices = invoices.filter((inv: any) => {
-    const matchesSearch = inv.invoice_number.toLowerCase().includes(deferredSearch.toLowerCase()) ||
-      inv.company_name.toLowerCase().includes(deferredSearch.toLowerCase());
+    const matchesSearch = (inv.invoice_number || "").toLowerCase().includes(deferredSearch.toLowerCase()) ||
+      (inv.company_name || "").toLowerCase().includes(deferredSearch.toLowerCase());
     
     const invDate = new Date(inv.invoice_date).toISOString().split('T')[0];
     const matchesStartDate = !startDate || invDate >= startDate;
@@ -278,12 +283,12 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const totalDeductibleTax = filteredInvoices.reduce((sum: number, inv: any) => sum + Number(inv.tax_amount || 0), 0);
 
   const filteredProducts = products.filter((p: any) => 
-    p.name.toLowerCase().includes(deferredProductSearch.toLowerCase()) ||
-    p.barcode.toLowerCase().includes(deferredProductSearch.toLowerCase())
+    (p.name || "").toLowerCase().includes(deferredProductSearch.toLowerCase()) ||
+    (p.barcode || "").toLowerCase().includes(deferredProductSearch.toLowerCase())
   );
 
   const filteredCompanies = companies.filter((c: any) => 
-    c.title.toLowerCase().includes(deferredCompanySearch.toLowerCase()) ||
+    (c.title || "").toLowerCase().includes(deferredCompanySearch.toLowerCase()) ||
     (c.tax_number && c.tax_number.includes(deferredCompanySearch))
   );
 
