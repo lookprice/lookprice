@@ -10,10 +10,6 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@config": ["./firebase-applet-config.json"]
-    },
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",

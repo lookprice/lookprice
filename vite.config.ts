@@ -16,9 +16,6 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react(), tailwindcss()],
     resolve: {
-      alias: {
-        '@config': path.resolve(process.cwd(), 'firebase-applet-config.json')
-      }
     },
     build: {
       rollupOptions: {
