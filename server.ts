@@ -19,6 +19,21 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import admin from "firebase-admin";
+
+// Import the Firebase configuration
+import firebaseConfig from "./firebase-applet-config.json";
+
+// Initialize Firebase Admin SDK
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: firebaseConfig.projectId,
+    storageBucket: firebaseConfig.storageBucket
+  });
+}
+
+const bucket = admin.storage().bucket();
+
 async function startServer() {
   console.log("Starting server process...");
   const app = express();
@@ -34,31 +49,41 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Ensure uploads directory exists
+  // Ensure uploads directory exists (still used for temp files if needed)
   const uploadsDir = path.join(process.cwd(), "uploads");
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
   app.use("/uploads", express.static(uploadsDir));
 
-  // File Upload Route
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, uploadsDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, uniqueSuffix + "-" + file.originalname);
-    },
-  });
-  const upload = multer({ storage });
+  // File Upload Route (using Firebase Storage)
+  const upload = multer({ storage: multer.memoryStorage() });
 
-  app.post("/api/upload", authenticate, upload.single("file"), (req: any, res) => {
+  app.post("/api/upload", authenticate, upload.single("file"), async (req: any, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    const fileUrl = `/uploads/${req.file.filename}`;
-    res.json({ url: fileUrl });
+
+    try {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      const filename = uniqueSuffix + "-" + req.file.originalname;
+      const file = bucket.file(`uploads/${filename}`);
+
+      await file.save(req.file.buffer, {
+        metadata: {
+          contentType: req.file.mimetype,
+        },
+      });
+
+      // Make the file public (or use signed URLs, but public is simpler for now)
+      await file.makePublic();
+      const fileUrl = `https://storage.googleapis.com/${bucket.name}/uploads/${filename}`;
+      
+      res.json({ url: fileUrl });
+    } catch (error: any) {
+      console.error("Firebase upload error:", error);
+      res.status(500).json({ error: "Failed to upload file to Firebase Storage" });
+    }
   });
 
   // Root route for debugging
@@ -81,7 +106,7 @@ async function startServer() {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: blob: https:; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' wss://*.run.app:* https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com;"
+      "connect-src 'self' wss://*.run.app:* https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com;"
     );
     next();
   });

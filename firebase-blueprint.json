@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "Store": {
+      "title": "Store",
+      "description": "A business or store using the platform",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Store name" },
+        "slug": { "type": "string", "description": "Unique URL-friendly name" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "logo_url": { "type": "string" },
+        "favicon_url": { "type": "string" },
+        "primary_color": { "type": "string" },
+        "default_currency": { "type": "string" },
+        "language": { "type": "string" },
+        "plan": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "An item for sale in a store",
+      "type": "object",
+      "properties": {
+        "store_id": { "type": "string" },
+        "barcode": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "currency": { "type": "string" },
+        "cost_price": { "type": "number" },
+        "tax_rate": { "type": "number" },
+        "stock_quantity": { "type": "number" },
+        "category": { "type": "string" },
+        "image_url": { "type": "string" }
+      },
+      "required": ["store_id", "barcode", "name", "price"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A platform user",
+      "type": "object",
+      "properties": {
+        "store_id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["superadmin", "storeadmin", "editor", "viewer"] }
+      },
+      "required": ["email", "role"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "A fleet vehicle",
+      "type": "object",
+      "properties": {
+        "store_id": { "type": "string" },
+        "plate": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["store_id", "plate"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "A file or document attached to a vehicle or driver",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "document_url": { "type": "string" },
+        "expiry_date": { "type": "string", "format": "date" },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/stores/{storeId}": {
+      "schema": "Store",
+      "description": "Store details"
+    },
+    "/stores/{storeId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Products in a store"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/stores/{storeId}/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Vehicles in a store"
+    },
+    "/stores/{storeId}/vehicles/{vehicleId}/documents/{docId}": {
+      "schema": "Document",
+      "description": "Vehicle documents"
+    }
+  }
+}

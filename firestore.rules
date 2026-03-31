@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: stores
+    // Document ID: storeId
+    // Fields:
+    //   - name: string (required)
+    //   - slug: string (required, unique)
+    //   - address: string (optional)
+    //   - phone: string (optional)
+    //   - email: string (optional)
+    //   - logo_url: string (optional)
+    //   - favicon_url: string (optional)
+    //   - primary_color: string (optional)
+    //   - default_currency: string (optional)
+    //   - language: string (optional)
+    //   - plan: string (optional)
+    //   - created_at: timestamp (optional)
+    //
+    // Collection: stores/{storeId}/products
+    // Document ID: productId
+    // Fields:
+    //   - store_id: string (required)
+    //   - barcode: string (required)
+    //   - name: string (required)
+    //   - price: number (required)
+    //   - currency: string (optional)
+    //   - cost_price: number (optional)
+    //   - tax_rate: number (optional)
+    //   - stock_quantity: number (optional)
+    //   - category: string (optional)
+    //   - image_url: string (optional)
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - store_id: string (optional)
+    //   - email: string (required)
+    //   - role: string (required, enum: ['superadmin', 'storeadmin', 'editor', 'viewer'])
+    //
+    // Collection: stores/{storeId}/vehicles
+    // Document ID: vehicleId
+    // Fields:
+    //   - store_id: string (required)
+    //   - plate: string (required)
+    //   - brand: string (optional)
+    //   - model: string (optional)
+    //   - status: string (optional)
+    //
+    // Collection: stores/{storeId}/vehicles/{vehicleId}/documents
+    // Document ID: docId
+    // Fields:
+    //   - type: string (optional)
+    //   - document_url: string (optional)
+    //   - expiry_date: timestamp (optional)
+    //   - notes: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin' ||
+          (request.auth.token.email == "lookprice.me@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isStoreAdmin(storeId) {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.store_id == storeId &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'storeadmin');
+    }
+
+    function isStoreEditor(storeId) {
+      let role = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.store_id == storeId &&
+        (role == 'storeadmin' || role == 'editor');
+    }
+
+    function isStoreViewer(storeId) {
+      let role = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.store_id == storeId &&
+        (role == 'storeadmin' || role == 'editor' || role == 'viewer');
+    }
+
+    function isValidStore(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() < 50;
+    }
+
+    function isValidProduct(data) {
+      return data.store_id is string &&
+             data.barcode is string && data.barcode.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.price is number && data.price >= 0;
+    }
+
+    function isValidUser(data) {
+      return data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.role in ['superadmin', 'storeadmin', 'editor', 'viewer'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /stores/{storeId} {
+      allow read: if true; // Publicly readable for showcase
+      allow create, update: if isAdmin();
+      allow update: if isStoreAdmin(storeId) && isValidStore(request.resource.data);
+
+      match /products/{productId} {
+        allow read: if true; // Publicly readable for showcase
+        allow create, update, delete: if isAdmin() || isStoreEditor(storeId);
+        allow create, update: if isValidProduct(request.resource.data);
+      }
+
+      match /vehicles/{vehicleId} {
+        allow read: if isAdmin() || isStoreViewer(storeId);
+        allow create, update, delete: if isAdmin() || isStoreEditor(storeId);
+
+        match /documents/{docId} {
+          allow read: if isAdmin() || isStoreViewer(storeId);
+          allow create, update, delete: if isAdmin() || isStoreEditor(storeId);
+        }
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin()) && isValidUser(request.resource.data);
+      allow update: if isAdmin() && isValidUser(request.resource.data);
+    }
+  }
+}
