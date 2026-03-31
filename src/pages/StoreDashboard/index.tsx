@@ -132,6 +132,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     importFile, setImportFile,
     importColumns, setImportColumns,
     mapping, setMapping,
+    convertCurrency, setConvertCurrency,
     handleAddProduct,
     handleDeleteProduct,
     handleDeleteAllProducts,
@@ -220,7 +221,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleFetchTransactions,
     handleExportTransactionsPDF,
     handleAddTransaction
-  } = useCompanies(user, currentStoreId, lang);
+  } = useCompanies(user, currentStoreId, lang, branding);
 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
@@ -615,7 +616,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       [isTr ? 'Tarih' : 'Date']: new Date(q.created_at).toLocaleDateString('tr-TR'),
       [isTr ? 'Müşteri' : 'Customer']: q.customer_name,
       [isTr ? 'Tutar' : 'Amount']: `${Number(q.total_amount).toLocaleString('tr-TR')} ${q.currency?.slice(0, 3)}`,
-      [isTr ? 'Durum' : 'Status']: q.status === 'approved' || q.status === 'completed' ? (isTr ? 'Tamamlandı' : 'Completed') : q.status === 'cancelled' ? (isTr ? 'İptal Edildi' : 'Cancelled') : (isTr ? 'Beklemede' : 'Pending')
+      [isTr ? 'Durum' : 'Status']: q.status === 'approved' || q.status === 'sold' ? (isTr ? 'Tamamlandı' : 'Completed') : q.status === 'cancelled' ? (isTr ? 'İptal Edildi' : 'Cancelled') : (isTr ? 'Beklemede' : 'Pending')
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -632,178 +633,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     } catch (error) {
       console.error("Fetch purchase invoice details error:", error);
     }
-  };
-
-
-    const getBase64Image = (url: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.setAttribute('crossOrigin', 'anonymous');
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL("image/png"));
-        };
-        img.onerror = (e) => reject(e);
-        img.src = url;
-      });
-    };
-
-    let yPos = 20;
-
-    // Logo (if exists) - Larger and positioned better
-    if (branding.logo_url) {
-      try {
-        const logoBase64 = await getBase64Image(branding.logo_url);
-        // Larger logo: 40x20 or similar
-        doc.addImage(logoBase64, 'PNG', 14, 10, 40, 15);
-        yPos = 30;
-      } catch (e) {
-        console.error("Logo addImage error:", e);
-      }
-    }
-
-    // Store Branding Info - Using branding.name or store_name
-    const storeTitle = branding.name || branding.store_name || "LookPrice";
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(0);
-    // If logo exists, we might want to move the title or keep it if it's different
-    doc.text(fixTr(storeTitle), 14, yPos);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    yPos += 5;
-    
-    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 80);
-    doc.text(addressLines, 14, yPos);
-    yPos += (addressLines.length * 4);
-    
-    if (branding.phone) {
-      doc.text(fixTr(branding.phone), 14, yPos);
-      yPos += 4;
-    }
-    
-    // Separator
-    doc.setDrawColor(230);
-    doc.line(14, yPos + 2, 196, yPos + 2);
-    yPos += 12;
-    
-    // Centered Title
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0);
-    const titleText = fixTr(isTr ? "Cari Hesap Ekstresi" : "Account Statement");
-    const titleWidth = doc.getTextWidth(titleText);
-    doc.text(titleText, (210 - titleWidth) / 2, yPos);
-    yPos += 12;
-    
-    // Customer Info Box
-    doc.setFillColor(249, 250, 251);
-    doc.roundedRect(14, yPos, 182, 22, 1, 1, 'F');
-    
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Cari Bilgileri" : "Account Information"), 18, yPos + 6);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(50);
-    doc.setFontSize(10);
-    doc.text(fixTr(selectedCompany.title), 18, yPos + 12);
-    
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    doc.text(`${isTr ? "Tarih Aralığı:" : "Date Range:"} ${new Date(transactionStartDate).toLocaleDateString('tr-TR')} - ${new Date(transactionEndDate).toLocaleDateString('tr-TR')}`, 18, yPos + 18);
-    yPos += 30;
-
-    let runningBalance = 0;
-    const tableData = companyTransactions.map((t: any) => {
-      const amount = Number(t.amount);
-      if (t.type === 'debt') runningBalance += amount;
-      else runningBalance -= amount;
-
-      return [
-        new Date(t.transaction_date).toLocaleDateString('tr-TR'),
-        fixTr(t.description),
-        t.type === 'debt' ? amount.toLocaleString('tr-TR') : "",
-        t.type === 'credit' ? amount.toLocaleString('tr-TR') : "",
-        runningBalance.toLocaleString('tr-TR')
-      ];
-    });
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [[
-        fixTr(isTr ? "Tarih" : "Date"),
-        fixTr(isTr ? "Açıklama" : "Description"),
-        fixTr(isTr ? "Borç" : "Debt"),
-        fixTr(isTr ? "Alacak" : "Credit"),
-        fixTr(isTr ? "Bakiye" : "Balance")
-      ]],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 8, font: "helvetica", cellPadding: 2 },
-      columnStyles: {
-        2: { halign: 'right', cellWidth: 25 },
-        3: { halign: 'right', cellWidth: 25 },
-        4: { halign: 'right', cellWidth: 25 }
-      }
-    });
-
-    let finalY = (doc as any).lastAutoTable.finalY || yPos;
-    
-    // Summary Box
-    doc.setFillColor(249, 250, 251);
-    doc.roundedRect(130, finalY + 5, 66, 12, 1, 1, 'F');
-    
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Güncel Bakiye" : "Current Balance"), 134, finalY + 10);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(`${runningBalance.toLocaleString('tr-TR')} ${branding.default_currency?.slice(0, 3)}`, 192, finalY + 14, { align: 'right' });
-
-    finalY += 25;
-
-    // Notes Section
-    if (finalY > 260) {
-      doc.addPage();
-      finalY = 20;
-    }
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(50);
-    doc.text(fixTr(isTr ? "Notlar ve Açıklamalar:" : "Notes & Remarks:"), 14, finalY);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    const notes = isTr ? [
-      "1. Bu ekstre bilgilendirme amacli hazirlanmistir.",
-      "2. Mutabakat icin lutfen 7 is gunu icerisinde itiraz ediniz.",
-      "3. Itiraz edilmeyen ekstreler taraflarca kabul edilmis sayilir.",
-      "4. Odemelerinizi banka hesaplarimiza aciklama belirterek yapabilirsiniz."
-    ] : [
-      "1. This statement is for informational purposes only.",
-      "2. Please object within 7 business days for reconciliation.",
-      "3. Statements not objected to are considered accepted.",
-      "4. You can make payments to our bank accounts with a description."
-    ];
-
-    notes.forEach((note, index) => {
-      doc.text(fixTr(note), 14, finalY + 6 + (index * 4));
-    });
-
-    doc.save(`${selectedCompany.title}_Ekstre_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -3014,7 +2843,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <X className="h-5 w-5 text-gray-400" />
                 </button>
               </div>
-              <form onSubmit={handleAddQuotationWrapper} className="flex flex-col h-full max-h-[90vh]">
+              <form onSubmit={handleAddQuotation} className="flex flex-col h-full max-h-[90vh]">
                 <div className="p-6 space-y-6 overflow-y-auto flex-1">
                   <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">

@@ -1,8 +1,10 @@
 import { useState, useCallback } from "react";
 import { api } from "../services/api";
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-export const useCompanies = (user: any, currentStoreId: number | undefined, lang: string) => {
+export const useCompanies = (user: any, currentStoreId: number | undefined, lang: string, branding: any) => {
   const [companies, setCompanies] = useState<any[]>([]);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
@@ -94,21 +96,120 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
 
   const handleExportTransactionsPDF = async () => {
     if (!selectedCompany) return;
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    try {
-      const blob = await api.exportCompanyTransactionsPDF(selectedCompany.id, transactionStartDate, transactionEndDate, targetStoreId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `hesap_ekstresi_${selectedCompany.name}_${transactionStartDate}_${transactionEndDate}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Export PDF error:", error);
-      alert(lang === 'tr' ? "PDF oluşturulurken bir hata oluştu." : "Error generating PDF.");
+    const doc = new jsPDF();
+    const isTr = lang === 'tr';
+    
+    const fixTr = (text: string) => {
+      if (!text) return "";
+      return text
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+        .replace(/ş/g, 's').replace(/Ş/g, 'S')
+        .replace(/ı/g, 'i').replace(/İ/g, 'I')
+        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+    };
+
+    const getBase64Image = (url: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.setAttribute('crossOrigin', 'anonymous');
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = (e) => reject(e);
+        img.src = url;
+      });
+    };
+
+    let yPos = 20;
+
+    if (branding.logo_url) {
+      try {
+        const logoBase64 = await getBase64Image(branding.logo_url);
+        doc.addImage(logoBase64, 'PNG', 14, 10, 40, 15);
+        yPos = 30;
+      } catch (e) {
+        console.error("Logo addImage error:", e);
+      }
     }
+
+    const storeTitle = branding.name || branding.store_name || "LookPrice";
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(0);
+    doc.text(fixTr(storeTitle), 14, yPos);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    yPos += 5;
+    
+    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 80);
+    doc.text(addressLines, 14, yPos);
+    yPos += (addressLines.length * 4);
+    
+    doc.text(`${fixTr(isTr ? 'Tel:' : 'Tel:')} ${branding.phone || ""}`, 14, yPos);
+    yPos += 4;
+    doc.text(`${fixTr(isTr ? 'E-posta:' : 'Email:')} ${branding.email || ""}`, 14, yPos);
+    yPos += 10;
+
+    doc.setDrawColor(200);
+    doc.line(14, yPos, 196, yPos);
+    yPos += 10;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0);
+    doc.text(fixTr(isTr ? 'HESAP EKSTRESI' : 'ACCOUNT STATEMENT'), 14, yPos);
+    yPos += 8;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${fixTr(isTr ? 'Firma:' : 'Company:')} ${fixTr(selectedCompany.name)}`, 14, yPos);
+    yPos += 6;
+    doc.text(`${fixTr(isTr ? 'Tarih Araligi:' : 'Date Range:')} ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
+    yPos += 10;
+
+    const tableData = companyTransactions.map(t => [
+      t.transaction_date.split('T')[0],
+      fixTr(t.description || ""),
+      t.type === 'debt' ? t.amount.toLocaleString() : "-",
+      t.type === 'credit' ? t.amount.toLocaleString() : "-",
+      t.balance_after.toLocaleString()
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [[
+        fixTr(isTr ? 'Tarih' : 'Date'),
+        fixTr(isTr ? 'Aciklama' : 'Description'),
+        fixTr(isTr ? 'Borc' : 'Debt'),
+        fixTr(isTr ? 'Alacak' : 'Credit'),
+        fixTr(isTr ? 'Bakiye' : 'Balance')
+      ]],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: {
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' }
+      }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${fixTr(isTr ? 'Guncel Bakiye:' : 'Current Balance:')} ${selectedCompany.balance.toLocaleString()} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
+
+    doc.save(`hesap_ekstresi_${selectedCompany.name}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {

@@ -69,9 +69,12 @@ export const api = {
 
   // Store Methods
   getProducts: (search = "", storeId?: number, includeBranches = false) => {
-    let url = `/api/store/products?search=${search}&`;
-    if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
-    if (includeBranches) url += `includeBranches=true`;
+    const params = new URLSearchParams();
+    if (search) params.append("search", search);
+    if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
+    if (includeBranches) params.append("includeBranches", "true");
+    const queryString = params.toString();
+    const url = `/api/store/products${queryString ? `?${queryString}` : ""}`;
     return api.get(url);
   },
   addProduct: (data: any, storeId?: number) => api.post(`/api/store/products${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
@@ -105,6 +108,15 @@ export const api = {
   deleteCompany: (id: number | string, storeId?: number) => api.delete(`/api/store/companies/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addCompanyTransaction: (id: number | string, data: any, storeId?: number) => api.post(`/api/store/companies/${id}/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteCompanyTransaction: (companyId: number | string, id: number | string, storeId?: number) => api.delete(`/api/store/companies/${companyId}/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getCompanyTransactions: (id: number | string, start = "", end = "", storeId?: number) => api.get(`/api/store/companies/${id}/transactions?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  exportCompanyTransactionsPDF: async (id: number | string, start = "", end = "", storeId?: number) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`/api/store/companies/${id}/transactions/pdf?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("PDF export failed");
+    return res.blob();
+  },
 
   getSales: (status = "all", start = "", end = "", storeId?: number) => api.get(`/api/store/sales?status=${status}&startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   createPosSale: (data: any, storeId?: number) => api.post(`/api/store/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),

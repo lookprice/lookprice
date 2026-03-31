@@ -8,7 +8,7 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
   const [showNotes, setShowNotes] = useState(false);
   const [quotationProductSearch, setQuotationProductSearch] = useState("");
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', barcode: '' });
+  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', barcode: '', tax_rate: '20' });
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [quotationSearch, setQuotationSearch] = useState("");
@@ -41,13 +41,13 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
         product_name: newProduct.name,
         barcode: newProduct.barcode,
         quantity: 1,
-        unit_price: newProduct.price,
-        tax_rate: newProduct.tax_rate || 20,
-        total_price: newProduct.price
+        unit_price: Number(newProduct.price),
+        tax_rate: Number(newProduct.tax_rate) || 20,
+        total_price: Number(newProduct.price)
       }]);
       
       setShowQuickProductModal(false);
-      setQuickProductForm({ name: '', price: '', barcode: '' });
+      setQuickProductForm({ name: '', price: '', barcode: '', tax_rate: '20' });
       fetchProductsData();
     } catch (error) {
       alert("Hata oluştu");
@@ -92,7 +92,7 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       await api.approveQuotation(id, {}, currentStoreId || undefined);
       fetchQuotations();
       if (selectedQuotationDetails?.id === id) {
-        setSelectedQuotationDetails(prev => prev ? { ...prev, status: 'approved' } : null);
+        setSelectedQuotationDetails(prev => prev ? { ...prev, status: 'approved' as any } : null);
       }
     } catch (error) {
       alert("Hata oluştu");
@@ -104,7 +104,7 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       await api.cancelQuotation(id, currentStoreId || undefined);
       fetchQuotations();
       if (selectedQuotationDetails?.id === id) {
-        setSelectedQuotationDetails(prev => prev ? { ...prev, status: 'cancelled' } : null);
+        setSelectedQuotationDetails(prev => prev ? { ...prev, status: 'cancelled' as any } : null);
       }
     } catch (error) {
       alert("Hata oluştu");

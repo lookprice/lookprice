@@ -68,18 +68,21 @@ export interface Quotation {
   customer_title?: string;
   total_amount: number;
   currency: string;
-  status: 'pending' | 'approved' | 'sold';
+  status: 'pending' | 'approved' | 'sold' | 'cancelled';
   notes?: string;
   created_at: string;
   items: QuotationItem[];
 }
 
 export interface QuotationItem {
-  id: number;
+  id?: number;
   product_id: number;
   product_name: string;
+  barcode?: string;
   quantity: number;
   unit_price: number;
+  tax_rate?: number;
+  total_price?: number;
 }
 
 export interface Sale {
