@@ -85,7 +85,7 @@ async function testConnection() {
     // Skip logging for other errors, as this is simply a connection test.
   }
 }
-testConnection();
+// testConnection();
 
 export { signInWithPopup, signOut, onAuthStateChanged };
 export type { User };
