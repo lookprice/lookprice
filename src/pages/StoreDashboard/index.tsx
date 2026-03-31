@@ -3099,7 +3099,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                       <p className="text-sm text-indigo-700 font-medium mb-2">Excel Şablonu Gereksinimleri:</p>
                       <ul className="text-xs text-indigo-600 space-y-1 list-disc list-inside">
-                        <li>Sütunlar: Barkod, Ürün Adı, Kategori, Fiyat, Açıklama, Stok Adedi</li>
+                        <li>Sütunlar: Barkod, Ürün Adı, Kategori, Alt Kategori, Marka, Fiyat, Açıklama, Stok Adedi</li>
                         <li>Dosya formatı: .xlsx veya .xls</li>
                       </ul>
                     </div>
