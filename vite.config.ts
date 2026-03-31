@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@config': path.resolve(__dirname, './firebase-applet-config.json')
+        '@config': path.resolve(process.cwd(), 'firebase-applet-config.json')
       }
     },
     build: {
