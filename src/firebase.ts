@@ -5,6 +5,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Import the Firebase configuration
 import firebaseConfig from '../firebase-applet-config.json';
+console.log("Firebase config:", firebaseConfig);
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
