@@ -62,6 +62,7 @@ import { translations } from "../../translations";
 import PurchaseInvoices from "../../components/PurchaseInvoices";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useProducts } from "../../hooks/useProducts";
+import { useQuotations } from "../../hooks/useQuotations";
 import { api } from "../../services/api";
 import { User, Product, Store as StoreType } from "../../types";
 import Logo from "../../components/Logo";
@@ -141,27 +142,32 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     currentStoreId
   } = useProducts(user, slug, includeBranches, branding, planLimits, lang);
 
+  const {
+    quotationList, setQuotationList,
+    showQuotationModal, setShowQuotationModal,
+    showNotes, setShowNotes,
+    quotationProductSearch, setQuotationProductSearch,
+    showQuickProductModal, setShowQuickProductModal,
+    quickProductForm, setQuickProductForm,
+    quotationItems, setQuotationItems,
+    editingQuotation, setEditingQuotation,
+    quotationSearch, setQuotationSearch,
+    quotationStatusFilter, setQuotationStatusFilter,
+    selectedQuotationDetails, setSelectedQuotationDetails,
+    showQuotationDetailsModal, setShowQuotationDetailsModal,
+    fetchQuotations
+  } = useQuotations(currentStoreId, fetchProductsData, branding, lang);
+
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
   }, [activeTab, user.store_id]);
   const [analytics, setAnalytics] = useState<any>(null);
-  const [quotations, setQuotations] = useState<any[]>([]);
-  const [showQuotationModal, setShowQuotationModal] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
-  const [quotationProductSearch, setQuotationProductSearch] = useState("");
-  const deferredQuotationProductSearch = useDeferredValue(quotationProductSearch);
-  const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: "", price: "", barcode: "", tax_rate: "" });
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [isConfirmingSale, setIsConfirmingSale] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
   const [dueDate, setDueDate] = useState('');
   const [saleNotes, setSaleNotes] = useState('');
-  const [editingQuotation, setEditingQuotation] = useState<any>(null);
-  const [quotationSearch, setQuotationSearch] = useState("");
-  const deferredQuotationSearch = useDeferredValue(quotationSearch);
-  const [quotationStatusFilter, setQuotationStatusFilter] = useState("all");
   const shippingSlipRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: shippingSlipRef });
   const [companies, setCompanies] = useState<any[]>([]);
@@ -179,9 +185,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [showSaleDetailsModal, setShowSaleDetailsModal] = useState(false);
   const [selectedPurchaseInvoice, setSelectedPurchaseInvoice] = useState<any>(null);
   const [showPurchaseInvoiceDetailsModal, setShowPurchaseInvoiceDetailsModal] = useState(false);
-  const [selectedQuotationDetails, setSelectedQuotationDetails] = useState<any>(null);
-  const [showQuotationDetailsModal, setShowQuotationDetailsModal] = useState(false);
-  const [quotationItems, setQuotationItems] = useState<any[]>([]);
   const [companyTransactions, setCompanyTransactions] = useState<any[]>([]);
   const [transactionLoading, setTransactionLoading] = useState(false);
   const [transactionStartDate, setTransactionStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
@@ -216,16 +219,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const fetchQuotations = useCallback(async () => {
-    if (!currentStoreId) return;
-    try {
-      const res = await api.getQuotations(deferredQuotationSearch, quotationStatusFilter, currentStoreId);
-      setQuotations(Array.isArray(res) ? res : []);
-    } catch (error) {
-      console.error("Fetch quotations error:", error);
-    }
-  }, [deferredQuotationSearch, quotationStatusFilter, currentStoreId]);
 
   const fetchCompanies = useCallback(async () => {
     if (!currentStoreId) return;
@@ -380,7 +373,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   }, [activeTab, fetchSales]);
 
-  // Handlers for Products are now in useProducts hook
+  const handleAddQuotationWrapper = (e: React.FormEvent) => handleAddQuotation(e, companies);
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,109 +527,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       setBranding({ ...branding, [type === 'logo' ? 'logo_url' : 'favicon_url']: res.url });
     } catch (error) {
       alert("Yükleme hatası");
-    }
-  };
-
-  // Handlers for Quotations
-  const handleQuickAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    try {
-      const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
-      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
-      
-      let taxRate = Number(quickProductForm.tax_rate) || branding.default_tax_rate || 20;
-      let category = '';
-
-      if (matchedRule) {
-        taxRate = matchedRule.taxRate;
-        category = matchedRule.category;
-      } else if (productNameLower.includes('kitap')) {
-        taxRate = 0;
-        category = 'Kitap';
-      }
-
-      const newProduct = await api.addProduct({
-        name: quickProductForm.name,
-        price: Number(quickProductForm.price),
-        barcode: quickProductForm.barcode || `M-${Date.now()}`,
-        currency: branding.default_currency || 'TRY',
-        tax_rate: taxRate,
-        stock: 0,
-        status: 'active',
-        category: category
-      }, targetStoreId);
-
-      setQuotationItems([...quotationItems, {
-        product_id: newProduct.id,
-        product_name: newProduct.name,
-        barcode: newProduct.barcode,
-        quantity: 1,
-        unit_price: Number(newProduct.price),
-        tax_rate: Number(newProduct.tax_rate),
-        total_price: Number(newProduct.price)
-      }]);
-
-      setShowQuickProductModal(false);
-      setQuotationProductSearch("");
-      fetchData(); // Refresh products list
-    } catch (error) {
-      alert("Hata oluştu");
-    }
-  };
-
-  const handleAddQuotation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    const formData = new FormData(e.target as HTMLFormElement);
-    const data = Object.fromEntries(formData.entries());
-    
-    if (quotationItems.length === 0) {
-      alert(lang === 'tr' ? "En az bir ürün eklemelisiniz" : "You must add at least one product");
-      return;
-    }
-
-    if (quotationItems.some(item => !item.quantity || item.quantity <= 0)) {
-      alert(lang === 'tr' ? "Lütfen tüm ürünler için geçerli bir adet girin" : "Please enter a valid quantity for all products");
-      return;
-    }
-
-    // Find company_id if it exists
-    const matchingCompany = companies.find(c => c.title.toLowerCase().trim() === (data.customer_name as string).toLowerCase().trim());
-
-    const totalAmount = quotationItems.reduce((sum, item) => sum + Number(item.total_price), 0);
-
-    const quotationData = {
-      ...data,
-      company_id: matchingCompany?.id || null,
-      items: quotationItems,
-      total_amount: totalAmount,
-      currency: branding.default_currency || 'TRY'
-    };
-
-    try {
-      if (editingQuotation) {
-        await api.updateQuotation(editingQuotation.id, quotationData, targetStoreId);
-      } else {
-        await api.addQuotation(quotationData, targetStoreId);
-      }
-      setShowQuotationModal(false);
-      setEditingQuotation(null);
-      setQuotationItems([]);
-      fetchData();
-      alert(lang === 'tr' ? "Teklif başarıyla kaydedildi" : "Quotation saved successfully");
-    } catch (error) {
-      alert("Hata oluştu");
-    }
-  };
-
-  const handleApproveQuotation = async (id: number) => {
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    try {
-      await api.approveQuotation(id, {}, targetStoreId);
-      fetchData();
-    } catch (error) {
-      alert("Hata oluştu");
     }
   };
 
@@ -1009,7 +899,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const handleExportQuotations = () => {
     const isTr = lang === 'tr';
-    const data = quotations.map(q => ({
+    const data = quotationList.map(q => ({
       [isTr ? 'Teklif No' : 'Quotation No']: q.id,
       [isTr ? 'Tarih' : 'Date']: new Date(q.created_at).toLocaleDateString('tr-TR'),
       [isTr ? 'Müşteri' : 'Customer']: q.customer_name,
@@ -1527,7 +1417,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                     {activeTab === "quotations" && (
                       <QuotationsTab 
-                        quotations={quotations}
+                        quotations={quotationList}
                         isViewer={isViewer}
                         onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
                         onGeneratePDF={handleGenerateQuotationPDF}
@@ -3425,7 +3315,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <X className="h-5 w-5 text-gray-400" />
                 </button>
               </div>
-              <form onSubmit={handleAddQuotation} className="flex flex-col h-full max-h-[90vh]">
+              <form onSubmit={handleAddQuotationWrapper} className="flex flex-col h-full max-h-[90vh]">
                 <div className="p-6 space-y-6 overflow-y-auto flex-1">
                   <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
