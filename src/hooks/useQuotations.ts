@@ -1,113 +1,87 @@
-import { useState, useCallback } from "react";
-import { api } from "../services/api";
+import { useState, useCallback } from 'react';
+import { api } from '../services/api';
+import { Quotation, QuotationItem } from '../types';
 
-export const useQuotations = (currentStoreId: number | undefined, refreshProducts: () => Promise<void>, branding: any, lang: string) => {
-  const [quotationList, setQuotationList] = useState<any[]>([]);
+export const useQuotations = (currentStoreId: number | undefined, fetchProductsData: () => void, branding: any, lang: string) => {
+  const [quotationList, setQuotationList] = useState<Quotation[]>([]);
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  const [quotationSearch, setQuotationSearch] = useState("");
-  const [quotationStatusFilter, setQuotationStatusFilter] = useState("all");
   const [quotationProductSearch, setQuotationProductSearch] = useState("");
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: "", price: "", barcode: "", tax_rate: "" });
-  const [quotationItems, setQuotationItems] = useState<any[]>([]);
-  const [editingQuotation, setEditingQuotation] = useState<any>(null);
-  const [selectedQuotationDetails, setSelectedQuotationDetails] = useState<any>(null);
+  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', barcode: '' });
+  const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+  const [quotationSearch, setQuotationSearch] = useState("");
+  const [quotationStatusFilter, setQuotationStatusFilter] = useState("all");
+  const [selectedQuotationDetails, setSelectedQuotationDetails] = useState<Quotation | null>(null);
   const [showQuotationDetailsModal, setShowQuotationDetailsModal] = useState(false);
 
-  const fetchQuotations = useCallback(async (search: string, status: string) => {
+  const fetchQuotations = useCallback(async () => {
     if (!currentStoreId) return;
     try {
-      const res = await api.getQuotations(search, status, currentStoreId);
-      setQuotationList(Array.isArray(res) ? res : []);
+      const data = await api.getQuotations(quotationSearch, quotationStatusFilter, currentStoreId);
+      setQuotationList(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Fetch quotations error:", error);
+      console.error('Error fetching quotations:', error);
     }
-  }, [currentStoreId]);
+  }, [currentStoreId, quotationSearch, quotationStatusFilter]);
 
   const handleQuickAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
-      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
-      
-      let taxRate = Number(quickProductForm.tax_rate) || branding.default_tax_rate || 20;
-      let category = '';
-
-      if (matchedRule) {
-        taxRate = matchedRule.taxRate;
-        category = matchedRule.category;
-      } else if (productNameLower.includes('kitap')) {
-        taxRate = 0;
-        category = 'Kitap';
-      }
-
       const newProduct = await api.addProduct({
-        name: quickProductForm.name,
-        price: Number(quickProductForm.price),
-        barcode: quickProductForm.barcode || `M-${Date.now()}`,
-        currency: branding.default_currency || 'TRY',
-        tax_rate: taxRate,
-        stock: 0,
-        status: 'active',
-        category: category
-      }, currentStoreId);
-
-      setQuotationItems([...quotationItems, {
+        ...quickProductForm,
+        category: 'Hızlı Ekleme',
+        stock_quantity: 0,
+        min_stock_level: 0
+      }, currentStoreId || undefined);
+      
+      setQuotationItems(prev => [...prev, {
         product_id: newProduct.id,
         product_name: newProduct.name,
         barcode: newProduct.barcode,
         quantity: 1,
-        unit_price: Number(newProduct.price),
-        tax_rate: Number(newProduct.tax_rate),
-        total_price: Number(newProduct.price)
+        unit_price: newProduct.price,
+        tax_rate: newProduct.tax_rate || 20,
+        total_price: newProduct.price
       }]);
-
+      
       setShowQuickProductModal(false);
-      setQuotationProductSearch("");
-      refreshProducts(); 
+      setQuickProductForm({ name: '', price: '', barcode: '' });
+      fetchProductsData();
     } catch (error) {
       alert("Hata oluştu");
     }
   };
 
-  const handleAddQuotation = async (e: React.FormEvent, companies: any[]) => {
+  const handleAddQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
-    
-    if (quotationItems.length === 0) {
-      alert(lang === 'tr' ? "En az bir ürün eklemelisiniz" : "You must add at least one product");
-      return;
-    }
-
-    if (quotationItems.some(item => !item.quantity || item.quantity <= 0)) {
-      alert(lang === 'tr' ? "Lütfen tüm ürünler için geçerli bir adet girin" : "Please enter a valid quantity for all products");
-      return;
-    }
-
-    const matchingCompany = companies.find(c => c.title.toLowerCase().trim() === (data.customer_name as string).toLowerCase().trim());
-    const totalAmount = quotationItems.reduce((sum, item) => sum + Number(item.total_price), 0);
 
     const quotationData = {
-      ...data,
-      company_id: matchingCompany?.id || null,
+      customer_name: data.customer_name,
+      customer_title: data.customer_title,
+      total_amount: quotationItems.reduce((sum, item) => sum + Number(item.total_price), 0),
+      currency: data.currency || branding.default_currency,
+      notes: data.notes,
       items: quotationItems,
-      total_amount: totalAmount,
-      currency: branding.default_currency || 'TRY'
+      company_id: data.company_id ? parseInt(String(data.company_id)) : null,
+      expiry_date: data.expiry_date,
+      payment_method: data.payment_method,
+      due_date: data.due_date
     };
 
     try {
       if (editingQuotation) {
-        await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId);
+        await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);
       } else {
-        await api.addQuotation(quotationData, currentStoreId);
+        await api.addQuotation(quotationData, currentStoreId || undefined);
       }
       setShowQuotationModal(false);
       setEditingQuotation(null);
       setQuotationItems([]);
       fetchQuotations();
-      alert(lang === 'tr' ? "Teklif başarıyla kaydedildi" : "Quotation saved successfully");
     } catch (error) {
       alert("Hata oluştu");
     }
@@ -115,29 +89,32 @@ export const useQuotations = (currentStoreId: number | undefined, refreshProduct
 
   const handleApproveQuotation = async (id: number) => {
     try {
-      await api.approveQuotation(id, {}, currentStoreId);
+      await api.approveQuotation(id, {}, currentStoreId || undefined);
       fetchQuotations();
+      if (selectedQuotationDetails?.id === id) {
+        setSelectedQuotationDetails(prev => prev ? { ...prev, status: 'approved' } : null);
+      }
     } catch (error) {
       alert("Hata oluştu");
     }
   };
 
   const handleCancelQuotation = async (id: number) => {
-    if (window.confirm(lang === 'tr' ? "Bu teklifi iptal etmek istediğinize emin misiniz?" : "Are you sure you want to cancel this quotation?")) {
-      try {
-        await api.cancelQuotation(id, currentStoreId);
-        fetchQuotations();
-        alert(lang === 'tr' ? "Teklif iptal edildi" : "Quotation cancelled");
-      } catch (error) {
-        alert("Hata oluştu");
+    try {
+      await api.cancelQuotation(id, currentStoreId || undefined);
+      fetchQuotations();
+      if (selectedQuotationDetails?.id === id) {
+        setSelectedQuotationDetails(prev => prev ? { ...prev, status: 'cancelled' } : null);
       }
+    } catch (error) {
+      alert("Hata oluştu");
     }
   };
 
   const handleDeleteQuotation = async (id: number) => {
-    if (window.confirm(lang === 'tr' ? "Bu teklifi silmek istediğinize emin misiniz?" : "Are you sure you want to delete this quotation?")) {
+    if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
       try {
-        await api.deleteQuotation(id, currentStoreId);
+        await api.deleteQuotation(id, currentStoreId || undefined);
         fetchQuotations();
       } catch (error) {
         alert("Hata oluştu");
@@ -158,6 +135,11 @@ export const useQuotations = (currentStoreId: number | undefined, refreshProduct
     quotationStatusFilter, setQuotationStatusFilter,
     selectedQuotationDetails, setSelectedQuotationDetails,
     showQuotationDetailsModal, setShowQuotationDetailsModal,
-    fetchQuotations
+    fetchQuotations,
+    handleQuickAddProduct,
+    handleAddQuotation,
+    handleApproveQuotation,
+    handleCancelQuotation,
+    handleDeleteQuotation
   };
 };

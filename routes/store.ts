@@ -68,7 +68,7 @@ router.post("/branding", async (req: any, res) => {
     fiscal_active, currency_rates, plan, country, phone, address,
     hero_title, hero_subtitle, hero_image_url, instagram_url, 
     facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
-    category_tax_rules
+    category_tax_rules, faq, blog_posts, legal_pages, social_links
   } = req.body;
   await pool.query(
     `UPDATE stores SET 
@@ -79,8 +79,9 @@ router.post("/branding", async (req: any, res) => {
       address = $15, hero_title = $16, hero_subtitle = $17, 
       hero_image_url = $18, instagram_url = $19, facebook_url = $20, 
       twitter_url = $21, whatsapp_number = $22, about_text = $23, default_tax_rate = $24,
-      category_tax_rules = $25
-    WHERE id = $26`, 
+      category_tax_rules = $25, faq = $26, blog_posts = $27, legal_pages = $28,
+      social_links = $29
+    WHERE id = $30`, 
     [
       name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
       background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -89,6 +90,10 @@ router.post("/branding", async (req: any, res) => {
       hero_title, hero_subtitle, hero_image_url, instagram_url, 
       facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate || 20,
       JSON.stringify(category_tax_rules || []),
+      JSON.stringify(faq || []),
+      JSON.stringify(blog_posts || []),
+      JSON.stringify(legal_pages || {}),
+      JSON.stringify(social_links || {}),
       storeId
     ]
   );
@@ -372,7 +377,7 @@ router.post("/products", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, image_url } = req.body;
+  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url } = req.body;
   if (!barcode || !name || !price) return res.status(400).json({ error: "Missing fields" });
   
   try {
@@ -389,10 +394,16 @@ router.post("/products", async (req: any, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, image_url, updated_at) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
+      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, updated_at) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
       RETURNING *
-    `, [storeId, String(barcode), name, parseFloat(price), currency || 'TRY', parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', parseInt(stock_quantity) || 0, parseInt(min_stock_level) || 5, unit || 'Adet', category || '', image_url || '']);
+    `, [
+      storeId, String(barcode), name, parseFloat(price), currency || 'TRY', 
+      parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
+      parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
+      category || '', sub_category || '', brand || '', author || '', 
+      JSON.stringify(labels || []), image_url || ''
+    ]);
     res.json(result.rows[0]);
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -501,10 +512,23 @@ router.put("/products/:id", async (req: any, res) => {
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
   const { id } = req.params;
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, image_url } = req.body;
+  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url } = req.body;
   try {
-    await pool.query("UPDATE products SET barcode = $1, name = $2, price = $3, currency = $4, cost_price = $5, cost_currency = $6, description = $7, stock_quantity = $8, min_stock_level = $9, unit = $10, category = $11, image_url = $12, updated_at = CURRENT_TIMESTAMP WHERE id = $13 AND store_id = $14", 
-      [String(barcode), name, parseFloat(price), currency || 'TRY', parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', parseInt(stock_quantity) || 0, parseInt(min_stock_level) || 5, unit || 'Adet', category || '', image_url || '', id, storeId]);
+    await pool.query(`
+      UPDATE products SET 
+        barcode = $1, name = $2, price = $3, currency = $4, 
+        cost_price = $5, cost_currency = $6, description = $7, 
+        stock_quantity = $8, min_stock_level = $9, unit = $10, 
+        category = $11, sub_category = $12, brand = $13, author = $14, 
+        labels = $15, image_url = $16, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $17 AND store_id = $18
+    `, [
+      String(barcode), name, parseFloat(price), currency || 'TRY', 
+      parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
+      parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
+      category || '', sub_category || '', brand || '', author || '', 
+      JSON.stringify(labels || []), image_url || '', id, storeId
+    ]);
     
     // Log the action
     await logAction(
@@ -604,6 +628,8 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
 
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
+  const convertCurrencyFlag = req.body.convertCurrency === 'true';
+
   let mapping;
   try {
     mapping = JSON.parse(req.body.mapping);
@@ -629,6 +655,17 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
 
     let successCount = 0;
     
+    // Fetch store branding for currency rates if needed
+    let currencyRates: any = { "USD": 1, "EUR": 1, "GBP": 1 };
+    let defaultCurrency = 'TRY';
+    if (convertCurrencyFlag) {
+      const storeRes = await pool.query("SELECT currency_rates, default_currency FROM stores WHERE id = $1", [storeId]);
+      if (storeRes.rows.length > 0) {
+        currencyRates = storeRes.rows[0].currency_rates || currencyRates;
+        defaultCurrency = storeRes.rows[0].default_currency || 'TRY';
+      }
+    }
+
     // Check limit for the whole batch
     const canAddBatch = await checkProductLimit(storeId, data.length);
     if (!canAddBatch) {
@@ -688,8 +725,20 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
       if (barcode && !isNaN(price)) {
         const existing = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, barcode]);
 
-        const currency = item[mapping.currency] || mapping.currency || 'TRY';
+        let currency = item[mapping.currency] || mapping.currency || 'TRY';
         
+        // Handle currency conversion if requested
+        if (convertCurrencyFlag && currency !== defaultCurrency) {
+          const rate = currencyRates[currency];
+          const defaultRate = currencyRates[defaultCurrency];
+          if (rate && defaultRate) {
+            // Convert to base (USD usually has rate 1), then to default
+            const priceInBase = price / rate;
+            price = priceInBase * defaultRate;
+            currency = defaultCurrency;
+          }
+        }
+
         const stockQuantityRaw = item[mapping.stock_quantity];
         const hasStockUpdate = stockQuantityRaw !== undefined && stockQuantityRaw !== null && String(stockQuantityRaw).trim() !== "";
         const stockQuantity = hasStockUpdate ? parseInt(String(stockQuantityRaw)) || 0 : 0;
@@ -729,6 +778,24 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
+          if (mapping.sub_category && item[mapping.sub_category] !== undefined) {
+            updateQuery += `, sub_category = $${paramIdx}`;
+            updateParams.push(String(item[mapping.sub_category]).trim() || '');
+            paramIdx++;
+          }
+
+          if (mapping.brand && item[mapping.brand] !== undefined) {
+            updateQuery += `, brand = $${paramIdx}`;
+            updateParams.push(String(item[mapping.brand]).trim() || '');
+            paramIdx++;
+          }
+
+          if (mapping.author && item[mapping.author] !== undefined) {
+            updateQuery += `, author = $${paramIdx}`;
+            updateParams.push(String(item[mapping.author]).trim() || '');
+            paramIdx++;
+          }
+
           if (mapping.description && item[mapping.description] !== undefined) {
             updateQuery += `, description = $${paramIdx}`;
             updateParams.push(item[mapping.description] || '');
@@ -759,8 +826,8 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
         } else {
           // Insert new product
           await client.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, updated_at) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, updated_at) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
           `, [
             storeId,
             barcode,
@@ -771,7 +838,10 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
             stockQuantity,
             minStockLevel,
             unit,
-            category
+            category,
+            item[mapping.sub_category] || '',
+            item[mapping.brand] || '',
+            item[mapping.author] || ''
           ]);
           successCount++;
         }
@@ -800,7 +870,50 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
   }
 });
 
-// StoreAdmin: Quotations
+// StoreAdmin: Customers
+router.get("/customers", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query("SELECT id, email, name, phone, address, created_at FROM customers WHERE store_id = $1 ORDER BY created_at DESC", [storeId]);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// StoreAdmin: Returns
+router.get("/returns", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query(`
+      SELECT r.*, s.customer_name, s.total_amount, s.currency 
+      FROM return_requests r 
+      JOIN sales s ON r.sale_id = s.id 
+      WHERE r.store_id = $1 
+      ORDER BY r.created_at DESC
+    `, [storeId]);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/returns/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { id } = req.params;
+  const { status, admin_notes } = req.body;
+  try {
+    const result = await pool.query(
+      "UPDATE return_requests SET status = $1, admin_notes = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND store_id = $4 RETURNING *",
+      [status, admin_notes, id, storeId]
+    );
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// StoreAdmin: Branding (already updated above, but ensuring it handles all new fields)
 router.get("/quotations", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;

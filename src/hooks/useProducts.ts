@@ -27,6 +27,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     stock_quantity: "",
     unit: ""
   });
+  const [convertCurrency, setConvertCurrency] = useState(false);
   const [currentStoreId, setCurrentStoreId] = useState<number | undefined>(user.store_id);
 
   const fetchData = useCallback(async () => {
@@ -238,6 +239,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     const formData = new FormData();
     formData.append('file', importFile);
     formData.append('mapping', JSON.stringify(mapping));
+    formData.append('convertCurrency', String(convertCurrency));
     if (targetStoreId) formData.append('storeId', targetStoreId.toString());
     
     try {
@@ -286,6 +288,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     importFile, setImportFile,
     importColumns, setImportColumns,
     mapping, setMapping,
+    convertCurrency, setConvertCurrency,
     handleAddProduct,
     handleDeleteProduct,
     handleDeleteAllProducts,

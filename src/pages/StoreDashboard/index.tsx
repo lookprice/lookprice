@@ -63,6 +63,8 @@ import PurchaseInvoices from "../../components/PurchaseInvoices";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useProducts } from "../../hooks/useProducts";
 import { useQuotations } from "../../hooks/useQuotations";
+import { useSales } from "../../hooks/useSales";
+import { useCompanies } from "../../hooks/useCompanies";
 import { api } from "../../services/api";
 import { User, Product, Store as StoreType } from "../../types";
 import Logo from "../../components/Logo";
@@ -155,40 +157,79 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     quotationStatusFilter, setQuotationStatusFilter,
     selectedQuotationDetails, setSelectedQuotationDetails,
     showQuotationDetailsModal, setShowQuotationDetailsModal,
-    fetchQuotations
+    fetchQuotations,
+    handleQuickAddProduct,
+    handleAddQuotation,
+    handleApproveQuotation,
+    handleCancelQuotation,
+    handleDeleteQuotation
   } = useQuotations(currentStoreId, fetchProductsData, branding, lang);
+
+  const deferredQuotationProductSearch = useDeferredValue(quotationProductSearch);
+
+  const {
+    sales, setSales,
+    salesLoading, setSalesLoading,
+    salesStatusFilter, setSalesStatusFilter,
+    salesStartDate, setSalesStartDate,
+    salesEndDate, setSalesEndDate,
+    selectedSale, setSelectedSale,
+    showSaleDetailsModal, setShowSaleDetailsModal,
+    showSaleModal, setShowSaleModal,
+    isConfirmingSale, setIsConfirmingSale,
+    selectedQuotation, setSelectedQuotation,
+    paymentMethod, setPaymentMethod,
+    dueDate, setDueDate,
+    saleNotes, setSaleNotes,
+    createCompanyFromSale, setCreateCompanyFromSale,
+    completingSale, setCompletingSale,
+    posPaymentMethod, setPosPaymentMethod,
+    fetchSales,
+    handleUpdateSaleItem,
+    handleRemoveSaleItem,
+    handleCancelPendingSale,
+    handleCompletePendingSale,
+    handleConvertToSale,
+    handleConfirmSale,
+    handleDeleteSale,
+    handleExportSales,
+    getConvertedPrice
+  } = useSales(user, currentStoreId, branding, lang, fetchProductsData);
+
+  const {
+    companies, setCompanies,
+    showCompanyModal, setShowCompanyModal,
+    editingCompany, setEditingCompany,
+    selectedCompany, setSelectedCompany,
+    showTransactionModal, setShowTransactionModal,
+    includeZeroBalance, setIncludeZeroBalance,
+    companyTransactions, setCompanyTransactions,
+    transactionLoading, setTransactionLoading,
+    transactionStartDate, setTransactionStartDate,
+    transactionEndDate, setTransactionEndDate,
+    showAddTransactionModal, setShowAddTransactionModal,
+    newTransactionType, setNewTransactionType,
+    newTransactionAmount, setNewTransactionAmount,
+    newTransactionDescription, setNewTransactionDescription,
+    newTransactionDate, setNewTransactionDate,
+    newTransactionPaymentMethod, setNewTransactionPaymentMethod,
+    fetchCompanies,
+    handleAddCompany,
+    handleDeleteCompany,
+    handleExportCompanies,
+    handleFetchTransactions,
+    handleExportTransactionsPDF,
+    handleAddTransaction
+  } = useCompanies(user, currentStoreId, lang);
 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
   }, [activeTab, user.store_id]);
   const [analytics, setAnalytics] = useState<any>(null);
-  const [showSaleModal, setShowSaleModal] = useState(false);
-  const [isConfirmingSale, setIsConfirmingSale] = useState(false);
-  const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
-  const [dueDate, setDueDate] = useState('');
-  const [saleNotes, setSaleNotes] = useState('');
   const shippingSlipRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: shippingSlipRef });
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<any>(null);
-  const [selectedCompany, setSelectedCompany] = useState<any>(null);
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [includeZeroBalance, setIncludeZeroBalance] = useState(false);
-  const [sales, setSales] = useState<any[]>([]);
-  const [salesLoading, setSalesLoading] = useState(false);
-  const [salesStatusFilter, setSalesStatusFilter] = useState("all");
-  const [salesStartDate, setSalesStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
-  const [salesEndDate, setSalesEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedSale, setSelectedSale] = useState<any>(null);
-  const [showSaleDetailsModal, setShowSaleDetailsModal] = useState(false);
   const [selectedPurchaseInvoice, setSelectedPurchaseInvoice] = useState<any>(null);
   const [showPurchaseInvoiceDetailsModal, setShowPurchaseInvoiceDetailsModal] = useState(false);
-  const [companyTransactions, setCompanyTransactions] = useState<any[]>([]);
-  const [transactionLoading, setTransactionLoading] = useState(false);
-  const [transactionStartDate, setTransactionStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
-  const [transactionEndDate, setTransactionEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [users, setUsers] = useState<any[]>([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -199,15 +240,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [reportStartDate, setReportStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportEndDate, setReportEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportLoading, setReportLoading] = useState(false);
-  const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
-  const [completingSale, setCompletingSale] = useState(false);
-  const [posPaymentMethod, setPosPaymentMethod] = useState<'cash' | 'credit_card' | 'bank'>('cash');
-  const [newTransactionType, setNewTransactionType] = useState<'debt' | 'credit'>('credit');
-  const [newTransactionAmount, setNewTransactionAmount] = useState('');
-  const [newTransactionDescription, setNewTransactionDescription] = useState('');
-  const [newTransactionDate, setNewTransactionDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newTransactionPaymentMethod, setNewTransactionPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
-  const [createCompanyFromSale, setCreateCompanyFromSale] = useState(false);
 
   const isViewer = user.role === 'viewer';
   const effectiveSlug = branding.parent_slug || slug;
@@ -220,15 +252,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const fetchCompanies = useCallback(async () => {
-    if (!currentStoreId) return;
-    try {
-      const res = await api.getCompanies(includeZeroBalance, currentStoreId);
-      setCompanies(Array.isArray(res) ? res : []);
-    } catch (error) {
-      console.error("Fetch companies error:", error);
-    }
-  }, [includeZeroBalance, currentStoreId]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -278,19 +301,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       setLoading(false);
     }
   }, [includeBranches, user.role, user.store_id, slug]);
-
-  const fetchSales = useCallback(async () => {
-    if (!currentStoreId) return;
-    try {
-      setSalesLoading(true);
-      const res = await api.getSales(salesStatusFilter, salesStartDate, salesEndDate, currentStoreId);
-      setSales(Array.isArray(res) ? res : []);
-    } catch (error) {
-      console.error("Fetch sales error:", error);
-    } finally {
-      setSalesLoading(false);
-    }
-  }, [salesStatusFilter, salesStartDate, salesEndDate, currentStoreId]);
 
   const fetchDailySalesReport = async () => {
     if (!currentStoreId) return;
@@ -358,14 +368,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   useEffect(() => {
     if (currentStoreId) {
       fetchQuotations();
-    }
-  }, [fetchQuotations, currentStoreId]);
-
-  useEffect(() => {
-    if (currentStoreId) {
       fetchCompanies();
     }
-  }, [fetchCompanies, currentStoreId]);
+  }, [fetchQuotations, fetchCompanies, currentStoreId]);
 
   useEffect(() => {
     if (activeTab === 'pos') {
@@ -373,140 +378,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   }, [activeTab, fetchSales]);
 
-  const handleAddQuotationWrapper = (e: React.FormEvent) => handleAddQuotation(e, companies);
-
-  const handleAddTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedCompany) return;
-    
-    const amount = Number(newTransactionAmount);
-    if (isNaN(amount) || amount <= 0) {
-      alert(lang === 'tr' ? "Lütfen geçerli bir tutar giriniz." : "Please enter a valid amount.");
-      return;
-    }
-
-    try {
-      await api.addCompanyTransaction(selectedCompany.id, {
-        type: newTransactionType,
-        amount: amount,
-        description: newTransactionDescription,
-        transaction_date: newTransactionDate,
-        payment_method: newTransactionType === 'credit' ? newTransactionPaymentMethod : null
-      }, currentStoreId);
-      
-      setShowAddTransactionModal(false);
-      setNewTransactionAmount('');
-      setNewTransactionDescription('');
-      
-      // Refresh transactions and companies
-      handleFetchTransactions(selectedCompany.id);
-      const companiesRes = await api.getCompanies(includeZeroBalance, currentStoreId);
-      setCompanies(Array.isArray(companiesRes) ? companiesRes : []);
-      
-      // Update selected company balance locally if possible or just refetch
-      const updatedCompany = Array.isArray(companiesRes) ? companiesRes.find((c: any) => c.id === selectedCompany.id) : null;
-      if (updatedCompany) setSelectedCompany(updatedCompany);
-
-    } catch (error) {
-      console.error("Add transaction error:", error);
-    }
-  };
-
-  const getConvertedPrice = (amount: number, fromCurrency: string, toCurrency: string) => {
-    if (fromCurrency === toCurrency) return amount;
-    const rates = branding?.currency_rates || { "USD": 45.0, "EUR": 48.5, "GBP": 56.2 };
-    
-    if (toCurrency === 'TRY') {
-      const rate = rates[fromCurrency as keyof typeof rates] || 1;
-      return amount * rate;
-    }
-    
-    if (fromCurrency === 'TRY') {
-      const rate = rates[toCurrency as keyof typeof rates] || 1;
-      return amount / rate;
-    }
-    
-    const fromRate = rates[fromCurrency as keyof typeof rates] || 1;
-    const toRate = rates[toCurrency as keyof typeof rates] || 1;
-    return (amount * fromRate) / toRate;
-  };
-
-  const handleUpdateSaleItem = (idx: number, field: 'quantity' | 'unit_price', value: string) => {
-    if (!selectedSale) return;
-    const newItems = [...(selectedSale.items || [])];
-    
-    // Allow empty string for better UX while typing, treat as 0 for calculations
-    const val = value === '' ? 0 : Number(value);
-    
-    newItems[idx] = { 
-      ...newItems[idx], 
-      [field]: val,
-      total_price: field === 'quantity' ? val * Number(newItems[idx].unit_price) : Number(newItems[idx].quantity) * val
-    };
-    
-    const newTotal = newItems.reduce((acc, curr) => {
-      const itemTotal = Number(curr.total_price);
-      const converted = getConvertedPrice(itemTotal, curr.currency || selectedSale.currency, selectedSale.currency);
-      return acc + converted;
-    }, 0);
-    setSelectedSale({ ...selectedSale, items: newItems, total_amount: newTotal });
-  };
-
-  const handleRemoveSaleItem = (idx: number) => {
-    if (!selectedSale) return;
-    const newItems = (selectedSale.items || []).filter((_: any, i: number) => i !== idx);
-    const newTotal = newItems.reduce((acc, curr) => {
-      const itemTotal = Number(curr.total_price);
-      const converted = getConvertedPrice(itemTotal, curr.currency || selectedSale.currency, selectedSale.currency);
-      return acc + converted;
-    }, 0);
-    setSelectedSale({ ...selectedSale, items: newItems, total_amount: newTotal });
-  };
-
-  const handleCancelPendingSale = async (saleId: number) => {
-    if (!window.confirm(t.cancelOrderConfirm)) return;
-    try {
-      setCompletingSale(true);
-      const res = await api.cancelSale(saleId, currentStoreId);
-      if (res.success) {
-        setShowSaleDetailsModal(false);
-        fetchSales();
-      } else {
-        alert(res.error || "Error cancelling sale");
-      }
-    } catch (error: any) {
-      alert(error.message || "Error cancelling sale");
-    } finally {
-      setCompletingSale(false);
-    }
-  };
-
-  const handleCompletePendingSale = async (saleId: number) => {
-    try {
-      setCompletingSale(true);
-      const res = await api.completeSale(saleId, {
-        paymentMethod: posPaymentMethod,
-        items: selectedSale.items // Send updated items
-      }, currentStoreId);
-      
-      if (res.success) {
-        alert(t.saleCompleted);
-        if (res.fiscal) {
-          alert(`${t.fiscalReceiptGenerated}\n${t.receiptNo}: ${res.fiscal.receiptNo}\nZ No: ${res.fiscal.zNo}`);
-        }
-        setShowSaleDetailsModal(false);
-        fetchSales();
-      } else {
-        alert(res.error || "Error completing sale");
-      }
-    } catch (error: any) {
-      alert(error.message || "Error completing sale");
-    } finally {
-      setCompletingSale(false);
-    }
-  };
-
-  // Handlers for Branding
   const handleSaveBranding = async () => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     try {
@@ -530,118 +401,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const handleCancelQuotation = async (id: number) => {
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    if (window.confirm(lang === 'tr' ? "Bu teklifi iptal etmek istediğinize emin misiniz?" : "Are you sure you want to cancel this quotation?")) {
-      try {
-        await api.cancelQuotation(id, targetStoreId);
-        fetchData();
-        alert(lang === 'tr' ? "Teklif iptal edildi" : "Quotation cancelled");
-      } catch (error) {
-        alert("Hata oluştu");
-      }
-    }
-  };
-
-  const handleConvertToSale = (quotation: any) => {
-    setSelectedQuotation(quotation);
-    setPaymentMethod('cash');
-    setDueDate('');
-    setSaleNotes('');
-    setShowSaleModal(true);
-  };
-
-  const handleConfirmSale = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedQuotation) return;
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-
-    setIsConfirmingSale(true);
-    try {
-      let companyId = selectedQuotation.company_id;
-
-      // Create company if requested and not already linked
-      if (createCompanyFromSale && !companyId) {
-        const newCompany = await api.addCompany({
-          title: selectedQuotation.customer_title || selectedQuotation.customer_name,
-          email: selectedQuotation.customer_email || '',
-          phone: selectedQuotation.customer_phone || '',
-          address: selectedQuotation.customer_address || '',
-          tax_office: '',
-          tax_number: ''
-        }, targetStoreId);
-        companyId = newCompany.id;
-        
-        // Update quotation with new company_id
-        await api.updateQuotation(selectedQuotation.id, {
-          ...selectedQuotation,
-          company_id: companyId
-        }, targetStoreId);
-      }
-
-      const saleData = {
-        payment_method: paymentMethod,
-        due_date: paymentMethod === 'term' ? dueDate : null,
-        notes: saleNotes
-      };
-
-      await api.approveQuotation(selectedQuotation.id, saleData, targetStoreId);
-      
-      setShowSaleModal(false);
-      setSelectedQuotation(null);
-      setCreateCompanyFromSale(false);
-      fetchData();
-      alert(lang === 'tr' ? "Satış başarıyla kaydedildi" : "Sale recorded successfully");
-    } catch (error: any) {
-      alert(error.response?.data?.error || (lang === 'tr' ? "Hata oluştu" : "An error occurred"));
-    } finally {
-      setIsConfirmingSale(false);
-    }
-  };
-
-  const handleDeleteQuotation = async (id: number) => {
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    if (window.confirm(t.deleteQuotationConfirm || "Bu teklifi silmek istediğinize emin misiniz?")) {
-      try {
-        await api.deleteQuotation(id, targetStoreId);
-        fetchData();
-      } catch (error) {
-        alert("Hata oluştu");
-      }
-    }
-  };
-
-  // Handlers for Companies
-  const handleAddCompany = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    const formData = new FormData(e.target as HTMLFormElement);
-    const data = Object.fromEntries(formData.entries());
-    try {
-      if (editingCompany) {
-        await api.updateCompany(editingCompany.id, data, targetStoreId);
-      } else {
-        await api.addCompany(data, targetStoreId);
-      }
-      setShowCompanyModal(false);
-      setEditingCompany(null);
-      fetchData();
-    } catch (error: any) {
-      alert(error.response?.data?.error || (lang === 'tr' ? "Hata oluştu" : "An error occurred"));
-    }
-  };
-
-  const handleDeleteCompany = async (id: number) => {
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    if (window.confirm(lang === 'tr' ? "Bu cari hesabı silmek istediğinize emin misiniz?" : "Are you sure you want to delete this company?")) {
-      try {
-        await api.deleteCompany(id, targetStoreId);
-        fetchData();
-      } catch (error) {
-        alert("Hata oluştu");
-      }
-    }
-  };
 
   // Handlers for Users
   const handleGenerateQuotationPDF = async (quotation: any) => {
@@ -848,54 +607,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     doc.save(`Teklif_${quotation.id}_${quotation.customer_name.replace(/\s+/g, '_')}.pdf`);
   };
 
-  const handleDeleteSale = async (id: number) => {
-    if (window.confirm(t.confirmDelete)) {
-      try {
-        await api.deleteSale(id, currentStoreId);
-        fetchSales();
-        fetchData(); // Refresh analytics too
-      } catch (error) {
-        alert("Hata oluştu");
-      }
-    }
-  };
-
-  const handleExportSales = () => {
-    const isTr = lang === 'tr';
-    const data = sales.map(s => ({
-      [isTr ? 'Sipariş Kodu' : 'Order Code']: `#${s.id}`,
-      [isTr ? 'Tarih' : 'Date']: new Date(s.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
-      [isTr ? 'Müşteri' : 'Customer']: s.customer_name || '-',
-      [isTr ? 'Tutar' : 'Amount']: s.total_amount,
-      [isTr ? 'Para Birimi' : 'Currency']: s.currency,
-      [isTr ? 'Ödeme Yöntemi' : 'Payment Method']: s.payment_method,
-      [isTr ? 'Durum' : 'Status']: s.status
-    }));
-    
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Satışlar" : "Sales");
-    XLSX.writeFile(wb, `Satis_Raporu_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  const handleExportCompanies = () => {
-    const isTr = lang === 'tr';
-    const filteredCompanies = includeZeroBalance ? companies : companies.filter(c => parseFloat(c.balance) !== 0);
-    const data = filteredCompanies.map(c => ({
-      [isTr ? 'Şirket Ünvanı' : 'Company Name']: c.title,
-      [isTr ? 'Vergi Dairesi' : 'Tax Office']: c.tax_office || '-',
-      [isTr ? 'Vergi No' : 'Tax Number']: c.tax_number || '-',
-      [isTr ? 'Telefon' : 'Phone']: c.phone || '-',
-      [isTr ? 'E-posta' : 'Email']: c.email || '-',
-      [isTr ? 'Bakiye' : 'Balance']: c.balance,
-      [isTr ? 'Vade' : 'Due Date']: ''
-    }));
-    
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Şirketler" : "Companies");
-    XLSX.writeFile(wb, `Sirket_Raporu_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
 
   const handleExportQuotations = () => {
     const isTr = lang === 'tr';
@@ -923,34 +634,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const handleFetchTransactions = async (companyId: number) => {
-    try {
-      setTransactionLoading(true);
-      const storeQuery = currentStoreId ? `&storeId=${currentStoreId}` : '';
-      const res = await api.get(`/api/store/companies/${companyId}/transactions?startDate=${transactionStartDate}&endDate=${transactionEndDate}${storeQuery}`);
-      setCompanyTransactions(Array.isArray(res) ? res : []);
-    } catch (error) {
-      console.error("Fetch transactions error:", error);
-    } finally {
-      setTransactionLoading(false);
-    }
-  };
-
-  const handleExportTransactionsPDF = async () => {
-    if (!selectedCompany) return;
-    const isTr = lang === 'tr';
-    const doc = new jsPDF();
-
-    const fixTr = (text: string) => {
-      if (!text) return "";
-      return text
-        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
-        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
-        .replace(/ş/g, 's').replace(/Ş/g, 'S')
-        .replace(/ı/g, 'i').replace(/İ/g, 'I')
-        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
-        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
-    };
 
     const getBase64Image = (url: string): Promise<string> => {
       return new Promise((resolve, reject) => {
@@ -3141,7 +2824,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           { key: 'price', label: t.price, required: true },
                           { key: 'description', label: t.description, required: false },
                           { key: 'stock_quantity', label: t.stock, required: false },
-                          { key: 'unit', label: t.unit, required: false }
+                          { key: 'unit', label: t.unit, required: false },
+                          { key: 'currency', label: t.currency, required: false }
                         ].map((field) => (
                           <div key={field.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                             <span className="text-sm font-bold text-gray-700">{field.label} {field.required && <span className="text-red-500">*</span>}</span>
@@ -3159,6 +2843,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           </div>
                         ))}
                       </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                      <input 
+                        type="checkbox" 
+                        id="convertCurrency"
+                        checked={convertCurrency}
+                        onChange={(e) => setConvertCurrency(e.target.checked)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="convertCurrency" className="text-xs font-bold text-indigo-900">
+                        {lang === 'tr' 
+                          ? `Fiyatları mağaza varsayılan para birimine (${branding.default_currency}) dönüştür` 
+                          : `Convert prices to store's default currency (${branding.default_currency})`}
+                      </label>
                     </div>
                   </div>
                 )}
