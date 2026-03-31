@@ -9,6 +9,7 @@ import {
   X, 
   ChevronRight, 
   ChevronLeft,
+  ChevronDown,
   Store as StoreIcon,
   Package,
   CheckCircle2,
@@ -28,7 +29,8 @@ import {
   Star,
   Eye,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  Tag
 } from "lucide-react";
 import { CreditCard } from "lucide-react";
 import { api } from "../services/api";
@@ -190,8 +192,11 @@ const ProductCard: React.FC<{
       </div>
       
       {product.brand && (
-        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-          {lang === 'tr' ? 'MARKA' : 'BRAND'}: {product.brand}
+        <div className="flex items-center gap-1.5 mb-2">
+          <Tag className="w-3 h-3 text-gray-400" />
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            {product.brand}
+          </span>
         </div>
       )}
 
@@ -417,6 +422,8 @@ const StoreShowcase: React.FC = () => {
   const [customerInfo, setCustomerInfo] = useState({ name: "", phone: "", address: "", email: "", password: "" });
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
   const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal'>('credit_card');
@@ -547,6 +554,15 @@ const StoreShowcase: React.FC = () => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory, sortBy]);
 
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
   const shuffledProducts = useMemo(() => {
     if (!products.length) return [];
     // Stable shuffle based on product ID to avoid jumping items on re-renders but still feel "mixed"
@@ -567,8 +583,16 @@ const StoreShowcase: React.FC = () => {
     return cats;
   }, [products, t]);
 
+  const brands = useMemo(() => {
+    const b = new Set<string>();
+    products.forEach(p => {
+      if (p.brand) b.add(p.brand);
+    });
+    return Array.from(b).sort();
+  }, [products]);
+
   const sortedAndFilteredProducts = useMemo(() => {
-    const baseProducts = sortBy === 'default' && !searchQuery && !selectedCategory ? shuffledProducts : products;
+    const baseProducts = sortBy === 'default' && !searchQuery && !selectedCategory && !selectedBrand ? shuffledProducts : products;
     
     let result = baseProducts.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -580,8 +604,9 @@ const StoreShowcase: React.FC = () => {
       const productCategory = p.category || t.dashboard.uncategorized;
       const matchesCategory = !selectedCategory || productCategory === selectedCategory;
       const matchesSubCategory = !selectedSubCategory || p.sub_category === selectedSubCategory;
+      const matchesBrand = !selectedBrand || p.brand === selectedBrand;
       
-      return matchesSearch && matchesCategory && matchesSubCategory;
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesBrand;
     });
 
     if (sortBy === 'priceAsc') {
@@ -797,94 +822,6 @@ const StoreShowcase: React.FC = () => {
             </button>
           </div>
         </div>
-        
-        {/* Mobile Search */}
-        <div className="md:hidden px-4 pb-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input 
-              type="text"
-              placeholder={t.dashboard.searchProducts}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-gray-100 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none text-sm font-medium"
-            />
-          </div>
-        </div>
-
-        {/* Categories Bar */}
-        {categories.size > 0 && (
-          <div className="border-t bg-white overflow-x-auto no-scrollbar">
-            <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2">
-              <div className="flex items-center gap-2 flex-nowrap">
-                <button
-                  onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); }}
-                  className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest flex-shrink-0 ${
-                    !selectedCategory 
-                      ? "text-white shadow-xl" 
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
-                  style={{ 
-                    backgroundColor: !selectedCategory ? primaryColor : undefined,
-                    boxShadow: !selectedCategory ? `0 10px 25px -5px ${primaryColor}40` : undefined
-                  }}
-                >
-                  {t.dashboard.all}
-                </button>
-                {Array.from(categories.keys()).sort().map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => { setSelectedCategory(cat); setSelectedSubCategory(null); }}
-                    className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest flex-shrink-0 ${
-                      selectedCategory === cat
-                        ? "text-white shadow-xl" 
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                    }`}
-                    style={{ 
-                      backgroundColor: selectedCategory === cat ? primaryColor : undefined,
-                      boxShadow: selectedCategory === cat ? `0 10px 25px -5px ${primaryColor}40` : undefined
-                    }}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Sub-categories row */}
-              {selectedCategory && categories.get(selectedCategory)!.size > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 pl-4 border-l-2 border-gray-100 ml-2 flex-nowrap overflow-x-auto no-scrollbar"
-                >
-                  <button
-                    onClick={() => setSelectedSubCategory(null)}
-                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider flex-shrink-0 ${
-                      !selectedSubCategory 
-                        ? "bg-gray-900 text-white" 
-                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                    }`}
-                  >
-                    {t.dashboard.all || 'Hepsi'}
-                  </button>
-                  {Array.from(categories.get(selectedCategory)!).sort().map(sub => (
-                    <button
-                      key={sub}
-                      onClick={() => setSelectedSubCategory(sub)}
-                      className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider flex-shrink-0 ${
-                        selectedSubCategory === sub
-                          ? "bg-gray-900 text-white" 
-                          : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                      }`}
-                    >
-                      {sub}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Hero Section */}
@@ -989,175 +926,263 @@ const StoreShowcase: React.FC = () => {
       </section>
 
       <main className="max-w-7xl mx-auto px-4 py-16" id="products-grid">
-        {/* Shop By Category Section */}
-        {!selectedCategory && !searchQuery && categories.size > 0 && (
-          <section className="mb-20">
-            <div className="flex items-center justify-between mb-10">
-              <div>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">{t.dashboard.shopByCategory}</h2>
-                <div className="h-1.5 w-20 mt-2 rounded-full" style={{ backgroundColor: primaryColor }}></div>
-              </div>
+        {/* Search Bar */}
+        <div className="mb-16">
+          <div className="relative max-w-3xl mx-auto group">
+            <div className="absolute inset-0 bg-blue-600/5 blur-3xl group-hover:bg-blue-600/10 transition-colors rounded-full"></div>
+            <div className="relative">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 w-6 h-6 group-focus-within:text-blue-600 transition-colors" />
+              <input 
+                type="text"
+                placeholder={t.dashboard.searchProducts}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-16 pr-8 py-5 bg-white border-2 border-gray-100 focus:border-blue-600 rounded-[32px] transition-all outline-none text-lg font-medium shadow-xl group-hover:shadow-2xl"
+              />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {Array.from(categories.keys()).sort().map((cat, idx) => (
-                <motion.button
-                  key={cat}
-                  whileHover={{ y: -5 }}
-                  onClick={() => setSelectedCategory(cat)}
-                  className="bg-gray-50 p-6 rounded-3xl flex flex-col items-center justify-center gap-4 hover:bg-white hover:shadow-xl transition-all border border-transparent hover:border-gray-100 group"
-                >
-                  <div 
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center transition-colors"
-                    style={{ backgroundColor: `${primaryColor}10`, color: primaryColor }}
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-12">
+          {/* Sidebar */}
+          <aside className="lg:w-72 flex-shrink-0">
+            <div className="sticky top-24 space-y-12">
+              {/* Categories */}
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                    <Filter className="w-4 h-4" />
+                    {t.dashboard.categories}
+                  </h3>
+                  {(selectedCategory || selectedSubCategory) && (
+                    <button 
+                      onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); }}
+                      className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-wider"
+                    >
+                      {t.dashboard.clear || 'Temizle'}
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); }}
+                    className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center gap-3 ${
+                      !selectedCategory ? "bg-gray-900 text-white shadow-xl translate-x-2" : "text-gray-500 hover:bg-gray-100"
+                    }`}
                   >
-                    <Package className="w-8 h-8" />
-                  </div>
-                  <span className="font-bold text-gray-900 text-sm text-center group-hover:text-blue-600 transition-colors">{cat}</span>
-                </motion.button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Featured Products */}
-        {!selectedCategory && !searchQuery && featuredProducts.length > 0 && (
-          <section className="mb-20">
-            <div className="flex items-center justify-between mb-10">
-              <div>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">{t.dashboard.featuredProducts}</h2>
-                <div className="h-1.5 w-20 mt-2 rounded-full" style={{ backgroundColor: primaryColor }}></div>
+                    <div className={`w-1.5 h-1.5 rounded-full ${!selectedCategory ? "bg-blue-400" : "bg-gray-300"}`}></div>
+                    {t.dashboard.all}
+                  </button>
+                  {Array.from(categories.keys()).sort().map(cat => (
+                    <div key={cat} className="space-y-1">
+                      <button
+                        onClick={() => {
+                          if (selectedCategory === cat) {
+                            toggleCategory(cat);
+                          } else {
+                            setSelectedCategory(cat);
+                            setSelectedSubCategory(null);
+                            if (!expandedCategories.has(cat)) toggleCategory(cat);
+                          }
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${
+                          selectedCategory === cat ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedCategory === cat ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
+                          <span>{cat}</span>
+                        </div>
+                        {categories.get(cat)!.size > 0 && (
+                          <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${expandedCategories.has(cat) ? "rotate-90" : ""}`} />
+                        )}
+                      </button>
+                      <AnimatePresence>
+                        {expandedCategories.has(cat) && categories.get(cat)!.size > 0 && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden pl-8 space-y-1"
+                          >
+                            {Array.from(categories.get(cat)!).sort().map(sub => (
+                              <button
+                                key={sub}
+                                onClick={() => setSelectedSubCategory(sub)}
+                                className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                                  selectedSubCategory === sub ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                }`}
+                              >
+                                <div className={`w-1 h-1 rounded-full ${selectedSubCategory === sub ? "bg-blue-600" : "bg-transparent"}`}></div>
+                                {sub}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {featuredProducts.map(p => (
-                <ProductCard key={p.id} product={p} store={store} t={t} addToBasket={addToBasket} onView={setSelectedProduct} primaryColor={primaryColor} />
-              ))}
-            </div>
-          </section>
-        )}
 
-        {/* Sorting & Filter Header */}
-        {(selectedCategory || searchQuery) && (
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
-            <div className="flex items-center gap-4">
-              {selectedCategory && (
-                <button 
-                  onClick={() => setSelectedCategory(null)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <ArrowLeft className="w-6 h-6 text-gray-600" />
-                </button>
+              {/* Brands */}
+              {brands.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      {lang === 'tr' ? 'MARKALAR' : 'BRANDS'}
+                    </h3>
+                    {selectedBrand && (
+                      <button 
+                        onClick={() => setSelectedBrand(null)}
+                        className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-wider"
+                      >
+                        {t.dashboard.clear || 'Temizle'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {brands.map(brand => (
+                      <button
+                        key={brand}
+                        onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
+                        className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center border-2 ${
+                          selectedBrand === brand 
+                            ? "bg-gray-900 border-gray-900 text-white shadow-lg" 
+                            : "bg-white border-gray-100 text-gray-500 hover:border-gray-200"
+                        }`}
+                      >
+                        {brand}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-              <h2 className="text-3xl font-black text-gray-900 tracking-tight">
-                {selectedCategory || (searchQuery ? `"${searchQuery}"` : t.dashboard.all)}
-              </h2>
             </div>
-            <div className="flex items-center gap-2">
+          </aside>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Sorting & Results Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 rounded-full" style={{ backgroundColor: primaryColor }}></div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+                  {selectedCategory || (searchQuery ? `"${searchQuery}"` : t.dashboard.all)}
+                  {selectedSubCategory && <span className="text-gray-400 ml-2 font-medium text-lg">/ {selectedSubCategory}</span>}
+                  {selectedBrand && <span className="text-gray-400 ml-2 font-medium text-lg">/ {selectedBrand}</span>}
+                </h2>
+                <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg ml-2">
+                  {sortedAndFilteredProducts.length} {t.dashboard.products || 'Ürün'}
+                </span>
+              </div>
+              
               <div className="relative">
                 <select 
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none pl-10 pr-10 py-2.5 bg-gray-100 border-none rounded-xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                  className="appearance-none pl-10 pr-10 py-3 bg-white border-2 border-gray-100 rounded-2xl text-xs font-black uppercase tracking-widest text-gray-700 focus:border-blue-600 outline-none cursor-pointer shadow-sm"
                 >
                   <option value="default">{t.dashboard.sort}</option>
                   <option value="priceAsc">{t.dashboard.priceLowToHigh}</option>
                   <option value="priceDesc">{t.dashboard.priceHighToLow}</option>
                 </select>
-                <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
             </div>
-          </div>
-        )}
 
-        {sortedAndFilteredProducts.length === 0 ? (
-          <div className="text-center py-32 bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
-            <Package className="w-20 h-20 text-gray-300 mx-auto mb-6" />
-            <h3 className="text-2xl font-black text-gray-900 mb-2">{t.dashboard.noProductsFound}</h3>
-            <p className="text-gray-500 max-w-xs mx-auto">{t.dashboard.noProductsDesc}</p>
-            <button 
-              onClick={() => { setSearchQuery(""); setSelectedCategory(null); }}
-              className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all"
-            >
-              Tüm Ürünleri Gör
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {paginatedProducts.map((product) => (
-                <ProductCard 
-                  key={product.id} 
-                  product={product} 
-                  store={store} 
-                  t={t} 
-                  addToBasket={addToBasket} 
-                  onView={setSelectedProduct} 
-                  primaryColor={primaryColor}
-                />
-              ))}
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="mt-16 flex items-center justify-center gap-2">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => {
-                    setCurrentPage(prev => Math.max(1, prev - 1));
-                    document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="p-4 bg-white border-2 border-gray-100 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+            {sortedAndFilteredProducts.length === 0 ? (
+              <div className="text-center py-32 bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
+                <Package className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+                <h3 className="text-2xl font-black text-gray-900 mb-2">{t.dashboard.noProductsFound}</h3>
+                <p className="text-gray-500 max-w-xs mx-auto">{t.dashboard.noProductsDesc}</p>
+                <button 
+                  onClick={() => { setSearchQuery(""); setSelectedCategory(null); setSelectedSubCategory(null); setSelectedBrand(null); }}
+                  className="mt-8 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-700 transition-all shadow-xl"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  {t.dashboard.clearFilters || 'Filtreleri Temizle'}
                 </button>
-                
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
-                    if (totalPages > 7) {
-                      if (page !== 1 && page !== totalPages && Math.abs(page - currentPage) > 1) {
-                        if (page === 2 || page === totalPages - 1) return <span key={page} className="px-2 text-gray-400">...</span>;
-                        return null;
-                      }
-                    }
-                    
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => {
-                          setCurrentPage(page);
-                          document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className={`w-12 h-12 rounded-2xl font-black text-sm transition-all active:scale-95 ${
-                          currentPage === page 
-                            ? "text-white shadow-xl" 
-                            : "bg-white border-2 border-gray-100 text-gray-500 hover:bg-gray-50"
-                        }`}
-                        style={{ 
-                          backgroundColor: currentPage === page ? primaryColor : undefined,
-                          boxShadow: currentPage === page ? `0 10px 25px -5px ${primaryColor}40` : undefined
-                        }}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {paginatedProducts.map((product) => (
+                    <ProductCard 
+                      key={product.id} 
+                      product={product} 
+                      store={store} 
+                      t={t} 
+                      addToBasket={addToBasket} 
+                      onView={setSelectedProduct} 
+                      primaryColor={primaryColor}
+                    />
+                  ))}
                 </div>
 
-                <button
-                  disabled={currentPage === totalPages}
-                  onClick={() => {
-                    setCurrentPage(prev => Math.min(totalPages, prev + 1));
-                    document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="p-4 bg-white border-2 border-gray-100 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm active:scale-95"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-              </div>
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="mt-20 flex items-center justify-center gap-3">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => {
+                        setCurrentPage(prev => Math.max(1, prev - 1));
+                        document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="p-5 bg-white border-2 border-gray-100 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-300 transition-all shadow-sm active:scale-95"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                        if (totalPages > 5) {
+                          if (page !== 1 && page !== totalPages && Math.abs(page - currentPage) > 1) {
+                            if (page === 2 || page === totalPages - 1) return <span key={page} className="px-2 text-gray-400 font-bold">...</span>;
+                            return null;
+                          }
+                        }
+                        
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => {
+                              setCurrentPage(page);
+                              document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className={`w-14 h-14 rounded-2xl font-black text-sm transition-all active:scale-95 ${
+                              currentPage === page 
+                                ? "text-white shadow-2xl scale-110 z-10" 
+                                : "bg-white border-2 border-gray-100 text-gray-500 hover:border-gray-300"
+                            }`}
+                            style={{ 
+                              backgroundColor: currentPage === page ? primaryColor : undefined,
+                              boxShadow: currentPage === page ? `0 15px 35px -5px ${primaryColor}60` : undefined
+                            }}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => {
+                        setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                        document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="p-5 bg-white border-2 border-gray-100 rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-300 transition-all shadow-sm active:scale-95"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </div>
 
         {/* New Arrivals Section */}
         {!selectedCategory && !searchQuery && newArrivals.length > 0 && (
