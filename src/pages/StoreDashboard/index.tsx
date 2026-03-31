@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useParams } from "react-router-dom";
@@ -95,6 +95,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem(`storeDashboardTab_${user.store_id || 'admin'}`) || "products";
   });
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
@@ -138,6 +139,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [quotationProductSearch, setQuotationProductSearch] = useState("");
+  const deferredQuotationProductSearch = useDeferredValue(quotationProductSearch);
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
   const [quickProductForm, setQuickProductForm] = useState({ name: "", price: "", barcode: "", tax_rate: "" });
   const [showSaleModal, setShowSaleModal] = useState(false);
@@ -148,6 +150,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [saleNotes, setSaleNotes] = useState('');
   const [editingQuotation, setEditingQuotation] = useState<any>(null);
   const [quotationSearch, setQuotationSearch] = useState("");
+  const deferredQuotationSearch = useDeferredValue(quotationSearch);
   const [quotationStatusFilter, setQuotationStatusFilter] = useState("all");
   const shippingSlipRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: shippingSlipRef });
@@ -205,6 +208,26 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const fetchQuotations = useCallback(async () => {
+    if (!currentStoreId) return;
+    try {
+      const res = await api.getQuotations(deferredQuotationSearch, quotationStatusFilter, currentStoreId);
+      setQuotations(Array.isArray(res) ? res : []);
+    } catch (error) {
+      console.error("Fetch quotations error:", error);
+    }
+  }, [deferredQuotationSearch, quotationStatusFilter, currentStoreId]);
+
+  const fetchCompanies = useCallback(async () => {
+    if (!currentStoreId) return;
+    try {
+      const res = await api.getCompanies(includeZeroBalance, currentStoreId);
+      setCompanies(Array.isArray(res) ? res : []);
+    } catch (error) {
+      console.error("Fetch companies error:", error);
+    }
+  }, [includeZeroBalance, currentStoreId]);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -237,26 +260,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       
       setCurrentStoreId(targetStoreId);
 
-      const [productsRes, analyticsRes, brandingRes, quotationsRes, companiesRes, usersRes] = await Promise.all([
+      const [productsRes, analyticsRes, brandingRes, usersRes] = await Promise.all([
         api.getProducts("", targetStoreId, includeBranches),
         api.getAnalytics(targetStoreId),
         api.getBranding(targetStoreId),
-        api.getQuotations(quotationSearch, quotationStatusFilter, targetStoreId),
-        api.getCompanies(includeZeroBalance, targetStoreId),
         api.getUsers(targetStoreId)
       ]);
       setProducts(Array.isArray(productsRes) ? productsRes : []);
       setAnalytics(analyticsRes && !analyticsRes.error ? analyticsRes : null);
       if (brandingRes && !brandingRes.error) setBranding(brandingRes);
-      setQuotations(Array.isArray(quotationsRes) ? quotationsRes : []);
-      setCompanies(Array.isArray(companiesRes) ? companiesRes : []);
       setUsers(Array.isArray(usersRes) ? usersRes : []);
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
       setLoading(false);
     }
-  }, [quotationSearch, quotationStatusFilter, includeZeroBalance, includeBranches, user.role, user.store_id, slug]);
+  }, [includeBranches, user.role, user.store_id, slug]);
 
   const fetchSales = useCallback(async () => {
     if (!currentStoreId) return;
@@ -333,6 +352,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const interval = setInterval(fetchNotifications, 60000); // Check every minute
     return () => clearInterval(interval);
   }, [fetchData, fetchNotifications]);
+
+  useEffect(() => {
+    if (currentStoreId) {
+      fetchQuotations();
+    }
+  }, [fetchQuotations, currentStoreId]);
+
+  useEffect(() => {
+    if (currentStoreId) {
+      fetchCompanies();
+    }
+  }, [fetchCompanies, currentStoreId]);
 
   useEffect(() => {
     if (activeTab === 'pos') {
@@ -1503,7 +1534,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <button
                 key={item.id}
                 onClick={() => {
-                  setActiveTab(item.id);
+                  startTransition(() => {
+                    setActiveTab(item.id);
+                  });
                   setSidebarOpen(false);
                 }}
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
@@ -1580,57 +1613,31 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           <div className="max-w-7xl mx-auto space-y-8">
             {/* Analytical Header Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-slate-200">
-              <div className="space-y-4">
-                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-6 md:mb-10 pb-6 md:pb-8 border-b border-slate-200">
+              <div className="space-y-2 md:space-y-4">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-wider">
+                  <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-indigo-600 animate-pulse" />
                   <span>Module: {activeTab.toUpperCase()}</span>
                 </div>
-                <div className="flex items-center justify-between w-full">
-                  <h3 className="text-4xl font-bold text-slate-900 tracking-tight">
+                <div className="flex items-center justify-between w-full md:block">
+                  <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">
                     {t[activeTab as keyof typeof t] || activeTab}
                   </h3>
                   
-                  {/* Top Right Notification Center */}
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      {notifications.transfers > 0 && (
-                        <button onClick={() => setActiveTab('stock_transfer')} className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group">
-                          <ArrowLeftRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-600" />
-                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full animate-bounce">
-                            {notifications.transfers}
-                          </span>
-                        </button>
-                      )}
-                      {notifications.service > 0 && (
-                        <button onClick={() => setActiveTab('service')} className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group">
-                          <Wrench className="h-5 w-5 text-slate-400 group-hover:text-amber-600" />
-                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full animate-bounce">
-                            {notifications.service}
-                          </span>
-                        </button>
-                      )}
-                      {notifications.sales > 0 && (
-                        <button onClick={() => setActiveTab('pos')} className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group">
-                          <CreditCard className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
-                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full animate-bounce">
-                            {notifications.sales}
-                          </span>
-                        </button>
-                      )}
+                  {/* Mobile Notification Center (Visible only on mobile) */}
+                  <div className="flex md:hidden items-center space-x-2">
+                    {(notifications.transfers + notifications.service + notifications.quotations + notifications.sales) > 0 && (
                       <div className="relative p-2 bg-white border border-slate-200 rounded-xl shadow-sm">
-                        <Bell className="h-5 w-5 text-slate-400" />
-                        {(notifications.transfers + notifications.service + notifications.quotations + notifications.sales) > 0 && (
-                          <span className="absolute top-2 right-2 flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                          </span>
-                        )}
+                        <Bell className="h-4 w-4 text-slate-400" />
+                        <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                        </span>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
-                <p className="hidden md:block text-sm text-slate-500 max-w-2xl leading-relaxed">
+                <p className="hidden md:block text-sm text-slate-500 max-w-2xl leading-relaxed font-medium opacity-70">
                   Bu modül, mağazanızın {activeTab === 'products' ? 'envanter verilerini' : 
                                        activeTab === 'pos' ? 'satış ve ödeme işlemlerini' :
                                        activeTab === 'quotations' ? 'teklif ve proforma süreçlerini' :
@@ -1641,11 +1648,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                        activeTab === 'purchase_invoices' ? 'alış faturalarını ve tedarik işlemlerini' :
                                        activeTab === 'companies' ? 'cari hesap ve finansal ilişkilerini' :
                                        activeTab === 'analytics' ? 'performans metriklerini' : 'sistem yapılandırmasını'} 
-                  yönetmenize olanak tanır. Veriler gerçek zamanlı olarak senkronize edilir ve operasyonel verimlilik için optimize edilmiştir.
+                  yönetmenize olanak tanır. Veriler gerçek zamanlı olarak senkronize edilir.
                 </p>
               </div>
               
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 md:gap-3">
                 {activeTab === 'products' && (
                   <>
                     <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
@@ -1657,31 +1664,31 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             checked={includeBranches}
                             onChange={() => setIncludeBranches(!includeBranches)}
                           />
-                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                          <div className="w-8 h-4 md:w-9 md:h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 md:after:h-4 md:after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                         </div>
-                        <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+                        <span className="text-[10px] md:text-xs font-bold text-slate-600 whitespace-nowrap uppercase tracking-wider">
                           {lang === 'tr' ? 'Tüm Şubeler' : 'All Branches'}
                         </span>
                       </label>
                     </div>
-                    <button onClick={() => setShowImportModal(true)} className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all shadow-sm">
-                      <Upload className="h-4 w-4" />
-                      <span>Import Data</span>
+                    <button onClick={() => setShowImportModal(true)} className="flex items-center space-x-2 px-3 md:px-4 py-2 md:py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] md:text-sm hover:bg-slate-50 transition-all shadow-sm uppercase tracking-wider">
+                      <Upload className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                      <span className="hidden xs:inline">Import</span>
                     </button>
-                    <button onClick={() => { setEditingProduct(null); setShowProductModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
-                      <Plus className="h-4 w-4" />
+                    <button onClick={() => { setEditingProduct(null); setShowProductModal(true); }} className="flex items-center space-x-2 px-3 md:px-4 py-2 md:py-2.5 bg-slate-900 text-white rounded-xl font-bold text-[10px] md:text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
+                      <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />
                       <span>Add Entry</span>
                     </button>
                   </>
                 )}
                 {activeTab === 'quotations' && (
-                  <button onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                  <button onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
                     <Plus className="h-4 w-4" />
                     <span>New Quotation</span>
                   </button>
                 )}
                 {activeTab === 'companies' && (
-                  <button onClick={() => { setEditingCompany(null); setShowCompanyModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                  <button onClick={() => { setEditingCompany(null); setShowCompanyModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
                     <Plus className="h-4 w-4" />
                     <span>Register Company</span>
                   </button>
@@ -1696,6 +1703,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
+                className={`transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
               >
                 <ErrorBoundary lang={lang}>
                   {loading ? (
@@ -3687,8 +3695,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl max-h-64 overflow-y-auto hidden"
                     >
                       {products.filter(p => 
-                        p.name.toLowerCase().includes(quotationProductSearch.toLowerCase()) || 
-                        p.barcode.toLowerCase().includes(quotationProductSearch.toLowerCase())
+                        p.name.toLowerCase().includes(deferredQuotationProductSearch.toLowerCase()) || 
+                        p.barcode.toLowerCase().includes(deferredQuotationProductSearch.toLowerCase())
                       ).map(p => (
                         <button
                           key={p.id}

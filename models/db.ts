@@ -368,6 +368,7 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS about_text TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES stores(id) ON DELETE SET NULL;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS payment_settings JSONB DEFAULT '{}';
 
       CREATE TABLE IF NOT EXISTS stock_transfers (
         id SERIAL PRIMARY KEY,
@@ -646,6 +647,30 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='image_url') THEN
           ALTER TABLE products ADD COLUMN image_url TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sub_category') THEN
+          ALTER TABLE products ADD COLUMN sub_category TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='brand') THEN
+          ALTER TABLE products ADD COLUMN brand TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='author') THEN
+          ALTER TABLE products ADD COLUMN author TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='labels') THEN
+          ALTER TABLE products ADD COLUMN labels JSONB DEFAULT '[]';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='faq') THEN
+          ALTER TABLE stores ADD COLUMN faq JSONB DEFAULT '[]';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='blog_posts') THEN
+          ALTER TABLE stores ADD COLUMN blog_posts JSONB DEFAULT '[]';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='legal_pages') THEN
+          ALTER TABLE stores ADD COLUMN legal_pages JSONB DEFAULT '{}';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='social_links') THEN
+          ALTER TABLE stores ADD COLUMN social_links JSONB DEFAULT '{}';
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='due_date') THEN
           ALTER TABLE sales ADD COLUMN due_date DATE;
         END IF;
@@ -793,6 +818,41 @@ export async function initDb() {
           ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_store_id_fkey;
         END IF;
         ALTER TABLE tickets ADD CONSTRAINT tickets_store_id_fkey FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+        -- customers table
+        CREATE TABLE IF NOT EXISTS customers (
+          id SERIAL PRIMARY KEY,
+          store_id INTEGER NOT NULL,
+          email TEXT NOT NULL,
+          password TEXT NOT NULL,
+          full_name TEXT,
+          phone TEXT,
+          address TEXT,
+          social_id TEXT,
+          social_provider TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+          UNIQUE(store_id, email)
+        );
+
+        -- return_requests table
+        CREATE TABLE IF NOT EXISTS return_requests (
+          id SERIAL PRIMARY KEY,
+          store_id INTEGER NOT NULL,
+          sale_id INTEGER NOT NULL,
+          customer_id INTEGER NOT NULL,
+          reason TEXT NOT NULL,
+          status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+          FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+          FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        );
+
+        -- link sales to customers
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='customer_id') THEN
+          ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
+        END IF;
       END $$;
     `);
     console.log("Foreign key cascades checked.");

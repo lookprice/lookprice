@@ -17,7 +17,8 @@ import {
   Twitter,
   MessageCircle,
   Image as ImageIcon,
-  Info
+  Info,
+  ArrowRight
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -266,48 +267,58 @@ const SettingsTab = ({
               </div>
 
               <div className="md:col-span-2 pt-6 mt-6 border-t border-slate-100">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100">
-                    <CreditCard className="h-5 w-5" />
+                <div className="flex items-center space-x-4 mb-8">
+                  <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                    <CreditCard className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 leading-tight">{lang === 'tr' ? 'Yazarkasa / POS Entegrasyonu' : 'Fiscal / POS Integration'}</h3>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">{lang === 'tr' ? 'Mali onaylı cihaz ayarlarını yönetin' : 'Manage fiscal device settings'}</p>
+                    <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{t.fiscalSettings}</h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">{lang === 'tr' ? 'Mali onaylı cihaz ayarlarını yönetin' : 'Manage fiscal device settings'}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/50">
-                  <div className="flex items-center justify-between md:col-span-2 bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 md:p-8 rounded-[2rem] border border-slate-200/60 shadow-inner">
+                  <div className="flex items-center justify-between md:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
                     <div>
-                      <p className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'Mali Onaylı Cihaz Aktif' : 'Fiscal Device Active'}</p>
-                      <p className="text-xs text-slate-500">{lang === 'tr' ? 'Satışlarda mali fiş simülasyonu ve yazdırma aktif edilir.' : 'Enables fiscal receipt simulation and printing.'}</p>
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{t.fiscalIntegrationActive}</p>
+                      <p className="text-xs text-slate-500 font-medium mt-1">{lang === 'tr' ? 'Satışlarda mali fiş simülasyonu ve yazdırma aktif edilir.' : 'Enables fiscal receipt simulation and printing.'}</p>
                     </div>
                     <button 
                       type="button"
                       onClick={() => onBrandingChange('fiscal_active', !branding.fiscal_active)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.fiscal_active ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 focus:outline-none ${branding.fiscal_active ? 'bg-indigo-600 shadow-lg shadow-indigo-200' : 'bg-slate-200'}`}
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.fiscal_active ? 'translate-x-6' : 'translate-x-1'}`} />
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-300 ${branding.fiscal_active ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                   </div>
 
                   {branding.fiscal_active && (
                     <>
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Cihaz Markası' : 'Device Brand'}</label>
-                        <input 
-                          type="text" 
-                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-semibold text-sm text-slate-900"
-                          placeholder="Örn: BEKO, HUGIN, VERA"
-                          value={branding.fiscal_brand || ""}
-                          onChange={(e) => onBrandingChange('fiscal_brand', e.target.value)}
-                        />
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Cihaz Markası' : 'Device Brand'}</label>
+                        <div className="relative group">
+                          <select 
+                            className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 appearance-none cursor-pointer group-hover:border-slate-300"
+                            value={branding.fiscal_brand || ""}
+                            onChange={(e) => onBrandingChange('fiscal_brand', e.target.value)}
+                          >
+                            <option value="">{t.selectBrand}</option>
+                            <option value="beko">Beko</option>
+                            <option value="ingenico">Ingenico</option>
+                            <option value="hugin">Hugin</option>
+                            <option value="profilo">Profilo</option>
+                            <option value="paypad">Paypad</option>
+                          </select>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                            <ArrowRight className="h-4 w-4 rotate-90" />
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Terminal ID / Seri No' : 'Terminal ID / Serial No'}</label>
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Terminal ID / Seri No' : 'Terminal ID / Serial No'}</label>
                         <input 
                           type="text" 
-                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-semibold text-sm text-slate-900"
+                          className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
                           placeholder="Örn: BEK00123456"
                           value={branding.fiscal_terminal_id || ""}
                           onChange={(e) => onBrandingChange('fiscal_terminal_id', e.target.value)}
@@ -319,28 +330,19 @@ const SettingsTab = ({
               </div>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-slate-100 flex justify-end">
-              <button 
-                onClick={onSaveBranding}
-                className="w-full md:w-auto flex items-center justify-center bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95"
-              >
-                <Save className="h-4 w-4 mr-2" /> {t.saveChanges}
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <Globe className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.currencyRates}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">{t.currencyRatesDesc}</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-8">
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center space-x-3 mb-8">
+                  <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
+                    <Globe className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.currencyRates}</h3>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">{t.currencyRatesDesc}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.usdRate}</label>
                 <div className="relative">
@@ -382,61 +384,6 @@ const SettingsTab = ({
                     onFocus={(e) => e.target.select()}
                   />
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <Smartphone className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.fiscalSettings}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">{t.fiscalSettingsDesc}</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.fiscalBrand}</label>
-                <select 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
-                  value={branding.fiscal_brand || ""}
-                  onChange={(e) => onBrandingChange('fiscal_brand', e.target.value)}
-                >
-                  <option value="">{t.selectBrand}</option>
-                  <option value="beko">Beko</option>
-                  <option value="ingenico">Ingenico</option>
-                  <option value="hugin">Hugin</option>
-                  <option value="profilo">Profilo</option>
-                  <option value="paypad">Paypad</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.terminalId}</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                  placeholder={t.terminalIdPlaceholder}
-                  value={branding.fiscal_terminal_id || ""}
-                  onChange={(e) => onBrandingChange('fiscal_terminal_id', e.target.value)}
-                />
-              </div>
-              <div className="md:col-span-2 flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                <div className="relative flex items-center">
-                  <input 
-                    type="checkbox" 
-                    id="fiscal_active"
-                    className="h-5 w-5 text-slate-900 focus:ring-slate-500 border-slate-300 rounded-lg cursor-pointer"
-                    checked={branding.fiscal_active || false}
-                    onChange={(e) => onBrandingChange('fiscal_active', e.target.checked)}
-                  />
-                </div>
-                <label htmlFor="fiscal_active" className="text-sm font-bold text-slate-900 cursor-pointer select-none">
-                  {t.fiscalIntegrationActive}
-                  <span className="block text-[11px] text-slate-400 font-medium mt-0.5 leading-relaxed">{t.fiscalIntegrationDesc}</span>
-                </label>
               </div>
             </div>
           </div>
@@ -517,6 +464,38 @@ const SettingsTab = ({
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.iyzico_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+              {branding.payment_settings?.iyzico_enabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 p-4 bg-white rounded-xl border border-indigo-100">
+                  <div className="flex items-center justify-between md:col-span-2 mb-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Iyzico Test (Sandbox) Modu' : 'Iyzico Test (Sandbox) Mode'}</span>
+                    <button 
+                      type="button"
+                      onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_sandbox: !branding.payment_settings?.iyzico_sandbox })}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.iyzico_sandbox ? 'bg-amber-500' : 'bg-slate-200'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.payment_settings?.iyzico_sandbox ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Iyzico API Key</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                      value={branding.payment_settings?.iyzico_api_key || ""}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_api_key: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Iyzico Secret Key</label>
+                    <input 
+                      type="password" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                      value={branding.payment_settings?.iyzico_secret_key || ""}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_secret_key: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <label className="text-sm font-bold text-slate-900 cursor-pointer">PayPal</label>
                 <button 
@@ -527,6 +506,38 @@ const SettingsTab = ({
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.paypal_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+              {branding.payment_settings?.paypal_enabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 p-4 bg-white rounded-xl border border-indigo-100">
+                  <div className="flex items-center justify-between md:col-span-2 mb-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'PayPal Sandbox Modu' : 'PayPal Sandbox Mode'}</span>
+                    <button 
+                      type="button"
+                      onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_sandbox: !branding.payment_settings?.paypal_sandbox })}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.paypal_sandbox ? 'bg-amber-500' : 'bg-slate-200'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.payment_settings?.paypal_sandbox ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">PayPal Client ID</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                      value={branding.payment_settings?.paypal_client_id || ""}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_client_id: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">PayPal Secret</label>
+                    <input 
+                      type="password" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                      value={branding.payment_settings?.paypal_secret || ""}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_secret: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <label className="text-sm font-bold text-slate-900 cursor-pointer">Payoneer</label>
                 <button 
@@ -537,6 +548,47 @@ const SettingsTab = ({
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.payoneer_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+              {branding.payment_settings?.payoneer_enabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 p-4 bg-white rounded-xl border border-indigo-100">
+                  <div className="flex items-center justify-between md:col-span-2 mb-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Payoneer Sandbox Modu' : 'Payoneer Sandbox Mode'}</span>
+                    <button 
+                      type="button"
+                      onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_sandbox: !branding.payment_settings?.payoneer_sandbox })}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.payoneer_sandbox ? 'bg-amber-500' : 'bg-slate-200'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.payment_settings?.payoneer_sandbox ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Payoneer API Username</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                      value={branding.payment_settings?.payoneer_username || ""}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_username: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Payoneer API Password</label>
+                    <input 
+                      type="password" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                      value={branding.payment_settings?.payoneer_password || ""}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_password: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Payoneer Store Code (Entity ID)</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                      value={branding.payment_settings?.payoneer_store_code || ""}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_store_code: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -654,75 +706,139 @@ const SettingsTab = ({
           </div>
         </div>
 
-        <div className="space-y-6 md:space-y-8">
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6 ml-1">{t.logo}</h3>
-            <div className="aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-8 text-center group relative overflow-hidden mb-6 hover:border-slate-400 transition-all cursor-pointer">
-              {branding.logo_url ? (
-                <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain drop-shadow-sm" />
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 group-hover:scale-110 transition-transform">
-                    <Upload className="h-8 w-8 text-slate-400 group-hover:text-slate-900 transition-colors" />
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.uploadLogo}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
+                {t.logo}
+              </h3>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">PNG / SVG / JPG</span>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <div className="relative group mb-8">
+                <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
+                <div className="relative w-40 h-40 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-6 text-center group hover:border-indigo-400 hover:bg-white transition-all duration-500 cursor-pointer shadow-inner">
+                  {branding.logo_url ? (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center backdrop-blur-[2px]">
+                        <Upload className="h-6 w-6 text-white animate-bounce" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                        <Upload className="h-6 w-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                      </div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover:text-indigo-600 transition-colors">{t.uploadLogo}</p>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                    accept="image/*"
+                    onChange={onLogoUpload}
+                  />
                 </div>
-              )}
-              <input 
-                type="file" 
-                className="absolute inset-0 opacity-0 cursor-pointer" 
-                accept="image/*"
-                onChange={onLogoUpload}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.logoUrl}</label>
-              <input 
-                type="text" 
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all text-xs font-mono text-slate-500"
-                placeholder="https://..."
-                value={branding.logo_url || ""}
-                onChange={(e) => onBrandingChange('logo_url', e.target.value)}
-              />
-            </div>
-            <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <p className="text-[10px] text-slate-400 text-center leading-relaxed font-medium">
-                {t.logoUploadDesc}
-              </p>
+              </div>
+
+              <div className="w-full space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.logoUrl}</label>
+                  <Globe className="h-3 w-3 text-slate-300" />
+                </div>
+                <div className="relative group">
+                  <input 
+                    type="text" 
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white transition-all text-xs font-mono text-slate-500 group-hover:border-slate-300"
+                    placeholder="https://your-cdn.com/logo.png"
+                    value={branding.logo_url || ""}
+                    onChange={(e) => onBrandingChange('logo_url', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 w-full p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                <p className="text-[10px] text-indigo-600/70 text-center leading-relaxed font-bold uppercase tracking-wider">
+                  {t.logoUploadDesc}
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6 ml-1">Favicon</h3>
-            <div className="aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-8 text-center group relative overflow-hidden mb-6 hover:border-slate-400 transition-all cursor-pointer">
-              {branding.favicon_url ? (
-                <img src={branding.favicon_url} alt="Favicon" className="h-12 w-12 object-contain drop-shadow-sm" />
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 group-hover:scale-110 transition-transform">
-                    <Globe className="h-8 w-8 text-slate-400 group-hover:text-slate-900 transition-colors" />
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.uploadFavicon}</p>
-                </div>
-              )}
-              <input 
-                type="file" 
-                className="absolute inset-0 opacity-0 cursor-pointer" 
-                accept="image/*"
-                onChange={onFaviconUpload}
-              />
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-amber-500 rounded-full" />
+                {t.favicon}
+              </h3>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">ICO / PNG</span>
             </div>
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.faviconUrl}</label>
-              <input 
-                type="text" 
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all text-xs font-mono text-slate-500"
-                placeholder="https://..."
-                value={branding.favicon_url || ""}
-                onChange={(e) => onBrandingChange('favicon_url', e.target.value)}
-              />
+
+            <div className="flex flex-col items-center">
+              <div className="relative group mb-8">
+                <div className="absolute -inset-4 bg-gradient-to-tr from-amber-500/10 to-orange-500/10 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
+                <div className="relative w-24 h-24 bg-slate-50 rounded-[1.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center group hover:border-amber-400 hover:bg-white transition-all duration-500 cursor-pointer shadow-inner">
+                  {branding.favicon_url ? (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <img src={branding.favicon_url} alt="Favicon" className="w-12 h-12 object-contain drop-shadow-xl transition-transform duration-500 group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center backdrop-blur-[2px]">
+                        <Upload className="h-4 w-4 text-white animate-bounce" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center mb-2 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500">
+                        <Upload className="h-4 w-4 text-slate-400 group-hover:text-amber-600 transition-colors" />
+                      </div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover:text-amber-600 transition-colors">{t.uploadFavicon}</p>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                    accept="image/*"
+                    onChange={onFaviconUpload}
+                  />
+                </div>
+              </div>
+
+              <div className="w-full space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.faviconUrl}</label>
+                  <Globe className="h-3 w-3 text-slate-300" />
+                </div>
+                <div className="relative group">
+                  <input 
+                    type="text" 
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-amber-500/5 focus:border-amber-400 focus:bg-white transition-all text-xs font-mono text-slate-500 group-hover:border-slate-300"
+                    placeholder="https://your-cdn.com/favicon.ico"
+                    value={branding.favicon_url || ""}
+                    onChange={(e) => onBrandingChange('favicon_url', e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+      </div>
+      </div>
+
+      {/* Sticky Save Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-[60] p-4 bg-white/40 backdrop-blur-2xl border-t border-slate-200/50 flex justify-center lg:justify-end lg:pr-12 pointer-events-none">
+        <div className="pointer-events-auto">
+          <button 
+            onClick={onSaveBranding}
+            className="flex items-center space-x-4 px-10 py-4 bg-slate-900 text-white rounded-[2rem] font-black text-sm hover:bg-indigo-600 transition-all duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.2)] hover:shadow-indigo-500/40 active:scale-95 group border border-white/10"
+          >
+            <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white/20 transition-colors">
+              <Save className="h-4 w-4 text-white" />
+            </div>
+            <span className="uppercase tracking-[0.2em]">{translations[lang]?.dashboard?.saveSettings || 'Save Settings'}</span>
+          </button>
         </div>
       </div>
     </div>

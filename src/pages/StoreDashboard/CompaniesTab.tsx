@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useDeferredValue } from "react";
 import { 
   Plus, 
   Search, 
@@ -39,11 +39,20 @@ const CompaniesTab = ({
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 15;
 
   const filteredCompanies = companies.filter(c => 
-    c.title.toLocaleLowerCase('tr-TR').includes(search.toLocaleLowerCase('tr-TR')) || 
-    c.tax_number?.includes(search)
+    c.title.toLocaleLowerCase('tr-TR').includes(deferredSearch.toLocaleLowerCase('tr-TR')) || 
+    c.tax_number?.includes(deferredSearch)
   );
+
+  const paginatedCompanies = filteredCompanies.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -80,8 +89,8 @@ const CompaniesTab = ({
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden zebra-border">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
+        {/* Table View */}
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -101,7 +110,7 @@ const CompaniesTab = ({
                   </td>
                 </tr>
               ) : (
-                filteredCompanies.map((c) => (
+                paginatedCompanies.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
@@ -123,7 +132,7 @@ const CompaniesTab = ({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className={`text-sm font-bold tabular-nums ${Number(c.balance) > 0 ? 'text-rose-600' : Number(c.balance) < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                        {Math.abs(Number(c.balance)).toLocaleString('tr-TR')} <span className="text-[10px] font-medium ml-0.5">{c.currency || 'TRY'}</span>
+                        {Math.abs(Number(c.balance)).toLocaleString('tr-TR')} <span className="text-[10px] font-medium ml-0.5">{(c.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[10px] font-bold uppercase tracking-tighter opacity-60">
                         {Number(c.balance) > 0 ? (lang === 'tr' ? 'Borç' : 'Debit') : Number(c.balance) < 0 ? (lang === 'tr' ? 'Alacak' : 'Credit') : (lang === 'tr' ? 'Dengeli' : 'Balanced')}
@@ -165,62 +174,32 @@ const CompaniesTab = ({
           </table>
         </div>
 
-        {/* Mobile Compact List View */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {filteredCompanies.length === 0 ? (
-            <div className="p-12 text-center text-slate-400 font-medium text-sm">
-              {lang === 'tr' ? 'Henüz bir şirket kaydı bulunmuyor.' : 'No company records found yet.'}
-            </div>
-          ) : (
-            filteredCompanies.map((c) => (
-              <div key={c.id} className="p-4 bg-white active:bg-slate-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0 mr-4">
-                    <div className="text-sm font-bold text-slate-900 truncate">{c.title}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{c.tax_office || '-'} / {c.tax_number || '-'}</div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] text-slate-400 font-medium">{c.representative || c.contact_person || '-'}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">•</span>
-                      <span className="text-[10px] text-slate-400 font-medium">{c.phone || '-'}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-sm font-bold tabular-nums ${Number(c.balance) > 0 ? 'text-rose-600' : Number(c.balance) < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {Math.abs(Number(c.balance)).toLocaleString('tr-TR')} <span className="text-[10px] font-medium ml-0.5">{c.currency || 'TRY'}</span>
-                    </div>
-                    <div className="text-[9px] font-bold uppercase tracking-tighter opacity-60">
-                      {Number(c.balance) > 0 ? (lang === 'tr' ? 'Borç' : 'Debit') : Number(c.balance) < 0 ? (lang === 'tr' ? 'Alacak' : 'Credit') : (lang === 'tr' ? 'Dengeli' : 'Balanced')}
-                    </div>
-                    <div className="flex items-center justify-end gap-1 mt-2">
-                      <button 
-                        onClick={() => onViewTransactions(c)}
-                        className="p-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-xl active:scale-90 transition-all"
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                      </button>
-                      {!isViewer && (
-                        <>
-                          <button 
-                            onClick={() => onEdit(c)}
-                            className="p-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-xl active:scale-90 transition-all"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => onDelete(c.id)}
-                            className="p-2 text-rose-600 bg-rose-50 border border-rose-100 rounded-xl active:scale-90 transition-all"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
+            <p className="text-xs font-medium text-slate-500">
+              {filteredCompanies.length} {lang === 'tr' ? 'şirket' : 'companies'}
+            </p>
+            <div className="flex items-center space-x-3">
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              >
+                {lang === 'tr' ? 'Önceki' : 'Prev'}
+              </button>
+              <div className="text-xs font-bold text-slate-600 tabular-nums">
+                {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
               </div>
-            ))
-          )}
-        </div>
+              <button 
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              >
+                {lang === 'tr' ? 'Sonraki' : 'Next'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

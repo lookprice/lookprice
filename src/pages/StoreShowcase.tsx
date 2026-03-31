@@ -90,6 +90,11 @@ interface StoreInfo {
   phone?: string;
   faq?: FAQEntry[];
   blog_posts?: BlogPost[];
+  payment_settings?: {
+    iyzico_enabled: boolean;
+    paypal_enabled: boolean;
+    payoneer_enabled: boolean;
+  };
   legal_pages?: {
     kvkk?: LegalPage;
     privacy?: LegalPage;
@@ -414,7 +419,7 @@ const StoreShowcase: React.FC = () => {
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
-  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery'>('credit_card');
+  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal'>('credit_card');
   const [customer, setCustomer] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -647,11 +652,16 @@ const StoreShowcase: React.FC = () => {
         customerAddress: customerInfo.address,
         total: basketTotal,
         currency: store.currency,
-        paymentMethod: 'credit_card'
+        paymentMethod: paymentMethod
       });
 
       if (res.error) throw new Error(res.error);
       
+      if (res.redirectUrl) {
+        window.location.href = res.redirectUrl;
+        return;
+      }
+
       setCheckoutStatus('success');
       setBasket([]);
       setTimeout(() => {
@@ -806,10 +816,10 @@ const StoreShowcase: React.FC = () => {
         {categories.size > 0 && (
           <div className="border-t bg-white overflow-x-auto no-scrollbar">
             <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-nowrap">
                 <button
                   onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); }}
-                  className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest ${
+                  className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest flex-shrink-0 ${
                     !selectedCategory 
                       ? "text-white shadow-xl" 
                       : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -825,7 +835,7 @@ const StoreShowcase: React.FC = () => {
                   <button
                     key={cat}
                     onClick={() => { setSelectedCategory(cat); setSelectedSubCategory(null); }}
-                    className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest ${
+                    className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-widest flex-shrink-0 ${
                       selectedCategory === cat
                         ? "text-white shadow-xl" 
                         : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -845,11 +855,11 @@ const StoreShowcase: React.FC = () => {
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 pl-4 border-l-2 border-gray-100 ml-2"
+                  className="flex items-center gap-2 pl-4 border-l-2 border-gray-100 ml-2 flex-nowrap overflow-x-auto no-scrollbar"
                 >
                   <button
                     onClick={() => setSelectedSubCategory(null)}
-                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider ${
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider flex-shrink-0 ${
                       !selectedSubCategory 
                         ? "bg-gray-900 text-white" 
                         : "bg-gray-50 text-gray-400 hover:bg-gray-100"
@@ -861,7 +871,7 @@ const StoreShowcase: React.FC = () => {
                     <button
                       key={sub}
                       onClick={() => setSelectedSubCategory(sub)}
-                      className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider ${
+                      className={`px-4 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all uppercase tracking-wider flex-shrink-0 ${
                         selectedSubCategory === sub
                           ? "bg-gray-900 text-white" 
                           : "bg-gray-50 text-gray-400 hover:bg-gray-100"
@@ -1863,17 +1873,62 @@ const StoreShowcase: React.FC = () => {
                       <div className="space-y-4">
                         <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</label>
                         <div className="grid grid-cols-1 gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('credit_card')}
-                            className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
-                            style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
-                          >
-                            <div className="flex items-center gap-3">
-                              <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-sm ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi / Banka Kartı' : 'Credit / Debit Card'}</span>
-                            </div>
-                          </button>
+                          {(!store?.payment_settings?.payoneer_enabled && !store?.payment_settings?.paypal_enabled && !store?.payment_settings?.iyzico_enabled) && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('credit_card')}
+                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
+                                <span className={`font-bold text-sm ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi / Banka Kartı' : 'Credit / Debit Card'}</span>
+                              </div>
+                            </button>
+                          )}
+
+                          {store?.payment_settings?.payoneer_enabled && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('payoneer')}
+                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'payoneer' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              style={{ borderColor: paymentMethod === 'payoneer' ? primaryColor : undefined }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <CreditCard className={`w-5 h-5 ${paymentMethod === 'payoneer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'payoneer' ? primaryColor : undefined }} />
+                                <span className={`font-bold text-sm ${paymentMethod === 'payoneer' ? 'text-gray-900' : 'text-gray-500'}`}>Payoneer</span>
+                              </div>
+                            </button>
+                          )}
+
+                          {store?.payment_settings?.paypal_enabled && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('paypal')}
+                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'paypal' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              style={{ borderColor: paymentMethod === 'paypal' ? primaryColor : undefined }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <CreditCard className={`w-5 h-5 ${paymentMethod === 'paypal' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'paypal' ? primaryColor : undefined }} />
+                                <span className={`font-bold text-sm ${paymentMethod === 'paypal' ? 'text-gray-900' : 'text-gray-500'}`}>PayPal</span>
+                              </div>
+                            </button>
+                          )}
+
+                          {store?.payment_settings?.iyzico_enabled && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('credit_card')}
+                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
+                                <span className={`font-bold text-sm ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'iyzico ile Öde' : 'Pay with iyzico'}</span>
+                              </div>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => setPaymentMethod('bank_transfer')}

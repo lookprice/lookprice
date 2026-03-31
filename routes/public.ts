@@ -1,7 +1,36 @@
 import express from "express";
 import { pool } from "../models/db.ts";
+import crypto from "crypto";
 
 const router = express.Router();
+
+// Helper for Iyzico Signature
+function generateIyzicoSignature(apiKey: string, secretKey: string, randomString: string, payload: any) {
+  // This is a simplified version of Iyzico's PKI string generation
+  // In a real production app, you'd use their official SDK or a more robust PKI builder
+  let pkiString = `[apiKey=${apiKey}],[randomString=${randomString}],[secretKey=${secretKey}]`;
+  if (payload && Object.keys(payload).length > 0) {
+    // Simplified: just append some payload info if needed
+    // Real Iyzico PKI requires a specific nested structure concatenation
+  }
+  return crypto.createHash('sha1').update(pkiString).digest('base64');
+}
+
+// Helper for PayPal Access Token
+async function getPayPalAccessToken(clientId: string, secret: string, sandbox: boolean) {
+  const baseUrl = sandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+  const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
+  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  const data = await response.json();
+  return data.access_token;
+}
 
 // Public: Get Product by Barcode and Store Slug
 router.get("/scan/:slug/:barcode", async (req, res) => {
@@ -157,15 +186,195 @@ router.get("/store/:slug/products", async (req, res) => {
   res.json(productsRes.rows);
 });
 
-// Public: Create Sale (Customer Basket)
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "customer-secret-key";
+
+// Customer: Register
+router.post("/customers/register", async (req, res) => {
+  const { storeId, email, password, name, phone, address } = req.body;
+  if (!storeId || !email || !password || !name) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const existing = await pool.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: "Bu e-posta adresi zaten kayıtlı." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      "INSERT INTO customers (store_id, email, password, name, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name",
+      [storeId, email, hashedPassword, name, phone || '', address || '']
+    );
+    res.json({ success: true, customer: result.rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Customer: Login
+router.post("/customers/login", async (req, res) => {
+  const { storeId, email, password } = req.body;
+  try {
+    const result = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND email = $2", [storeId, email]);
+    const customer = result.rows[0];
+    if (!customer) return res.status(401).json({ error: "E-posta veya şifre hatalı." });
+
+    const valid = await bcrypt.compare(password, customer.password);
+    if (!valid) return res.status(401).json({ error: "E-posta veya şifre hatalı." });
+
+    const token = jwt.sign({ id: customer.id, storeId: customer.store_id, type: 'customer' }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ 
+      token, 
+      customer: { id: customer.id, email: customer.email, name: customer.name, phone: customer.phone, address: customer.address } 
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Customer Middleware
+const authenticateCustomer = (req: any, res: any, next: any) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded.type !== 'customer') throw new Error("Invalid token type");
+    req.customer = decoded;
+    next();
+  } catch (e) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+// Customer: Profile
+router.get("/customers/profile", authenticateCustomer, async (req: any, res) => {
+  try {
+    const result = await pool.query("SELECT id, email, name, phone, address FROM customers WHERE id = $1", [req.customer.id]);
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/customers/profile", authenticateCustomer, async (req: any, res) => {
+  const { name, phone, address } = req.body;
+  try {
+    const result = await pool.query(
+      "UPDATE customers SET name = $1, phone = $2, address = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING id, email, name, phone, address",
+      [name, phone, address, req.customer.id]
+    );
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Customer: Orders
+router.get("/customers/orders", authenticateCustomer, async (req: any, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM sales WHERE customer_id = $1 ORDER BY created_at DESC", [req.customer.id]);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/customers/orders/:id", authenticateCustomer, async (req: any, res) => {
+  try {
+    const saleRes = await pool.query("SELECT * FROM sales WHERE id = $1 AND customer_id = $2", [req.params.id, req.customer.id]);
+    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Order not found" });
+    
+    const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [req.params.id]);
+    res.json({ ...saleRes.rows[0], items: itemsRes.rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Customer: Returns
+router.post("/returns", authenticateCustomer, async (req: any, res) => {
+  const { saleId, reason, items } = req.body;
+  try {
+    const saleRes = await pool.query("SELECT id FROM sales WHERE id = $1 AND customer_id = $2", [saleId, req.customer.id]);
+    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Order not found" });
+
+    const result = await pool.query(
+      "INSERT INTO return_requests (store_id, sale_id, customer_id, reason, items, status) VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING *",
+      [req.customer.storeId, saleId, req.customer.id, reason, JSON.stringify(items || [])]
+    );
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/returns", authenticateCustomer, async (req: any, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM return_requests WHERE customer_id = $1 ORDER BY created_at DESC", [req.customer.id]);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Public: Website Content (FAQ, Blog, Legal)
+router.get("/store/:slug/content", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT faq, blog_posts, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE slug = $1",
+      [slug]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Public: Get Products by Category/Label
+router.get("/store/:slug/collections/:type", async (req, res) => {
+  const { slug, type } = req.params; // type: 'new', 'bestseller', 'discounted' or category name
+  try {
+    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const storeId = storeRes.rows[0].id;
+
+    let query = "SELECT * FROM products WHERE store_id = $1";
+    let params: any[] = [storeId];
+
+    if (type === 'new') {
+      query += " AND labels @> '\"Yeni\"'";
+    } else if (type === 'bestseller') {
+      query += " AND labels @> '\"Çok Satanlar\"'";
+    } else if (type === 'discounted') {
+      query += " AND labels @> '\"İndirimde\"'";
+    } else {
+      query += " AND (LOWER(category) = LOWER($2) OR LOWER(sub_category) = LOWER($2))";
+      params.push(type);
+    }
+
+    query += " ORDER BY updated_at DESC LIMIT 50";
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update Public Sales to handle customer_id
 router.post("/sales", async (req, res) => {
-  const { storeId, items, total, currency, customerName, customerPhone, customerAddress, notes, paymentMethod } = req.body;
+  const { storeId, items, total, currency, customerName, customerPhone, customerAddress, notes, paymentMethod, customerId } = req.body;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending') RETURNING id",
-      [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', notes || '', paymentMethod || 'credit_card']
+      "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', notes || '', paymentMethod || 'credit_card', customerId || null]
     );
     const saleId = saleRes.rows[0].id;
 
@@ -178,6 +387,193 @@ router.post("/sales", async (req, res) => {
         "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         [saleId, item.productId || item.id, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, (item.price || 0) * (item.quantity || 1), currency || 'TRY']
       );
+    }
+
+    // Handle Payment Gateways
+    const storeRes = await client.query("SELECT payment_settings, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeData = storeRes.rows[0];
+    const paymentSettings = storeData?.payment_settings || {};
+
+    // 1. Payoneer Integration
+    if (paymentMethod === 'payoneer' && paymentSettings.payoneer_enabled) {
+      const { payoneer_username, payoneer_password, payoneer_store_code, payoneer_sandbox } = paymentSettings;
+      
+      if (payoneer_username && payoneer_password && payoneer_store_code) {
+        const baseUrl = payoneer_sandbox ? 'https://api.sandbox.checkout.payoneer.com' : 'https://api.checkout.payoneer.com';
+        const auth = Buffer.from(`${payoneer_username}:${payoneer_password}`).toString('base64');
+        
+        const listRequest = {
+          transactionId: `SALE-${saleId}-${Date.now()}`,
+          country: "TR", 
+          division: payoneer_store_code,
+          integration: "HOSTED_CHECKOUT",
+          operation: "CHARGE",
+          payment: {
+            amount: total,
+            currency: currency || storeData.default_currency || 'TRY',
+            reference: `Order #${saleId}`
+          },
+          style: {
+            language: "en_US"
+          },
+          callback: {
+            returnUrl: `${req.headers.origin}/checkout/success?saleId=${saleId}`,
+            cancelUrl: `${req.headers.origin}/checkout/cancel?saleId=${saleId}`,
+            notificationUrl: `${req.headers.origin}/api/public/webhooks/payoneer`
+          }
+        };
+
+        try {
+          const response = await fetch(`${baseUrl}/api/lists`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(listRequest)
+          });
+
+          const result = await response.json();
+          if (result.links && result.links.redirect) {
+            await client.query("COMMIT");
+            return res.json({ 
+              success: true, 
+              saleId, 
+              redirectUrl: result.links.redirect,
+              paymentProvider: 'payoneer'
+            });
+          }
+        } catch (payoneerErr) {
+          console.error("Payoneer Fetch Error:", payoneerErr);
+        }
+      }
+    }
+
+    // 2. Iyzico Integration
+    if (paymentMethod === 'credit_card' && paymentSettings.iyzico_enabled) {
+      const { iyzico_api_key, iyzico_secret_key, iyzico_sandbox } = paymentSettings;
+      if (iyzico_api_key && iyzico_secret_key) {
+        const baseUrl = iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com';
+        const randomString = Date.now().toString();
+        const signature = generateIyzicoSignature(iyzico_api_key, iyzico_secret_key, randomString, {});
+        
+        const iyzicoRequest = {
+          locale: "tr",
+          conversationId: saleId.toString(),
+          price: total.toString(),
+          paidPrice: total.toString(),
+          currency: currency || storeData.default_currency || 'TRY',
+          basketId: `B-${saleId}`,
+          paymentGroup: "PRODUCT",
+          callbackUrl: `${req.headers.origin}/api/public/webhooks/iyzico?saleId=${saleId}`,
+          enabledInstallments: [1, 2, 3, 6, 9],
+          buyer: {
+            id: customerId?.toString() || "GUEST",
+            name: customerName?.split(' ')[0] || "Müşteri",
+            surname: customerName?.split(' ').slice(1).join(' ') || "Soyad",
+            email: "customer@example.com", // Placeholder if not provided
+            identityNumber: "11111111111",
+            registrationAddress: customerAddress || "Adres",
+            ip: req.ip,
+            city: "Istanbul",
+            country: "Turkey"
+          },
+          shippingAddress: {
+            contactName: customerName || "Müşteri",
+            city: "Istanbul",
+            country: "Turkey",
+            address: customerAddress || "Adres"
+          },
+          billingAddress: {
+            contactName: customerName || "Müşteri",
+            city: "Istanbul",
+            country: "Turkey",
+            address: customerAddress || "Adres"
+          },
+          basketItems: items.map(item => ({
+            id: (item.productId || item.id).toString(),
+            name: item.name || 'Ürün',
+            category1: "Genel",
+            itemType: "PHYSICAL",
+            price: item.price.toString()
+          }))
+        };
+
+        try {
+          const response = await fetch(`${baseUrl}/payment/iyzipay/checkoutform/initialize/auth`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `IYZIPAY ${Buffer.from(`${iyzico_api_key}:${signature}`).toString('base64')}`,
+              'x-iyzipay-rnd': randomString,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(iyzicoRequest)
+          });
+
+          const result = await response.json();
+          if (result.status === 'success' && result.paymentPageUrl) {
+            await client.query("COMMIT");
+            return res.json({ 
+              success: true, 
+              saleId, 
+              redirectUrl: result.paymentPageUrl,
+              paymentProvider: 'iyzico'
+            });
+          }
+        } catch (iyzicoErr) {
+          console.error("Iyzico Fetch Error:", iyzicoErr);
+        }
+      }
+    }
+
+    // 3. PayPal Integration
+    if (paymentMethod === 'paypal' && paymentSettings.paypal_enabled) {
+      const { paypal_client_id, paypal_secret, paypal_sandbox } = paymentSettings;
+      if (paypal_client_id && paypal_secret) {
+        try {
+          const accessToken = await getPayPalAccessToken(paypal_client_id, paypal_secret, paypal_sandbox);
+          const baseUrl = paypal_sandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+          
+          const paypalRequest = {
+            intent: "CAPTURE",
+            purchase_units: [{
+              reference_id: saleId.toString(),
+              amount: {
+                currency_code: currency || storeData.default_currency || 'USD',
+                value: total.toString()
+              }
+            }],
+            application_context: {
+              return_url: `${req.headers.origin}/checkout/success?saleId=${saleId}`,
+              cancel_url: `${req.headers.origin}/checkout/cancel?saleId=${saleId}`
+            }
+          };
+
+          const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(paypalRequest)
+          });
+
+          const result = await response.json();
+          const approveLink = result.links?.find((l: any) => l.rel === 'approve');
+          
+          if (approveLink) {
+            await client.query("COMMIT");
+            return res.json({ 
+              success: true, 
+              saleId, 
+              redirectUrl: approveLink.href,
+              paymentProvider: 'paypal'
+            });
+          }
+        } catch (paypalErr) {
+          console.error("PayPal Fetch Error:", paypalErr);
+        }
+      }
     }
 
     await client.query("COMMIT");
@@ -363,6 +759,129 @@ router.get("/schema-check", async (req, res) => {
     res.json(result.rows);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Iyzico Webhook / Callback
+router.post("/webhooks/iyzico", async (req, res) => {
+  const { token } = req.body;
+  const { saleId } = req.query;
+
+  if (!token || !saleId) {
+    return res.status(400).send("Missing token or saleId");
+  }
+
+  try {
+    // We need to retrieve the store's iyzico settings to verify the token
+    const saleRes = await pool.query("SELECT store_id FROM sales WHERE id = $1", [saleId]);
+    if (saleRes.rows.length === 0) return res.status(404).send("Sale not found");
+    
+    const storeId = saleRes.rows[0].store_id;
+    const storeRes = await pool.query("SELECT payment_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0].payment_settings;
+
+    const baseUrl = settings.iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com';
+    const randomString = Date.now().toString();
+    const signature = generateIyzicoSignature(settings.iyzico_api_key, settings.iyzico_secret_key, randomString, {});
+
+    const response = await fetch(`${baseUrl}/payment/iyzipay/checkoutform/auth/retrieve`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `IYZIPAY ${Buffer.from(`${settings.iyzico_api_key}:${signature}`).toString('base64')}`,
+        'x-iyzipay-rnd': randomString,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ locale: "tr", conversationId: saleId.toString(), token })
+    });
+
+    const result = await response.json();
+    
+    if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
+      await pool.query("UPDATE sales SET status = 'processing' WHERE id = $1", [saleId]);
+      // Redirect back to success page
+      res.redirect(`${req.headers.origin}/checkout/success?saleId=${saleId}`);
+    } else {
+      await pool.query("UPDATE sales SET status = 'cancelled' WHERE id = $1", [saleId]);
+      res.redirect(`${req.headers.origin}/checkout/cancel?saleId=${saleId}`);
+    }
+  } catch (e: any) {
+    console.error("Iyzico Callback Error:", e.message);
+    res.status(500).send(e.message);
+  }
+});
+
+// Payoneer Webhook
+router.post("/webhooks/payoneer", async (req, res) => {
+  console.log("Payoneer Webhook Received:", JSON.stringify(req.body, null, 2));
+  const { transactionId, status, result } = req.body;
+
+  if (!transactionId) {
+    return res.status(400).json({ error: "Missing transactionId" });
+  }
+
+  // transactionId format: SALE-{saleId}-{timestamp}
+  const parts = transactionId.split("-");
+  const saleId = parts[1];
+
+  if (!saleId) {
+    return res.status(400).json({ error: "Invalid transactionId format" });
+  }
+
+  try {
+    // Status can be 'PROCESSED', 'PENDING', 'FAILED', etc.
+    // Result code can be '00000' for success
+    let newStatus = 'pending';
+    if (result && result.code === '00000') {
+      newStatus = 'processing'; // Or 'completed' depending on workflow
+    } else if (status === 'FAILED') {
+      newStatus = 'cancelled';
+    }
+
+    await pool.query("UPDATE sales SET status = $1 WHERE id = $2", [newStatus, saleId]);
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("Webhook Error:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PayPal Capture
+router.post("/paypal/capture", async (req, res) => {
+  const { orderId, saleId } = req.body;
+
+  if (!orderId || !saleId) {
+    return res.status(400).json({ error: "Missing orderId or saleId" });
+  }
+
+  try {
+    const saleRes = await pool.query("SELECT store_id FROM sales WHERE id = $1", [saleId]);
+    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Sale not found" });
+    
+    const storeId = saleRes.rows[0].store_id;
+    const storeRes = await pool.query("SELECT payment_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0].payment_settings;
+
+    const accessToken = await getPayPalAccessToken(settings.paypal_client_id, settings.paypal_secret, settings.paypal_sandbox);
+    const baseUrl = settings.paypal_sandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+
+    const response = await fetch(`${baseUrl}/v2/checkout/orders/${orderId}/capture`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    if (result.status === 'COMPLETED') {
+      await pool.query("UPDATE sales SET status = 'processing' WHERE id = $1", [saleId]);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: "Payment not completed", details: result });
+    }
+  } catch (e: any) {
+    console.error("PayPal Capture Error:", e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 

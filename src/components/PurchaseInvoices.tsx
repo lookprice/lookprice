@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useDeferredValue } from "react";
 import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, Building2, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
@@ -14,6 +14,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -27,10 +28,12 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
+  const deferredProductSearch = useDeferredValue(productSearch);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [companySearch, setCompanySearch] = useState("");
+  const deferredCompanySearch = useDeferredValue(companySearch);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [showQuickCompanyModal, setShowQuickCompanyModal] = useState(false);
   const [quickCompanyForm, setQuickCompanyForm] = useState({ title: "", phone: "", tax_number: "" });
@@ -256,8 +259,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const totals = calculateTotals();
 
   const filteredInvoices = invoices.filter((inv: any) => {
-    const matchesSearch = inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      inv.company_name.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = inv.invoice_number.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+      inv.company_name.toLowerCase().includes(deferredSearch.toLowerCase());
     
     const invDate = new Date(inv.invoice_date).toISOString().split('T')[0];
     const matchesStartDate = !startDate || invDate >= startDate;
@@ -275,13 +278,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const totalDeductibleTax = filteredInvoices.reduce((sum: number, inv: any) => sum + Number(inv.tax_amount || 0), 0);
 
   const filteredProducts = products.filter((p: any) => 
-    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.barcode.toLowerCase().includes(productSearch.toLowerCase())
+    p.name.toLowerCase().includes(deferredProductSearch.toLowerCase()) ||
+    p.barcode.toLowerCase().includes(deferredProductSearch.toLowerCase())
   );
 
   const filteredCompanies = companies.filter((c: any) => 
-    c.title.toLowerCase().includes(companySearch.toLowerCase()) ||
-    (c.tax_number && c.tax_number.includes(companySearch))
+    c.title.toLowerCase().includes(deferredCompanySearch.toLowerCase()) ||
+    (c.tax_number && c.tax_number.includes(deferredCompanySearch))
   );
 
   const exportToExcel = () => {

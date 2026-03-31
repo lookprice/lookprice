@@ -59,44 +59,44 @@ export const LandingPage = () => {
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30">
       {/* Top Navigation */}
-      <div className="fixed top-8 left-8 z-[100]">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-            <div className="w-4 h-4 bg-black rounded-sm" />
+      <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 lg:px-12 py-2 md:py-6 flex items-center justify-between bg-black/40 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center space-x-2 md:space-x-3 cursor-pointer group" onClick={() => navigate("/")}>
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            <div className="relative w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg shadow-white/5">
+              <div className="w-4 h-4 md:w-5 md:h-5 bg-black rounded-sm" />
+            </div>
           </div>
-          <span className="text-xl font-medium tracking-tight">LookPrice</span>
+          <span className="text-lg md:text-xl font-black tracking-tighter hidden sm:block text-white">Look<span className="text-indigo-500">Price</span></span>
         </div>
-      </div>
 
-      <div className="fixed top-8 right-8 z-[100] flex items-center space-x-4">
-        {/* Language Switcher */}
-        <div className="flex items-center space-x-2 bg-white/5 p-1 rounded-full border border-white/10 backdrop-blur-md">
-          <div className="pl-3 pr-1 text-white/40">
-            <Globe className="w-4 h-4" />
+        <div className="flex items-center space-x-2 md:space-x-4">
+          {/* Language Switcher */}
+          <div className="flex items-center bg-white/5 p-0.5 md:p-1 rounded-full border border-white/10 backdrop-blur-md">
+            {['tr', 'en', 'de'].map((l) => (
+              <button 
+                key={l}
+                onClick={() => setLang(l as 'tr' | 'en' | 'de')}
+                className={`w-7 h-7 md:w-9 md:h-9 flex items-center justify-center rounded-full text-[8px] md:text-[10px] font-black transition-all ${
+                  lang === l 
+                    ? 'bg-white text-black shadow-xl' 
+                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
           </div>
-          {['tr', 'en', 'de'].map((l) => (
-            <button 
-              key={l}
-              onClick={() => setLang(l as 'tr' | 'en' | 'de')}
-              className={`w-9 h-9 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
-                lang === l 
-                  ? 'bg-white text-black shadow-sm' 
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              {l.toUpperCase()}
-            </button>
-          ))}
+          
+          {/* Login Button */}
+          <button
+            onClick={() => navigate('/login')}
+            className="px-4 md:px-8 py-2 md:py-3 bg-white text-black hover:bg-indigo-600 hover:text-white rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-white/5 active:scale-95"
+          >
+            {lang === 'tr' ? 'Giriş' : 'Login'}
+          </button>
         </div>
-        
-        {/* Login Button */}
-        <button
-          onClick={() => navigate('/login')}
-          className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-full text-sm font-medium transition-all backdrop-blur-md"
-        >
-          {lang === 'tr' ? 'Giriş Yap' : 'Login'}
-        </button>
-      </div>
+      </header>
 
       {/* Hero Section */}
       <section className="relative min-h-[85vh] flex flex-col justify-center px-6 md:px-12 lg:px-24 pt-32 pb-20 overflow-hidden">
@@ -108,7 +108,7 @@ export const LandingPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium tracking-tighter mb-8 leading-[1.05]">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-medium tracking-tighter mb-8 leading-[1.05]">
               Retail Operations,<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
                 Engineered.

@@ -453,6 +453,13 @@ export const translations: Record<string, any> = {
       currencyDesc: "Yeni ürünler eklenirken varsayılan olarak bu para birimi seçilecektir.",
       bgDesc: "Müşteri tarama sayfasında arka planda saydam olarak gösterilecektir.",
       teamTitle: "Ekip Yönetimi",
+      settingsCategories: {
+        storeProfile: "Mağaza Profili",
+        appearance: "Görünüm ve Vitrin",
+        financial: "Finansal ve Ödemeler",
+        team: "Ekip ve Sosyal Medya"
+      },
+      saveSettings: "Ayarları Kaydet",
       editorDesc: "Editör (Ürün yönetebilir)",
       viewerDesc: "İzleyici (Sadece raporlar)",
       add: "Ekle",
@@ -1097,6 +1104,13 @@ export const translations: Record<string, any> = {
       currencyDesc: "This currency will be selected by default when adding new products.",
       bgDesc: "Will be shown transparently in the background on the customer scan page.",
       teamTitle: "Team Management",
+      settingsCategories: {
+        storeProfile: "Store Profile",
+        appearance: "Appearance & Showcase",
+        financial: "Financial & Payments",
+        team: "Team & Social Media"
+      },
+      saveSettings: "Save Settings",
       password: "Password",
       editorDesc: "Editor (Can manage products)",
       viewerDesc: "Viewer (Reports only)",
