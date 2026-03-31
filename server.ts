@@ -22,7 +22,7 @@ const __dirname = path.dirname(__filename);
 import admin from "firebase-admin";
 
 // Import the Firebase configuration
-import firebaseConfig from "./firebase-applet-config.json";
+import firebaseConfig from "./src/firebase-applet-config.json";
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
