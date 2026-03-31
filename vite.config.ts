@@ -15,6 +15,11 @@ export default defineConfig(({ mode }) => {
       'process.env': 'globalThis.process.env',
     },
     plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@config': path.resolve(__dirname, './firebase-applet-config.json')
+      }
+    },
     build: {
       rollupOptions: {
         output: {
