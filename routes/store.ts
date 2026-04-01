@@ -332,6 +332,7 @@ router.get("/products", async (req: any, res) => {
       if (currentStoreRes.rows.length === 0) return res.status(403).json({ error: "User store not found" });
       
       const userParentId = currentStoreRes.rows[0].parent_id || currentStoreId;
+      console.log(`[DEBUG] GET /products: currentStoreId=${currentStoreId}, requestedStoreId=${requestedStoreId}, userParentId=${userParentId}, storeIds=${JSON.stringify(storeIds)}`);
 
       // Rule: Parent store can view any store in their group
       const unauthorizedIds = await pool.query(
@@ -340,6 +341,7 @@ router.get("/products", async (req: any, res) => {
       );
 
       if (unauthorizedIds.rows.length > 0) {
+        console.log(`[DEBUG] GET /products: Unauthorized IDs found: ${JSON.stringify(unauthorizedIds.rows.map(r => r.id))}`);
         return res.status(403).json({ error: "Unauthorized to view products from these stores" });
       }
     }
@@ -2381,12 +2383,14 @@ router.get("/branches", async (req: any, res) => {
     // Find parent_id of current store
     const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
     const parentId = currentStoreRes.rows[0]?.parent_id || storeId;
+    console.log(`[DEBUG] GET /branches: storeId=${storeId}, parentId=${parentId}`);
 
     // Get all stores with same parent_id or the parent itself
     const branchesRes = await pool.query(
       "SELECT id, name, slug, address, phone FROM stores WHERE (id = $1 OR parent_id = $1) AND id != $2",
       [parentId, storeId]
     );
+    console.log(`[DEBUG] GET /branches: Found ${branchesRes.rows.length} branches`);
     
     // Filter out current store
     const branches = branchesRes.rows.filter(b => b.id !== storeId);

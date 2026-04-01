@@ -63,10 +63,12 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log(`[DEBUG] StockTransferTab fetchData: storeId=${storeId}, includeBranches=${includeBranches}`);
       const [branchesRes, transfersRes] = await Promise.all([
         api.getBranches(storeId),
         api.getStockTransfers(storeId, includeBranches)
       ]);
+      console.log(`[DEBUG] StockTransferTab API responses:`, { branchesRes, transfersRes });
       
       if (transfersRes && transfersRes.error) {
         console.error("API Error fetching transfers:", transfersRes.error);
@@ -85,7 +87,9 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
     try {
       setLoadingStock(true);
       setSelectedBranch(branchId);
+      console.log(`[DEBUG] Checking stock for branchId=${branchId}`);
       const stockRes = await api.getProducts("", branchId);
+      console.log(`[DEBUG] Branch stock response for ${branchId}:`, stockRes);
       setBranchStock(Array.isArray(stockRes) ? stockRes : []);
     } catch (error) {
       console.error("Error checking branch stock:", error);
