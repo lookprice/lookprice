@@ -332,12 +332,6 @@ router.get("/products", async (req: any, res) => {
       if (currentStoreRes.rows.length === 0) return res.status(403).json({ error: "User store not found" });
       
       const userParentId = currentStoreRes.rows[0].parent_id || currentStoreId;
-      const isUserParentStore = currentStoreRes.rows[0].parent_id === null;
-
-      // Rule: Branches can only view their own products
-      if (!isUserParentStore && (storeIds.length > 1 || Number(storeIds[0]) !== Number(currentStoreId))) {
-        return res.status(403).json({ error: "Branches can only view their own products" });
-      }
 
       // Rule: Parent store can view any store in their group
       const unauthorizedIds = await pool.query(
@@ -2464,13 +2458,6 @@ router.get("/stock-transfers", async (req: any, res) => {
       if (currentStoreRes.rows.length === 0) return res.status(403).json({ error: "User store not found" });
       
       const userParentId = currentStoreRes.rows[0].parent_id || currentStoreId;
-      const isUserParentStore = currentStoreRes.rows[0].parent_id === null;
-
-      // Rule: Branches can only view their own transfers
-      if (!isUserParentStore && (storeIds.length > 1 || Number(storeIds[0]) !== Number(currentStoreId))) {
-        console.log(`[DEBUG] Auth failed: Branch ${currentStoreId} trying to view multiple or other store transfers`);
-        return res.status(403).json({ error: "Branches can only view their own transfers" });
-      }
 
       // Verify requested store belongs to the same group
       const unauthorizedIds = await pool.query(

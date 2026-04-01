@@ -63,12 +63,10 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log(`[DEBUG] StockTransferTab fetchData: storeId=${storeId}, includeBranches=${includeBranches}`);
       const [branchesRes, transfersRes] = await Promise.all([
         api.getBranches(storeId),
         api.getStockTransfers(storeId, includeBranches)
       ]);
-      console.log(`[DEBUG] StockTransferTab API responses:`, { branchesRes, transfersRes });
       
       if (transfersRes && transfersRes.error) {
         console.error("API Error fetching transfers:", transfersRes.error);
