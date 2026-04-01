@@ -19,20 +19,11 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import admin from "firebase-admin";
-
-// Import the Firebase configuration
-import firebaseConfig from "./src/firebase-applet-config.json";
-
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-    storageBucket: firebaseConfig.storageBucket
-  });
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
-
-const bucket = admin.storage().bucket();
 
 async function startServer() {
   console.log("Starting server process...");
@@ -49,14 +40,9 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Ensure uploads directory exists (still used for temp files if needed)
-  const uploadsDir = path.join(process.cwd(), "uploads");
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
   app.use("/uploads", express.static(uploadsDir));
 
-  // File Upload Route (using Firebase Storage)
+  // File Upload Route (Supabase Storage)
   const upload = multer({ storage: multer.memoryStorage() });
 
   app.post("/api/upload", authenticate, upload.single("file"), async (req: any, res) => {
@@ -64,25 +50,33 @@ async function startServer() {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
+    // Check file size (2MB limit)
+    if (req.file.size > 2 * 1024 * 1024) {
+      return res.status(400).json({ error: "File size exceeds 2MB limit" });
+    }
+
     try {
+      const { supabase } = await import("./src/services/supabaseService.ts");
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       const filename = uniqueSuffix + "-" + req.file.originalname;
-      const file = bucket.file(`uploads/${filename}`);
 
-      await file.save(req.file.buffer, {
-        metadata: {
+      const { data, error } = await supabase.storage
+        .from("lookdocu")
+        .upload(filename, req.file.buffer, {
           contentType: req.file.mimetype,
-        },
-      });
+          upsert: false,
+        });
 
-      // Make the file public (or use signed URLs, but public is simpler for now)
-      await file.makePublic();
-      const fileUrl = `https://storage.googleapis.com/${bucket.name}/uploads/${filename}`;
-      
-      res.json({ url: fileUrl });
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("lookdocu")
+        .getPublicUrl(filename);
+
+      res.json({ url: publicUrlData.publicUrl });
     } catch (error: any) {
-      console.error("Firebase upload error:", error);
-      res.status(500).json({ error: "Failed to upload file to Firebase Storage" });
+      console.error("Supabase upload error:", error);
+      res.status(500).json({ error: "Failed to upload file to Supabase" });
     }
   });
 
@@ -106,7 +100,7 @@ async function startServer() {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: blob: https:; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' wss://*.run.app:* https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com;"
+      "connect-src 'self' wss://*.run.app:* https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com;"
     );
     next();
   });
