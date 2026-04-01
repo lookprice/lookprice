@@ -838,7 +838,7 @@ const StoreShowcase: React.FC = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative h-[400px] md:h-[600px] overflow-hidden">
+      <section className="relative h-[300px] md:h-[450px] overflow-hidden">
         {store?.hero_image_url ? (
           <img 
             src={store.hero_image_url} 
@@ -1261,57 +1261,30 @@ const StoreShowcase: React.FC = () => {
           </section>
         )}
 
-        {/* About Us Section */}
-        {store?.about_text && (
-          <section className="mt-32 bg-gray-900 rounded-[40px] p-8 md:p-20 text-white relative overflow-hidden">
-            <div 
-              className="absolute top-0 right-0 w-64 h-64 blur-[100px] rounded-full"
-              style={{ backgroundColor: `${primaryColor}20` }}
-            ></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 blur-[100px] rounded-full"></div>
-            
-            <div className="relative z-10 max-w-3xl">
-              <div className="flex items-center gap-4 mb-8">
-                <div 
-                  className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center"
-                  style={{ color: primaryColor }}
-                >
-                  <Info className="w-6 h-6" />
-                </div>
-                <h2 className="text-3xl font-black uppercase tracking-widest">{t.dashboard.aboutUs}</h2>
-              </div>
-              <p className="text-white/70 leading-relaxed text-xl font-medium whitespace-pre-wrap italic">
-                "{store.about_text}"
-              </p>
+        {/* Newsletter Section - Sosyal medya butonlarının altına taşındı */}
+        <section className="mt-32 bg-gray-50 rounded-[40px] p-8 md:p-20 flex flex-col md:flex-row items-center justify-between gap-12 overflow-hidden relative">
+          <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[100px]" style={{ backgroundColor: `${primaryColor}20` }}></div>
+          <div className="max-w-xl">
+            <h2 className="text-4xl font-black text-gray-900 mb-4 leading-tight">{t.dashboard.newsletter}</h2>
+            <p className="text-gray-500 text-lg font-medium">{t.dashboard.newsletterDesc}</p>
+          </div>
+          <div className="w-full max-w-md">
+            <div className="flex gap-2">
+              <input 
+                type="email" 
+                placeholder="E-posta adresiniz" 
+                className="flex-1 px-6 py-4 bg-white border-2 border-transparent rounded-2xl outline-none font-medium shadow-sm transition-all"
+                style={{ borderFocusColor: primaryColor } as any}
+              />
+              <button 
+                className="px-8 py-4 text-white rounded-2xl font-black transition-all shadow-xl active:scale-95 whitespace-nowrap"
+                style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
+              >
+                {t.dashboard.subscribe}
+              </button>
             </div>
-          </section>
-        )}
-        {/* Newsletter Section */}
-        {!selectedCategory && !searchQuery && (
-          <section className="mt-32 bg-gray-50 rounded-[40px] p-8 md:p-20 flex flex-col md:flex-row items-center justify-between gap-12 overflow-hidden relative">
-            <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[100px]" style={{ backgroundColor: `${primaryColor}20` }}></div>
-            <div className="max-w-xl">
-              <h2 className="text-4xl font-black text-gray-900 mb-4 leading-tight">{t.dashboard.newsletter}</h2>
-              <p className="text-gray-500 text-lg font-medium">{t.dashboard.newsletterDesc}</p>
-            </div>
-            <div className="w-full max-w-md">
-              <div className="flex gap-2">
-                <input 
-                  type="email" 
-                  placeholder="E-posta adresiniz" 
-                  className="flex-1 px-6 py-4 bg-white border-2 border-transparent rounded-2xl outline-none font-medium shadow-sm transition-all"
-                  style={{ borderFocusColor: primaryColor } as any}
-                />
-                <button 
-                  className="px-8 py-4 text-white rounded-2xl font-black transition-all shadow-xl active:scale-95 whitespace-nowrap"
-                  style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
-                >
-                  {t.dashboard.subscribe}
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
@@ -1332,7 +1305,7 @@ const StoreShowcase: React.FC = () => {
               <p className="text-gray-500 max-w-md leading-relaxed mb-8">
                 {store?.hero_subtitle || "Mağazamızın en kaliteli ürünlerini en uygun fiyatlarla sizlere sunuyoruz."}
               </p>
-              <div className="flex gap-4">
+              <div className="flex gap-4 mb-8">
                 {store?.instagram_url && (
                   <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-600 hover:bg-pink-50 hover:text-pink-600 hover:border-pink-100 transition-all shadow-sm">
                     <Instagram className="w-5 h-5" />
@@ -1348,6 +1321,23 @@ const StoreShowcase: React.FC = () => {
                     <Twitter className="w-5 h-5" />
                   </a>
                 )}
+              </div>
+              {/* Bülten buraya taşındı */}
+              <div className="mt-8">
+                <h4 className="font-black text-gray-900 uppercase tracking-widest text-sm mb-4">{t.dashboard.newsletter}</h4>
+                <div className="flex gap-2">
+                  <input 
+                    type="email" 
+                    placeholder="E-posta adresiniz" 
+                    className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none text-sm"
+                  />
+                  <button 
+                    className="px-4 py-3 text-white rounded-xl font-bold text-sm"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {t.dashboard.subscribe}
+                  </button>
+                </div>
               </div>
             </div>
 
