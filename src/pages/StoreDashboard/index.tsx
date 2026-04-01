@@ -2308,7 +2308,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <X className="h-5 w-5 text-gray-400" />
                 </button>
               </div>
-              <form onSubmit={handleAddProduct} className="flex flex-col overflow-hidden">
+              <form onSubmit={handleAddProduct} className="flex flex-col overflow-hidden flex-1 min-h-0">
                 <div className="p-6 space-y-6 overflow-y-auto flex-1">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Left Column */}
@@ -2815,9 +2815,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-30">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
                 <h3 className="text-xl font-bold text-gray-900">
                   {editingQuotation ? (lang === 'tr' ? 'Teklifi Düzenle' : 'Edit Quotation') : (lang === 'tr' ? 'Yeni Teklif' : 'New Quotation')}
                 </h3>
@@ -2825,7 +2825,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <X className="h-5 w-5 text-gray-400" />
                 </button>
               </div>
-              <form onSubmit={handleAddQuotation} className="flex flex-col h-full max-h-[90vh]">
+              <form onSubmit={handleAddQuotation} className="flex flex-col overflow-hidden flex-1 min-h-0">
                 <div className="p-6 space-y-6 overflow-y-auto flex-1">
                   <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -3047,7 +3047,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                 </div>
 
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3 sticky bottom-0 z-30">
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3 shrink-0">
                   <button type="button" onClick={() => setShowQuotationModal(false)} className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all">
                     {t.cancel}
                   </button>

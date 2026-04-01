@@ -993,43 +993,61 @@ const StoreShowcase: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-12">
-          {/* Filter Bar */}
-          <div className="flex flex-wrap gap-2 mb-8">
-            <button
-              onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); setSelectedBrand(null); setSelectedAuthor(null); }}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                !selectedCategory && !selectedBrand && !selectedAuthor ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {t.dashboard.all}
-            </button>
-            {Array.from(categories.keys()).sort().map(cat => (
-              <button
-                key={cat}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  setSelectedSubCategory(null);
-                }}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                  selectedCategory === cat ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-            {Array.from(brands).sort().map(brand => (
-              <button
-                key={brand}
-                onClick={() => setSelectedBrand(brand)}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                  selectedBrand === brand ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {brand}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-col lg:flex-row gap-12">
+          {/* Sidebar */}
+          <aside className="lg:w-72 flex-shrink-0">
+            <div className="sticky top-24 space-y-12">
+              {/* Categories */}
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                    <Filter className="w-4 h-4" />
+                    {t.dashboard.categories}
+                  </h3>
+                  {(selectedCategory || selectedSubCategory) && (
+                    <button 
+                      onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); }}
+                      className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-wider"
+                    >
+                      {t.dashboard.clear || 'Temizle'}
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); }}
+                    className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center gap-3 ${
+                      !selectedCategory ? "bg-gray-900 text-white shadow-xl translate-x-2" : "text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${!selectedCategory ? "bg-blue-400" : "bg-gray-300"}`}></div>
+                    {t.dashboard.all}
+                  </button>
+                  {Array.from(categories.keys()).sort().map(cat => (
+                    <div key={cat} className="space-y-1">
+                      <button
+                        onClick={() => {
+                          if (selectedCategory === cat) {
+                            toggleCategory(cat);
+                          } else {
+                            setSelectedCategory(cat);
+                            setSelectedSubCategory(null);
+                            if (!expandedCategories.has(cat)) toggleCategory(cat);
+                          }
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${
+                          selectedCategory === cat ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedCategory === cat ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
+                          <span>{cat}</span>
+                        </div>
+                        {categories.get(cat)!.size > 0 && (
+                          <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${expandedCategories.has(cat) ? "rotate-90" : ""}`} />
+                        )}
+                      </button>
+                      <AnimatePresence>
                         {expandedCategories.has(cat) && categories.get(cat)!.size > 0 && (
                           <motion.div
                             initial={{ height: 0, opacity: 0 }}
@@ -1074,18 +1092,19 @@ const StoreShowcase: React.FC = () => {
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
                     {brands.map(brand => (
                       <button
                         key={brand}
                         onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
-                        className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center border-2 ${
-                          selectedBrand === brand 
-                            ? "bg-gray-900 border-gray-900 text-white shadow-lg" 
-                            : "bg-white border-gray-100 text-gray-500 hover:border-gray-200"
+                        className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${
+                          selectedBrand === brand ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-100"
                         }`}
                       >
-                        {brand}
+                        <div className="flex items-center gap-3">
+                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedBrand === brand ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
+                          <span>{brand}</span>
+                        </div>
                       </button>
                     ))}
                   </div>

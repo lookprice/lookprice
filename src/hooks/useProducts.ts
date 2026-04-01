@@ -263,10 +263,20 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
       [isTr ? 'Barkod' : 'Barcode']: p.barcode,
       [isTr ? 'Ürün Adı' : 'Product Name']: p.name,
       [isTr ? 'Kategori' : 'Category']: p.category,
+      [isTr ? 'Alt Kategori' : 'Sub-Category']: p.sub_category || '',
+      [isTr ? 'Marka' : 'Brand']: p.brand || '',
+      [isTr ? 'Yazar' : 'Author']: p.author || '',
       [isTr ? 'Fiyat' : 'Price']: p.price,
       [isTr ? 'Para Birimi' : 'Currency']: p.currency,
+      [isTr ? 'Maliyet Fiyatı' : 'Cost Price']: p.cost_price || 0,
+      [isTr ? 'Maliyet Para Birimi' : 'Cost Currency']: p.cost_currency || '',
       [isTr ? 'Stok' : 'Stock']: p.stock_quantity,
-      [isTr ? 'Açıklama' : 'Description']: p.description
+      [isTr ? 'Min Stok' : 'Min Stock']: p.min_stock_level || 0,
+      [isTr ? 'Birim' : 'Unit']: p.unit || '',
+      [isTr ? 'KDV (%)' : 'Tax Rate (%)']: p.tax_rate || 0,
+      [isTr ? 'Etiketler' : 'Labels']: Array.isArray(p.labels) ? p.labels.join(', ') : '',
+      [isTr ? 'Görsel URL' : 'Image URL']: p.image_url || '',
+      [isTr ? 'Açıklama' : 'Description']: p.description || ''
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
