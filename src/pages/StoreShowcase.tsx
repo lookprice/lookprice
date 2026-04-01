@@ -521,6 +521,7 @@ const StoreShowcase: React.FC = () => {
         if (productsRes.error) throw new Error(productsRes.error);
 
         setStore(storeRes);
+        document.title = storeRes.name || 'Store';
         setProducts(productsRes);
         
         // If customer is logged in, sync their info to checkout
@@ -977,42 +978,6 @@ const StoreShowcase: React.FC = () => {
         </div>
       </section>
 
-      {/* Trust Badges */}
-      <section className="bg-gray-50 border-y py-12">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="flex items-center gap-5 group">
-            <div 
-              className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform"
-              style={{ color: primaryColor }}
-            >
-              <Truck className="w-8 h-8" />
-            </div>
-            <div>
-              <h4 className="font-black text-gray-900 uppercase tracking-wider text-sm">{t.dashboard.fastDelivery}</h4>
-              <p className="text-gray-500 text-xs mt-1">Tüm siparişlerde hızlı teslimat</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-5 group">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-green-600 shadow-xl group-hover:scale-110 transition-transform">
-              <ShieldCheck className="w-8 h-8" />
-            </div>
-            <div>
-              <h4 className="font-black text-gray-900 uppercase tracking-wider text-sm">{t.dashboard.securePayment}</h4>
-              <p className="text-gray-500 text-xs mt-1">256-bit SSL güvenli ödeme altyapısı</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-5 group">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-purple-600 shadow-xl group-hover:scale-110 transition-transform">
-              <RotateCcw className="w-8 h-8" />
-            </div>
-            <div>
-              <h4 className="font-black text-gray-900 uppercase tracking-wider text-sm">{t.dashboard.returnPolicy}</h4>
-              <p className="text-gray-500 text-xs mt-1">14 gün içinde kolay iade garantisi</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <main className="max-w-7xl mx-auto px-4 py-16" id="products-grid">
         {/* Search Bar */}
         <div className="mb-16">
@@ -1387,6 +1352,42 @@ const StoreShowcase: React.FC = () => {
             </div>
           </section>
         )}
+        {/* Trust Badges (Moved here) */}
+        <section className="bg-gray-50 border-y py-12 mt-20">
+          <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex items-center gap-5 group">
+              <div 
+                className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform"
+                style={{ color: primaryColor }}
+              >
+                <Truck className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="font-black text-gray-900 uppercase tracking-wider text-sm">{t.dashboard.fastDelivery}</h4>
+                <p className="text-gray-500 text-xs mt-1">Tüm siparişlerde hızlı teslimat</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-5 group">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-green-600 shadow-xl group-hover:scale-110 transition-transform">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="font-black text-gray-900 uppercase tracking-wider text-sm">{t.dashboard.securePayment}</h4>
+                <p className="text-gray-500 text-xs mt-1">256-bit SSL güvenli ödeme altyapısı</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-5 group">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-purple-600 shadow-xl group-hover:scale-110 transition-transform">
+                <RotateCcw className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="font-black text-gray-900 uppercase tracking-wider text-sm">{t.dashboard.returnPolicy}</h4>
+                <p className="text-gray-500 text-xs mt-1">14 gün içinde kolay iade garantisi</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       {/* Footer */}

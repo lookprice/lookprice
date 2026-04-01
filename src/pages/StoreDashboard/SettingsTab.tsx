@@ -307,6 +307,7 @@ const SettingsTab = ({
                             <option value="">{t.selectBrand}</option>
                             <option value="beko">Beko</option>
                             <option value="ingenico">Ingenico</option>
+                            <option value="verifone">Verifone</option>
                             <option value="hugin">Hugin</option>
                             <option value="profilo">Profilo</option>
                             <option value="paypad">Paypad</option>
@@ -856,7 +857,7 @@ const SettingsTab = ({
       </div>
 
       {/* Sticky Save Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-[60] p-4 bg-white/40 backdrop-blur-2xl border-t border-slate-200/50 flex justify-center lg:justify-end lg:pr-12 pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-white/40 backdrop-blur-2xl border-t border-slate-200/50 flex justify-center lg:justify-end lg:pr-12 pointer-events-none">
         <div className="pointer-events-auto">
           <button 
             onClick={onSaveBranding}
