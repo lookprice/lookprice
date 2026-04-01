@@ -478,15 +478,21 @@ router.put("/products/bulk-update-tax", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
-  const { category, taxRate } = req.body;
+  const { category, taxRate, includeBranches } = req.body;
   if (!category || taxRate === undefined) {
     return res.status(400).json({ error: "Category and taxRate are required" });
   }
 
   try {
+    let storeIds = [storeId];
+    if (includeBranches) {
+      const branchesRes = await pool.query("SELECT id FROM stores WHERE parent_id = $1", [storeId]);
+      storeIds = [storeId, ...branchesRes.rows.map(r => r.id)];
+    }
+
     const result = await pool.query(
-      "UPDATE products SET tax_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE store_id = $2 AND LOWER(TRIM(category)) = LOWER(TRIM($3))",
-      [taxRate, storeId, category]
+      "UPDATE products SET tax_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE store_id = ANY($2) AND LOWER(TRIM(category)) = LOWER(TRIM($3))",
+      [taxRate, storeIds, category]
     );
 
     // Log the action
@@ -496,8 +502,8 @@ router.put("/products/bulk-update-tax", async (req: any, res) => {
       "bulk_tax_update", 
       "product", 
       null, 
-      `Toplu KDV güncelleme: ${category} kategorisi, Yeni KDV: %${taxRate}`,
-      { category, oldTaxRate: 'unknown' },
+      `Toplu KDV güncelleme: ${category} kategorisi, Yeni KDV: %${taxRate}, Etkilenen Ürün: ${result.rowCount}`,
+      { category, taxRate, affectedRows: result.rowCount },
       { category, newTaxRate: taxRate, count: result.rowCount }
     );
 

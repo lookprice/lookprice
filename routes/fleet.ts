@@ -1,8 +1,36 @@
 import express from 'express';
 import { pool } from '../models/db';
 import { authenticate } from '../middleware/auth';
+import multer from 'multer';
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+async function uploadToSupabase(file: any) {
+  try {
+    const { supabase } = await import('../src/services/supabaseService.ts');
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const filename = uniqueSuffix + '-' + file.originalname;
+
+    const { data, error } = await supabase.storage
+      .from('lookdocu')
+      .upload(filename, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    const { data: publicUrlData } = supabase.storage
+      .from('lookdocu')
+      .getPublicUrl(filename);
+
+    return publicUrlData.publicUrl;
+  } catch (error) {
+    console.error('Supabase upload error:', error);
+    throw error;
+  }
+}
 
 // Get all vehicles for a store
 router.get('/vehicles', authenticate, async (req: any, res) => {
@@ -123,11 +151,11 @@ router.get('/vehicles/:id/documents', authenticate, async (req: any, res) => {
 
 router.post('/vehicles/:id/documents', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { type, document_url, expiry_date, notes } = req.body;
+  const { type, document_url, expiry_date, notes, is_recurring, recurrence_period } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO vehicle_documents (vehicle_id, type, document_url, expiry_date, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, type, document_url, expiry_date || null, notes]
+      'INSERT INTO vehicle_documents (vehicle_id, type, document_url, expiry_date, notes, is_recurring, recurrence_period) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [id, type, document_url, expiry_date || null, notes, is_recurring || false, recurrence_period]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -138,11 +166,11 @@ router.post('/vehicles/:id/documents', authenticate, async (req: any, res) => {
 
 router.put('/vehicle-documents/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { type, document_url, expiry_date, notes } = req.body;
+  const { type, document_url, expiry_date, notes, is_recurring, recurrence_period } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE vehicle_documents SET type = $1, document_url = $2, expiry_date = $3, notes = $4 WHERE id = $5 RETURNING *',
-      [type, document_url, expiry_date || null, notes, id]
+      'UPDATE vehicle_documents SET type = $1, document_url = $2, expiry_date = $3, notes = $4, is_recurring = $5, recurrence_period = $6 WHERE id = $7 RETURNING *',
+      [type, document_url, expiry_date || null, notes, is_recurring || false, recurrence_period, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
     res.json(result.rows[0]);
@@ -238,28 +266,30 @@ router.get('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      `SELECT va.*, u.email as user_email 
+      `SELECT va.*, u.email as user_email, d.name as driver_name
        FROM vehicle_assignments va
-       JOIN users u ON va.user_id = u.id
+       LEFT JOIN users u ON va.user_id = u.id
+       LEFT JOIN drivers d ON va.driver_id = d.id
        WHERE va.vehicle_id = $1 ORDER BY va.start_date DESC`,
       [id]
     );
     res.json(result.rows);
   } catch (error) {
+    console.error('Error fetching vehicle assignments:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 router.post('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { user_id, start_date, start_mileage, notes } = req.body;
-  if (!user_id || !start_date) {
-    return res.status(400).json({ error: 'Missing required fields: user_id and start_date are required' });
+  const { user_id, driver_id, start_date, start_mileage, notes } = req.body;
+  if ((!user_id && !driver_id) || !start_date) {
+    return res.status(400).json({ error: 'Missing required fields: user_id or driver_id and start_date are required' });
   }
   try {
     const result = await pool.query(
-      'INSERT INTO vehicle_assignments (vehicle_id, user_id, start_date, start_mileage, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, user_id, start_date, start_mileage, notes]
+      'INSERT INTO vehicle_assignments (vehicle_id, user_id, driver_id, start_date, start_mileage, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [id, user_id || null, driver_id || null, start_date, start_mileage, notes]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -368,7 +398,13 @@ router.post('/vehicles/:id/incidents', authenticate, async (req: any, res) => {
 router.get('/drivers', authenticate, async (req: any, res) => {
   const storeId = req.query.store_id || req.user.store_id;
   try {
-    const result = await pool.query('SELECT * FROM drivers WHERE store_id = $1 ORDER BY name ASC', [storeId]);
+    const result = await pool.query(`
+      SELECT d.*, 
+        (SELECT COUNT(*) FROM driver_documents dd WHERE dd.driver_id = d.id AND dd.expiry_date <= CURRENT_DATE + INTERVAL '30 days') as expiring_docs
+      FROM drivers d 
+      WHERE d.store_id = $1 
+      ORDER BY d.name ASC
+    `, [storeId]);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching drivers:', error);
@@ -422,13 +458,58 @@ router.delete('/drivers/:id', authenticate, async (req: any, res) => {
 });
 
 // Driver Document Routes
-router.post('/drivers/:id/documents', authenticate, async (req: any, res) => {
-  const { id } = req.params;
-  const { type, document_url, expiry_date, notes } = req.body;
+router.get('/driver-documents', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.user.store_id;
   try {
     const result = await pool.query(
-      'INSERT INTO driver_documents (driver_id, type, document_url, expiry_date, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, type, document_url, expiry_date || null, notes]
+      'SELECT dd.*, d.name as driver_name FROM driver_documents dd JOIN drivers d ON dd.driver_id = d.id WHERE d.store_id = $1 ORDER BY dd.expiry_date ASC',
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/drivers/:id/documents', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM driver_documents WHERE driver_id = $1 ORDER BY expiry_date ASC', [id]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/drivers/:id/assignments', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT va.*, v.plate as vehicle_plate, v.brand as vehicle_brand, v.model as vehicle_model
+       FROM vehicle_assignments va 
+       JOIN vehicles v ON va.vehicle_id = v.id 
+       WHERE va.driver_id = $1 ORDER BY va.start_date DESC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/drivers/:id/documents', authenticate, upload.single('file'), async (req: any, res) => {
+  const { id } = req.params;
+  const { type, expiry_date, notes, is_recurring, recurrence_period } = req.body;
+  let document_url = req.body.document_url;
+
+  try {
+    if (req.file) {
+      document_url = await uploadToSupabase(req.file);
+    }
+
+    const result = await pool.query(
+      'INSERT INTO driver_documents (driver_id, type, document_url, expiry_date, notes, is_recurring, recurrence_period) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [id, type, document_url, expiry_date || null, notes, is_recurring === 'true' || is_recurring === true, recurrence_period]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -439,11 +520,11 @@ router.post('/drivers/:id/documents', authenticate, async (req: any, res) => {
 
 router.put('/driver-documents/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { type, document_url, expiry_date, notes } = req.body;
+  const { type, document_url, expiry_date, notes, is_recurring, recurrence_period } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE driver_documents SET type = $1, document_url = $2, expiry_date = $3, notes = $4 WHERE id = $5 RETURNING *',
-      [type, document_url, expiry_date || null, notes, id]
+      'UPDATE driver_documents SET type = $1, document_url = $2, expiry_date = $3, notes = $4, is_recurring = $5, recurrence_period = $6 WHERE id = $7 RETURNING *',
+      [type, document_url, expiry_date || null, notes, is_recurring || false, recurrence_period, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
     res.json(result.rows[0]);

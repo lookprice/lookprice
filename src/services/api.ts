@@ -79,15 +79,15 @@ export const api = {
   },
   addProduct: (data: any, storeId?: number) => api.post(`/api/store/products${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateProduct: (id: number, data: any, storeId?: number) => api.put(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
-  bulkUpdateTax: (category: string, taxRate: number, storeId?: number) => api.put(`/api/store/products/bulk-update-tax${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { category, taxRate }),
+  bulkUpdateTax: (category: string, taxRate: number, storeId?: number, includeBranches?: boolean) => api.put(`/api/store/products/bulk-update-tax${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { category, taxRate, includeBranches }),
   bulkUpdatePrice: (data: any, storeId?: number) => api.put(`/api/store/products/bulk-update-price${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateProductStock: (id: number, quantityChange: number, storeId?: number) => api.post(`/api/store/products/${id}/stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { quantityChange }),
   deleteProduct: (id: number, storeId?: number) => api.delete(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   importProducts: (formData: FormData, storeId?: number) => api.upload(`/api/store/import${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, formData),
   
-  getDriverDocuments: (id: number, storeId?: number) => api.get(`/api/store/drivers/${id}/documents${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  getDriverAssignments: (id: number, storeId?: number) => api.get(`/api/store/drivers/${id}/assignments${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getDriverDocuments: (id: number) => api.get(`/api/fleet/drivers/${id}/documents`),
+  getDriverAssignments: (id: number) => api.get(`/api/fleet/drivers/${id}/assignments`),
   
   getAnalytics: (storeId?: number) => api.get(`/api/store/analytics${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getAuditLogs: (storeId?: number) => api.get(`/api/store/audit-logs${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

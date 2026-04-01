@@ -164,8 +164,10 @@ const ProductsTab = ({
               <tr className="bg-slate-50/50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.barcode}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.productName}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Kategori' : 'Category'}</th>
                 {showStoreName && <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Şube' : 'Branch'}</th>}
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.price}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">KDV</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Maliyet' : 'Cost'}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.stock}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
@@ -174,14 +176,14 @@ const ProductsTab = ({
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="animate-spin h-8 w-8 border-2 border-slate-900 border-t-transparent rounded-full mx-auto mb-4"></div>
                     <p className="text-slate-500 text-sm font-medium">{t.loading}</p>
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-400 text-sm">
                     {t.noProducts}
                   </td>
                 </tr>
@@ -203,7 +205,7 @@ const ProductsTab = ({
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200">
+                          <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200">
                             <Package className="w-5 h-5 text-slate-400" />
                           </div>
                         )}
@@ -213,13 +215,6 @@ const ProductsTab = ({
                             {p.brand && (
                               <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter">
                                 {p.brand}
-                              </span>
-                            )}
-                            {p.category && (
-                              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter">
-                                {p.category}
-                                {p.sub_category && <span className="text-indigo-300 mx-1">/</span>}
-                                {p.sub_category}
                               </span>
                             )}
                             {p.author && (
@@ -237,6 +232,11 @@ const ProductsTab = ({
                         </div>
                       </div>
                     </td>
+                    <td className="px-6 py-4">
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 uppercase tracking-tighter">
+                        {p.category || '-'}
+                      </span>
+                    </td>
                     {showStoreName && (
                       <td className="px-6 py-4">
                         <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 uppercase tracking-tighter">
@@ -247,6 +247,11 @@ const ProductsTab = ({
                     <td className="px-6 py-4">
                       <span className="text-sm font-bold text-slate-900">
                         {Number(p.price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
+                        %{p.tax_rate}
                       </span>
                     </td>
                     <td className="px-6 py-4">

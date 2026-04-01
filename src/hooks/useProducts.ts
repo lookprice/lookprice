@@ -150,7 +150,10 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
 
   const handleApplyTaxRule = async (category: string, taxRate: number) => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
-    const matchingProducts = products.filter(p => p.category?.trim().toLocaleLowerCase('tr-TR') === category.trim().toLocaleLowerCase('tr-TR') && p.tax_rate !== taxRate);
+    const matchingProducts = products.filter(p => 
+      p.category?.trim().toLocaleLowerCase('tr-TR') === category.trim().toLocaleLowerCase('tr-TR') && 
+      Number(p.tax_rate) !== Number(taxRate)
+    );
     
     if (matchingProducts.length === 0) {
       alert(lang === 'tr' ? `KDV'si %${taxRate} olmayan '${category}' ürünü bulunamadı.` : `No '${category}' products with non-${taxRate}% VAT found.`);
@@ -160,11 +163,15 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     if (window.confirm(lang === 'tr' ? `${matchingProducts.length} adet '${category}' ürününün KDV'si %${taxRate} yapılacak. Emin misiniz?` : `VAT will be set to ${taxRate}% for ${matchingProducts.length} '${category}' products. Are you sure?`)) {
       try {
         setLoading(true);
-        await api.bulkUpdateTax(category, taxRate, targetStoreId);
+        const result = await api.bulkUpdateTax(category, taxRate, targetStoreId, includeBranches);
+        if (result && result.error) {
+          throw new Error(result.error);
+        }
         alert(lang === 'tr' ? "KDV'ler başarıyla güncellendi." : "VATs updated successfully.");
         fetchData(true);
-      } catch (error) {
-        alert("Hata oluştu");
+      } catch (error: any) {
+        console.error("Bulk tax update error:", error);
+        alert(lang === 'tr' ? `Hata oluştu: ${error.message}` : `Error occurred: ${error.message}`);
       } finally {
         setLoading(false);
       }

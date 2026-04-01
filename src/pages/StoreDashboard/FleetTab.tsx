@@ -168,8 +168,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
 
   // Detail Data
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
+  const [driverDocuments, setDriverDocuments] = useState<any[]>([]);
   const [maintenance, setMaintenance] = useState<VehicleMaintenance[]>([]);
   const [assignments, setAssignments] = useState<VehicleAssignment[]>([]);
+  const [driverAssignments, setDriverAssignments] = useState<VehicleAssignment[]>([]);
   const [mileageLogs, setMileageLogs] = useState<VehicleMileageLog[]>([]);
   const [incidents, setIncidents] = useState<VehicleIncident[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -344,8 +346,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         api.getDriverDocuments(driver.id),
         api.getDriverAssignments(driver.id)
       ]);
-      setDocuments(Array.isArray(docs) ? docs : []);
-      setAssignments(Array.isArray(assign) ? assign : []);
+      setDriverDocuments(Array.isArray(docs) ? docs : []);
+      setDriverAssignments(Array.isArray(assign) ? assign : []);
     } catch (error) {
       console.error('Error fetching driver details:', error);
     }
@@ -620,6 +622,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     
     try {
       const res = await api.uploadDriverDocument(driverId, formData);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setDriverDocuments([...(driverDocuments || []), res]);
       setDrivers(drivers.map(d => d.id === driverId ? { ...d, documents: [...(d.documents || []), res] } : d));
       if (editingDriver && editingDriver.id === driverId) {
         setEditingDriver({ ...editingDriver, documents: [...(editingDriver.documents || []), res] });
@@ -2910,7 +2917,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         Sürücü Belgeleri
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {(documents || []).map((doc: any) => (
+                        {(driverDocuments || []).map((doc: any) => (
                           <div key={doc.id} className="p-3 border border-gray-100 rounded-xl bg-white shadow-sm flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -2923,17 +2930,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                 </p>
                               </div>
                             </div>
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <Download className="w-5 h-5" />
-                            </a>
+                            {doc.document_url && (
+                              <a
+                                href={doc.document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              >
+                                <Download className="w-5 h-5" />
+                              </a>
+                            )}
                           </div>
                         ))}
-                        {(documents || []).length === 0 && (
+                        {(driverDocuments || []).length === 0 && (
                           <div className="col-span-full py-8 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                             Henüz belge yüklenmemiş.
                           </div>
@@ -2948,7 +2957,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         Zimmetli Araçlar
                       </h4>
                       <div className="space-y-3">
-                        {(assignments || []).filter(a => a.status === 'active').map((assign: any) => (
+                        {(driverAssignments || []).filter(a => a.status === 'active').map((assign: any) => (
                           <div key={assign.id} className="p-4 border border-blue-100 bg-blue-50/30 rounded-xl flex justify-between items-center">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
@@ -2956,13 +2965,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               </div>
                               <div>
                                 <p className="font-bold text-gray-800">{assign.vehicle_plate}</p>
-                                <p className="text-xs text-gray-500">Zimmet Tarihi: {safeFormatDate(assign.assigned_at, 'dd.MM.yyyy')}</p>
+                                <p className="text-xs text-gray-500">Zimmet Tarihi: {safeFormatDate(assign.start_date, 'dd.MM.yyyy')}</p>
                               </div>
                             </div>
                             <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase">Aktif Zimmet</span>
                           </div>
                         ))}
-                        {(assignments || []).filter(a => a.status === 'active').length === 0 && (
+                        {(driverAssignments || []).filter(a => a.status === 'active').length === 0 && (
                           <div className="py-8 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                             Şu an zimmetli araç bulunmuyor.
                           </div>
@@ -3006,8 +3015,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         setAssignmentFormData({ 
                           ...assignmentFormData, 
                           driver_id: driverId,
-                          user_id: driverId,
-                          user_email: driver?.email || ''
+                          user_id: undefined,
+                          user_email: driver?.name || ''
                         });
                       }}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"

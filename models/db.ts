@@ -528,7 +528,8 @@ export async function initDb() {
       CREATE TABLE IF NOT EXISTS vehicle_assignments (
         id SERIAL PRIMARY KEY,
         vehicle_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
+        user_id INTEGER,
+        driver_id INTEGER,
         start_date DATE NOT NULL,
         end_date DATE,
         start_mileage REAL,
@@ -537,7 +538,9 @@ export async function initDb() {
         status TEXT DEFAULT 'active' CHECK (status IN ('active', 'returned')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE CASCADE,
+        CONSTRAINT assignment_target_check CHECK (user_id IS NOT NULL OR driver_id IS NOT NULL)
       );
 
       CREATE TABLE IF NOT EXISTS vehicle_mileage_logs (
@@ -546,11 +549,27 @@ export async function initDb() {
         date DATE DEFAULT CURRENT_DATE,
         mileage REAL NOT NULL,
         user_id INTEGER,
+        driver_id INTEGER,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE SET NULL
       );
+
+      -- Update vehicle_assignments if it already exists
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicle_assignments' AND column_name='user_id' AND is_nullable='NO') THEN
+          ALTER TABLE vehicle_assignments ALTER COLUMN user_id DROP NOT NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicle_assignments' AND column_name='driver_id') THEN
+          ALTER TABLE vehicle_assignments ADD COLUMN driver_id INTEGER REFERENCES drivers(id) ON DELETE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicle_mileage_logs' AND column_name='driver_id') THEN
+          ALTER TABLE vehicle_mileage_logs ADD COLUMN driver_id INTEGER REFERENCES drivers(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS vehicle_incidents (
         id SERIAL PRIMARY KEY,
