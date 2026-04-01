@@ -2493,7 +2493,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           name="min_stock_level" 
                           type="number" 
                           step="0.01"
-                          defaultValue={editingProduct?.min_stock_level || 5} 
+                          defaultValue={editingProduct?.min_stock_level ?? 5} 
                           onFocus={(e) => e.target.select()}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />
@@ -2515,7 +2515,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <input 
                           name="tax_rate" 
                           type="number" 
-                          defaultValue={editingProduct?.tax_rate || branding.default_tax_rate || 20} 
+                          defaultValue={editingProduct?.tax_rate ?? branding.default_tax_rate ?? 20} 
                           onFocus={(e) => e.target.select()}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />
@@ -2923,7 +2923,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                 barcode: p.barcode,
                                 quantity: 1,
                                 unit_price: Number(p.price),
-                                tax_rate: Math.round(Number(p.tax_rate) || branding.default_tax_rate || 20),
+                                tax_rate: Math.round(Number(p.tax_rate ?? branding.default_tax_rate ?? 20)),
                                 total_price: Number(p.price)
                               }]);
                             }
