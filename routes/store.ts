@@ -49,9 +49,10 @@ router.get("/info", async (req: any, res) => {
   if (!store) return res.status(404).json({ error: "Store not found" });
 
   if (store.parent_id) {
-    const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
+    const parentRes = await pool.query("SELECT name, slug FROM stores WHERE id = $1", [store.parent_id]);
     if (parentRes.rows[0]) {
       store.parent_slug = parentRes.rows[0].slug;
+      store.parent_name = parentRes.rows[0].name;
     }
   }
 

@@ -55,7 +55,8 @@ import {
   Key,
   Loader2,
   Truck,
-  Wrench
+  Wrench,
+  Building2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
@@ -718,8 +719,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <Logo size={24} className="text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-none">LookPrice</h1>
-                <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">System v4.2.0</p>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-none">
+                  {branding.name || branding.store_name || "LookPrice"}
+                </h1>
+                {branding.parent_id ? (
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Building2 className="h-2.5 w-2.5 text-indigo-600" />
+                    <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider">
+                      {branding.parent_name || branding.parent_slug}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">System v4.2.0</p>
+                )}
               </div>
             </div>
           </div>

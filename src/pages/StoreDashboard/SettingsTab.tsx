@@ -18,7 +18,8 @@ import {
   MessageCircle,
   Image as ImageIcon,
   Info,
-  ArrowRight
+  ArrowRight,
+  Building2
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -78,6 +79,14 @@ const SettingsTab = ({
                   value={branding.name || branding.store_name || ""}
                   onChange={(e) => onBrandingChange('name', e.target.value)}
                 />
+                {branding.parent_id && (
+                  <div className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg border border-amber-100 mt-2">
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-tight">
+                      {lang === 'tr' ? 'Bağlı Olduğu Ana Mağaza:' : 'Connected to Main Store:'} {branding.parent_name || branding.parent_slug}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.accountPlan}</label>

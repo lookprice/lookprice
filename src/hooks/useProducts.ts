@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { api } from "../services/api";
 import { Product } from "../types";
 
@@ -43,6 +43,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
             targetStoreId = storeInfo.id;
           } else if (storeInfo && storeInfo.error) {
             console.error("Store branding error:", storeInfo.error);
+            if (!background) setLoading(false);
             return;
           }
         } else {
@@ -69,6 +70,14 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
       if (!background) setLoading(false);
     }
   }, [includeBranches, user.role, user.store_id, slug]);
+
+  useState(() => {
+    fetchData();
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
