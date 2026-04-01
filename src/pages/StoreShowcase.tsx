@@ -473,6 +473,8 @@ const StoreShowcase: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [brandSearchQuery, setBrandSearchQuery] = useState("");
+  const [showAllBrands, setShowAllBrands] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
@@ -1093,7 +1095,20 @@ const StoreShowcase: React.FC = () => {
                     )}
                   </div>
                   <div className="space-y-1">
-                    {brands.map(brand => (
+                    {showAllBrands && (
+                      <div className="mb-3 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder={lang === 'tr' ? 'Marka ara...' : 'Search brands...'}
+                          value={brandSearchQuery}
+                          onChange={(e) => setBrandSearchQuery(e.target.value)}
+                          className="w-full pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        />
+                      </div>
+                    )}
+                    
+                    {(showAllBrands ? brands.filter(b => b.toLowerCase().includes(brandSearchQuery.toLowerCase())) : brands.slice(0, 5)).map(brand => (
                       <button
                         key={brand}
                         onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
@@ -1103,10 +1118,20 @@ const StoreShowcase: React.FC = () => {
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedBrand === brand ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
-                          <span>{brand}</span>
+                          <span className="truncate">{brand}</span>
                         </div>
                       </button>
                     ))}
+                    
+                    {brands.length > 5 && (
+                      <button
+                        onClick={() => setShowAllBrands(!showAllBrands)}
+                        className="w-full text-left px-4 py-2 mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1"
+                      >
+                        {showAllBrands ? (lang === 'tr' ? 'Daha Az Göster' : 'Show Less') : (lang === 'tr' ? `Tümünü Göster (${brands.length})` : `Show All (${brands.length})`)}
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showAllBrands ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1298,31 +1323,6 @@ const StoreShowcase: React.FC = () => {
             </div>
           </section>
         )}
-
-        {/* Newsletter Section - Sosyal medya butonlarının altına taşındı */}
-        <section className="mt-32 bg-gray-50 rounded-[40px] p-8 md:p-20 flex flex-col md:flex-row items-center justify-between gap-12 overflow-hidden relative">
-          <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[100px]" style={{ backgroundColor: `${primaryColor}20` }}></div>
-          <div className="max-w-xl">
-            <h2 className="text-4xl font-black text-gray-900 mb-4 leading-tight">{t.dashboard.newsletter}</h2>
-            <p className="text-gray-500 text-lg font-medium">{t.dashboard.newsletterDesc}</p>
-          </div>
-          <div className="w-full max-w-md">
-            <div className="flex gap-2">
-              <input 
-                type="email" 
-                placeholder="E-posta adresiniz" 
-                className="flex-1 px-6 py-4 bg-white border-2 border-transparent rounded-2xl outline-none font-medium shadow-sm transition-all"
-                style={{ borderFocusColor: primaryColor } as any}
-              />
-              <button 
-                className="px-8 py-4 text-white rounded-2xl font-black transition-all shadow-xl active:scale-95 whitespace-nowrap"
-                style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
-              >
-                {t.dashboard.subscribe}
-              </button>
-            </div>
-          </div>
-        </section>
       </main>
 
       {/* Footer */}

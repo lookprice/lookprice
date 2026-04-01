@@ -30,6 +30,7 @@ interface SettingsTabProps {
   onSaveBranding: () => void;
   onLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFaviconUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBannerUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAddUser: () => void;
   onDeleteUser: (id: number) => void;
   users: any[];
@@ -42,6 +43,7 @@ const SettingsTab = ({
   onSaveBranding, 
   onLogoUpload, 
   onFaviconUpload,
+  onBannerUpload,
   onAddUser,
   onDeleteUser,
   users,
@@ -419,10 +421,36 @@ const SettingsTab = ({
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.heroImageUrl}</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.heroImageUrl || (lang === 'tr' ? 'Banner Görseli' : 'Banner Image')}</label>
+                <div className="relative group w-full h-48 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center overflow-hidden hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-300">
+                  {branding.hero_image_url ? (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <img src={branding.hero_image_url} alt="Banner" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                        <Upload className="h-8 w-8 text-white animate-bounce" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                        <Upload className="h-6 w-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                      </div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover:text-indigo-600 transition-colors">{lang === 'tr' ? 'Banner Yükle' : 'Upload Banner'}</p>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                    accept="image/*"
+                    onChange={onBannerUpload}
+                  />
+                </div>
+                <div className="mt-2 text-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">VEYA URL GİRİN:</span>
+                </div>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-mono text-xs text-slate-500"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-mono text-xs text-slate-500 mt-2"
                   placeholder="https://..."
                   value={branding.hero_image_url || ""}
                   onChange={(e) => onBrandingChange('hero_image_url', e.target.value)}

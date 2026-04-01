@@ -389,14 +389,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon' | 'banner') => {
     const file = e.target.files?.[0];
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
     try {
       const res = await api.uploadFile(formData);
-      setBranding({ ...branding, [type === 'logo' ? 'logo_url' : 'favicon_url']: res.url });
+      const urlField = type === 'logo' ? 'logo_url' : type === 'favicon' ? 'favicon_url' : 'hero_image_url';
+      setBranding({ ...branding, [urlField]: res.url });
     } catch (error) {
       alert("Yükleme hatası");
     }
@@ -1037,6 +1038,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onSaveBranding={handleSaveBranding}
                         onLogoUpload={(e) => handleFileUpload(e, 'logo')}
                         onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
+                        onBannerUpload={(e) => handleFileUpload(e, 'banner')}
                         onAddUser={() => setShowUserModal(true)}
                         onDeleteUser={handleDeleteUser}
                         users={users}
