@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
+import { getExchangeRate } from "../services/currencyService";
 import { 
   Search, 
   ShoppingBasket, 
@@ -40,17 +41,24 @@ import ErrorBoundary from "../components/ErrorBoundary";
 
 interface Product {
   id: number;
+  barcode: string;
   name: string;
   price: number;
+  currency: string;
+  cost_price: number;
+  cost_currency: string;
+  tax_rate: number;
   description?: string;
-  image_url?: string;
+  stock_quantity: number;
+  min_stock_level: number;
+  unit?: string;
   category?: string;
   sub_category?: string;
   brand?: string;
   author?: string;
   labels?: string[];
-  unit?: string;
-  barcode?: string;
+  image_url?: string;
+  updated_at: string;
 }
 
 interface FAQEntry {
@@ -131,6 +139,18 @@ const ProductCard: React.FC<{
   primaryColor: string
 }> = ({ product, store, t, addToBasket, onView, primaryColor }) => {
   const { lang } = useLanguage();
+  const [convertedPrice, setConvertedPrice] = useState<number>(product.price);
+
+  useEffect(() => {
+    if (store?.currency && product.currency && product.currency !== store.currency) {
+      getExchangeRate(product.currency, store.currency).then(rate => {
+        setConvertedPrice(product.price * rate);
+      });
+    } else {
+      setConvertedPrice(product.price);
+    }
+  }, [product.price, product.currency, store?.currency]);
+
   return (
   <motion.div 
     layout
@@ -166,6 +186,12 @@ const ProductCard: React.FC<{
           ))}
         </div>
       )}
+      
+      {/* Yeni alanlar: Marka ve Yazar */}
+      <div className="absolute bottom-2 right-2 flex flex-col gap-1 z-10 text-right">
+        {product.brand && <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded">{product.brand}</span>}
+        {product.author && <span className="text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded">{product.author}</span>}
+      </div>
 
       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
         <button 
@@ -230,7 +256,7 @@ const ProductCard: React.FC<{
       <div className="flex items-center justify-between mt-auto">
         <div className="flex flex-col">
           <span className="text-lg font-bold text-gray-900">
-            {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
+            {convertedPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || product.currency}
           </span>
           {product.unit && (
             <span className="text-xs text-gray-500">/ {product.unit}</span>
@@ -253,6 +279,17 @@ const ProductDetailModal: React.FC<{
   const { lang } = useLanguage();
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [convertedPrice, setConvertedPrice] = useState<number>(product?.price || 0);
+
+  useEffect(() => {
+    if (product && store?.currency && product.currency && product.currency !== store.currency) {
+      getExchangeRate(product.currency, store.currency).then(rate => {
+        setConvertedPrice(product.price * rate);
+      });
+    } else if (product) {
+      setConvertedPrice(product.price);
+    }
+  }, [product?.price, product?.currency, store?.currency]);
 
   useEffect(() => {
     if (product?.barcode && store?.slug) {
@@ -346,7 +383,7 @@ const ProductDetailModal: React.FC<{
           )}
           <div className="flex items-center gap-4 mb-6">
             <span className="text-3xl font-extrabold" style={{ color: primaryColor }}>
-              {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
+              {convertedPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || product.currency}
             </span>
             {product.unit && (
               <span className="text-lg text-gray-400">/ {product.unit}</span>
