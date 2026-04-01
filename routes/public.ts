@@ -40,7 +40,7 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
       id, name, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, parent_id
+      address, phone, parent_id, currency_rates
     FROM stores 
     WHERE slug = $1
   `, [slug]);
@@ -53,7 +53,7 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
         id, name, logo_url, primary_color, default_currency, background_image_url,
         hero_title, hero_subtitle, hero_image_url, about_text,
         instagram_url, facebook_url, twitter_url, whatsapp_number,
-        address, phone, slug
+        address, phone, slug, currency_rates
       FROM stores 
       WHERE id = $1
     `, [store.parent_id]);
@@ -84,6 +84,35 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
   if (store.id !== -1) {
     const productRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND barcode = $2", [store.id, barcode]);
     product = productRes.rows[0];
+    
+    if (product) {
+      const defaultCurrency = store.default_currency || 'TRY';
+      const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+      let convertedPrice = product.price;
+      const fromCurrency = product.currency || 'TRY';
+      
+      if (fromCurrency !== defaultCurrency) {
+        if (defaultCurrency === 'TRY') {
+          const rate = rates[fromCurrency] || 1;
+          convertedPrice = product.price * rate;
+        } else if (fromCurrency === 'TRY') {
+          const rate = rates[defaultCurrency] || 1;
+          convertedPrice = product.price / rate;
+        } else {
+          const fromRate = rates[fromCurrency] || 1;
+          const toRate = rates[defaultCurrency] || 1;
+          convertedPrice = (product.price * fromRate) / toRate;
+        }
+      }
+      
+      product = {
+        ...product,
+        price: convertedPrice,
+        original_price: product.price,
+        original_currency: product.currency,
+        currency: defaultCurrency
+      };
+    }
   }
   
   if (!product) {
@@ -164,16 +193,16 @@ router.get("/store/:slug", async (req, res) => {
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
   const { slug } = req.params;
-  const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
-  let storeId = storeRes.rows[0]?.id;
+  const storeRes = await pool.query("SELECT id, default_currency, currency_rates FROM stores WHERE slug = $1", [slug]);
+  let store = storeRes.rows[0];
 
-  if (!storeId && (slug === 'demo-store' || slug === 'demo')) {
-    storeId = -1;
+  if (!store && (slug === 'demo-store' || slug === 'demo')) {
+    store = { id: -1, default_currency: 'TRY', currency_rates: { "USD": 45.0, "EUR": 48.5, "GBP": 56.2 } };
   }
 
-  if (!storeId) return res.status(404).json({ error: "Store not found" });
+  if (!store) return res.status(404).json({ error: "Store not found" });
 
-  if (storeId === -1) {
+  if (store.id === -1) {
     // Return demo products
     return res.json([
       { id: 1, name: "Örnek Ürün 1", price: 100, currency: "TRY", barcode: "123", description: "Açıklama 1" },
@@ -182,8 +211,40 @@ router.get("/store/:slug/products", async (req, res) => {
     ]);
   }
 
-  const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 ORDER BY name ASC", [storeId]);
-  res.json(productsRes.rows);
+  const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 ORDER BY name ASC", [store.id]);
+  
+  // Convert prices to store's default currency
+  const defaultCurrency = store.default_currency || 'TRY';
+  const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+  
+  const convertedProducts = productsRes.rows.map(p => {
+    let convertedPrice = p.price;
+    const fromCurrency = p.currency || 'TRY';
+    
+    if (fromCurrency !== defaultCurrency) {
+      if (defaultCurrency === 'TRY') {
+        const rate = rates[fromCurrency] || 1;
+        convertedPrice = p.price * rate;
+      } else if (fromCurrency === 'TRY') {
+        const rate = rates[defaultCurrency] || 1;
+        convertedPrice = p.price / rate;
+      } else {
+        const fromRate = rates[fromCurrency] || 1;
+        const toRate = rates[defaultCurrency] || 1;
+        convertedPrice = (p.price * fromRate) / toRate;
+      }
+    }
+    
+    return {
+      ...p,
+      price: convertedPrice,
+      original_price: p.price,
+      original_currency: p.currency,
+      currency: defaultCurrency
+    };
+  });
+
+  res.json(convertedProducts);
 });
 
 import bcrypt from "bcryptjs";
@@ -206,7 +267,7 @@ router.post("/customers/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO customers (store_id, email, password, name, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name",
+      "INSERT INTO customers (store_id, email, password, full_name, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, full_name as name",
       [storeId, email, hashedPassword, name, phone || '', address || '']
     );
     res.json({ success: true, customer: result.rows[0] });
@@ -229,7 +290,7 @@ router.post("/customers/login", async (req, res) => {
     const token = jwt.sign({ id: customer.id, storeId: customer.store_id, type: 'customer' }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ 
       token, 
-      customer: { id: customer.id, email: customer.email, name: customer.name, phone: customer.phone, address: customer.address } 
+      customer: { id: customer.id, email: customer.email, name: customer.full_name, phone: customer.phone, address: customer.address } 
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -340,9 +401,10 @@ router.get("/store/:slug/content", async (req, res) => {
 router.get("/store/:slug/collections/:type", async (req, res) => {
   const { slug, type } = req.params; // type: 'new', 'bestseller', 'discounted' or category name
   try {
-    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, default_currency, currency_rates FROM stores WHERE slug = $1", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
-    const storeId = storeRes.rows[0].id;
+    const store = storeRes.rows[0];
+    const storeId = store.id;
 
     let query = "SELECT * FROM products WHERE store_id = $1";
     let params: any[] = [storeId];
@@ -360,7 +422,39 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
 
     query += " ORDER BY updated_at DESC LIMIT 50";
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    
+    // Convert prices to store's default currency
+    const defaultCurrency = store.default_currency || 'TRY';
+    const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+    
+    const convertedProducts = result.rows.map(p => {
+      let convertedPrice = p.price;
+      const fromCurrency = p.currency || 'TRY';
+      
+      if (fromCurrency !== defaultCurrency) {
+        if (defaultCurrency === 'TRY') {
+          const rate = rates[fromCurrency] || 1;
+          convertedPrice = p.price * rate;
+        } else if (fromCurrency === 'TRY') {
+          const rate = rates[defaultCurrency] || 1;
+          convertedPrice = p.price / rate;
+        } else {
+          const fromRate = rates[fromCurrency] || 1;
+          const toRate = rates[defaultCurrency] || 1;
+          convertedPrice = (p.price * fromRate) / toRate;
+        }
+      }
+      
+      return {
+        ...p,
+        price: convertedPrice,
+        original_price: p.price,
+        original_currency: p.currency,
+        currency: defaultCurrency
+      };
+    });
+
+    res.json(convertedProducts);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
