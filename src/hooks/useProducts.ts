@@ -30,9 +30,9 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
   const [convertCurrency, setConvertCurrency] = useState(false);
   const [currentStoreId, setCurrentStoreId] = useState<number | undefined>(user.store_id);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (background = false) => {
     try {
-      setLoading(true);
+      if (!background) setLoading(true);
       
       let targetStoreId = user.store_id;
       
@@ -53,7 +53,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
       
       if (targetStoreId === undefined || targetStoreId === null) {
         console.error("No target store ID found");
-        setLoading(false);
+        if (!background) setLoading(false);
         return;
       }
       
@@ -66,7 +66,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, [includeBranches, user.role, user.store_id, slug]);
 
@@ -109,7 +109,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
       setShowProductModal(false);
       setEditingProduct(null);
       setShowDescription(false);
-      fetchData();
+      fetchData(true);
     } catch (error) {
       alert("Hata oluştu");
     }
@@ -120,7 +120,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
       try {
         await api.deleteProduct(id, targetStoreId);
-        fetchData();
+        fetchData(true);
       } catch (error) {
         alert("Hata oluştu");
       }
@@ -132,7 +132,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     if (window.confirm(lang === 'tr' ? "Tüm ürünleri silmek istediğinize emin misiniz?" : "Are you sure you want to delete all products?")) {
       try {
         await api.deleteAllProducts(targetStoreId);
-        fetchData();
+        fetchData(true);
       } catch (error) {
         alert("Hata oluştu");
       }
@@ -153,7 +153,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
         setLoading(true);
         await api.bulkUpdateTax(category, taxRate, targetStoreId);
         alert(lang === 'tr' ? "KDV'ler başarıyla güncellendi." : "VATs updated successfully.");
-        fetchData();
+        fetchData(true);
       } catch (error) {
         alert("Hata oluştu");
       } finally {
@@ -194,7 +194,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
         const res = await api.bulkUpdatePrice(bulkPriceForm, targetStoreId);
         alert(lang === 'tr' ? `${res.data.count} ürünün fiyatı başarıyla güncellendi.` : `Prices of ${res.data.count} products updated successfully.`);
         setShowBulkPriceModal(false);
-        fetchData();
+        fetchData(true);
       } catch (error: any) {
         alert(error.response?.data?.error || "Hata oluştu");
       } finally {
@@ -248,7 +248,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
       setShowImportModal(false);
       setImportFile(null);
       setImportColumns([]);
-      fetchData();
+      fetchData(true);
       alert(lang === 'tr' ? "İçe aktarma tamamlandı" : "Import completed");
     } catch (error) {
       alert(lang === 'tr' ? "Hata oluştu" : "An error occurred");

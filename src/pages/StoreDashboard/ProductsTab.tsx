@@ -1,4 +1,4 @@
-import React, { useState, useDeferredValue } from "react";
+import React, { useState, useDeferredValue, useEffect } from "react";
 import { 
   Plus, 
   Search, 
@@ -87,6 +87,12 @@ const ProductsTab = ({
   );
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   return (
     <div className="space-y-6">
