@@ -474,7 +474,9 @@ const StoreShowcase: React.FC = () => {
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
+  const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [showAllBrands, setShowAllBrands] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
@@ -1032,7 +1034,7 @@ const StoreShowcase: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-12">
           {/* Sidebar */}
           <aside className="lg:w-72 flex-shrink-0">
-            <div className="sticky top-24 space-y-12">
+            <div className="sticky top-24 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm max-h-[calc(100vh-6rem)] overflow-y-auto custom-scrollbar space-y-8">
               {/* Categories */}
               <div>
                 <div className="flex items-center justify-between mb-6">
@@ -1059,55 +1061,81 @@ const StoreShowcase: React.FC = () => {
                     <div className={`w-1.5 h-1.5 rounded-full ${!selectedCategory ? "bg-blue-400" : "bg-gray-300"}`}></div>
                     {t.dashboard.all}
                   </button>
-                  {Array.from(categories.keys()).sort().map(cat => (
-                    <div key={cat} className="space-y-1">
-                      <button
-                        onClick={() => {
-                          if (selectedCategory === cat) {
-                            toggleCategory(cat);
-                          } else {
-                            setSelectedCategory(cat);
-                            setSelectedSubCategory(null);
-                            if (!expandedCategories.has(cat)) toggleCategory(cat);
-                          }
-                        }}
-                        className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${
-                          selectedCategory === cat ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedCategory === cat ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
-                          <span>{cat}</span>
-                        </div>
-                        {categories.get(cat)!.size > 0 && (
-                          <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${expandedCategories.has(cat) ? "rotate-90" : ""}`} />
-                        )}
-                      </button>
-                      <AnimatePresence>
-                        {expandedCategories.has(cat) && categories.get(cat)!.size > 0 && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden pl-8 space-y-1"
-                          >
-                            {Array.from(categories.get(cat)!).sort().map(sub => (
-                              <button
-                                key={sub}
-                                onClick={() => setSelectedSubCategory(sub)}
-                                className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                                  selectedSubCategory === sub ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                                }`}
-                              >
-                                <div className={`w-1 h-1 rounded-full ${selectedSubCategory === sub ? "bg-blue-600" : "bg-transparent"}`}></div>
-                                {sub}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+
+                  {showAllCategories && (
+                    <div className="my-3 relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder={lang === 'tr' ? 'Kategori ara...' : 'Search categories...'}
+                        value={categorySearchQuery}
+                        onChange={(e) => setCategorySearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      />
                     </div>
-                  ))}
+                  )}
+
+                  <div className={showAllCategories ? "max-h-64 overflow-y-auto custom-scrollbar pr-2 space-y-1" : "space-y-1"}>
+                    {(showAllCategories ? Array.from(categories.keys()).sort().filter(c => c.toLowerCase().includes(categorySearchQuery.toLowerCase())) : Array.from(categories.keys()).sort().slice(0, 5)).map(cat => (
+                      <div key={cat} className="space-y-1">
+                        <button
+                          onClick={() => {
+                            if (selectedCategory === cat) {
+                              toggleCategory(cat);
+                            } else {
+                              setSelectedCategory(cat);
+                              setSelectedSubCategory(null);
+                              if (!expandedCategories.has(cat)) toggleCategory(cat);
+                            }
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${
+                            selectedCategory === cat ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-100"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedCategory === cat ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
+                            <span className="truncate">{cat}</span>
+                          </div>
+                          {categories.get(cat)!.size > 0 && (
+                            <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${expandedCategories.has(cat) ? "rotate-90" : ""}`} />
+                          )}
+                        </button>
+                        <AnimatePresence>
+                          {expandedCategories.has(cat) && categories.get(cat)!.size > 0 && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden pl-8 space-y-1"
+                            >
+                              {Array.from(categories.get(cat)!).sort().map(sub => (
+                                <button
+                                  key={sub}
+                                  onClick={() => setSelectedSubCategory(sub)}
+                                  className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                                    selectedSubCategory === sub ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  <div className={`w-1 h-1 rounded-full ${selectedSubCategory === sub ? "bg-blue-600" : "bg-transparent"}`}></div>
+                                  <span className="truncate">{sub}</span>
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ))}
+                  </div>
+
+                  {categories.size > 5 && (
+                    <button
+                      onClick={() => setShowAllCategories(!showAllCategories)}
+                      className="w-full text-left px-4 py-2 mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1"
+                    >
+                      {showAllCategories ? (lang === 'tr' ? 'Daha Az Göster' : 'Show Less') : (lang === 'tr' ? `Tümünü Göster (${categories.size})` : `Show All (${categories.size})`)}
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1142,20 +1170,22 @@ const StoreShowcase: React.FC = () => {
                       </div>
                     )}
                     
-                    {(showAllBrands ? brands.filter(b => b.toLowerCase().includes(brandSearchQuery.toLowerCase())) : brands.slice(0, 5)).map(brand => (
-                      <button
-                        key={brand}
-                        onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
-                        className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${
-                          selectedBrand === brand ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedBrand === brand ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
-                          <span className="truncate">{brand}</span>
-                        </div>
-                      </button>
-                    ))}
+                    <div className={showAllBrands ? "max-h-64 overflow-y-auto custom-scrollbar pr-2 space-y-1" : "space-y-1"}>
+                      {(showAllBrands ? brands.filter(b => b.toLowerCase().includes(brandSearchQuery.toLowerCase())) : brands.slice(0, 5)).map(brand => (
+                        <button
+                          key={brand}
+                          onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
+                          className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${
+                            selectedBrand === brand ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-100"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedBrand === brand ? "bg-blue-600" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
+                            <span className="truncate">{brand}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                     
                     {brands.length > 5 && (
                       <button
