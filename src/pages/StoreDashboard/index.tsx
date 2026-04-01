@@ -2298,9 +2298,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
                 <h3 className="text-xl font-bold text-gray-900">
                   {editingProduct ? t.editProduct : t.addManual}
                 </h3>
@@ -2308,96 +2308,210 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <X className="h-5 w-5 text-gray-400" />
                 </button>
               </div>
-              <form onSubmit={handleAddProduct} className="p-6 space-y-4">
-                {/* Row 1: Barcode */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.barcode}</label>
-                  <input 
-                    name="barcode" 
-                    required 
-                    maxLength={13}
-                    defaultValue={editingProduct?.barcode} 
-                    placeholder="869..."
-                    className="w-[22ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
-                  />
+              <form onSubmit={handleAddProduct} className="flex flex-col overflow-hidden">
+                <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column */}
+                  <div className="space-y-4">
+                    {/* Row 1: Barcode */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.barcode}</label>
+                      <input 
+                        name="barcode" 
+                        required 
+                        maxLength={13}
+                        defaultValue={editingProduct?.barcode} 
+                        placeholder="869..."
+                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
+                      />
+                    </div>
+
+                    {/* Row 2: Product Name */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</label>
+                      <input 
+                        name="name" 
+                        required 
+                        defaultValue={editingProduct?.name} 
+                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-semibold" 
+                      />
+                    </div>
+
+                    {/* Row 2.5: Category & Sub-Category */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'KATEGORİ' : 'CATEGORY'}
+                        </label>
+                        <input 
+                          name="category" 
+                          defaultValue={editingProduct?.category} 
+                          onChange={(e) => {
+                            const val = e.target.value.trim().toLocaleLowerCase('tr-TR');
+                            const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === val);
+                            if (matchedRule) {
+                              const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
+                              if (taxInput) taxInput.value = String(matchedRule.taxRate);
+                            } else if (val === 'kitap') {
+                              const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
+                              if (taxInput) taxInput.value = '0';
+                            }
+                          }}
+                          placeholder={lang === 'tr' ? 'Örn: Ofis' : 'e.g. Office'}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ALT KATEGORİ' : 'SUB-CATEGORY'}
+                        </label>
+                        <input 
+                          name="sub_category" 
+                          defaultValue={editingProduct?.sub_category} 
+                          placeholder={lang === 'tr' ? 'Örn: Dosyalama' : 'e.g. Filing'}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2.6: Brand & Author */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          <Globe className="h-2.5 w-2.5" /> {lang === 'tr' ? 'MARKA' : 'BRAND'}
+                        </label>
+                        <input 
+                          name="brand" 
+                          defaultValue={editingProduct?.brand} 
+                          placeholder={lang === 'tr' ? 'Örn: Apple' : 'e.g. Apple'}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          <UserIcon className="h-2.5 w-2.5" /> {lang === 'tr' ? 'YAZAR' : 'AUTHOR'}
+                        </label>
+                        <input 
+                          name="author" 
+                          defaultValue={editingProduct?.author} 
+                          placeholder={lang === 'tr' ? 'Örn: Sabahattin Ali' : 'e.g. Orwell'}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-4">
+                    {/* Row 3: Price & Currency */}
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="space-y-1 col-span-8">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.price}</label>
+                        <input 
+                          name="price" 
+                          type="number" 
+                          step="0.01" 
+                          required 
+                          defaultValue={editingProduct?.price} 
+                          onFocus={(e) => e.target.select()}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600 text-lg" 
+                        />
+                      </div>
+                      <div className="space-y-1 col-span-4">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.currency}</label>
+                        <select 
+                          name="currency" 
+                          defaultValue={editingProduct?.currency || branding.default_currency} 
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                        >
+                          <option value="TRY">TRY</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 4: Cost Price & Currency */}
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="space-y-1 col-span-8">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'MALİYET FİYATI' : 'COST PRICE'}</label>
+                        <input 
+                          name="cost_price" 
+                          type="number" 
+                          step="0.01" 
+                          defaultValue={editingProduct?.cost_price} 
+                          onFocus={(e) => e.target.select()}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-600" 
+                        />
+                      </div>
+                      <div className="space-y-1 col-span-4">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'PARA BİRİMİ' : 'CURRENCY'}</label>
+                        <select 
+                          name="cost_currency" 
+                          defaultValue={editingProduct?.cost_currency || branding.default_currency} 
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                        >
+                          <option value="TRY">TRY</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 5: Stock & Min Stock */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.stock}</label>
+                        <input 
+                          name="stock_quantity" 
+                          type="number" 
+                          step="0.01"
+                          defaultValue={editingProduct?.stock_quantity || 0} 
+                          onFocus={(e) => e.target.select()}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.minStock}</label>
+                        <input 
+                          name="min_stock_level" 
+                          type="number" 
+                          step="0.01"
+                          defaultValue={editingProduct?.min_stock_level || 5} 
+                          onFocus={(e) => e.target.select()}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 6: Unit & Tax */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.unit}</label>
+                        <input 
+                          name="unit" 
+                          defaultValue={editingProduct?.unit || 'Adet'} 
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">KDV %</label>
+                        <input 
+                          name="tax_rate" 
+                          type="number" 
+                          defaultValue={editingProduct?.tax_rate || branding.default_tax_rate || 20} 
+                          onFocus={(e) => e.target.select()}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Row 2: Product Name */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</label>
-                  <input 
-                    name="name" 
-                    required 
-                    defaultValue={editingProduct?.name} 
-                    className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-semibold" 
-                  />
-                </div>
-
-                {/* Row 2.5: Category & Sub-Category */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'KATEGORİ' : 'CATEGORY'}
-                    </label>
-                    <input 
-                      name="category" 
-                      defaultValue={editingProduct?.category} 
-                      onChange={(e) => {
-                        const val = e.target.value.trim().toLocaleLowerCase('tr-TR');
-                        const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === val);
-                        if (matchedRule) {
-                          const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
-                          if (taxInput) taxInput.value = String(matchedRule.taxRate);
-                        } else if (val === 'kitap') {
-                          const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
-                          if (taxInput) taxInput.value = '0';
-                        }
-                      }}
-                      placeholder={lang === 'tr' ? 'Örn: Ofis' : 'e.g. Office'}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ALT KATEGORİ' : 'SUB-CATEGORY'}
-                    </label>
-                    <input 
-                      name="sub_category" 
-                      defaultValue={editingProduct?.sub_category} 
-                      placeholder={lang === 'tr' ? 'Örn: Dosyalama' : 'e.g. Filing'}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                    />
-                  </div>
-                </div>
-
-                {/* Row 2.6: Brand & Author */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <Globe className="h-2.5 w-2.5" /> {lang === 'tr' ? 'MARKA' : 'BRAND'}
-                    </label>
-                    <input 
-                      name="brand" 
-                      defaultValue={editingProduct?.brand} 
-                      placeholder={lang === 'tr' ? 'Örn: Apple' : 'e.g. Apple'}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <UserIcon className="h-2.5 w-2.5" /> {lang === 'tr' ? 'YAZAR (KİTAP İÇİN)' : 'AUTHOR (FOR BOOKS)'}
-                    </label>
-                    <input 
-                      name="author" 
-                      defaultValue={editingProduct?.author} 
-                      placeholder={lang === 'tr' ? 'Örn: Sabahattin Ali' : 'e.g. Orwell'}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                    />
-                  </div>
-                </div>
-
-                {/* Row 2.7: Labels & Image URL */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Full Width Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-gray-50">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
                       <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ETİKETLER (VİRGÜLLE AYIRIN)' : 'LABELS (COMMA SEPARATED)'}
@@ -2428,154 +2542,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                 </div>
 
-                {/* Row 3: Price & Currency */}
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="space-y-1 col-span-8">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.price}</label>
-                    <input 
-                      name="price" 
-                      type="number" 
-                      step="0.01" 
-                      required 
-                      defaultValue={editingProduct?.price} 
-                      onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600 text-lg" 
-                    />
-                  </div>
-                  <div className="space-y-1 col-span-4">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.currency}</label>
-                    <select 
-                      name="currency" 
-                      defaultValue={editingProduct?.currency || branding.default_currency} 
-                      className="w-[10ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
-                    >
-                      <option value="TRY">TRY</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.description}</label>
+                  <textarea 
+                    name="description" 
+                    rows={2}
+                    defaultValue={editingProduct?.description} 
+                    className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm resize-none" 
+                  />
                 </div>
 
-                {/* Row 3.5: Cost Price & Currency */}
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="space-y-1 col-span-8">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Maliyet' : 'Cost Price'}</label>
-                    <input 
-                      name="cost_price" 
-                      type="number" 
-                      step="0.01" 
-                      defaultValue={editingProduct?.cost_price || 0} 
-                      onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-600 text-lg" 
-                    />
-                  </div>
-                  <div className="space-y-1 col-span-4">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Maliyet Para Birimi' : 'Cost Currency'}</label>
-                    <select 
-                      name="cost_currency" 
-                      defaultValue={editingProduct?.cost_currency || branding.default_currency} 
-                      className="w-[10ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
-                    >
-                      <option value="TRY">TRY</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
                 </div>
-
-                {/* Row 3.7: Tax Rate */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KDV ORANI (%)' : 'TAX RATE (%)'}</label>
-                    <input 
-                      name="tax_rate" 
-                      type="number" 
-                      step="1"
-                      min="0"
-                      max="99"
-                      onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                      defaultValue={Math.round(editingProduct?.tax_rate !== undefined ? editingProduct.tax_rate : (branding?.default_tax_rate || 20))} 
-                      onFocus={(e) => e.target.select()}
-                      className="w-[8ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
-                    />
-                  </div>
-
-                {/* Row 4: Stock, Unit, Min Stock */}
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="space-y-1 col-span-4">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.stock || 'Stok'}</label>
-                    <input 
-                      name="stock_quantity" 
-                      type="number" 
-                      max={999999}
-                      defaultValue={editingProduct?.stock_quantity || 0} 
-                      onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
-                    />
-                  </div>
-                  <div className="space-y-1 col-span-5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.unit || 'Birim'}</label>
-                    <select 
-                      name="unit" 
-                      defaultValue={editingProduct?.unit || 'Adet'} 
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
-                    >
-                      <option value="Adet">{lang === 'tr' ? 'Adet' : 'Pcs'}</option>
-                      <option value="Kg">Kg</option>
-                      <option value="Gr">Gr</option>
-                      <option value="L">L</option>
-                      <option value="Ml">Ml</option>
-                      <option value="Metre">Metre (m)</option>
-                      <option value="Paket">{lang === 'tr' ? 'Paket' : 'Pkg'}</option>
-                      <option value="Koli">{lang === 'tr' ? 'Koli' : 'Box'}</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1 col-span-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.minStock || 'Min'}</label>
-                    <input 
-                      name="min_stock_level" 
-                      type="number" 
-                      max={999}
-                      defaultValue={editingProduct?.min_stock_level || 5} 
-                      onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <button 
-                    type="button"
-                    onClick={() => setShowDescription(!showDescription)}
-                    className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
-                  >
-                    {t.description}
-                    {showDescription ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
-                  
-                  <AnimatePresence>
-                    {showDescription && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <textarea 
-                          name="description" 
-                          defaultValue={editingProduct?.description} 
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all h-24 resize-none" 
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                <div className="pt-4 flex justify-end gap-3">
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
                   <button 
                     type="button" 
                     onClick={() => setShowProductModal(false)} 
-                    className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all text-sm"
+                    className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all text-sm"
                   >
                     {t.cancel}
                   </button>
@@ -2597,7 +2579,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">{t.importTitle}</h3>
@@ -2728,7 +2710,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">
@@ -2790,7 +2772,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">{t.addUser}</h3>
