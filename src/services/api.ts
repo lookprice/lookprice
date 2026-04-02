@@ -242,4 +242,10 @@ export const api = {
   saveN11Settings: (data: { appKey: string, appSecret: string, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
   syncN11Orders: (storeId?: number) => api.post("/api/integrations/n11/sync", { storeId }),
   disconnectN11: (storeId?: number) => api.post("/api/integrations/n11/disconnect", { storeId }),
+
+  // Hepsiburada Integration
+  getHepsiburadaSettings: (storeId?: number) => api.get(`/api/integrations/hepsiburada/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveHepsiburadaSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, storeId?: number }) => api.post("/api/integrations/hepsiburada/settings", data),
+  syncHepsiburadaOrders: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync", { storeId }),
+  disconnectHepsiburada: (storeId?: number) => api.post("/api/integrations/hepsiburada/disconnect", { storeId }),
 };
