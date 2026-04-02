@@ -234,6 +234,7 @@ export const api = {
   // Amazon Integration
   getAmazonAuthUrl: () => api.get("/api/integrations/amazon/auth-url"),
   getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveAmazonSettings: (data: { clientId: string, clientSecret: string, refreshToken: string, sellerId: string, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
   disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
 

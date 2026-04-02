@@ -64,6 +64,11 @@ const SettingsTab = ({
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
   const [syncing, setSyncing] = React.useState(false);
+  const [amazonClientId, setAmazonClientId] = React.useState(branding.amazon_settings?.clientId || "");
+  const [amazonClientSecret, setAmazonClientSecret] = React.useState(branding.amazon_settings?.clientSecret || "");
+  const [amazonRefreshToken, setAmazonRefreshToken] = React.useState(branding.amazon_settings?.refresh_token || "");
+  const [amazonSellerId, setAmazonSellerId] = React.useState(branding.amazon_settings?.sellerId || "");
+  
   const [n11Syncing, setN11Syncing] = React.useState(false);
   const [n11AppKey, setN11AppKey] = React.useState(branding.n11_settings?.appKey || "");
   const [n11AppSecret, setN11AppSecret] = React.useState(branding.n11_settings?.appSecret || "");
@@ -96,6 +101,22 @@ const SettingsTab = ({
     try {
       const { url } = await api.getAmazonAuthUrl();
       window.location.href = url;
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSaveAmazonSettings = async () => {
+    try {
+      await api.saveAmazonSettings({ 
+        clientId: amazonClientId, 
+        clientSecret: amazonClientSecret, 
+        refreshToken: amazonRefreshToken, 
+        sellerId: amazonSellerId, 
+        storeId: currentStoreId 
+      });
+      alert(t.saveSuccess);
+      window.location.reload();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -621,7 +642,7 @@ app.listen(PORT, () => {
               <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-orange-50 rounded-xl text-orange-600 border border-orange-100">
+                    <div className="p-2 bg-amber-50 rounded-xl text-amber-600 border border-amber-100">
                       <ShoppingBag className="h-5 w-5" />
                     </div>
                     <div>
@@ -637,61 +658,107 @@ app.listen(PORT, () => {
                   )}
                 </div>
 
-                {!isAmazonConnected ? (
-                  <div className="p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4">
-                      <ShoppingBag className="h-8 w-8 text-slate-300" />
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.amazonClientId}</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={amazonClientId}
+                        onChange={(e) => setAmazonClientId(e.target.value)}
+                        placeholder="LWA Client ID"
+                      />
                     </div>
-                    <h4 className="text-sm font-bold text-slate-900 mb-2">{lang === 'tr' ? 'Amazon Mağazanızı Bağlayın' : 'Connect Your Amazon Store'}</h4>
-                    <p className="text-xs text-slate-500 max-w-xs mb-6 leading-relaxed">
-                      {lang === 'tr' 
-                        ? 'Amazon.com.tr üzerindeki satışlarınızı otomatik olarak buraya aktarmak için mağazanızı yetkilendirin.' 
-                        : 'Authorize your store to automatically import your sales on Amazon.com.tr here.'}
-                    </p>
-                    <button 
-                      onClick={handleConnectAmazon}
-                      className="px-8 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 flex items-center space-x-2"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      <span>{t.connectAmazon}</span>
-                    </button>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.amazonClientSecret}</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={amazonClientSecret}
+                        onChange={(e) => setAmazonClientSecret(e.target.value)}
+                        placeholder="LWA Client Secret"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.amazonRefreshToken}</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={amazonRefreshToken}
+                        onChange={(e) => setAmazonRefreshToken(e.target.value)}
+                        placeholder="Refresh Token"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.amazonSellerId}</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={amazonSellerId}
+                        onChange={(e) => setAmazonSellerId(e.target.value)}
+                        placeholder="Seller ID"
+                      />
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
-                        <p className="text-sm font-bold text-slate-900">
-                          {amazonSettings.last_sync 
-                            ? new Date(amazonSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
-                            : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'Amazon Mağaza ID' : 'Amazon Store ID'}</p>
-                        <p className="text-sm font-bold text-slate-900 truncate">{amazonSettings.seller_id || '...'}</p>
-                      </div>
-                    </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button 
-                        onClick={handleSyncOrders}
-                        disabled={syncing}
-                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
-                      >
-                        <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-                        <span>{syncing ? t.loading : t.syncOrders}</span>
-                      </button>
-                      <button 
-                        onClick={handleDisconnectAmazon}
-                        className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2"
-                      >
-                        <XCircle className="h-4 w-4" />
-                        <span>{t.disconnect}</span>
-                      </button>
-                    </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {!isAmazonConnected ? (
+                      <>
+                        <button 
+                          onClick={handleSaveAmazonSettings}
+                          className="flex-1 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-100 flex items-center justify-center space-x-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          <span>{t.amazonConnectManual}</span>
+                        </button>
+                        <button 
+                          onClick={handleConnectAmazon}
+                          className="flex-1 px-6 py-3 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-all shadow-lg shadow-amber-100 flex items-center justify-center space-x-2"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          <span>{t.amazonConnectOAuth}</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={handleSyncOrders}
+                          disabled={syncing}
+                          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                          <span>{syncing ? t.loading : t.syncOrders}</span>
+                        </button>
+                        <button 
+                          onClick={handleSaveAmazonSettings}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-slate-300 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          <span>{t.update}</span>
+                        </button>
+                        <button 
+                          onClick={handleDisconnectAmazon}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>{t.disconnect}</span>
+                        </button>
+                      </>
+                    )}
                   </div>
-                )}
+
+                  {isAmazonConnected && (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        {amazonSettings.last_sync 
+                          ? new Date(amazonSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
+                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* N11 Integration Section */}

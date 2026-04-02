@@ -17,13 +17,36 @@ router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   
   if (!appId) {
-    return res.status(400).json({ error: "Amazon App ID is not configured in environment" });
+    return res.status(400).json({ error: "Amazon App ID is not configured. Please use manual configuration." });
   }
 
   const state = Buffer.from(JSON.stringify({ storeId })).toString('base64');
   const authUrl = `${AMAZON_AUTH_ENDPOINT}?application_id=${appId}&state=${state}&version=beta`;
   
   res.json({ url: authUrl });
+});
+
+// 2. Save Amazon Settings (Manual)
+router.post("/amazon/settings", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { clientId, clientSecret, refreshToken, sellerId } = req.body;
+
+  try {
+    const settings = {
+      connected: !!(clientId && clientSecret && refreshToken && sellerId),
+      clientId,
+      clientSecret,
+      refresh_token: refreshToken,
+      sellerId,
+      marketplace_id: AMAZON_TR_MARKETPLACE_ID,
+      last_sync: null
+    };
+
+    await pool.query("UPDATE stores SET amazon_settings = $1 WHERE id = $2", [settings, storeId]);
+    res.json({ success: true, settings });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 2. Amazon OAuth Callback
@@ -82,11 +105,18 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
     }
 
     // 1. Get Access Token
+    const clientId = settings.clientId || process.env.AMAZON_CLIENT_ID;
+    const clientSecret = settings.clientSecret || process.env.AMAZON_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.status(400).json({ error: "Amazon Client ID veya Secret eksik" });
+    }
+
     const tokenRes = await axios.post(AMAZON_TOKEN_ENDPOINT, {
       grant_type: "refresh_token",
       refresh_token: settings.refresh_token,
-      client_id: process.env.AMAZON_CLIENT_ID,
-      client_secret: process.env.AMAZON_CLIENT_SECRET
+      client_id: clientId,
+      client_secret: clientSecret
     });
 
     const accessToken = tokenRes.data.access_token;
