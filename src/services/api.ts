@@ -248,4 +248,10 @@ export const api = {
   saveHepsiburadaSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, storeId?: number }) => api.post("/api/integrations/hepsiburada/settings", data),
   syncHepsiburadaOrders: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync", { storeId }),
   disconnectHepsiburada: (storeId?: number) => api.post("/api/integrations/hepsiburada/disconnect", { storeId }),
+
+  // Trendyol Integration
+  getTrendyolSettings: (storeId?: number) => api.get(`/api/integrations/trendyol/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
+  syncTrendyolOrders: (storeId?: number) => api.post("/api/integrations/trendyol/sync", { storeId }),
+  disconnectTrendyol: (storeId?: number) => api.post("/api/integrations/trendyol/disconnect", { storeId }),
 };

@@ -73,6 +73,11 @@ const SettingsTab = ({
   const [hbApiSecret, setHbApiSecret] = React.useState(branding.hepsiburada_settings?.apiSecret || "");
   const [hbMerchantId, setHbMerchantId] = React.useState(branding.hepsiburada_settings?.merchantId || "");
 
+  const [tySyncing, setTySyncing] = React.useState(false);
+  const [tyApiKey, setTyApiKey] = React.useState(branding.trendyol_settings?.apiKey || "");
+  const [tyApiSecret, setTyApiSecret] = React.useState(branding.trendyol_settings?.apiSecret || "");
+  const [tyMerchantId, setTyMerchantId] = React.useState(branding.trendyol_settings?.merchantId || "");
+
   if (!branding) return null;
 
   const amazonSettings = branding.amazon_settings || {};
@@ -83,6 +88,9 @@ const SettingsTab = ({
 
   const hbSettings = branding.hepsiburada_settings || {};
   const isHbConnected = !!hbSettings.connected;
+
+  const tySettings = branding.trendyol_settings || {};
+  const isTyConnected = !!tySettings.connected;
 
   const handleConnectAmazon = async () => {
     try {
@@ -180,6 +188,40 @@ const SettingsTab = ({
     try {
       await api.disconnectHepsiburada(currentStoreId);
       alert(t.hepsiburadaDisconnected);
+      window.location.reload();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSaveTySettings = async () => {
+    try {
+      await api.saveTrendyolSettings({ apiKey: tyApiKey, apiSecret: tyApiSecret, merchantId: tyMerchantId, storeId: currentStoreId });
+      alert(t.saveSuccess);
+      window.location.reload();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSyncTyOrders = async () => {
+    setTySyncing(true);
+    try {
+      const res = await api.syncTrendyolOrders(currentStoreId);
+      alert(`${t.trendyolSyncSuccess}: ${res.count} ${t.sales}`);
+      window.location.reload();
+    } catch (error) {
+      alert(t.trendyolSyncError);
+    } finally {
+      setTySyncing(false);
+    }
+  };
+
+  const handleDisconnectTy = async () => {
+    if (!confirm(t.confirmDelete)) return;
+    try {
+      await api.disconnectTrendyol(currentStoreId);
+      alert(t.trendyolDisconnected);
       window.location.reload();
     } catch (error) {
       alert(t.errorOccurred);
@@ -843,6 +885,110 @@ app.listen(PORT, () => {
                       <p className="text-sm font-bold text-slate-900">
                         {hbSettings.last_sync 
                           ? new Date(hbSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
+                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Trendyol Integration Section */}
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-orange-50 rounded-xl text-orange-600 border border-orange-100">
+                      <ShoppingBag className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.trendyolIntegration}</h3>
+                      <p className="text-xs text-slate-400 font-medium mt-0.5">{t.trendyolIntegrationDesc}</p>
+                    </div>
+                  </div>
+                  {isTyConnected && (
+                    <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">{t.trendyolConnected}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.trendyolApiKey}</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={tyApiKey}
+                        onChange={(e) => setTyApiKey(e.target.value)}
+                        placeholder="API Key"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.trendyolApiSecret}</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={tyApiSecret}
+                        onChange={(e) => setTyApiSecret(e.target.value)}
+                        placeholder="API Secret"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.trendyolMerchantId}</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={tyMerchantId}
+                        onChange={(e) => setTyMerchantId(e.target.value)}
+                        placeholder="Merchant ID"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {!isTyConnected ? (
+                      <button 
+                        onClick={handleSaveTySettings}
+                        className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 flex items-center justify-center space-x-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        <span>{t.connectTrendyol}</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={handleSyncTyOrders}
+                          disabled={tySyncing}
+                          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${tySyncing ? 'animate-spin' : ''}`} />
+                          <span>{tySyncing ? t.loading : t.syncOrders}</span>
+                        </button>
+                        <button 
+                          onClick={handleSaveTySettings}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-slate-300 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          <span>{t.update}</span>
+                        </button>
+                        <button 
+                          onClick={handleDisconnectTy}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>{t.disconnect}</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {isTyConnected && (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        {tySettings.last_sync 
+                          ? new Date(tySettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
                           : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
                       </p>
                     </div>
