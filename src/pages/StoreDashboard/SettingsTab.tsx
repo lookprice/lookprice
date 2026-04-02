@@ -83,6 +83,10 @@ const SettingsTab = ({
   const [tyApiSecret, setTyApiSecret] = React.useState(branding.trendyol_settings?.apiSecret || "");
   const [tyMerchantId, setTyMerchantId] = React.useState(branding.trendyol_settings?.merchantId || "");
 
+  const [pzSyncing, setPzSyncing] = React.useState(false);
+  const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
+  const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
+
   if (!branding) return null;
 
   const amazonSettings = branding.amazon_settings || {};
@@ -96,6 +100,9 @@ const SettingsTab = ({
 
   const tySettings = branding.trendyol_settings || {};
   const isTyConnected = !!tySettings.connected;
+
+  const pzSettings = branding.pazarama_settings || {};
+  const isPzConnected = !!pzSettings.connected;
 
   const handleConnectAmazon = async () => {
     try {
@@ -243,6 +250,40 @@ const SettingsTab = ({
     try {
       await api.disconnectTrendyol(currentStoreId);
       alert(t.trendyolDisconnected);
+      window.location.reload();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSavePzSettings = async () => {
+    try {
+      await api.savePazaramaSettings({ apiKey: pzApiKey, apiSecret: pzApiSecret, storeId: currentStoreId });
+      alert(t.saveSuccess);
+      window.location.reload();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSyncPzOrders = async () => {
+    setPzSyncing(true);
+    try {
+      const res = await api.syncPazaramaOrders(currentStoreId);
+      alert(`${t.pazaramaSyncSuccess}: ${res.count} ${t.sales}`);
+      window.location.reload();
+    } catch (error) {
+      alert(t.pazaramaSyncError);
+    } finally {
+      setPzSyncing(false);
+    }
+  };
+
+  const handleDisconnectPz = async () => {
+    if (!confirm(t.confirmDelete)) return;
+    try {
+      await api.disconnectPazarama(currentStoreId);
+      alert(t.pazaramaDisconnected);
       window.location.reload();
     } catch (error) {
       alert(t.errorOccurred);
@@ -702,19 +743,19 @@ app.listen(PORT, () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {!isAmazonConnected ? (
                       <>
                         <button 
                           onClick={handleSaveAmazonSettings}
-                          className="flex-1 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-100 flex items-center justify-center space-x-2"
+                          className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-100 flex items-center justify-center space-x-2"
                         >
                           <Save className="h-4 w-4" />
                           <span>{t.amazonConnectManual}</span>
                         </button>
                         <button 
                           onClick={handleConnectAmazon}
-                          className="flex-1 px-6 py-3 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-all shadow-lg shadow-amber-100 flex items-center justify-center space-x-2"
+                          className="px-6 py-3 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-all shadow-lg shadow-amber-100 flex items-center justify-center space-x-2"
                         >
                           <ExternalLink className="h-4 w-4" />
                           <span>{t.amazonConnectOAuth}</span>
@@ -725,7 +766,7 @@ app.listen(PORT, () => {
                         <button 
                           onClick={handleSyncOrders}
                           disabled={syncing}
-                          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
                           <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
                           <span>{syncing ? t.loading : t.syncOrders}</span>
@@ -805,11 +846,11 @@ app.listen(PORT, () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {!isN11Connected ? (
                       <button 
                         onClick={handleSaveN11Settings}
-                        className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center justify-center space-x-2"
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center justify-center space-x-2"
                       >
                         <Save className="h-4 w-4" />
                         <span>{t.connectN11}</span>
@@ -819,7 +860,7 @@ app.listen(PORT, () => {
                         <button 
                           onClick={handleSyncN11Orders}
                           disabled={n11Syncing}
-                          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
                           <RefreshCw className={`h-4 w-4 ${n11Syncing ? 'animate-spin' : ''}`} />
                           <span>{n11Syncing ? t.loading : t.syncOrders}</span>
@@ -909,11 +950,11 @@ app.listen(PORT, () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {!isHbConnected ? (
                       <button 
                         onClick={handleSaveHbSettings}
-                        className="flex-1 px-6 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 flex items-center justify-center space-x-2"
+                        className="px-6 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 flex items-center justify-center space-x-2"
                       >
                         <Save className="h-4 w-4" />
                         <span>{t.connectHepsiburada}</span>
@@ -923,7 +964,7 @@ app.listen(PORT, () => {
                         <button 
                           onClick={handleSyncHbOrders}
                           disabled={hbSyncing}
-                          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
                           <RefreshCw className={`h-4 w-4 ${hbSyncing ? 'animate-spin' : ''}`} />
                           <span>{hbSyncing ? t.loading : t.syncOrders}</span>
@@ -1013,11 +1054,11 @@ app.listen(PORT, () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {!isTyConnected ? (
                       <button 
                         onClick={handleSaveTySettings}
-                        className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 flex items-center justify-center space-x-2"
+                        className="px-6 py-3 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 flex items-center justify-center space-x-2"
                       >
                         <Save className="h-4 w-4" />
                         <span>{t.connectTrendyol}</span>
@@ -1027,7 +1068,7 @@ app.listen(PORT, () => {
                         <button 
                           onClick={handleSyncTyOrders}
                           disabled={tySyncing}
-                          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
                           <RefreshCw className={`h-4 w-4 ${tySyncing ? 'animate-spin' : ''}`} />
                           <span>{tySyncing ? t.loading : t.syncOrders}</span>
@@ -1056,6 +1097,100 @@ app.listen(PORT, () => {
                       <p className="text-sm font-bold text-slate-900">
                         {tySettings.last_sync 
                           ? new Date(tySettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
+                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pazarama Integration Section */}
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-50 rounded-xl text-blue-600 border border-blue-100">
+                      <ShoppingBag className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.pazaramaIntegration}</h3>
+                      <p className="text-xs text-slate-400 font-medium mt-0.5">{t.pazaramaIntegrationDesc}</p>
+                    </div>
+                  </div>
+                  {isPzConnected && (
+                    <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">{t.pazaramaConnected}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.pazaramaApiKey}</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={pzApiKey}
+                        onChange={(e) => setPzApiKey(e.target.value)}
+                        placeholder="API Key"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.pazaramaApiSecret}</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={pzApiSecret}
+                        onChange={(e) => setPzApiSecret(e.target.value)}
+                        placeholder="API Secret"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {!isPzConnected ? (
+                      <button 
+                        onClick={handleSavePzSettings}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center justify-center space-x-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        <span>{t.connectPazarama}</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={handleSyncPzOrders}
+                          disabled={pzSyncing}
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${pzSyncing ? 'animate-spin' : ''}`} />
+                          <span>{pzSyncing ? t.loading : t.syncOrders}</span>
+                        </button>
+                        <button 
+                          onClick={handleSavePzSettings}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-slate-300 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          <span>{t.update}</span>
+                        </button>
+                        <button 
+                          onClick={handleDisconnectPz}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>{t.disconnect}</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {isPzConnected && (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        {pzSettings.last_sync 
+                          ? new Date(pzSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
                           : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
                       </p>
                     </div>

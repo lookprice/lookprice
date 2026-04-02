@@ -373,6 +373,7 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS n11_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS hepsiburada_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS trendyol_settings JSONB DEFAULT '{}';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS pazarama_settings JSONB DEFAULT '{}';
 
       CREATE TABLE IF NOT EXISTS amazon_orders (
         id SERIAL PRIMARY KEY,
@@ -424,6 +425,19 @@ export async function initDb() {
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
         UNIQUE(store_id, trendyol_order_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS pazarama_orders (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        pazarama_order_id TEXT NOT NULL,
+        sale_id INTEGER,
+        status TEXT,
+        order_data JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+        UNIQUE(store_id, pazarama_order_id)
       );
 
       CREATE TABLE IF NOT EXISTS stock_transfers (

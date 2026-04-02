@@ -255,4 +255,10 @@ export const api = {
   saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
   syncTrendyolOrders: (storeId?: number) => api.post("/api/integrations/trendyol/sync", { storeId }),
   disconnectTrendyol: (storeId?: number) => api.post("/api/integrations/trendyol/disconnect", { storeId }),
+
+  // Pazarama Integration
+  getPazaramaSettings: (storeId?: number) => api.get(`/api/integrations/pazarama/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  savePazaramaSettings: (data: { apiKey: string, apiSecret: string, storeId?: number }) => api.post("/api/integrations/pazarama/settings", data),
+  syncPazaramaOrders: (storeId?: number) => api.post("/api/integrations/pazarama/sync", { storeId }),
+  disconnectPazarama: (storeId?: number) => api.post("/api/integrations/pazarama/disconnect", { storeId }),
 };
