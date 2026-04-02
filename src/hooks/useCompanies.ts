@@ -67,12 +67,14 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
   const handleExportCompanies = () => {
     const isTr = lang === 'tr';
     const data = companies.map(c => ({
-      [isTr ? 'Firma/Müşteri Adı' : 'Company/Customer Name']: c.name,
-      [isTr ? 'Tip' : 'Type']: c.type === 'supplier' ? (isTr ? 'Tedarikçi' : 'Supplier') : (isTr ? 'Müşteri' : 'Customer'),
-      [isTr ? 'Telefon' : 'Phone']: c.phone,
-      [isTr ? 'E-posta' : 'Email']: c.email,
+      [isTr ? 'Firma/Müşteri Adı' : 'Company/Customer Name']: c.title,
+      [isTr ? 'Yetkili' : 'Contact Person']: c.contact_person || c.representative || '-',
+      [isTr ? 'Vergi Dairesi' : 'Tax Office']: c.tax_office || '-',
+      [isTr ? 'Vergi No' : 'Tax Number']: c.tax_number || '-',
+      [isTr ? 'Telefon' : 'Phone']: c.phone || '-',
+      [isTr ? 'E-posta' : 'Email']: c.email || '-',
       [isTr ? 'Bakiye' : 'Balance']: c.balance,
-      [isTr ? 'Adres' : 'Address']: c.address
+      [isTr ? 'Adres' : 'Address']: c.address || '-'
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
@@ -99,9 +101,10 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     const doc = new jsPDF();
     const isTr = lang === 'tr';
     
-    const fixTr = (text: string) => {
-      if (!text) return "";
-      return text
+    const fixTr = (text: any) => {
+      if (text === null || text === undefined) return "";
+      const str = String(text);
+      return str
         .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
         .replace(/ü/g, 'u').replace(/Ü/g, 'U')
         .replace(/ş/g, 's').replace(/Ş/g, 'S')
@@ -171,18 +174,25 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`${fixTr(isTr ? 'Firma:' : 'Company:')} ${fixTr(selectedCompany.name)}`, 14, yPos);
+    doc.text(`${fixTr(isTr ? 'Firma:' : 'Company:')} ${fixTr(selectedCompany.title)}`, 14, yPos);
     yPos += 6;
     doc.text(`${fixTr(isTr ? 'Tarih Araligi:' : 'Date Range:')} ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
     yPos += 10;
 
-    const tableData = companyTransactions.map(t => [
-      t.transaction_date.split('T')[0],
-      fixTr(t.description || ""),
-      t.type === 'debt' ? t.amount.toLocaleString() : "-",
-      t.type === 'credit' ? t.amount.toLocaleString() : "-",
-      t.balance_after.toLocaleString()
-    ]);
+    let runningBalance = 0;
+    const tableData = companyTransactions.map(t => {
+      const amount = Number(t.amount);
+      if (t.type === 'debt') runningBalance += amount;
+      else runningBalance -= amount;
+      
+      return [
+        t.transaction_date.split('T')[0],
+        fixTr(t.description || ""),
+        t.type === 'debt' ? amount.toLocaleString('tr-TR') : "-",
+        t.type === 'credit' ? amount.toLocaleString('tr-TR') : "-",
+        runningBalance.toLocaleString('tr-TR')
+      ];
+    });
 
     autoTable(doc, {
       startY: yPos,
@@ -207,9 +217,9 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`${fixTr(isTr ? 'Guncel Bakiye:' : 'Current Balance:')} ${selectedCompany.balance.toLocaleString()} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
+    doc.text(`${fixTr(isTr ? 'Guncel Bakiye:' : 'Current Balance:')} ${Number(selectedCompany.balance).toLocaleString()} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
 
-    doc.save(`hesap_ekstresi_${selectedCompany.name}_${transactionStartDate}_${transactionEndDate}.pdf`);
+    doc.save(`hesap_ekstresi_${selectedCompany.title}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {
