@@ -9,6 +9,7 @@ import publicRoutes from "./routes/public.ts";
 import adminRoutes from "./routes/admin.ts";
 import storeRoutes from "./routes/store.ts";
 import fleetRoutes from "./routes/fleet.ts";
+import integrationRoutes from "./routes/integrations.ts";
 import { authenticate } from "./middleware/auth.ts";
 import { pool } from "./models/db.ts";
 import multer from "multer";
@@ -142,6 +143,7 @@ async function startServer() {
   app.use("/api/admin", authenticate, adminRoutes);
   app.use("/api/store", authenticate, storeRoutes);
   app.use("/api/fleet", authenticate, fleetRoutes);
+  app.use("/api/integrations", integrationRoutes);
 
   // CRM: Tickets (Special case, mounted at /api/tickets)
   app.get("/api/tickets", authenticate, async (req: any, res) => {

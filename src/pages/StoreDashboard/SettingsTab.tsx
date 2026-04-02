@@ -19,11 +19,20 @@ import {
   Image as ImageIcon,
   Info,
   ArrowRight,
-  Building2
+  Building2,
+  ShoppingBag,
+  RefreshCw,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  Download,
+  AlertTriangle
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { DEVELOPED_COUNTRIES } from "../../constants";
+import { api } from "../../services/api";
+import { motion } from "motion/react";
 
 interface SettingsTabProps {
   branding: any;
@@ -36,6 +45,7 @@ interface SettingsTabProps {
   onDeleteUser: (id: number) => void;
   users: any[];
   currentUser: any;
+  currentStoreId?: number;
 }
 
 const SettingsTab = ({ 
@@ -48,12 +58,51 @@ const SettingsTab = ({
   onAddUser,
   onDeleteUser,
   users,
-  currentUser
+  currentUser,
+  currentStoreId
 }: SettingsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
+  const [syncing, setSyncing] = React.useState(false);
 
   if (!branding) return null;
+
+  const amazonSettings = branding.amazon_settings || {};
+  const isAmazonConnected = !!amazonSettings.refresh_token;
+
+  const handleConnectAmazon = async () => {
+    try {
+      const { url } = await api.getAmazonAuthUrl();
+      window.location.href = url;
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSyncOrders = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.syncAmazonOrders(currentStoreId);
+      alert(`${t.amazonSyncSuccess}: ${res.count} ${t.sales}`);
+      // Refresh branding to get new last_sync
+      window.location.reload();
+    } catch (error) {
+      alert(t.amazonSyncError);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDisconnectAmazon = async () => {
+    if (!confirm(t.confirmDelete)) return;
+    try {
+      await api.disconnectAmazon(currentStoreId);
+      alert(t.amazonDisconnected);
+      window.location.reload();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-12">
@@ -358,9 +407,167 @@ const SettingsTab = ({
                           />
                         </div>
                       </div>
+
+                      <div className="mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-200">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                            <Smartphone className="h-4 w-4" />
+                          </div>
+                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                            {lang === 'tr' ? 'POS Bağlantı Köprüsü (Bridge)' : 'POS Connection Bridge'}
+                          </h4>
+                        </div>
+                        
+                        <p className="text-[11px] text-slate-500 font-bold leading-relaxed mb-6">
+                          {lang === 'tr' 
+                            ? 'Web tarayıcınızın yerel ağdaki POS cihazına erişebilmesi için bilgisayarınızda bir köprü yazılımı çalışmalıdır. Aşağıdaki butona tıklayarak Node.js tabanlı köprü dosyasını indirebilirsiniz.'
+                            : 'A bridge software must run on your computer for your browser to access the local POS device. Click the button below to download the Node.js based bridge file.'}
+                        </p>
+
+                        <button 
+                          onClick={() => {
+                            const script = `
+const express = require('express');
+const cors = require('cors');
+const net = require('net');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = 1616;
+
+app.post('/pos/sale', (req, res) => {
+  const { amount, ip, port, brand } = req.body;
+  console.log(\`[POS] \${brand} (\${ip}:\${port}) üzerinden \${amount} tutarında işlem başlatılıyor...\`);
+  
+  // Burada gerçek TCP iletişimi kurulur
+  // Örnek Verifone/Ingenico TCP soket bağlantısı:
+  /*
+  const client = new net.Socket();
+  client.connect(port, ip, () => {
+    // Protokole uygun mesajı gönder
+    client.write('SALE_COMMAND_HERE');
+  });
+  client.on('data', (data) => {
+    res.json({ status: 'approved', message: 'İşlem Başarılı' });
+    client.destroy();
+  });
+  */
+
+  // Simülasyon (Gerçek cihaz bağlıysa yukarıdaki blok aktif edilmelidir)
+  setTimeout(() => {
+    res.json({ status: 'approved', message: 'İşlem Başarılı' });
+  }, 5000);
+});
+
+app.listen(PORT, () => {
+  console.log(\`LookPrice POS Bridge \${PORT} portunda çalışıyor...\`);
+  console.log(\`Lütfen bu pencereyi kapatmayın.\`);
+});
+                            `;
+                            const blob = new Blob([script], { type: 'text/javascript' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'lookprice-pos-bridge.js';
+                            a.click();
+                          }}
+                          className="w-full py-4 bg-white border-2 border-slate-200 rounded-2xl text-xs font-black text-slate-900 uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center justify-center group"
+                        >
+                          <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
+                          {lang === 'tr' ? 'Köprü Dosyasını İndir (.js)' : 'Download Bridge File (.js)'}
+                        </button>
+                        
+                        <div className="mt-4 flex items-start space-x-2">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+                          <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                            {lang === 'tr' 
+                              ? 'Çalıştırmak için bilgisayarınızda Node.js kurulu olmalıdır. Terminalde "node lookprice-pos-bridge.js" komutunu çalıştırın.'
+                              : 'Node.js must be installed on your computer to run this. Run "node lookprice-pos-bridge.js" in your terminal.'}
+                          </p>
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
+              </div>
+
+              {/* Amazon Integration Section */}
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-orange-50 rounded-xl text-orange-600 border border-orange-100">
+                      <ShoppingBag className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.amazonIntegration}</h3>
+                      <p className="text-xs text-slate-400 font-medium mt-0.5">{t.amazonIntegrationDesc}</p>
+                    </div>
+                  </div>
+                  {isAmazonConnected && (
+                    <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">{t.amazonConnected}</span>
+                    </div>
+                  )}
+                </div>
+
+                {!isAmazonConnected ? (
+                  <div className="p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4">
+                      <ShoppingBag className="h-8 w-8 text-slate-300" />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-2">{lang === 'tr' ? 'Amazon Mağazanızı Bağlayın' : 'Connect Your Amazon Store'}</h4>
+                    <p className="text-xs text-slate-500 max-w-xs mb-6 leading-relaxed">
+                      {lang === 'tr' 
+                        ? 'Amazon.com.tr üzerindeki satışlarınızı otomatik olarak buraya aktarmak için mağazanızı yetkilendirin.' 
+                        : 'Authorize your store to automatically import your sales on Amazon.com.tr here.'}
+                    </p>
+                    <button 
+                      onClick={handleConnectAmazon}
+                      className="px-8 py-3 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 flex items-center space-x-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span>{t.connectAmazon}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {amazonSettings.last_sync 
+                            ? new Date(amazonSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
+                            : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'Amazon Mağaza ID' : 'Amazon Store ID'}</p>
+                        <p className="text-sm font-bold text-slate-900 truncate">{amazonSettings.seller_id || '...'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button 
+                        onClick={handleSyncOrders}
+                        disabled={syncing}
+                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                        <span>{syncing ? t.loading : t.syncOrders}</span>
+                      </button>
+                      <button 
+                        onClick={handleDisconnectAmazon}
+                        className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        <span>{t.disconnect}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -230,4 +230,10 @@ export const api = {
   deleteDriver: (id: number) => api.delete(`/api/fleet/drivers/${id}`),
   uploadDriverDocument: (id: number, formData: FormData) => api.upload(`/api/fleet/drivers/${id}/documents`, formData),
   deleteDriverDocument: (id: number) => api.delete(`/api/fleet/driver-documents/${id}`),
+
+  // Amazon Integration
+  getAmazonAuthUrl: () => api.get("/api/integrations/amazon/auth-url"),
+  getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
+  disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
 };

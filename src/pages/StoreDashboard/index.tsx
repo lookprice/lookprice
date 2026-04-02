@@ -1056,6 +1056,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onDeleteUser={handleDeleteUser}
                         users={users}
                         currentUser={user}
+                        currentStoreId={currentStoreId}
                       />
                     )}
                   </>
