@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build:server": "esbuild server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js --format=esm --external:express --external:pg --external:bcryptjs --external:jsonwebtoken --external:multer --external:xlsx --external:dotenv --external:vite",
+    "build:server": "esbuild server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js --format=esm --external:express --external:pg --external:bcryptjs --external:jsonwebtoken --external:multer --external:xlsx --external:dotenv --external:vite --external:axios --external:@supabase/supabase-js",
     "start": "NODE_ENV=production node dist/server.js",
     "build": "rm -rf src/firebase.ts src/firebase-applet-config.json src/contexts/FirebaseContext.tsx && npm run clean && npx vite build && npm run build:server",
     "preview": "vite preview",
@@ -18,6 +18,7 @@
     "@supabase/supabase-js": "^2.101.1",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "axios": "^1.14.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "codepage": "^1.15.0",

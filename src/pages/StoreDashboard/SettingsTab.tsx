@@ -64,11 +64,17 @@ const SettingsTab = ({
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
   const [syncing, setSyncing] = React.useState(false);
+  const [n11Syncing, setN11Syncing] = React.useState(false);
+  const [n11AppKey, setN11AppKey] = React.useState(branding.n11_settings?.appKey || "");
+  const [n11AppSecret, setN11AppSecret] = React.useState(branding.n11_settings?.appSecret || "");
 
   if (!branding) return null;
 
   const amazonSettings = branding.amazon_settings || {};
   const isAmazonConnected = !!amazonSettings.refresh_token;
+
+  const n11Settings = branding.n11_settings || {};
+  const isN11Connected = !!n11Settings.connected;
 
   const handleConnectAmazon = async () => {
     try {
@@ -98,6 +104,40 @@ const SettingsTab = ({
     try {
       await api.disconnectAmazon(currentStoreId);
       alert(t.amazonDisconnected);
+      window.location.reload();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSaveN11Settings = async () => {
+    try {
+      await api.saveN11Settings({ appKey: n11AppKey, appSecret: n11AppSecret, storeId: currentStoreId });
+      alert(t.saveSuccess);
+      window.location.reload();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSyncN11Orders = async () => {
+    setN11Syncing(true);
+    try {
+      const res = await api.syncN11Orders(currentStoreId);
+      alert(`${t.n11SyncSuccess}: ${res.count} ${t.sales}`);
+      window.location.reload();
+    } catch (error) {
+      alert(t.n11SyncError);
+    } finally {
+      setN11Syncing(false);
+    }
+  };
+
+  const handleDisconnectN11 = async () => {
+    if (!confirm(t.confirmDelete)) return;
+    try {
+      await api.disconnectN11(currentStoreId);
+      alert(t.n11Disconnected);
       window.location.reload();
     } catch (error) {
       alert(t.errorOccurred);
@@ -568,6 +608,100 @@ app.listen(PORT, () => {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* N11 Integration Section */}
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-50 rounded-xl text-blue-600 border border-blue-100">
+                      <ShoppingBag className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.n11Integration}</h3>
+                      <p className="text-xs text-slate-400 font-medium mt-0.5">{t.n11IntegrationDesc}</p>
+                    </div>
+                  </div>
+                  {isN11Connected && (
+                    <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">{t.n11Connected}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.n11AppKey}</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={n11AppKey}
+                        onChange={(e) => setN11AppKey(e.target.value)}
+                        placeholder="App Key"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.n11AppSecret}</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={n11AppSecret}
+                        onChange={(e) => setN11AppSecret(e.target.value)}
+                        placeholder="App Secret"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {!isN11Connected ? (
+                      <button 
+                        onClick={handleSaveN11Settings}
+                        className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center justify-center space-x-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        <span>{t.connectN11}</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={handleSyncN11Orders}
+                          disabled={n11Syncing}
+                          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${n11Syncing ? 'animate-spin' : ''}`} />
+                          <span>{n11Syncing ? t.loading : t.syncOrders}</span>
+                        </button>
+                        <button 
+                          onClick={handleSaveN11Settings}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-slate-300 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          <span>{t.update}</span>
+                        </button>
+                        <button 
+                          onClick={handleDisconnectN11}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>{t.disconnect}</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {isN11Connected && (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        {n11Settings.last_sync 
+                          ? new Date(n11Settings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
+                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

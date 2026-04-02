@@ -236,4 +236,10 @@ export const api = {
   getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
   disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
+
+  // N11 Integration
+  getN11Settings: (storeId?: number) => api.get(`/api/integrations/n11/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveN11Settings: (data: { appKey: string, appSecret: string, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
+  syncN11Orders: (storeId?: number) => api.post("/api/integrations/n11/sync", { storeId }),
+  disconnectN11: (storeId?: number) => api.post("/api/integrations/n11/disconnect", { storeId }),
 };
