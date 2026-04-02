@@ -21,9 +21,10 @@ import { motion, AnimatePresence } from "motion/react";
 interface FastPosTabProps {
   storeId?: number;
   onSaleComplete?: () => void;
+  branding?: any;
 }
 
-const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
+const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [searchTerm, setSearchTerm] = useState("");
@@ -36,6 +37,8 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
   const [lastSaleId, setLastSaleId] = useState<number | null>(null);
   const [lastFiscal, setLastFiscal] = useState<any>(null);
   const [lastCart, setLastCart] = useState<any[]>([]);
+  const [posStatus, setPosStatus] = useState<'idle' | 'waiting' | 'approved' | 'failed'>('idle');
+  const [posMessage, setPosMessage] = useState("");
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
@@ -115,6 +118,27 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
     
     try {
       setCompleting(true);
+
+      // POS Integration Simulation
+      if (paymentMethod === 'credit_card' && branding?.fiscal_active) {
+        setPosStatus('waiting');
+        setPosMessage(lang === 'tr' ? `${branding.fiscal_brand?.toUpperCase()} POS Cihazına bağlanılıyor...` : `Connecting to ${branding.fiscal_brand?.toUpperCase()} POS...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        setPosMessage(lang === 'tr' ? "Lütfen kartı takın veya yaklaştırın..." : "Please insert or tap card...");
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        setPosMessage(lang === 'tr' ? "Şifre bekleniyor..." : "Waiting for PIN...");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        setPosMessage(lang === 'tr' ? "İşlem onaylanıyor..." : "Authorizing transaction...");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        setPosStatus('approved');
+        setPosMessage(lang === 'tr' ? "İşlem Onaylandı!" : "Transaction Approved!");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
       const currentCart = [...cart];
       const res = await api.createPosSale({
         items: currentCart,
@@ -146,6 +170,7 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
       alert(error.message || "Satış tamamlanırken bir hata oluştu.");
     } finally {
       setCompleting(false);
+      setPosStatus('idle');
     }
   };
 
@@ -323,6 +348,56 @@ const FastPosTab = ({ storeId, onSaleComplete }: FastPosTabProps) => {
 
       {/* Success Overlay */}
       <AnimatePresence>
+        {posStatus !== 'idle' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full text-center shadow-2xl border border-slate-100"
+            >
+              <div className="relative mb-8">
+                <div className={`h-24 w-24 rounded-full flex items-center justify-center mx-auto transition-all duration-500 ${
+                  posStatus === 'waiting' ? 'bg-indigo-50 text-indigo-600' : 
+                  posStatus === 'approved' ? 'bg-emerald-50 text-emerald-600' : 
+                  'bg-rose-50 text-rose-600'
+                }`}>
+                  {posStatus === 'waiting' && <CreditCard className="h-12 w-12 animate-pulse" />}
+                  {posStatus === 'approved' && <CheckCircle2 className="h-12 w-12" />}
+                  {posStatus === 'failed' && <X className="h-12 w-12" />}
+                </div>
+                {posStatus === 'waiting' && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 h-24 w-24 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                )}
+              </div>
+              
+              <h2 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">
+                {posStatus === 'waiting' ? (lang === 'tr' ? 'POS İŞLEMİ' : 'POS TRANSACTION') : 
+                 posStatus === 'approved' ? (lang === 'tr' ? 'ONAYLANDI' : 'APPROVED') : 
+                 (lang === 'tr' ? 'HATA' : 'ERROR')}
+              </h2>
+              
+              <p className="text-slate-500 font-bold text-sm leading-relaxed">
+                {posMessage}
+              </p>
+
+              {posStatus === 'failed' && (
+                <button 
+                  onClick={() => setPosStatus('idle')}
+                  className="mt-8 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all"
+                >
+                  {lang === 'tr' ? 'Kapat' : 'Close'}
+                </button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+
         {showSuccess && (
           <motion.div 
             initial={{ opacity: 0 }}

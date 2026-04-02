@@ -1036,6 +1036,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <FastPosTab 
                         storeId={currentStoreId} 
                         onSaleComplete={fetchSales}
+                        branding={branding}
                       />
                     )}
                     {activeTab === "audit-logs" && (
