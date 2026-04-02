@@ -336,6 +336,28 @@ const SettingsTab = ({
                           onChange={(e) => onBrandingChange('fiscal_terminal_id', e.target.value)}
                         />
                       </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Cihaz IP Adresi' : 'Device IP Address'}</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
+                            placeholder="Örn: 192.168.1.49"
+                            value={branding.fiscal_ip || ""}
+                            onChange={(e) => onBrandingChange('fiscal_ip', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Cihaz Portu' : 'Device Port'}</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
+                            placeholder="Örn: 1616"
+                            value={branding.fiscal_port || ""}
+                            onChange={(e) => onBrandingChange('fiscal_port', e.target.value)}
+                          />
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
