@@ -738,13 +738,24 @@ router.post("/quotations/:id/action", async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
+    const quotationId = parseInt(id);
     const { action, notes: customerNotes, paymentMethod: bodyPaymentMethod, dueDate: bodyDueDate } = req.body; // action: 'approve' or 'reject'
     
+    console.log(`[PublicQuotationAction] ID: ${id}, Action: ${action}, Notes: ${customerNotes}`);
+
+    if (isNaN(quotationId)) {
+      return res.status(400).json({ error: "Invalid quotation ID" });
+    }
+
     if (action !== 'approve') {
+      console.log(`[PublicQuotationAction] Rejecting quotation ${quotationId}`);
       const result = await pool.query(
         "UPDATE quotations SET status = 'cancelled', notes = COALESCE(notes, '') || '\nCustomer Note (Reject): ' || $1 WHERE id = $2 AND status = 'pending' RETURNING id",
-        [customerNotes || '', id]
+        [customerNotes || '', quotationId]
       );
+      
+      console.log(`[PublicQuotationAction] Reject result:`, result.rows);
+      
       if (result.rows.length === 0) {
         return res.status(404).json({ error: "Quotation not found or already processed" });
       }
@@ -752,21 +763,26 @@ router.post("/quotations/:id/action", async (req, res) => {
     }
 
     // Approval logic (similar to store admin approval)
+    console.log(`[PublicQuotationAction] Approving quotation ${quotationId}`);
     await client.query("BEGIN");
     
     const qResult = await client.query(
       "SELECT * FROM quotations WHERE id = $1 FOR UPDATE",
-      [id]
+      [quotationId]
     );
     
     if (qResult.rows.length === 0) {
+      console.error(`[PublicQuotationAction] Quotation ${quotationId} not found`);
       throw new Error("Quotation not found");
     }
     
     const quotation = qResult.rows[0];
     const storeId = quotation.store_id;
     
+    console.log(`[PublicQuotationAction] Quotation found:`, { id: quotation.id, status: quotation.status, is_sale: quotation.is_sale });
+
     if (quotation.status === 'approved' || quotation.is_sale) {
+      console.warn(`[PublicQuotationAction] Quotation ${quotationId} already processed`);
       throw new Error("Quotation already approved or converted to sale");
     }
     
@@ -778,11 +794,13 @@ router.post("/quotations/:id/action", async (req, res) => {
     }
 
     // Create Sale
+    console.log(`[PublicQuotationAction] Creating sale for quotation ${quotationId}`);
     const saleRes = await client.query(
       "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, due_date, quotation_id, notes, company_id) VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, $8, $9) RETURNING id",
       [storeId, quotation.total_amount, quotation.currency, quotation.customer_name, paymentMethod, dueDate, quotation.id, (quotation.notes || '') + (customerNotes ? `\nCustomer Note: ${customerNotes}` : ''), quotation.company_id]
     );
     const saleId = saleRes.rows[0].id;
+    console.log(`[PublicQuotationAction] Sale created: ${saleId}`);
 
     // Items and Stock
     const itemsRes = await client.query("SELECT * FROM quotation_items WHERE quotation_id = $1", [quotation.id]);
@@ -828,14 +846,17 @@ router.post("/quotations/:id/action", async (req, res) => {
     }
 
     // Update Quotation Status
+    console.log(`[PublicQuotationAction] Updating quotation ${quotationId} status to approved`);
     await client.query(
       "UPDATE quotations SET status = 'approved', is_sale = TRUE, payment_method = $1, due_date = $2, notes = COALESCE(notes, '') || $3 WHERE id = $4",
       [paymentMethod, dueDate, customerNotes ? `\nCustomer Note: ${customerNotes}` : '', quotation.id]
     );
 
     await client.query("COMMIT");
+    console.log(`[PublicQuotationAction] Successfully processed quotation ${quotationId}`);
     res.json({ success: true, saleId });
   } catch (e: any) {
+    console.error(`[PublicQuotationAction] Error processing quotation:`, e);
     await client.query("ROLLBACK");
     res.status(500).json({ error: e.message });
   } finally {
