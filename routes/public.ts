@@ -254,7 +254,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "customer-secret-key";
 
 // Customer: Register
 router.post("/customers/register", async (req, res) => {
-  const { storeId, email, password, name, phone, address } = req.body;
+  const { storeId, email, password, name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms } = req.body;
   if (!storeId || !email || !password || !name) {
     return res.status(400).json({ error: "Missing required fields" });
   }
@@ -267,8 +267,8 @@ router.post("/customers/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO customers (store_id, email, password, full_name, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, full_name as name",
-      [storeId, email, hashedPassword, name, phone || '', address || '']
+      "INSERT INTO customers (store_id, email, password, full_name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, email, full_name as name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
+      [storeId, email, hashedPassword, name, surname || '', phone || '', address || '', country || '', city || '', tc_id || '', is_corporate || false, marketing_email || false, marketing_sms || false]
     );
     res.json({ success: true, customer: result.rows[0] });
   } catch (e: any) {
@@ -290,7 +290,7 @@ router.post("/customers/login", async (req, res) => {
     const token = jwt.sign({ id: customer.id, storeId: customer.store_id, type: 'customer' }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ 
       token, 
-      customer: { id: customer.id, email: customer.email, name: customer.full_name, phone: customer.phone, address: customer.address } 
+      customer: { id: customer.id, email: customer.email, name: customer.full_name, surname: customer.surname, phone: customer.phone, address: customer.address, country: customer.country, city: customer.city, tc_id: customer.tc_id, is_corporate: customer.is_corporate, marketing_email: customer.marketing_email, marketing_sms: customer.marketing_sms } 
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -314,7 +314,7 @@ const authenticateCustomer = (req: any, res: any, next: any) => {
 // Customer: Profile
 router.get("/customers/profile", authenticateCustomer, async (req: any, res) => {
   try {
-    const result = await pool.query("SELECT id, email, name, phone, address FROM customers WHERE id = $1", [req.customer.id]);
+    const result = await pool.query("SELECT id, email, full_name as name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms FROM customers WHERE id = $1", [req.customer.id]);
     res.json(result.rows[0]);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -322,13 +322,13 @@ router.get("/customers/profile", authenticateCustomer, async (req: any, res) => 
 });
 
 router.put("/customers/profile", authenticateCustomer, async (req: any, res) => {
-  const { name, phone, address } = req.body;
+  const { name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms } = req.body;
   try {
     const result = await pool.query(
-      "UPDATE customers SET name = $1, phone = $2, address = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING id, email, name, phone, address",
-      [name, phone, address, req.customer.id]
+      "UPDATE customers SET full_name = $1, surname = $2, phone = $3, address = $4, country = $5, city = $6, tc_id = $7, is_corporate = $8, marketing_email = $9, marketing_sms = $10 WHERE id = $11 RETURNING id, email, full_name as name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
+      [name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms, req.customer.id]
     );
-    res.json(result.rows[0]);
+    res.json({ success: true, customer: result.rows[0] });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

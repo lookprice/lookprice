@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
 import { 
@@ -31,7 +31,8 @@ import {
   Eye,
   Filter,
   ArrowUpDown,
-  Tag
+  Tag,
+  ShoppingBag
 } from "lucide-react";
 import { CreditCard } from "lucide-react";
 import { api } from "../services/api";
@@ -458,8 +459,13 @@ const ProductDetailModal: React.FC<{
 const StoreShowcase: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { lang } = useLanguage();
   const t = translations[lang];
+  
+  const isProfileView = location.pathname.endsWith('/profile');
+  const isOrdersView = location.pathname.endsWith('/orders');
+  const isReturnView = location.pathname.endsWith('/return');
   
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -470,7 +476,32 @@ const StoreShowcase: React.FC = () => {
   const [isBasketOpen, setIsBasketOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [customerInfo, setCustomerInfo] = useState({ name: "", phone: "", address: "", email: "", password: "" });
+  const [customerProfile, setCustomerProfile] = useState<any>(null);
+  const [customerToken, setCustomerToken] = useState<string | null>(localStorage.getItem('customerToken'));
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileEditForm, setProfileEditForm] = useState<any>({});
+
+  useEffect(() => {
+    if ((isProfileView || isOrdersView || isReturnView) && !customerToken) {
+      setShowAuthModal(true);
+    }
+  }, [isProfileView, isOrdersView, isReturnView, customerToken]);
+
+  useEffect(() => {
+    if (isProfileView && customerToken) {
+      api.getCustomerProfile().then(res => {
+        if (!res.error) {
+          setCustomerProfile(res);
+          setProfileEditForm(res);
+        }
+      });
+    }
+  }, [isProfileView, customerToken]);
+
+  const [customerInfo, setCustomerInfo] = useState({ 
+    name: "", surname: "", phone: "", address: "", email: "", password: "", passwordConfirm: "",
+    country: "", city: "", tc_id: "", is_corporate: false, marketing_email: false, marketing_sms: false, accept_terms: false
+  });
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -528,13 +559,18 @@ const StoreShowcase: React.FC = () => {
         
         // If customer is logged in, sync their info to checkout
         if (customer) {
-          setCustomerInfo({
+          setCustomerInfo(prev => ({
+            ...prev,
             name: customer.name || "",
+            surname: customer.surname || "",
             phone: customer.phone || "",
             address: customer.address || "",
             email: customer.email || "",
-            password: ""
-          });
+            country: customer.country || "",
+            city: customer.city || "",
+            tc_id: customer.tc_id || "",
+            is_corporate: customer.is_corporate || false
+          }));
         }
       } catch (err: any) {
         setError(err.message || t.dashboard.storeLoadingError);
@@ -545,6 +581,21 @@ const StoreShowcase: React.FC = () => {
 
     fetchData();
   }, [slug, customer?.id]);
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.updateCustomerProfile(profileEditForm);
+      if (res.error) throw new Error(res.error);
+      setCustomerProfile(res.customer);
+      setCustomer(res.customer);
+      localStorage.setItem('customer', JSON.stringify(res.customer));
+      setIsEditingProfile(false);
+      alert(lang === 'tr' ? 'Profil başarıyla güncellendi!' : 'Profile updated successfully!');
+    } catch (err: any) {
+      alert(err.message || (lang === 'tr' ? 'Profil güncellenirken bir hata oluştu.' : 'An error occurred while updating profile.'));
+    }
+  };
 
   const handleCustomerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -558,12 +609,19 @@ const StoreShowcase: React.FC = () => {
       setCustomer(res.customer);
       localStorage.setItem('customer', JSON.stringify(res.customer));
       localStorage.setItem('customerToken', res.token);
+      setCustomerToken(res.token);
       setShowAuthModal(false);
       setCustomerInfo(prev => ({
         ...prev,
         name: res.customer.name,
+        surname: res.customer.surname,
         phone: res.customer.phone,
-        address: res.customer.address
+        address: res.customer.address,
+        email: res.customer.email,
+        country: res.customer.country,
+        city: res.customer.city,
+        tc_id: res.customer.tc_id,
+        is_corporate: res.customer.is_corporate
       }));
     } catch (err: any) {
       alert(err.message);
@@ -572,13 +630,28 @@ const StoreShowcase: React.FC = () => {
 
   const handleCustomerRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (customerInfo.password !== customerInfo.passwordConfirm) {
+      alert(lang === 'tr' ? 'Şifreler eşleşmiyor' : 'Passwords do not match');
+      return;
+    }
+    if (!customerInfo.accept_terms) {
+      alert(lang === 'tr' ? 'Üyelik sözleşmesini kabul etmelisiniz' : 'You must accept the membership agreement');
+      return;
+    }
     try {
       const res = await api.customerRegister({
         name: customerInfo.name,
+        surname: customerInfo.surname,
         email: customerInfo.email,
         password: customerInfo.password,
         phone: customerInfo.phone,
         address: customerInfo.address,
+        country: customerInfo.country,
+        city: customerInfo.city,
+        tc_id: customerInfo.tc_id,
+        is_corporate: customerInfo.is_corporate,
+        marketing_email: customerInfo.marketing_email,
+        marketing_sms: customerInfo.marketing_sms,
         storeId: store?.id
       });
       if (res.error) throw new Error(res.error);
@@ -595,6 +668,7 @@ const StoreShowcase: React.FC = () => {
       setCustomer(loginRes.customer);
       localStorage.setItem('customer', JSON.stringify(loginRes.customer));
       localStorage.setItem('customerToken', loginRes.token);
+      setCustomerToken(loginRes.token);
       setShowAuthModal(false);
     } catch (err: any) {
       alert(err.message);
@@ -603,8 +677,12 @@ const StoreShowcase: React.FC = () => {
 
   const handleLogout = () => {
     setCustomer(null);
+    setCustomerToken(null);
     localStorage.removeItem('customer');
     localStorage.removeItem('customerToken');
+    if (isProfileView || isOrdersView || isReturnView) {
+      navigate(`/s/${slug}`);
+    }
   };
 
   useEffect(() => {
@@ -916,8 +994,11 @@ const StoreShowcase: React.FC = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative h-[300px] md:h-[450px] overflow-hidden">
+      {/* Main Content Area */}
+      {!isProfileView && !isOrdersView && !isReturnView ? (
+        <>
+          {/* Hero Section */}
+          <section className="relative h-[300px] md:h-[450px] overflow-hidden">
         {store?.hero_image_url ? (
           <img 
             src={store.hero_image_url} 
@@ -1392,6 +1473,234 @@ const StoreShowcase: React.FC = () => {
         </section>
 
       </main>
+      </>
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 py-16">
+          {isProfileView && (
+            <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-black text-gray-900">{lang === 'tr' ? 'Profilim' : 'My Profile'}</h2>
+                {customerProfile && !isEditingProfile && (
+                  <button 
+                    onClick={() => setIsEditingProfile(true)}
+                    className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-bold transition-colors"
+                  >
+                    {lang === 'tr' ? 'Düzenle' : 'Edit'}
+                  </button>
+                )}
+              </div>
+              
+              {customerProfile ? (
+                isEditingProfile ? (
+                  <form onSubmit={handleProfileUpdate} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
+                        <input 
+                          required
+                          type="text"
+                          value={profileEditForm.name || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
+                        <input 
+                          required
+                          type="text"
+                          value={profileEditForm.surname || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, surname: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-POSTA</label>
+                        <input 
+                          required
+                          type="email"
+                          value={profileEditForm.email || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, email: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.phone}</label>
+                        <input 
+                          required
+                          type="tel"
+                          value={profileEditForm.phone || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
+                        <input 
+                          required
+                          type="text"
+                          value={profileEditForm.country || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, country: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
+                        <input 
+                          required
+                          type="text"
+                          value={profileEditForm.city || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, city: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.address}</label>
+                        <textarea 
+                          required
+                          value={profileEditForm.address || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, address: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900 resize-none"
+                          rows={2}
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
+                        <input 
+                          type="text"
+                          value={profileEditForm.tc_id || ''}
+                          onChange={(e) => setProfileEditForm(prev => ({ ...prev, tc_id: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                      <div className="space-y-1 flex flex-col justify-center">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="edit_is_corporate" 
+                              checked={!profileEditForm.is_corporate} 
+                              onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: false }))}
+                              className="w-4 h-4 text-primary focus:ring-primary"
+                            />
+                            <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="edit_is_corporate" 
+                              checked={profileEditForm.is_corporate} 
+                              onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: true }))}
+                              className="w-4 h-4 text-primary focus:ring-primary"
+                            />
+                            <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-4 pt-4">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setIsEditingProfile(false);
+                          setProfileEditForm(customerProfile);
+                        }}
+                        className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-2xl font-bold transition-colors"
+                      >
+                        {lang === 'tr' ? 'İptal' : 'Cancel'}
+                      </button>
+                      <button 
+                        type="submit"
+                        className="flex-1 py-4 text-white rounded-2xl font-bold transition-all shadow-xl active:scale-95"
+                        style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
+                      >
+                        {lang === 'tr' ? 'Kaydet' : 'Save'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'Ad' : 'Name'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'Soyad' : 'Surname'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.surname}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">E-posta</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.email}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'Telefon' : 'Phone'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.phone}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'Ülke' : 'Country'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.country}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'İl' : 'City'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.city}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'Adres' : 'Address'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.address}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'T.C. Kimlik No' : 'TC ID'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.tc_id}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'tr' ? 'Hesap Türü' : 'Account Type'}</label>
+                        <p className="text-lg font-medium text-gray-900 mt-1">{customerProfile.is_corporate ? (lang === 'tr' ? 'Kurumsal' : 'Corporate') : (lang === 'tr' ? 'Bireysel' : 'Individual')}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+                  <p className="text-gray-500">{lang === 'tr' ? 'Profil bilgileri yükleniyor...' : 'Loading profile information...'}</p>
+                </div>
+              )}
+            </div>
+          )}
+          {isOrdersView && (
+            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
+              <h2 className="text-3xl font-black text-gray-900 mb-8">{lang === 'tr' ? 'Siparişlerim' : 'My Orders'}</h2>
+              <div className="text-center py-20">
+                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ShoppingBag className="w-10 h-10 text-gray-300" />
+                </div>
+                <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Henüz bir siparişiniz bulunmuyor.' : 'You don\'t have any orders yet.'}</p>
+              </div>
+            </div>
+          )}
+          {isReturnView && (
+            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
+              <h2 className="text-3xl font-black text-gray-900 mb-8">{lang === 'tr' ? 'İade Taleplerim' : 'My Return Requests'}</h2>
+              <div className="text-center py-20">
+                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <RotateCcw className="w-10 h-10 text-gray-300" />
+                </div>
+                <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Aktif bir iade veya değişim talebiniz bulunmuyor.' : 'You don\'t have any active return or exchange requests.'}</p>
+              </div>
+            </div>
+          )}
+        </main>
+      )}
 
       {/* Footer */}
       <footer className="bg-gray-50 pt-20 pb-10 border-t">
@@ -1813,29 +2122,55 @@ const StoreShowcase: React.FC = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[40px] shadow-2xl relative z-10 overflow-hidden"
+              className="bg-white w-full max-w-md rounded-[40px] shadow-2xl relative z-10 overflow-y-auto max-h-[90vh]"
             >
               <div className="p-10">
                 <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">
-                    {authMode === 'login' ? (lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN') : (lang === 'tr' ? 'KAYIT OL' : 'REGISTER')}
-                  </h2>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => setAuthMode('login')}
+                      className={`text-2xl font-black tracking-tight transition-colors ${authMode === 'login' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
+                    >
+                      {lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN'}
+                    </button>
+                    <button 
+                      onClick={() => setAuthMode('register')}
+                      className={`text-2xl font-black tracking-tight transition-colors ${authMode === 'register' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
+                    >
+                      {lang === 'tr' ? 'ÜYE OL' : 'REGISTER'}
+                    </button>
+                  </div>
                   <button onClick={() => setShowAuthModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
                 </div>
 
                 <form onSubmit={authMode === 'login' ? handleCustomerLogin : handleCustomerRegister} className="space-y-4">
                   {authMode === 'register' && (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.customerName}</label>
-                      <input 
-                        required
-                        type="text"
-                        value={customerInfo.name}
-                        onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                        style={{ borderFocusColor: primaryColor } as any}
-                      />
-                    </div>
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
+                          <input 
+                            required
+                            type="text"
+                            value={customerInfo.name}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
+                          <input 
+                            required
+                            type="text"
+                            value={customerInfo.surname}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, surname: e.target.value }))}
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-POSTA</label>
@@ -1848,16 +2183,31 @@ const StoreShowcase: React.FC = () => {
                       style={{ borderFocusColor: primaryColor } as any}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">ŞİFRE</label>
-                    <input 
-                      required
-                      type="password"
-                      value={customerInfo.password}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, password: e.target.value }))}
-                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                      style={{ borderFocusColor: primaryColor } as any}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">ŞİFRE</label>
+                      <input 
+                        required
+                        type="password"
+                        value={customerInfo.password}
+                        onChange={(e) => setCustomerInfo(prev => ({ ...prev, password: e.target.value }))}
+                        className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                        style={{ borderFocusColor: primaryColor } as any}
+                      />
+                    </div>
+                    {authMode === 'register' && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ŞİFRE TEKRAR' : 'PASSWORD CONFIRM'}</label>
+                        <input 
+                          required
+                          type="password"
+                          value={customerInfo.passwordConfirm}
+                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, passwordConfirm: e.target.value }))}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                          style={{ borderFocusColor: primaryColor } as any}
+                        />
+                      </div>
+                    )}
                   </div>
                   {authMode === 'register' && (
                     <>
@@ -1872,6 +2222,30 @@ const StoreShowcase: React.FC = () => {
                           style={{ borderFocusColor: primaryColor } as any}
                         />
                       </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
+                          <input 
+                            required
+                            type="text"
+                            value={customerInfo.country}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, country: e.target.value }))}
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
+                          <input 
+                            required
+                            type="text"
+                            value={customerInfo.city}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, city: e.target.value }))}
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                          />
+                        </div>
+                      </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.address}</label>
                         <textarea 
@@ -1882,6 +2256,80 @@ const StoreShowcase: React.FC = () => {
                           rows={2}
                           style={{ borderFocusColor: primaryColor } as any}
                         />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
+                          <input 
+                            type="text"
+                            value={customerInfo.tc_id}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, tc_id: e.target.value }))}
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                          />
+                        </div>
+                        <div className="space-y-1 flex flex-col justify-center">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
+                          <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name="is_corporate" 
+                                checked={!customerInfo.is_corporate} 
+                                onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: false }))}
+                                className="w-4 h-4 text-primary focus:ring-primary"
+                              />
+                              <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name="is_corporate" 
+                                checked={customerInfo.is_corporate} 
+                                onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: true }))}
+                                className="w-4 h-4 text-primary focus:ring-primary"
+                              />
+                              <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3 mt-4 bg-gray-50 p-4 rounded-2xl">
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={customerInfo.marketing_email}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_email: e.target.checked }))}
+                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                          />
+                          <span className="text-xs font-medium text-gray-600 leading-tight">
+                            {lang === 'tr' ? 'Kampanyalardan haberdar olmak için elektronik ileti almak istiyorum.' : 'I want to receive electronic messages to be informed about campaigns.'}
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={customerInfo.marketing_sms}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_sms: e.target.checked }))}
+                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                          />
+                          <span className="text-xs font-medium text-gray-600 leading-tight">
+                            {lang === 'tr' ? 'Kampanyalardan haberdar olmak için SMS almak istiyorum.' : 'I want to receive SMS to be informed about campaigns.'}
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            required
+                            checked={customerInfo.accept_terms}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, accept_terms: e.target.checked }))}
+                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                          />
+                          <span className="text-xs font-medium text-gray-600 leading-tight">
+                            {lang === 'tr' ? 'Üyelik sözleşmesini ve kişisel verilerin işlenmesine ilişkin aydınlatma metnini okudum, kabul ediyorum.' : 'I have read and accept the membership agreement and the clarification text on the processing of personal data.'}
+                          </span>
+                        </label>
                       </div>
                     </>
                   )}
@@ -1930,14 +2378,6 @@ const StoreShowcase: React.FC = () => {
                       {lang === 'tr' ? 'Misafir Olarak Devam Et' : 'Continue as Guest'}
                     </button>
                   </div>
-
-                  <button 
-                    type="button"
-                    onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                    className="w-full text-center text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors mt-4"
-                  >
-                    {authMode === 'login' ? (lang === 'tr' ? 'Hesabınız yok mu? Kayıt olun' : "Don't have an account? Register") : (lang === 'tr' ? 'Zaten hesabınız var mı? Giriş yapın' : 'Already have an account? Login')}
-                  </button>
                 </form>
               </div>
             </motion.div>

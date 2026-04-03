@@ -1,5 +1,10 @@
 
-const getToken = () => localStorage.getItem("token");
+const getToken = (url: string) => {
+  if (url.includes('/api/public/customers/')) {
+    return localStorage.getItem("customerToken");
+  }
+  return localStorage.getItem("token");
+};
 
 // --- API Helper ---
 const handleResponse = async (res: Response) => {
@@ -14,7 +19,7 @@ const handleResponse = async (res: Response) => {
 
 export const api = {
   async get(url: string) {
-    const token = getToken();
+    const token = getToken(url);
     const separator = url.includes('?') ? '&' : '?';
     const cacheBustedUrl = `${url}${separator}_t=${Date.now()}`;
     const res = await fetch(cacheBustedUrl, {
@@ -24,7 +29,7 @@ export const api = {
     return handleResponse(res);
   },
   async post(url: string, body: any) {
-    const token = getToken();
+    const token = getToken(url);
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -36,7 +41,7 @@ export const api = {
     return handleResponse(res);
   },
   async put(url: string, body: any) {
-    const token = getToken();
+    const token = getToken(url);
     const res = await fetch(url, {
       method: "PUT",
       headers: {
@@ -48,7 +53,7 @@ export const api = {
     return handleResponse(res);
   },
   async delete(url: string) {
-    const token = getToken();
+    const token = getToken(url);
     const res = await fetch(url, {
       method: "DELETE",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -56,7 +61,7 @@ export const api = {
     return handleResponse(res);
   },
   async upload(url: string, formData: FormData) {
-    const token = getToken();
+    const token = getToken(url);
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -172,6 +177,8 @@ export const api = {
 
   customerLogin: (data: any) => api.post("/api/public/customers/login", data),
   customerRegister: (data: any) => api.post("/api/public/customers/register", data),
+  getCustomerProfile: () => api.get("/api/public/customers/profile"),
+  updateCustomerProfile: (data: any) => api.put("/api/public/customers/profile", data),
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),
