@@ -115,12 +115,27 @@ export default function App() {
               <ProfilePage />
             ) : <Navigate to="/login" />
           } />
+          <Route path="/s/:slug/profile" element={
+            token ? (
+              <ProfilePage />
+            ) : <Navigate to="/login" />
+          } />
           <Route path="/orders" element={
             token ? (
               <OrderTrackingPage />
             ) : <Navigate to="/login" />
           } />
+          <Route path="/s/:slug/orders" element={
+            token ? (
+              <OrderTrackingPage />
+            ) : <Navigate to="/login" />
+          } />
           <Route path="/return" element={
+            token ? (
+              <ReturnExchangePage />
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/s/:slug/return" element={
             token ? (
               <ReturnExchangePage />
             ) : <Navigate to="/login" />
