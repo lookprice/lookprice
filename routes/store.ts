@@ -2011,8 +2011,8 @@ router.post("/purchase-invoices", async (req: any, res) => {
     const invoiceId = invoiceResult.rows[0].id;
     
     // Fetch company name for customer_info
-    const companyRes = await client.query("SELECT name FROM companies WHERE id = $1", [company_id]);
-    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].name : 'Tedarikçi';
+    const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
+    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].title : 'Tedarikçi';
 
     // Insert items and update stock
     for (const item of items) {
@@ -2091,8 +2091,8 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     );
     
     // Fetch company name for customer_info
-    const companyRes = await client.query("SELECT name FROM companies WHERE id = $1", [company_id]);
-    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].name : 'Tedarikçi';
+    const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
+    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].title : 'Tedarikçi';
 
     // 2. Revert old stock
     for (const item of oldItemsResult.rows) {
@@ -2208,8 +2208,8 @@ router.delete("/purchase-invoices/:id", async (req: any, res) => {
     );
     
     // Fetch company name for customer_info
-    const companyRes = await client.query("SELECT name FROM companies WHERE id = $1", [invoiceResult.rows[0].company_id]);
-    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].name : 'Tedarikçi';
+    const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [invoiceResult.rows[0].company_id]);
+    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].title : 'Tedarikçi';
 
     // Revert stock
     for (const item of itemsResult.rows) {
