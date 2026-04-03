@@ -40,6 +40,16 @@ async function addStockMovement(client: any, storeId: number, productId: number,
   );
 }
 
+function slugify(text: string) {
+  const trMap: Record<string, string> = {
+    'ç': 'c', 'Ç': 'C', 'ğ': 'g', 'Ğ': 'G', 'ı': 'i', 'İ': 'I', 'ö': 'o', 'Ö': 'O', 'ş': 's', 'Ş': 'S', 'ü': 'u', 'Ü': 'U'
+  };
+  return text.split('').map(c => trMap[c] || c).join('')
+    .replace(/[^a-zA-Z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .toLowerCase();
+}
+
 router.get("/products/:id/movements", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
@@ -81,8 +91,9 @@ router.get("/products/:id/movements/export", async (req: any, res) => {
     
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
     
+    const safeName = slugify(productName);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=hareketler_${productName.replace(/\s+/g, '_')}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename="hareketler_${safeName}.xlsx"`);
     res.send(buffer);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
