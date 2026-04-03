@@ -87,6 +87,8 @@ const SettingsTab = ({
   const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
   const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
 
+  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos'>('web');
+
   if (!branding) return null;
 
   const amazonSettings = branding.amazon_settings || {};
@@ -291,9 +293,52 @@ const SettingsTab = ({
   };
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-12">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2 space-y-6 md:space-y-8">
+    <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-24">
+      {/* Sub-tab Navigation */}
+      <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 flex flex-wrap gap-1">
+        <button 
+          onClick={() => setActiveSubTab('web')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <Palette className="h-4 w-4" />
+          <span>{t.settingsCategories?.webSettings}</span>
+        </button>
+        <button 
+          onClick={() => setActiveSubTab('e-stores')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <ShoppingBag className="h-4 w-4" />
+          <span>{t.settingsCategories?.eStores}</span>
+        </button>
+        <button 
+          onClick={() => setActiveSubTab('currency')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'currency' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <Globe className="h-4 w-4" />
+          <span>{t.settingsCategories?.currencyExchange}</span>
+        </button>
+        <button 
+          onClick={() => setActiveSubTab('tax')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'tax' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <Building2 className="h-4 w-4" />
+          <span>{t.settingsCategories?.taxUnits}</span>
+        </button>
+        <button 
+          onClick={() => setActiveSubTab('pos')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <CreditCard className="h-4 w-4" />
+          <span>{t.settingsCategories?.posSettings}</span>
+        </button>
+      </div>
+
+      {activeSubTab === 'web' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto space-y-8"
+        >
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center space-x-3 mb-8">
               <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
@@ -398,22 +443,27 @@ const SettingsTab = ({
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultCurrency}</label>
-                <div className="relative">
-                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <select 
-                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
-                    value={branding.default_currency || "TRY"}
-                    onChange={(e) => onBrandingChange('default_currency', e.target.value)}
-                  >
-                    <option value="TRY">TRY (₺)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                  </select>
-                </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubTab === 'tax' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
+                <Building2 className="h-5 w-5" />
               </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.settingsCategories?.taxUnits}</h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Varsayılan KDV Oranı (%)' : 'Default Tax Rate (%)'}</label>
                 <div className="relative">
@@ -496,6 +546,43 @@ const SettingsTab = ({
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubTab === 'currency' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.settingsCategories?.currencyExchange}</h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultCurrency}</label>
+                <div className="relative">
+                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <select 
+                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
+                    value={branding.default_currency || "TRY"}
+                    onChange={(e) => onBrandingChange('default_currency', e.target.value)}
+                  >
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultLanguage}</label>
@@ -512,7 +599,43 @@ const SettingsTab = ({
                 </div>
               </div>
 
-              <div className="md:col-span-2 pt-6 mt-6 border-t border-slate-100">
+              <div className="md:col-span-2 mt-6">
+                <h4 className="text-sm font-bold text-slate-900 mb-4">{lang === 'tr' ? 'Çapraz Kurlar' : 'Cross Exchange Rates'}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {['USD', 'EUR', 'GBP'].map(curr => (
+                    <div key={curr} className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{curr} {lang === 'tr' ? 'Kuru' : 'Rate'}</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₺</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                          value={branding.currency_rates?.[curr] || ""}
+                          onChange={(e) => {
+                            const rates = { ...(branding.currency_rates || {}) };
+                            rates[curr] = parseFloat(e.target.value);
+                            onBrandingChange('currency_rates', rates);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubTab === 'pos' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="md:col-span-2">
                 <div className="flex items-center space-x-4 mb-8">
                   <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
                     <CreditCard className="h-6 w-6" />
@@ -678,7 +801,26 @@ app.listen(PORT, () => {
                   )}
                 </div>
               </div>
+            </div>
+        </motion.div>
+      )}
 
+      {activeSubTab === 'e-stores' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto space-y-8"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.settingsCategories?.eStores}</h3>
+              </div>
+            </div>
+            <div className="space-y-8">
               {/* Amazon Integration Section */}
               <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-8">
@@ -1198,65 +1340,16 @@ app.listen(PORT, () => {
                 </div>
               </div>
             </div>
-
-            <div className="space-y-8">
-              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                    <Globe className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.currencyRates}</h3>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">{t.currencyRatesDesc}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.usdRate}</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
-                  <input 
-                    type="number" 
-                    step="0.0001"
-                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                    value={branding.currency_rates?.USD || 1}
-                    onChange={(e) => onBrandingChange('currency_rates', { ...branding.currency_rates, USD: Number(e.target.value) })}
-                    onFocus={(e) => e.target.select()}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.eurRate}</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">€</span>
-                  <input 
-                    type="number" 
-                    step="0.0001"
-                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                    value={branding.currency_rates?.EUR || 1}
-                    onChange={(e) => onBrandingChange('currency_rates', { ...branding.currency_rates, EUR: Number(e.target.value) })}
-                    onFocus={(e) => e.target.select()}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.gbpRate}</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">£</span>
-                  <input 
-                    type="number" 
-                    step="0.0001"
-                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                    value={branding.currency_rates?.GBP || 1}
-                    onChange={(e) => onBrandingChange('currency_rates', { ...branding.currency_rates, GBP: Number(e.target.value) })}
-                    onFocus={(e) => e.target.select()}
-                  />
-                </div>
-              </div>
-            </div>
           </div>
+        </motion.div>
+      )}
 
+      {activeSubTab === 'web' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto space-y-8"
+        >
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center space-x-3 mb-8">
               <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
@@ -1599,7 +1692,6 @@ app.listen(PORT, () => {
               ))}
             </div>
           </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
@@ -1718,9 +1810,8 @@ app.listen(PORT, () => {
             </div>
           </div>
         </div>
-      </div>
-      </div>
-      </div>
+        </motion.div>
+      )}
 
       {/* Sticky Save Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-white/40 backdrop-blur-2xl border-t border-slate-200/50 flex justify-center lg:justify-end lg:pr-12 pointer-events-none">

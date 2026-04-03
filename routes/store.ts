@@ -31,6 +31,28 @@ async function checkProductLimit(storeId: number, additionalCount: number = 1) {
   return currentCount + additionalCount <= limit;
 }
 
+async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string) {
+  await client.query(
+    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description) VALUES ($1, $2, $3, $4, $5, $6)",
+    [storeId, productId, type, quantity, source, description]
+  );
+}
+
+router.get("/products/:id/movements", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      "SELECT * FROM stock_movements WHERE product_id = $1 AND store_id = $2 ORDER BY created_at DESC",
+      [id, storeId]
+    );
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // StoreAdmin: Info & Branding
 router.get("/info", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
@@ -47,6 +69,16 @@ router.get("/info", async (req: any, res) => {
 
   const store = storeRes.rows[0];
   if (!store) return res.status(404).json({ error: "Store not found" });
+
+  if (typeof store.currency_rates === 'string') {
+    try {
+      store.currency_rates = JSON.parse(store.currency_rates);
+    } catch (e) {
+      store.currency_rates = { "USD": 1, "EUR": 1, "GBP": 1 };
+    }
+  } else if (!store.currency_rates) {
+    store.currency_rates = { "USD": 1, "EUR": 1, "GBP": 1 };
+  }
 
   if (store.parent_id) {
     const parentRes = await pool.query("SELECT name, slug FROM stores WHERE id = $1", [store.parent_id]);
@@ -1097,10 +1129,7 @@ router.delete("/quotations/:id", async (req: any, res) => {
               "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
               [item.quantity, item.product_id]
             );
-            await client.query(
-              "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
-              [storeId, item.product_id, item.quantity, `Teklif Silindi #${id} (İade)`]
-            );
+            await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'quotation', `Teklif Silindi #${id} (İade)`);
           }
         }
         // Delete related records
@@ -1190,10 +1219,7 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
             [item.quantity, item.product_id]
           );
 
-          await client.query(
-            "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
-            [storeId, item.product_id, item.quantity, `Satış #${saleId} (Teklif #${quotation.id})`]
-          );
+          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'quotation', `Satış #${saleId} (Teklif #${quotation.id})`);
         }
       }
 
@@ -1270,10 +1296,7 @@ router.post("/quotations/:id/cancel", async (req: any, res) => {
               "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
               [item.quantity, item.product_id]
             );
-            await client.query(
-              "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
-              [storeId, item.product_id, item.quantity, `Teklif İptal Edildi #${quotation.id} (İade)`]
-            );
+            await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'quotation', `Teklif İptal Edildi #${quotation.id} (İade)`);
           }
         }
         // Update sale status
@@ -1537,10 +1560,7 @@ router.post("/pos/sale", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
           [item.quantity, item.id]
         );
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
-          [storeId, item.id, item.quantity, `Hızlı POS Satışı #${saleId}`]
-        );
+        await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`);
       }
     }
 
@@ -1634,10 +1654,7 @@ router.post("/sales/:id/complete", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
           [item.quantity, item.product_id]
         );
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
-          [storeId, item.product_id, item.quantity, `Kasa Satışı #${id}`]
-        );
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`);
       }
     }
 
@@ -1764,10 +1781,7 @@ router.post("/sales/:id/cancel", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
           [item.quantity, item.product_id]
         );
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
-          [storeId, item.product_id, item.quantity, `Satış İptal Edildi #${sale.id} (İade)`]
-        );
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade)`);
       }
     }
 
@@ -1830,10 +1844,7 @@ router.delete("/sales/:id", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
             [item.quantity, item.product_id]
           );
-          await client.query(
-            "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
-            [storeId, item.product_id, item.quantity, `Satış Silindi #${sale.id} (İade)`]
-          );
+          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış Silindi #${sale.id} (İade)`);
         }
       }
     }
@@ -1972,10 +1983,7 @@ router.post("/purchase-invoices", async (req: any, res) => {
         );
         
         // Log stock movement
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, $3, $4, $5)",
-          [storeId, item.product_id, 'in', item.quantity, `Alış Faturası: ${invoice_number}`]
-        );
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası: ${invoice_number}`);
       }
     }
     
@@ -2040,10 +2048,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
         );
         
         // Log stock movement (out)
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, $3, $4, $5)",
-          [storeId, item.product_id, 'out', item.quantity, `Alış Faturası Revizyonu (Eski): ${oldInvoice.invoice_number}`]
-        );
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Eski): ${oldInvoice.invoice_number}`);
       }
     }
     
@@ -2092,10 +2097,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
         );
         
         // Log stock movement (in)
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, $3, $4, $5)",
-          [storeId, item.product_id, 'in', item.quantity, `Alış Faturası Revizyonu (Yeni): ${invoice_number}`]
-        );
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Yeni): ${invoice_number}`);
       }
     }
 
@@ -2159,10 +2161,7 @@ router.delete("/purchase-invoices/:id", async (req: any, res) => {
         );
         
         // Log stock movement
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, $3, $4, $5)",
-          [storeId, item.product_id, 'out', item.quantity, `Alış Faturası İptali: ${invoiceNumber}`]
-        );
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'purchase_invoice', `Alış Faturası İptali: ${invoiceNumber}`);
       }
     }
     
@@ -2638,10 +2637,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, item.product_id, transfer.from_store_id]
         );
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
-          [transfer.from_store_id, item.product_id, item.quantity, `Transfer Sevk Edildi (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`]
-        );
+        await addStockMovement(client, transfer.from_store_id, item.product_id, 'out', item.quantity, 'transfer', `Transfer Sevk Edildi (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`);
       }
     }
 
@@ -2658,10 +2654,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
             [item.quantity, item.product_id, transfer.from_store_id]
           );
-          await client.query(
-            "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
-            [transfer.from_store_id, item.product_id, item.quantity, `Transfer Tamamlandı (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`]
-          );
+          await addStockMovement(client, transfer.from_store_id, item.product_id, 'out', item.quantity, 'transfer', `Transfer Tamamlandı (ID: ${id}) - Alıcı Mağaza ID: ${transfer.to_store_id}`);
         }
 
         // Increase at receiver (find or create product by barcode)
@@ -2689,10 +2682,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
           receiverProductId = newProductRes.rows[0].id;
         }
 
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
-          [transfer.to_store_id, receiverProductId, item.quantity, `Transfer Tamamlandı (ID: ${id}) - Gönderen Mağaza ID: ${transfer.from_store_id}`]
-        );
+        await addStockMovement(client, transfer.to_store_id, receiverProductId, 'in', item.quantity, 'transfer', `Transfer Tamamlandı (ID: ${id}) - Gönderen Mağaza ID: ${transfer.from_store_id}`);
       }
     }
 
@@ -2703,10 +2693,7 @@ router.put("/stock-transfers/:id/status", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, item.product_id, transfer.from_store_id]
         );
-        await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'in', $3, $4)",
-          [transfer.from_store_id, item.product_id, item.quantity, `Transfer İptal Edildi (ID: ${id}) - Stok İade Edildi`]
-        );
+        await addStockMovement(client, transfer.from_store_id, item.product_id, 'in', item.quantity, 'transfer', `Transfer İptal Edildi (ID: ${id}) - Stok İade Edildi`);
       }
     }
 

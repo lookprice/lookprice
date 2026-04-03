@@ -88,6 +88,7 @@ interface StoreInfo {
   secondary_color?: string;
   slug: string;
   currency?: string;
+  default_currency?: string;
   hero_title?: string;
   hero_subtitle?: string;
   hero_image_url?: string;
@@ -520,6 +521,7 @@ const StoreShowcase: React.FC = () => {
         if (storeRes.error) throw new Error(storeRes.error);
         if (productsRes.error) throw new Error(productsRes.error);
 
+        storeRes.currency = storeRes.default_currency || 'TRY';
         setStore(storeRes);
         document.title = storeRes.name || 'Store';
         setProducts(productsRes);
@@ -720,14 +722,15 @@ const StoreShowcase: React.FC = () => {
       let total = 0;
       const newPrices: Record<number, number> = {};
       for (const item of basket) {
+        const itemPrice = Number(item.price) || 0;
         if (item.currency && item.currency !== store.currency) {
           const rate = await getExchangeRate(item.currency, store.currency);
-          const converted = item.price * rate;
+          const converted = itemPrice * rate;
           newPrices[item.id] = converted;
           total += converted * item.quantity;
         } else {
-          newPrices[item.id] = item.price;
-          total += item.price * item.quantity;
+          newPrices[item.id] = itemPrice;
+          total += itemPrice * item.quantity;
         }
       }
       setBasketItemPrices(newPrices);

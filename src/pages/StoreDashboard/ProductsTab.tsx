@@ -11,11 +11,13 @@ import {
   QrCode,
   Package,
   Tag,
-  Percent
+  Percent,
+  History
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
+import ProductMovementModal from "../../components/ProductMovementModal";
 
 interface ProductsTabProps {
   products: any[];
@@ -51,6 +53,7 @@ const ProductsTab = ({
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(1);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const itemsPerPage = 15;
 
   const calculateProfitMargin = (p: any) => {
@@ -96,6 +99,12 @@ const ProductsTab = ({
 
   return (
     <div className="space-y-6">
+      {selectedProduct && (
+        <ProductMovementModal 
+          product={selectedProduct} 
+          onClose={() => setSelectedProduct(null)} 
+        />
+      )}
       <div className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-slate-50/80 backdrop-blur-md border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="relative flex-1 w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -290,6 +299,13 @@ const ProductsTab = ({
                     <td className="px-6 py-4 text-right">
                       {!isViewer && (
                         <div className="flex justify-end space-x-1 transition-opacity">
+                          <button 
+                            onClick={() => setSelectedProduct(p)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100"
+                            title={lang === 'tr' ? 'Hareket Geçmişi' : 'Movement History'}
+                          >
+                            <History className="h-4 w-4" />
+                          </button>
                           <button 
                             onClick={() => onEdit(p)}
                             className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"

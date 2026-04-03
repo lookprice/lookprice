@@ -210,11 +210,19 @@ export async function initDb() {
         product_id INTEGER NOT NULL,
         type TEXT CHECK(type IN ('in', 'out')) NOT NULL,
         quantity REAL NOT NULL,
+        source TEXT DEFAULT 'manual',
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
       );
+
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='source') THEN
+          ALTER TABLE stock_movements ADD COLUMN source TEXT DEFAULT 'manual';
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS sales (
         id SERIAL PRIMARY KEY,
