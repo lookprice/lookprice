@@ -3,6 +3,8 @@ import { X, Package, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { translations } from '../translations';
 import { useLanguage } from '../contexts/LanguageContext';
 
+import { api } from '../services/api';
+
 interface Movement {
   id: number;
   type: 'in' | 'out';
@@ -24,10 +26,14 @@ const ProductMovementModal = ({ product, onClose }: ProductMovementModalProps) =
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/store/products/${product.id}/movements`)
-      .then(res => res.json())
+    api.get(`/api/store/products/${product.id}/movements`)
       .then(data => {
-        setMovements(data);
+        if (Array.isArray(data)) {
+          setMovements(data);
+        } else {
+          console.error("Expected array but got:", data);
+          setMovements([]);
+        }
         setLoading(false);
       })
       .catch(err => {
