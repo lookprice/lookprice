@@ -11,6 +11,8 @@ interface Movement {
   quantity: number;
   source: string;
   description: string;
+  unit_price?: number;
+  customer_info?: string;
   created_at: string;
 }
 
@@ -69,6 +71,16 @@ const ProductMovementModal = ({ product, onClose }: ProductMovementModalProps) =
                     <div>
                       <div className="font-bold text-slate-900">{m.description}</div>
                       <div className="text-xs text-slate-500">{new Date(m.created_at).toLocaleString('tr-TR')} - {lang === 'tr' ? 'Kaynak' : 'Source'}: {m.source}</div>
+                      {(m.customer_info || m.unit_price != null) && (
+                        <div className="text-xs text-slate-600 mt-1 flex gap-3">
+                          {m.customer_info && (
+                            <span><span className="font-medium">{lang === 'tr' ? 'Müşteri/Tedarikçi' : 'Customer/Supplier'}:</span> {m.customer_info}</span>
+                          )}
+                          {m.unit_price != null && (
+                            <span><span className="font-medium">{lang === 'tr' ? 'Birim Fiyat' : 'Unit Price'}:</span> {m.unit_price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className={`font-bold ${m.type === 'in' ? 'text-emerald-600' : 'text-rose-600'}`}>

@@ -31,10 +31,10 @@ async function checkProductLimit(storeId: number, additionalCount: number = 1) {
   return currentCount + additionalCount <= limit;
 }
 
-async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string) {
+async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: number | null = null, customerInfo: string | null = null) {
   await client.query(
-    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description) VALUES ($1, $2, $3, $4, $5, $6)",
-    [storeId, productId, type, quantity, source, description]
+    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    [storeId, productId, type, quantity, source, description, unitPrice, customerInfo]
   );
 }
 
@@ -1219,7 +1219,7 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
             [item.quantity, item.product_id]
           );
 
-          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'quotation', `Satış #${saleId} (Teklif #${quotation.id})`);
+          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'quotation', `Satış #${saleId} (Teklif #${quotation.id})`, item.unit_price, quotation.customer_name);
         }
       }
 
@@ -1296,7 +1296,7 @@ router.post("/quotations/:id/cancel", async (req: any, res) => {
               "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
               [item.quantity, item.product_id]
             );
-            await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'quotation', `Teklif İptal Edildi #${quotation.id} (İade)`);
+            await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'quotation', `Teklif İptal Edildi #${quotation.id} (İade)`, item.unit_price, quotation.customer_name);
           }
         }
         // Update sale status
@@ -1560,7 +1560,7 @@ router.post("/pos/sale", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
           [item.quantity, item.id]
         );
-        await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`);
+        await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış');
       }
     }
 
@@ -1654,7 +1654,7 @@ router.post("/sales/:id/complete", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
           [item.quantity, item.product_id]
         );
-        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`);
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name);
       }
     }
 
@@ -1781,7 +1781,7 @@ router.post("/sales/:id/cancel", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
           [item.quantity, item.product_id]
         );
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade)`);
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade)`, item.unit_price, sale.customer_name);
       }
     }
 
@@ -1844,7 +1844,7 @@ router.delete("/sales/:id", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
             [item.quantity, item.product_id]
           );
-          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış Silindi #${sale.id} (İade)`);
+          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış Silindi #${sale.id} (İade)`, item.unit_price, sale.customer_name);
         }
       }
     }
@@ -1963,6 +1963,10 @@ router.post("/purchase-invoices", async (req: any, res) => {
     
     const invoiceId = invoiceResult.rows[0].id;
     
+    // Fetch company name for customer_info
+    const companyRes = await client.query("SELECT name FROM companies WHERE id = $1", [company_id]);
+    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].name : 'Tedarikçi';
+
     // Insert items and update stock
     for (const item of items) {
       const itemTotal = Number(item.quantity) * Number(item.unit_price);
@@ -1983,7 +1987,7 @@ router.post("/purchase-invoices", async (req: any, res) => {
         );
         
         // Log stock movement
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası: ${invoice_number}`);
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, item.unit_price, companyName);
       }
     }
     
@@ -2039,6 +2043,10 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
       [req.params.id]
     );
     
+    // Fetch company name for customer_info
+    const companyRes = await client.query("SELECT name FROM companies WHERE id = $1", [company_id]);
+    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].name : 'Tedarikçi';
+
     // 2. Revert old stock
     for (const item of oldItemsResult.rows) {
       if (item.product_id) {
@@ -2048,7 +2056,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
         );
         
         // Log stock movement (out)
-        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Eski): ${oldInvoice.invoice_number}`);
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Eski): ${oldInvoice.invoice_number}`, item.unit_price, companyName);
       }
     }
     
@@ -2097,7 +2105,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
         );
         
         // Log stock movement (in)
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Yeni): ${invoice_number}`);
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Yeni): ${invoice_number}`, item.unit_price, companyName);
       }
     }
 
@@ -2152,6 +2160,10 @@ router.delete("/purchase-invoices/:id", async (req: any, res) => {
       [req.params.id]
     );
     
+    // Fetch company name for customer_info
+    const companyRes = await client.query("SELECT name FROM companies WHERE id = $1", [invoiceResult.rows[0].company_id]);
+    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].name : 'Tedarikçi';
+
     // Revert stock
     for (const item of itemsResult.rows) {
       if (item.product_id) {
@@ -2161,7 +2173,7 @@ router.delete("/purchase-invoices/:id", async (req: any, res) => {
         );
         
         // Log stock movement
-        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'purchase_invoice', `Alış Faturası İptali: ${invoiceNumber}`);
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'purchase_invoice', `Alış Faturası İptali: ${invoiceNumber}`, item.unit_price, companyName);
       }
     }
     
