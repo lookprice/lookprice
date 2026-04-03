@@ -24,6 +24,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   // Form state
   const [companyId, setCompanyId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [waybillNumber, setWaybillNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
@@ -160,6 +161,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
           storeId: targetStoreId,
           company_id: companyId,
           invoice_number: invoiceNumber,
+          waybill_number: waybillNumber,
           invoice_date: invoiceDate,
           notes,
           items: items.map(item => ({
@@ -189,6 +191,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setCompanyId("");
       setCompanySearch("");
       setInvoiceNumber("");
+      setWaybillNumber("");
       setInvoiceDate(new Date().toISOString().split('T')[0]);
       setNotes("");
       setItems([]);
@@ -243,6 +246,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setCompanyId(data.company_id);
       setCompanySearch(data.company_name);
       setInvoiceNumber(data.invoice_number);
+      setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method || 'term');
@@ -294,18 +298,20 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
 
   const exportToExcel = () => {
     const data = filteredInvoices.map((inv: any) => ({
-      [isTr ? 'Tarih' : 'Date']: new Date(inv.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US'),
+      [isTr ? 'Tarih' : 'Date']: new Date(inv.invoice_date).toLocaleDateString('tr-TR'),
       [isTr ? 'Fatura No' : 'Invoice No']: inv.invoice_number,
-      [isTr ? 'Cari' : 'Company']: inv.company_name,
-      [isTr ? 'Tutar' : 'Amount']: inv.total_amount,
-      [isTr ? 'KDV' : 'Tax']: inv.tax_amount,
-      [isTr ? 'Genel Toplam' : 'Grand Total']: inv.grand_total,
+      [isTr ? 'İrsaliye No' : 'Waybill No']: inv.waybill_number || '',
+      [isTr ? 'Satıcı' : 'Supplier']: inv.company_name,
+      [isTr ? 'Vergi No' : 'Tax No']: inv.tax_number || '',
+      [isTr ? 'Matrah' : 'Subtotal']: Number(inv.total_amount),
+      [isTr ? 'KDV' : 'Tax']: Number(inv.tax_amount),
+      [isTr ? 'Toplam' : 'Total']: Number(inv.grand_total),
       [isTr ? 'Para Birimi' : 'Currency']: inv.currency
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Invoices");
-    XLSX.writeFile(wb, `purchase_invoices_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Purchase Invoices");
+    XLSX.writeFile(wb, `alis_faturalari_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const exportToPDF = () => {
@@ -514,36 +520,48 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                <th className="p-4 font-medium">{isTr ? "Tarih" : "Date"}</th>
-                <th className="p-4 font-medium">{isTr ? "Fatura No" : "Invoice No"}</th>
-                <th className="p-4 font-medium">{isTr ? "Cari" : "Company"}</th>
-                <th className="p-4 font-medium text-right">{isTr ? "Tutar" : "Amount"}</th>
-                <th className="p-4 font-medium text-right">{isTr ? "KDV" : "Tax"}</th>
-                <th className="p-4 font-medium text-right">{isTr ? "Genel Toplam" : "Grand Total"}</th>
-                <th className="p-4 font-medium text-right">{isTr ? "İşlemler" : "Actions"}</th>
+              <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
+                <th className="p-4 font-bold">{isTr ? "Tarih" : "Date"}</th>
+                <th className="p-4 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
+                <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>
+                <th className="p-4 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
+                <th className="p-4 font-bold">{isTr ? "Vergi No" : "Tax No"}</th>
+                <th className="p-4 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
+                <th className="p-4 font-bold text-right">{isTr ? "KDV" : "Tax"}</th>
+                <th className="p-4 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
+                <th className="p-4 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
+                <th className="p-4 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {paginatedInvoices.map((invoice: any) => (
                 <tr key={invoice.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-4 text-sm text-slate-600">
+                  <td className="p-4 text-xs text-slate-600 whitespace-nowrap">
                     {new Date(invoice.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
                   </td>
-                  <td className="p-4 text-sm font-medium text-slate-900">
+                  <td className="p-4 text-xs font-bold text-slate-900">
                     {invoice.invoice_number}
                   </td>
-                  <td className="p-4 text-sm text-slate-600">
+                  <td className="p-4 text-xs text-slate-500">
+                    {invoice.waybill_number || '-'}
+                  </td>
+                  <td className="p-4 text-xs font-medium text-slate-700">
                     {invoice.company_name}
                   </td>
-                  <td className="p-4 text-sm text-slate-600 text-right">
-                    {Number(invoice.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: invoice.currency || 'TRY' })}
+                  <td className="p-4 text-xs text-slate-500">
+                    {invoice.tax_number || '-'}
                   </td>
-                  <td className="p-4 text-sm text-slate-600 text-right">
-                    {Number(invoice.tax_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: invoice.currency || 'TRY' })}
+                  <td className="p-4 text-xs text-slate-600 text-right font-medium">
+                    {Number(invoice.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="p-4 text-sm font-medium text-slate-900 text-right">
-                    {Number(invoice.grand_total).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: invoice.currency || 'TRY' })}
+                  <td className="p-4 text-xs text-slate-600 text-right font-medium">
+                    {Number(invoice.tax_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="p-4 text-xs font-bold text-slate-900 text-right">
+                    {Number(invoice.grand_total).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="p-4 text-xs text-slate-500 text-center font-bold">
+                    {invoice.currency}
                   </td>
                   <td className="p-4 text-sm text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -720,6 +738,18 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-slate-400" />
+                        {isTr ? "İrsaliye No" : "Waybill No"}
+                      </label>
+                      <input
+                        type="text"
+                        value={waybillNumber}
+                        onChange={(e) => setWaybillNumber(e.target.value)}
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-slate-400" />
                         {isTr ? "Fatura Tarihi" : "Invoice Date"} *
                       </label>
@@ -728,7 +758,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         required
                         value={invoiceDate}
                         onChange={(e) => setInvoiceDate(e.target.value)}
-                        className="w-[16ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">

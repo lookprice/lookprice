@@ -329,6 +329,7 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         company_id INTEGER NOT NULL,
         invoice_number TEXT NOT NULL,
+        waybill_number TEXT,
         invoice_date DATE NOT NULL,
         total_amount DECIMAL(12,2) NOT NULL,
         tax_amount DECIMAL(12,2) NOT NULL,
@@ -355,6 +356,45 @@ export async function initDb() {
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
       );
 
+      CREATE TABLE IF NOT EXISTS sales_invoices (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        sale_id INTEGER,
+        company_id INTEGER,
+        customer_id INTEGER,
+        invoice_number TEXT NOT NULL,
+        waybill_number TEXT,
+        invoice_date DATE NOT NULL,
+        total_amount DECIMAL(12,2) NOT NULL,
+        tax_amount DECIMAL(12,2) NOT NULL,
+        grand_total DECIMAL(12,2) NOT NULL,
+        currency TEXT DEFAULT 'TRY',
+        notes TEXT,
+        payment_method TEXT,
+        invoice_type TEXT DEFAULT 'manual',
+        status TEXT DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS sales_invoice_items (
+        id SERIAL PRIMARY KEY,
+        sales_invoice_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT NOT NULL,
+        barcode TEXT,
+        quantity REAL NOT NULL,
+        unit_price DECIMAL(12,2) NOT NULL,
+        tax_rate DECIMAL(5,2) NOT NULL,
+        tax_amount DECIMAL(12,2) NOT NULL,
+        total_price DECIMAL(12,2) NOT NULL,
+        FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+      );
+
       -- Update stores table if needed
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS phone TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS country TEXT;
@@ -364,6 +404,12 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_brand TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_terminal_id TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_active BOOLEAN DEFAULT FALSE;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS sale_id INTEGER;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS invoice_type TEXT DEFAULT 'manual';
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
+      ALTER TABLE sales_invoices ADD CONSTRAINT fk_invoice_sale FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS currency_rates JSONB DEFAULT '{"USD": 1, "EUR": 1, "GBP": 1}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'tr';
@@ -388,11 +434,13 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         amazon_order_id TEXT NOT NULL,
         sale_id INTEGER,
+        sales_invoice_id INTEGER,
         status TEXT,
         order_data JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+        FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL,
         UNIQUE(store_id, amazon_order_id)
       );
 
@@ -401,11 +449,13 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         n11_order_id TEXT NOT NULL,
         sale_id INTEGER,
+        sales_invoice_id INTEGER,
         status TEXT,
         order_data JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+        FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL,
         UNIQUE(store_id, n11_order_id)
       );
 
@@ -414,11 +464,13 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         hepsiburada_order_id TEXT NOT NULL,
         sale_id INTEGER,
+        sales_invoice_id INTEGER,
         status TEXT,
         order_data JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+        FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL,
         UNIQUE(store_id, hepsiburada_order_id)
       );
 
@@ -427,11 +479,13 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         trendyol_order_id TEXT NOT NULL,
         sale_id INTEGER,
+        sales_invoice_id INTEGER,
         status TEXT,
         order_data JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+        FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL,
         UNIQUE(store_id, trendyol_order_id)
       );
 
@@ -440,13 +494,22 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         pazarama_order_id TEXT NOT NULL,
         sale_id INTEGER,
+        sales_invoice_id INTEGER,
         status TEXT,
         order_data JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+        FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL,
         UNIQUE(store_id, pazarama_order_id)
       );
+
+      -- Add columns if tables already existed
+      ALTER TABLE amazon_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
+      ALTER TABLE n11_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
+      ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
+      ALTER TABLE trendyol_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
+      ALTER TABLE pazarama_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
 
       CREATE TABLE IF NOT EXISTS stock_transfers (
         id SERIAL PRIMARY KEY,
@@ -805,6 +868,11 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='purchase_invoice_id') THEN
           ALTER TABLE current_account_transactions ADD COLUMN purchase_invoice_id INTEGER;
           ALTER TABLE current_account_transactions ADD CONSTRAINT fk_transaction_purchase_invoice FOREIGN KEY (purchase_invoice_id) REFERENCES purchase_invoices(id) ON DELETE SET NULL;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='sales_invoice_id') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN sales_invoice_id INTEGER;
+          ALTER TABLE current_account_transactions ADD CONSTRAINT fk_transaction_sales_invoice FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL;
         END IF;
 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='payment_method') THEN

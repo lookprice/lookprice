@@ -1918,6 +1918,395 @@ router.delete("/sales/:id", async (req: any, res) => {
   }
 });
 
+// --- Sales Invoices ---
+
+router.get("/sales-invoices", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { startDate, endDate, status } = req.query;
+
+    let query = `
+      SELECT si.*, 
+             c.title as company_name,
+             cust.full_name as customer_name,
+             s.customer_name as sale_customer_name
+      FROM sales_invoices si 
+      LEFT JOIN companies c ON si.company_id = c.id 
+      LEFT JOIN customers cust ON si.customer_id = cust.id
+      LEFT JOIN sales s ON si.sale_id = s.id
+      WHERE si.store_id = $1
+    `;
+    const params: any[] = [storeId];
+
+    if (startDate) {
+      params.push(startDate);
+      query += ` AND si.invoice_date >= $${params.length}`;
+    }
+    if (endDate) {
+      params.push(endDate + ' 23:59:59');
+      query += ` AND si.invoice_date <= $${params.length}`;
+    }
+    if (status && status !== 'all') {
+      params.push(status);
+      query += ` AND si.status = $${params.length}`;
+    }
+
+    query += " ORDER BY si.invoice_date DESC, si.created_at DESC";
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get("/sales-invoices/:id", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const invoiceResult = await pool.query(
+      `SELECT si.*, 
+              c.title as company_name,
+              cust.full_name as customer_name
+       FROM sales_invoices si 
+       LEFT JOIN companies c ON si.company_id = c.id 
+       LEFT JOIN customers cust ON si.customer_id = cust.id
+       WHERE si.id = $1 AND si.store_id = $2`,
+      [req.params.id, storeId]
+    );
+    
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+    
+    const itemsResult = await pool.query(
+      "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1",
+      [req.params.id]
+    );
+    
+    const invoice = invoiceResult.rows[0];
+    invoice.items = itemsResult.rows;
+    
+    res.json(invoice);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/sales-invoices", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const { 
+      storeId: bodyStoreId, 
+      sale_id,
+      company_id, 
+      customer_id, 
+      invoice_number, 
+      waybill_number,
+      invoice_date, 
+      items, 
+      notes, 
+      currency, 
+      payment_method,
+      invoice_type,
+      status
+    } = req.body;
+    
+    let storeId = req.user.store_id;
+    if (req.user.role === "superadmin" && bodyStoreId) {
+      storeId = bodyStoreId;
+    }
+
+    if (!storeId) throw new Error("Store ID is required");
+    
+    // Calculate totals
+    let total_amount = 0;
+    let tax_amount = 0;
+    let grand_total = 0;
+    
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.unit_price);
+      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      total_amount += itemTotal;
+      tax_amount += itemTax;
+      grand_total += (itemTotal + itemTax);
+    }
+    
+    // Insert invoice
+    const invoiceResult = await client.query(
+      `INSERT INTO sales_invoices 
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, payment_method, invoice_type, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method, invoice_type || 'manual', status || 'draft']
+    );
+    
+    const invoiceId = invoiceResult.rows[0].id;
+    
+    // Get display name for logs
+    let displayName = 'Müşteri';
+    if (company_id) {
+      const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
+      if (companyRes.rows.length > 0) displayName = companyRes.rows[0].title;
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT full_name FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
+    }
+
+    // Insert items and update stock
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.unit_price);
+      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      
+      await client.query(
+        `INSERT INTO sales_invoice_items 
+          (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [invoiceId, item.product_id || null, item.product_name, item.barcode || '', item.quantity, item.unit_price, item.tax_rate, itemTax, itemTotal]
+      );
+      
+      // Update stock if product_id is provided
+      if (item.product_id) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, item.product_id, storeId]
+        );
+        
+        // Log stock movement
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName);
+      }
+    }
+    
+    // Add transaction to current account if company_id is provided
+    if (company_id) {
+      await client.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, description) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [storeId, company_id, invoiceId, 'debt', grand_total, `Satış Faturası: ${invoice_number}`]
+      );
+
+      // If payment method is provided, add a credit transaction to offset the debt
+      if (payment_method && payment_method !== 'term') {
+        await client.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, sales_invoice_id, type, amount, description, payment_method) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [storeId, company_id, invoiceId, 'credit', grand_total, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method]
+        );
+      }
+    }
+    
+    await client.query("COMMIT");
+    res.json({ success: true, id: invoiceId });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.put("/sales-invoices/:id", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, invoice_type, status } = req.body;
+
+    // 1. Get old invoice and items to revert stock
+    const oldInvoiceResult = await client.query(
+      "SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2",
+      [req.params.id, storeId]
+    );
+    
+    if (oldInvoiceResult.rows.length === 0) throw new Error("Invoice not found");
+    
+    const oldInvoice = oldInvoiceResult.rows[0];
+    const oldItemsResult = await client.query(
+      "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1",
+      [req.params.id]
+    );
+    
+    // Get display name for logs
+    let displayName = 'Müşteri';
+    if (company_id) {
+      const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [company_id]);
+      if (companyRes.rows.length > 0) displayName = companyRes.rows[0].title;
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT full_name FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
+    }
+
+    // 2. Revert old stock
+    for (const item of oldItemsResult.rows) {
+      if (item.product_id) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, item.product_id, storeId]
+        );
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sales_invoice', `Satış Faturası Revizyonu (Eski): ${oldInvoice.invoice_number}`, item.unit_price, displayName);
+      }
+    }
+    
+    // 3. Delete old items and transactions
+    await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [req.params.id]);
+    await client.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [req.params.id]);
+
+    // 4. Calculate new totals
+    let total_amount = 0;
+    let tax_amount = 0;
+    let grand_total = 0;
+    
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.unit_price);
+      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      total_amount += itemTotal;
+      tax_amount += itemTax;
+      grand_total += (itemTotal + itemTax);
+    }
+
+    // 5. Update invoice
+    await client.query(
+      `UPDATE sales_invoices 
+       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, notes = $10, payment_method = $11, invoice_type = $12, status = $13
+       WHERE id = $14 AND store_id = $15`,
+      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method, invoice_type, status, req.params.id, storeId]
+    );
+
+    // 6. Insert new items and update stock
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.unit_price);
+      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      
+      await client.query(
+        `INSERT INTO sales_invoice_items 
+          (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [req.params.id, item.product_id || null, item.product_name, item.barcode || '', item.quantity, item.unit_price, item.tax_rate, itemTax, itemTotal]
+      );
+      
+      if (item.product_id) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, item.product_id, storeId]
+        );
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'sales_invoice', `Satış Faturası Revizyonu (Yeni): ${invoice_number}`, item.unit_price, displayName);
+      }
+    }
+
+    // 7. Add new transactions if company_id is provided
+    if (company_id) {
+      await client.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, description) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [storeId, company_id, req.params.id, 'debt', grand_total, `Satış Faturası Revizyonu: ${invoice_number}`]
+      );
+
+      if (payment_method && payment_method !== 'term') {
+        await client.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, sales_invoice_id, type, amount, description, payment_method) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [storeId, company_id, req.params.id, 'credit', grand_total, `Satış Faturası Tahsilatı Revizyonu: ${invoice_number} (${payment_method})`, payment_method]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/sales-invoices/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  try {
+    await pool.query("DELETE FROM sales_invoices WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/sales/:id/create-invoice", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (saleRes.rows.length === 0) throw new Error("Sale not found");
+    const sale = saleRes.rows[0];
+
+    const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
+    
+    let total_amount = 0;
+    let tax_amount = 0;
+    let grand_total = 0;
+
+    const invoiceItems = [];
+    for (const item of itemsRes.rows) {
+      let taxRate = 20; // Default
+      if (item.product_id) {
+        const prodRes = await client.query("SELECT tax_rate FROM products WHERE id = $1", [item.product_id]);
+        if (prodRes.rows.length > 0) taxRate = Number(prodRes.rows[0].tax_rate || 20);
+      }
+
+      const itemTotal = Number(item.quantity) * Number(item.unit_price);
+      const itemTax = itemTotal * (taxRate / 100);
+      
+      total_amount += itemTotal;
+      tax_amount += itemTax;
+      grand_total += (itemTotal + itemTax);
+
+      invoiceItems.push({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        tax_rate: taxRate,
+        tax_amount: itemTax,
+        total_price: itemTotal
+      });
+    }
+
+    const invoiceResult = await client.query(
+      `INSERT INTO sales_invoices 
+        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft']
+    );
+
+    const invoiceId = invoiceResult.rows[0].id;
+
+    for (const item of invoiceItems) {
+      await client.query(
+        `INSERT INTO sales_invoice_items 
+          (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [invoiceId, item.product_id, item.product_name, item.barcode, item.quantity, item.unit_price, item.tax_rate, item.tax_amount, item.total_price]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, invoiceId });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
 // --- Purchase Invoices ---
 
 router.get("/purchase-invoices", async (req: any, res) => {
@@ -1971,7 +2360,7 @@ router.post("/purchase-invoices", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const { storeId: bodyStoreId, company_id, invoice_number, invoice_date, items, notes, currency, payment_method } = req.body;
+    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items, notes, currency, payment_method } = req.body;
     
     // For superadmins, prioritize bodyStoreId. If not provided, fallback to req.user.store_id.
     // If both are null/undefined, storeId will be null/undefined.
@@ -2003,9 +2392,9 @@ router.post("/purchase-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO purchase_invoices 
-        (store_id, company_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, payment_method) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [storeId, company_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method]
+        (store_id, company_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, payment_method) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [storeId, company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -2072,7 +2461,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, invoice_number, invoice_date, notes, items, payment_method, currency } = req.body;
+    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency } = req.body;
 
     // 1. Get old invoice and items to revert stock
     const oldInvoiceResult = await client.query(
@@ -2128,9 +2517,9 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     // 5. Update invoice
     await client.query(
       `UPDATE purchase_invoices 
-       SET company_id = $1, invoice_number = $2, invoice_date = $3, total_amount = $4, tax_amount = $5, grand_total = $6, currency = $7, notes = $8, payment_method = $9
-       WHERE id = $10 AND store_id = $11`,
-      [company_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method, req.params.id, storeId]
+       SET company_id = $1, invoice_number = $2, waybill_number = $3, invoice_date = $4, total_amount = $5, tax_amount = $6, grand_total = $7, currency = $8, notes = $9, payment_method = $10
+       WHERE id = $11 AND store_id = $12`,
+      [company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method, req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock
@@ -2227,6 +2616,68 @@ router.delete("/purchase-invoices/:id", async (req: any, res) => {
     // Delete invoice (cascades to items and transactions)
     await client.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [req.params.id]);
     await client.query("DELETE FROM purchase_invoices WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
+    
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+
+router.delete("/sales-invoices/:id", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+
+    const invoiceResult = await client.query(
+      "SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2",
+      [req.params.id, storeId]
+    );
+    
+    if (invoiceResult.rows.length === 0) {
+      throw new Error("Invoice not found");
+    }
+    
+    const invoiceNumber = invoiceResult.rows[0].invoice_number;
+    
+    // Get invoice items to revert stock
+    const itemsResult = await client.query(
+      "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1",
+      [req.params.id]
+    );
+    
+    // Get display name for logs
+    let displayName = 'Müşteri';
+    if (invoiceResult.rows[0].company_id) {
+      const companyRes = await client.query("SELECT title FROM companies WHERE id = $1", [invoiceResult.rows[0].company_id]);
+      if (companyRes.rows.length > 0) displayName = companyRes.rows[0].title;
+    } else if (invoiceResult.rows[0].customer_id) {
+      const custRes = await client.query("SELECT full_name FROM customers WHERE id = $1", [invoiceResult.rows[0].customer_id]);
+      if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
+    }
+
+    // Revert stock
+    for (const item of itemsResult.rows) {
+      if (item.product_id) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, item.product_id, storeId]
+        );
+        
+        // Log stock movement
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sales_invoice', `Satış Faturası İptali: ${invoiceNumber}`, item.unit_price, displayName);
+      }
+    }
+    
+    // Delete invoice (cascades to items and transactions)
+    await client.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [req.params.id]);
+    await client.query("DELETE FROM sales_invoices WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
     
     await client.query("COMMIT");
     res.json({ success: true });
