@@ -956,8 +956,36 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
 router.get("/customers", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT id, email, name, phone, address, created_at FROM customers WHERE store_id = $1 ORDER BY created_at DESC", [storeId]);
+    const result = await pool.query("SELECT id, email, name, full_name, phone, address, tax_number, tax_office, created_at FROM customers WHERE store_id = $1 ORDER BY created_at DESC", [storeId]);
     res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/customers", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { name, email, phone, address, tax_number, tax_office } = req.body;
+  try {
+    const result = await pool.query(
+      "INSERT INTO customers (store_id, name, full_name, email, password, phone, address, tax_number, tax_office) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+      [storeId, name, name, email || `cust_${Date.now()}@example.com`, 'nopass', phone || '', address || '', tax_number || '', tax_office || '']
+    );
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/customers/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { name, email, phone, address, tax_number, tax_office } = req.body;
+  try {
+    const result = await pool.query(
+      "UPDATE customers SET name = $1, full_name = $2, email = $3, phone = $4, address = $5, tax_number = $6, tax_office = $7 WHERE id = $8 AND store_id = $9 RETURNING *",
+      [name, name, email, phone, address, tax_number, tax_office, req.params.id, storeId]
+    );
+    res.json(result.rows[0]);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

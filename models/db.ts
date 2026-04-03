@@ -992,6 +992,9 @@ export async function initDb() {
           email TEXT NOT NULL,
           password TEXT NOT NULL,
           full_name TEXT,
+          name TEXT,
+          tax_number TEXT,
+          tax_office TEXT,
           phone TEXT,
           address TEXT,
           social_id TEXT,
@@ -1000,6 +1003,17 @@ export async function initDb() {
           FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
           UNIQUE(store_id, email)
         );
+
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS name TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS tax_number TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS tax_office TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS surname TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS city TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS country TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS tc_id TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_corporate BOOLEAN DEFAULT FALSE;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_email BOOLEAN DEFAULT FALSE;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_sms BOOLEAN DEFAULT FALSE;
 
         -- return_requests table
         CREATE TABLE IF NOT EXISTS return_requests (

@@ -47,7 +47,90 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
 
+  // New states for customer/company info update
+  const [editTaxNumber, setEditTaxNumber] = useState("");
+  const [editTaxOffice, setEditTaxOffice] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+
   const isTr = lang === 'tr';
+
+  const numberToTurkishWords = (number: number) => {
+    const units = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
+    const tens = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
+    const thousands = ["", "Bin", "Milyon", "Milyar", "Trilyon"];
+
+    const convertThreeDigits = (n: number) => {
+      let str = "";
+      const h = Math.floor(n / 100);
+      const t = Math.floor((n % 100) / 10);
+      const u = n % 10;
+
+      if (h > 0) {
+        str += (h === 1 ? "" : units[h]) + "Yüz";
+      }
+      if (t > 0) {
+        str += tens[t];
+      }
+      if (u > 0) {
+        str += units[u];
+      }
+      return str;
+    };
+
+    if (number === 0) return "Sıfır";
+
+    const parts = number.toFixed(2).split(".");
+    const integerPart = parseInt(parts[0]);
+    const decimalPart = parseInt(parts[1]);
+
+    let result = "";
+    let tempInteger = integerPart;
+    let i = 0;
+
+    if (tempInteger === 0) {
+      result = "Sıfır";
+    } else {
+      while (tempInteger > 0) {
+        const threeDigits = tempInteger % 1000;
+        if (threeDigits > 0) {
+          let partStr = convertThreeDigits(threeDigits);
+          if (i === 1 && threeDigits === 1) partStr = ""; 
+          result = partStr + thousands[i] + result;
+        }
+        tempInteger = Math.floor(tempInteger / 1000);
+        i++;
+      }
+    }
+
+    result += "TL";
+
+    if (decimalPart > 0) {
+      result += convertThreeDigits(decimalPart) + "Kr";
+    }
+
+    return result;
+  };
+
+  useEffect(() => {
+    if (selectedCompany) {
+      setEditTaxNumber(selectedCompany.tax_number || "");
+      setEditTaxOffice(selectedCompany.tax_office || "");
+      setEditAddress(selectedCompany.address || "");
+      setIsNewCustomer(false);
+    } else if (selectedCustomer) {
+      setEditTaxNumber(selectedCustomer.tax_number || "");
+      setEditTaxOffice(selectedCustomer.tax_office || "");
+      setEditAddress(selectedCustomer.address || "");
+      setIsNewCustomer(false);
+    } else if (isNewCustomer) {
+      // Keep manual entries
+    } else {
+      setEditTaxNumber("");
+      setEditTaxOffice("");
+      setEditAddress("");
+    }
+  }, [companyId, customerId, isNewCustomer]);
 
   useEffect(() => {
     fetchInvoicesData();
@@ -135,7 +218,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerId && !companyId) {
+    if (!customerId && !companyId && !isNewCustomer) {
       alert(isTr ? "Lütfen bir müşteri veya cari seçin" : "Please select a customer or company");
       return;
     }
@@ -148,10 +231,42 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     try {
       const targetStoreId = role === 'superadmin' ? (storeId || undefined) : undefined;
       
+      // Handle new customer creation or existing update if needed
+      let finalCustomerId = customerId;
+      let finalCompanyId = companyId;
+
+      if (isNewCustomer && customerSearch) {
+        // Create a new company (defaulting to company for tax info)
+        const newComp = await api.addCompany({
+          title: customerSearch,
+          tax_number: editTaxNumber,
+          tax_office: editTaxOffice,
+          address: editAddress,
+          store_id: targetStoreId
+        }, targetStoreId);
+        finalCompanyId = newComp.id;
+      } else if (companyId && (editTaxNumber !== selectedCompany?.tax_number || editTaxOffice !== selectedCompany?.tax_office || editAddress !== selectedCompany?.address)) {
+        // Update existing company
+        await api.updateCompany(companyId, {
+          ...selectedCompany,
+          tax_number: editTaxNumber,
+          tax_office: editTaxOffice,
+          address: editAddress
+        }, targetStoreId);
+      } else if (customerId && (editTaxNumber !== selectedCustomer?.tax_number || editTaxOffice !== selectedCustomer?.tax_office || editAddress !== selectedCustomer?.address)) {
+        // Update existing customer
+        await api.updateCustomer(customerId, {
+          ...selectedCustomer,
+          tax_number: editTaxNumber,
+          tax_office: editTaxOffice,
+          address: editAddress
+        }, targetStoreId);
+      }
+
       const payload = {
         storeId: targetStoreId,
-        customer_id: customerId || null,
-        company_id: companyId || null,
+        customer_id: finalCustomerId || null,
+        company_id: finalCompanyId || null,
         invoice_number: invoiceNumber,
         waybill_number: waybillNumber,
         invoice_date: invoiceDate,
@@ -191,6 +306,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setPaymentMethod('cash');
       setCurrency(branding?.default_currency || 'TRY');
       setStatus('draft');
+      setIsNewCustomer(false);
+      setEditTaxNumber("");
+      setEditTaxOffice("");
+      setEditAddress("");
       alert(isTr ? "Fatura başarıyla kaydedildi" : "Invoice saved successfully");
     } catch (error: any) {
       alert(error.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice"));
@@ -647,6 +766,26 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                         
                         {showCustomerDropdown && (customerSearch || (filteredCustomers.length > 0 || filteredCompanies.length > 0)) && (
                           <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-64 overflow-y-auto p-2">
+                            {customerSearch && !filteredCustomers.some(c => c.name === customerSearch) && !filteredCompanies.some(c => c.title === customerSearch) && (
+                              <button
+                                type="button"
+                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 rounded-xl transition-colors flex items-center gap-3 group border-b border-slate-100 mb-2"
+                                onClick={() => {
+                                  setIsNewCustomer(true);
+                                  setCustomerId("");
+                                  setCompanyId("");
+                                  setShowCustomerDropdown(false);
+                                }}
+                              >
+                                <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors">
+                                  <Plus className="h-4 w-4 text-emerald-600" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-emerald-700">{isTr ? `Yeni Kayıt: "${customerSearch}"` : `New Record: "${customerSearch}"`}</div>
+                                  <div className="text-[10px] text-emerald-500 font-medium">{isTr ? 'Yeni cari olarak ekle' : 'Add as new company'}</div>
+                                </div>
+                              </button>
+                            )}
                             {filteredCustomers.length > 0 && (
                               <div className="mb-2">
                                 <p className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'BİREYSEL MÜŞTERİLER' : 'INDIVIDUAL CUSTOMERS'}</p>
@@ -768,32 +907,51 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     </div>
                   </div>
 
-                  {/* Company Tax Info Display */}
-                  {(selectedCompany || selectedCustomer) && (
+                  {/* Company Tax Info Display & Edit */}
+                  {(selectedCompany || selectedCustomer || isNewCustomer) && (
                     <motion.div 
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-6 bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl grid grid-cols-1 md:grid-cols-3 gap-6"
+                      className="p-6 bg-indigo-50/30 border-2 border-indigo-100/50 rounded-3xl grid grid-cols-1 md:grid-cols-3 gap-6"
                     >
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari Ünvanı' : 'Customer / Company Title'}</p>
-                        <p className="text-sm font-black text-slate-800">{selectedCompany?.title || selectedCustomer?.name}</p>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'Ünvan' : 'Title'}</p>
+                        <input 
+                          type="text"
+                          className="w-full px-4 py-2 bg-white border border-indigo-100 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 transition-all"
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          placeholder={isTr ? "Ünvan giriniz..." : "Enter title..."}
+                        />
                       </div>
-                      {selectedCompany && (
-                        <>
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{isTr ? 'Vergi Dairesi' : 'Tax Office'}</p>
-                            <p className="text-sm font-black text-slate-800">{selectedCompany.tax_office || '-'}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{isTr ? 'Vergi / TC Kimlik No' : 'Tax / ID Number'}</p>
-                            <p className="text-sm font-black text-slate-800">{selectedCompany.tax_number || '-'}</p>
-                          </div>
-                        </>
-                      )}
-                      <div className="md:col-span-3 space-y-1">
-                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{isTr ? 'Adres' : 'Address'}</p>
-                        <p className="text-xs font-bold text-slate-600 leading-relaxed">{selectedCompany?.address || selectedCustomer?.address || '-'}</p>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'Vergi Dairesi' : 'Tax Office'}</p>
+                        <input 
+                          type="text"
+                          className="w-full px-4 py-2 bg-white border border-indigo-100 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 transition-all"
+                          value={editTaxOffice}
+                          onChange={(e) => setEditTaxOffice(e.target.value)}
+                          placeholder={isTr ? "Vergi dairesi..." : "Tax office..."}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'Vergi / TC No' : 'Tax / ID No'}</p>
+                        <input 
+                          type="text"
+                          className="w-full px-4 py-2 bg-white border border-indigo-100 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 transition-all"
+                          value={editTaxNumber}
+                          onChange={(e) => setEditTaxNumber(e.target.value)}
+                          placeholder={isTr ? "Vergi veya TC no..." : "Tax or ID number..."}
+                        />
+                      </div>
+                      <div className="md:col-span-3 space-y-2">
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'Adres' : 'Address'}</p>
+                        <textarea 
+                          className="w-full px-4 py-2 bg-white border border-indigo-100 rounded-xl text-xs font-bold text-slate-600 focus:border-indigo-500 transition-all min-h-[60px]"
+                          value={editAddress}
+                          onChange={(e) => setEditAddress(e.target.value)}
+                          placeholder={isTr ? "Adres bilgisi..." : "Address info..."}
+                        />
                       </div>
                     </motion.div>
                   )}
@@ -880,15 +1038,15 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       </div>
                     </div>
 
-                    <div className="border-2 border-slate-100 rounded-[2rem] overflow-hidden bg-slate-50/30">
-                      <table className="w-full text-left border-collapse">
+                    <div className="border-2 border-slate-100 rounded-[2rem] overflow-x-auto bg-slate-50/30">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
                         <thead>
                           <tr className="bg-slate-100/50">
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{isTr ? 'Ürün' : 'Product'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-32">{isTr ? 'Adet' : 'Qty'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-40">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-24">{isTr ? 'KDV %' : 'Tax %'}</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-40">{isTr ? 'Toplam' : 'Total'}</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-32">{isTr ? 'KDV %' : 'Tax %'}</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-44">{isTr ? 'Toplam' : 'Total'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-16"></th>
                           </tr>
                         </thead>
@@ -979,11 +1137,16 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <span className="font-bold">{totals.taxTotal.toLocaleString('tr-TR')} {currency}</span>
                         </div>
                       </div>
-                      <div className="pt-6 border-t border-white/10 flex justify-between items-center">
-                        <span className="text-sm font-black uppercase tracking-[0.2em]">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
-                        <div className="text-right">
-                          <div className="text-3xl font-black tracking-tighter">{totals.grandTotal.toLocaleString('tr-TR')}</div>
-                          <div className="text-xs font-bold opacity-40 uppercase tracking-widest mt-1">{currency}</div>
+                      <div className="pt-6 border-t border-white/10 flex justify-between items-end">
+                        <div className="space-y-2">
+                          <span className="text-sm font-black uppercase tracking-[0.2em] block">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
+                          <div className="text-[10px] font-bold text-indigo-300 italic">
+                            {isTr ? 'Yalnız: ' : 'Only: '} {numberToTurkishWords(totals.grandTotal)}
+                          </div>
+                        </div>
+                        <div className="text-right flex items-baseline gap-2">
+                          <div className="text-4xl font-black tracking-tighter whitespace-nowrap">{totals.grandTotal.toLocaleString('tr-TR')}</div>
+                          <div className="text-sm font-bold opacity-40 uppercase tracking-widest">{currency}</div>
                         </div>
                       </div>
                     </div>
