@@ -39,6 +39,27 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
   const [lastCart, setLastCart] = useState<any[]>([]);
   const [posStatus, setPosStatus] = useState<'idle' | 'waiting' | 'approved' | 'failed'>('idle');
   const [posMessage, setPosMessage] = useState("");
+  const [bridgeDetected, setBridgeDetected] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkBridge = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:1616/pos/sale', { 
+          method: 'OPTIONS',
+          signal: AbortSignal.timeout(1000)
+        }).catch(() => null);
+        setBridgeDetected(!!res || res === null); // If it responds or at least doesn't throw immediately
+      } catch (e) {
+        setBridgeDetected(false);
+      }
+    };
+    
+    if (branding?.fiscal_active) {
+      checkBridge();
+      const interval = setInterval(checkBridge, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [branding?.fiscal_active]);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
