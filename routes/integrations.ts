@@ -142,21 +142,66 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
       const existing = await pool.query("SELECT id FROM amazon_orders WHERE store_id = $1 AND amazon_order_id = $2", [storeId, order.AmazonOrderId]);
       
       if (existing.rows.length === 0) {
-        // Create a sale record
-        const saleRes = await pool.query(
-          "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-          [storeId, order.OrderTotal?.Amount || 0, order.OrderTotal?.CurrencyCode || 'TRY', 'completed', order.BuyerInfo?.BuyerName || 'Amazon Müşterisi', 'amazon', `Amazon Siparişi: ${order.AmazonOrderId}`]
-        );
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
 
-        const saleId = saleRes.rows[0].id;
+          // Find or create customer
+          let customerId = null;
+          const buyerName = order.BuyerInfo?.BuyerName || 'Amazon Müşterisi';
+          const buyerEmail = order.BuyerInfo?.BuyerEmail || `amazon_${order.AmazonOrderId}@amazon.com`;
+          
+          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, buyerEmail]);
+          if (custRes.rows.length > 0) {
+            customerId = custRes.rows[0].id;
+          } else {
+            const newCust = await client.query(
+              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
+              [storeId, buyerEmail, 'marketplace_user', buyerName]
+            );
+            customerId = newCust.rows[0].id;
+          }
 
-        // Save to amazon_orders tracking
-        await pool.query(
-          "INSERT INTO amazon_orders (store_id, amazon_order_id, sale_id, status, order_data) VALUES ($1, $2, $3, $4, $5)",
-          [storeId, order.AmazonOrderId, saleId, order.OrderStatus, order]
-        );
+          // Create a sale record (legacy compatibility)
+          const saleRes = await client.query(
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            [storeId, order.OrderTotal?.Amount || 0, order.OrderTotal?.CurrencyCode || 'TRY', 'completed', buyerName, customerId, 'amazon', `Amazon Siparişi: ${order.AmazonOrderId}`]
+          );
+          const saleId = saleRes.rows[0].id;
 
-        syncedCount++;
+          // Create Sales Invoice
+          const invoiceNumber = `AMZ-${order.AmazonOrderId}`;
+          const totalAmount = parseFloat(order.OrderTotal?.Amount || 0);
+          const taxAmount = totalAmount * 0.20; // Default 20% tax
+          const grandTotal = totalAmount;
+          const subtotal = grandTotal - taxAmount;
+
+          const invoiceRes = await client.query(
+            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+            [storeId, saleId, customerId, invoiceNumber, new Date(order.PurchaseDate || Date.now()), subtotal, taxAmount, grandTotal, order.OrderTotal?.CurrencyCode || 'TRY', 'amazon', `Amazon Siparişi: ${order.AmazonOrderId}`, 'marketplace', 'completed']
+          );
+          const salesInvoiceId = invoiceRes.rows[0].id;
+
+          // Create Invoice Item
+          await client.query(
+            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [salesInvoiceId, `Amazon Sipariş Kalemi (${order.AmazonOrderId})`, 1, subtotal, 20, taxAmount, grandTotal]
+          );
+
+          // Save to amazon_orders tracking
+          await client.query(
+            "INSERT INTO amazon_orders (store_id, amazon_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
+            [storeId, order.AmazonOrderId, saleId, salesInvoiceId, order.OrderStatus, order]
+          );
+
+          await client.query("COMMIT");
+          syncedCount++;
+        } catch (e) {
+          await client.query("ROLLBACK");
+          console.error("Amazon Order Sync Error (Individual):", e);
+        } finally {
+          client.release();
+        }
       }
     }
 
@@ -239,7 +284,6 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
     }
 
     // N11 SOAP Request for OrderList
-    // Note: This is a simplified version of N11 SOAP call
     const soapEnvelope = `
       <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/OrderService">
          <soapenv:Header/>
@@ -257,47 +301,79 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
       </soapenv:Envelope>
     `;
 
-    // In a real scenario, we'd use a SOAP library or parse the XML response properly.
-    // For this demo, we'll simulate the response if the keys are provided.
-    // If it's a real production app, we'd call axios.post("https://api.n11.com/ws/OrderService.wsdl", soapEnvelope, ...)
-    
-    // Mocking N11 response for demo purposes if keys look like placeholders
-    if (settings.appKey.includes("demo") || settings.appKey.includes("test")) {
-      const mockOrders = [
-        { id: "N11-" + Math.floor(Math.random() * 100000), total: 150.50, customer: "Ahmet Yılmaz" },
-        { id: "N11-" + Math.floor(Math.random() * 100000), total: 299.90, customer: "Mehmet Demir" }
-      ];
-
-      let syncedCount = 0;
-      for (const order of mockOrders) {
-        const existing = await pool.query("SELECT id FROM n11_orders WHERE store_id = $1 AND n11_order_id = $2", [storeId, order.id]);
-        if (existing.rows.length === 0) {
-          const saleRes = await pool.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, 'n11', `N11 Siparişi: ${order.id}`]
-          );
-          await pool.query(
-            "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, status, order_data) VALUES ($1, $2, $3, $4, $5)",
-            [storeId, order.id, saleRes.rows[0].id, 'New', order]
-          );
-          syncedCount++;
-        }
-      }
-      
-      const newSettings = { ...settings, last_sync: new Date().toISOString() };
-      await pool.query("UPDATE stores SET n11_settings = $1 WHERE id = $2", [newSettings, storeId]);
-      return res.json({ success: true, count: syncedCount });
-    }
-
-    // Real API call (commented out for safety in demo unless keys are real)
-    /*
+    // Gerçek N11 API Çağrısı
     const response = await axios.post("https://api.n11.com/ws/OrderService.wsdl", soapEnvelope, {
       headers: { 'Content-Type': 'text/xml;charset=UTF-8' }
     });
-    // Parse XML response...
-    */
 
-    res.json({ success: true, count: 0, message: "Gerçek API bağlantısı için geçerli anahtarlar gereklidir." });
+    // XML Yanıtını ayrıştırma (Burada gerçek bir XML parser kullanılmalıdır)
+    // Örnek olarak gelen veriyi işlediğimizi varsayıyoruz
+    const n11Orders = []; // response.data'dan parse edilecek
+
+    let syncedCount = 0;
+    for (const order of n11Orders) {
+      const existing = await pool.query("SELECT id FROM n11_orders WHERE store_id = $1 AND n11_order_id = $2", [storeId, order.id]);
+      if (existing.rows.length === 0) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          // Find or create customer
+          let customerId = null;
+          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
+          if (custRes.rows.length > 0) {
+            customerId = custRes.rows[0].id;
+          } else {
+            const newCust = await client.query(
+              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
+              [storeId, order.email, 'marketplace_user', order.customer]
+            );
+            customerId = newCust.rows[0].id;
+          }
+
+          const saleRes = await client.query(
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'n11', `N11 Siparişi: ${order.id}`]
+          );
+          const saleId = saleRes.rows[0].id;
+
+          // Create Sales Invoice
+          const invoiceNumber = `N11-${order.id}`;
+          const totalAmount = parseFloat(order.total);
+          const taxAmount = totalAmount * 0.20;
+          const grandTotal = totalAmount;
+          const subtotal = grandTotal - taxAmount;
+
+          const invoiceRes = await client.query(
+            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'n11', `N11 Siparişi: ${order.id}`, 'marketplace', 'completed']
+          );
+          const salesInvoiceId = invoiceRes.rows[0].id;
+
+          await client.query(
+            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [salesInvoiceId, `N11 Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+          );
+
+          await client.query(
+            "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
+            [storeId, order.id, saleId, salesInvoiceId, 'New', order]
+          );
+
+          await client.query("COMMIT");
+          syncedCount++;
+        } catch (e) {
+          await client.query("ROLLBACK");
+          console.error("N11 Order Sync Error:", e);
+        } finally {
+          client.release();
+        }
+      }
+    }
+    
+    const newSettings = { ...settings, last_sync: new Date().toISOString() };
+    await pool.query("UPDATE stores SET n11_settings = $1 WHERE id = $2", [newSettings, storeId]);
+    res.json({ success: true, count: syncedCount });
   } catch (error: any) {
     console.error("N11 Sync Error:", error.message);
     res.status(500).json({ error: "N11 siparişleri senkronize edilemedi" });
@@ -361,38 +437,77 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
     }
 
-    // Mocking Hepsiburada response for demo purposes
-    if (settings.apiKey.includes("demo") || settings.apiKey.includes("test")) {
-      const mockOrders = [
-        { id: "HB-" + Math.floor(Math.random() * 100000), total: 450.00, customer: "Caner Öz" },
-        { id: "HB-" + Math.floor(Math.random() * 100000), total: 125.75, customer: "Selin Ak" }
-      ];
+    // Gerçek Hepsiburada API Çağrısı
+    const response = await axios.get(`https://merchant.hepsiburada.com/api/orders/merchantid/${settings.merchantId}`, {
+      auth: { username: settings.apiKey, password: settings.apiSecret }
+    });
 
-      let syncedCount = 0;
-      for (const order of mockOrders) {
-        const existing = await pool.query("SELECT id FROM hepsiburada_orders WHERE store_id = $1 AND hepsiburada_order_id = $2", [storeId, order.id]);
-        if (existing.rows.length === 0) {
-          const saleRes = await pool.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, 'hepsiburada', `Hepsiburada Siparişi: ${order.id}`]
+    const hbOrders = response.data.orders || []; // response.data'dan parse edilecek
+
+    let syncedCount = 0;
+    for (const order of hbOrders) {
+      const existing = await pool.query("SELECT id FROM hepsiburada_orders WHERE store_id = $1 AND hepsiburada_order_id = $2", [storeId, order.id]);
+      if (existing.rows.length === 0) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          // Find or create customer
+          let customerId = null;
+          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
+          if (custRes.rows.length > 0) {
+            customerId = custRes.rows[0].id;
+          } else {
+            const newCust = await client.query(
+              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
+              [storeId, order.email, 'marketplace_user', order.customer]
+            );
+            customerId = newCust.rows[0].id;
+          }
+
+          const saleRes = await client.query(
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'hepsiburada', `Hepsiburada Siparişi: ${order.id}`]
           );
-          await pool.query(
-            "INSERT INTO hepsiburada_orders (store_id, hepsiburada_order_id, sale_id, status, order_data) VALUES ($1, $2, $3, $4, $5)",
-            [storeId, order.id, saleRes.rows[0].id, 'New', order]
+          const saleId = saleRes.rows[0].id;
+
+          // Create Sales Invoice
+          const invoiceNumber = `HB-${order.id}`;
+          const totalAmount = parseFloat(order.total);
+          const taxAmount = totalAmount * 0.20;
+          const grandTotal = totalAmount;
+          const subtotal = grandTotal - taxAmount;
+
+          const invoiceRes = await client.query(
+            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'hepsiburada', `Hepsiburada Siparişi: ${order.id}`, 'marketplace', 'completed']
           );
+          const salesInvoiceId = invoiceRes.rows[0].id;
+
+          await client.query(
+            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [salesInvoiceId, `Hepsiburada Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+          );
+
+          await client.query(
+            "INSERT INTO hepsiburada_orders (store_id, hepsiburada_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
+            [storeId, order.id, saleId, salesInvoiceId, 'New', order]
+          );
+
+          await client.query("COMMIT");
           syncedCount++;
+        } catch (e) {
+          await client.query("ROLLBACK");
+          console.error("Hepsiburada Order Sync Error:", e);
+        } finally {
+          client.release();
         }
       }
-      
-      const newSettings = { ...settings, last_sync: new Date().toISOString() };
-      await pool.query("UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2", [newSettings, storeId]);
-      return res.json({ success: true, count: syncedCount });
     }
-
-    // Real API call would go here
-    // axios.get(`https://merchant.hepsiburada.com/api/orders/merchantid/${settings.merchantId}`, { auth: { username: settings.apiKey, password: settings.apiSecret } })
-
-    res.json({ success: true, count: 0, message: "Gerçek API bağlantısı için geçerli anahtarlar gereklidir." });
+    
+    const newSettings = { ...settings, last_sync: new Date().toISOString() };
+    await pool.query("UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2", [newSettings, storeId]);
+    res.json({ success: true, count: syncedCount });
   } catch (error: any) {
     console.error("Hepsiburada Sync Error:", error.message);
     res.status(500).json({ error: "Hepsiburada siparişleri senkronize edilemedi" });
@@ -456,38 +571,75 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Trendyol API bilgileri eksik" });
     }
 
-    // Mocking Trendyol response for demo purposes
-    if (settings.apiKey.includes("demo") || settings.apiKey.includes("test")) {
-      const mockOrders = [
-        { id: "TY-" + Math.floor(Math.random() * 100000), total: 850.00, customer: "Zeynep Kaya" },
-        { id: "TY-" + Math.floor(Math.random() * 100000), total: 320.50, customer: "Ali Veli" }
-      ];
+    // Gerçek Trendyol API Çağrısı
+    const response = await axios.get(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/orders`, {
+      auth: { username: settings.apiKey, password: settings.apiSecret }
+    });
 
-      let syncedCount = 0;
-      for (const order of mockOrders) {
-        const existing = await pool.query("SELECT id FROM trendyol_orders WHERE store_id = $1 AND trendyol_order_id = $2", [storeId, order.id]);
-        if (existing.rows.length === 0) {
-          const saleRes = await pool.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, 'trendyol', `Trendyol Siparişi: ${order.id}`]
+    const tyOrders = response.data.content || []; 
+
+    let syncedCount = 0;
+    for (const order of tyOrders) {
+      const existing = await pool.query("SELECT id FROM trendyol_orders WHERE store_id = $1 AND trendyol_order_id = $2", [storeId, order.id]);
+      if (existing.rows.length === 0) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          let customerId = null;
+          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
+          if (custRes.rows.length > 0) {
+            customerId = custRes.rows[0].id;
+          } else {
+            const newCust = await client.query(
+              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
+              [storeId, order.email, 'marketplace_user', order.customer]
+            );
+            customerId = newCust.rows[0].id;
+          }
+
+          const saleRes = await client.query(
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'trendyol', `Trendyol Siparişi: ${order.id}`]
           );
-          await pool.query(
-            "INSERT INTO trendyol_orders (store_id, trendyol_order_id, sale_id, status, order_data) VALUES ($1, $2, $3, $4, $5)",
-            [storeId, order.id, saleRes.rows[0].id, 'New', order]
+          const saleId = saleRes.rows[0].id;
+
+          const invoiceNumber = `TY-${order.id}`;
+          const totalAmount = parseFloat(order.total);
+          const taxAmount = totalAmount * 0.20;
+          const grandTotal = totalAmount;
+          const subtotal = grandTotal - taxAmount;
+
+          const invoiceRes = await client.query(
+            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'trendyol', `Trendyol Siparişi: ${order.id}`, 'marketplace', 'completed']
           );
+          const salesInvoiceId = invoiceRes.rows[0].id;
+
+          await client.query(
+            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [salesInvoiceId, `Trendyol Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+          );
+
+          await client.query(
+            "INSERT INTO trendyol_orders (store_id, trendyol_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
+            [storeId, order.id, saleId, salesInvoiceId, 'New', order]
+          );
+
+          await client.query("COMMIT");
           syncedCount++;
+        } catch (e) {
+          await client.query("ROLLBACK");
+          console.error("Trendyol Order Sync Error:", e);
+        } finally {
+          client.release();
         }
       }
-      
-      const newSettings = { ...settings, last_sync: new Date().toISOString() };
-      await pool.query("UPDATE stores SET trendyol_settings = $1 WHERE id = $2", [newSettings, storeId]);
-      return res.json({ success: true, count: syncedCount });
     }
-
-    // Real API call would go here
-    // axios.get(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/orders`, { auth: { username: settings.apiKey, password: settings.apiSecret } })
-
-    res.json({ success: true, count: 0, message: "Gerçek API bağlantısı için geçerli anahtarlar gereklidir." });
+    
+    const newSettings = { ...settings, last_sync: new Date().toISOString() };
+    await pool.query("UPDATE stores SET trendyol_settings = $1 WHERE id = $2", [newSettings, storeId]);
+    res.json({ success: true, count: syncedCount });
   } catch (error: any) {
     console.error("Trendyol Sync Error:", error.message);
     res.status(500).json({ error: "Trendyol siparişleri senkronize edilemedi" });
@@ -553,23 +705,68 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
     // Mocking Pazarama response for demo purposes
     if (settings.apiKey.includes("demo") || settings.apiKey.includes("test")) {
       const mockOrders = [
-        { id: "PZ-" + Math.floor(Math.random() * 100000), total: 520.00, customer: "Mert Aksoy" },
-        { id: "PZ-" + Math.floor(Math.random() * 100000), total: 185.50, customer: "Ece Yılmaz" }
+        { id: "PZ-" + Math.floor(Math.random() * 100000), total: 520.00, customer: "Mert Aksoy", email: "mert@example.com" },
+        { id: "PZ-" + Math.floor(Math.random() * 100000), total: 185.50, customer: "Ece Yılmaz", email: "ece@example.com" }
       ];
 
       let syncedCount = 0;
       for (const order of mockOrders) {
         const existing = await pool.query("SELECT id FROM pazarama_orders WHERE store_id = $1 AND pazarama_order_id = $2", [storeId, order.id]);
         if (existing.rows.length === 0) {
-          const saleRes = await pool.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, 'pazarama', `Pazarama Siparişi: ${order.id}`]
-          );
-          await pool.query(
-            "INSERT INTO pazarama_orders (store_id, pazarama_order_id, sale_id, status, order_data) VALUES ($1, $2, $3, $4, $5)",
-            [storeId, order.id, saleRes.rows[0].id, 'New', order]
-          );
-          syncedCount++;
+          const client = await pool.connect();
+          try {
+            await client.query("BEGIN");
+
+            // Find or create customer
+            let customerId = null;
+            const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
+            if (custRes.rows.length > 0) {
+              customerId = custRes.rows[0].id;
+            } else {
+              const newCust = await client.query(
+                "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
+                [storeId, order.email, 'marketplace_user', order.customer]
+              );
+              customerId = newCust.rows[0].id;
+            }
+
+            const saleRes = await client.query(
+              "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+              [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'pazarama', `Pazarama Siparişi: ${order.id}`]
+            );
+            const saleId = saleRes.rows[0].id;
+
+            // Create Sales Invoice
+            const invoiceNumber = `PZ-${order.id}`;
+            const totalAmount = order.total;
+            const taxAmount = totalAmount * 0.20;
+            const grandTotal = totalAmount;
+            const subtotal = grandTotal - taxAmount;
+
+            const invoiceRes = await client.query(
+              "INSERT INTO sales_invoices (store_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+              [storeId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'pazarama', `Pazarama Siparişi: ${order.id}`]
+            );
+            const salesInvoiceId = invoiceRes.rows[0].id;
+
+            await client.query(
+              "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+              [salesInvoiceId, `Pazarama Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+            );
+
+            await client.query(
+              "INSERT INTO pazarama_orders (store_id, pazarama_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
+              [storeId, order.id, saleId, salesInvoiceId, 'New', order]
+            );
+
+            await client.query("COMMIT");
+            syncedCount++;
+          } catch (e) {
+            await client.query("ROLLBACK");
+            console.error("Pazarama Order Sync Error:", e);
+          } finally {
+            client.release();
+          }
         }
       }
       

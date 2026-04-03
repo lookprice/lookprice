@@ -333,115 +333,79 @@ const SettingsTab = ({
         </button>
       </div>
 
-      {activeSubTab === 'web' && (
+      {activeSubTab === 'e-stores' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-4xl mx-auto space-y-8"
         >
+          {/* Amazon Integration */}
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <Palette className="h-5 w-5" />
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-slate-900 rounded-xl text-white">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Amazon</h3>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.branding}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">{t.brandingDesc}</p>
+              <div className={`px-3 py-1 rounded-full text-xs font-bold ${isAmazonConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                {isAmazonConnected ? t.connected : t.notConnected}
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.storeName}</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                  value={branding.name || branding.store_name || ""}
-                  onChange={(e) => onBrandingChange('name', e.target.value)}
-                />
-                {branding.parent_id && (
-                  <div className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg border border-amber-100 mt-2">
-                    <Building2 className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-bold uppercase tracking-tight">
-                      {lang === 'tr' ? 'Bağlı Olduğu Ana Mağaza:' : 'Connected to Main Store:'} {branding.parent_name || branding.parent_slug}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.accountPlan}</label>
-                <div className="px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold flex justify-between items-center text-sm shadow-sm">
-                  <span className="uppercase tracking-wide">{branding.plan || t.freePlan}</span>
-                  <span className="text-[10px] font-medium text-slate-400">
-                    {branding.plan === 'enterprise' ? t.unlimitedProducts : 
-                     `${branding.plan === 'pro' ? 500 : branding.plan === 'basic' ? 100 : 50} ${t.productLimit}`}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.country}</label>
-                <div className="relative">
-                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <select 
-                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
-                    value={branding.country || "TR"}
-                    onChange={(e) => {
-                      const country = DEVELOPED_COUNTRIES.find(c => c.code === e.target.value);
-                      onBrandingChange('country', e.target.value);
-                      if (country && (!branding.phone || branding.phone.trim() === '')) {
-                        onBrandingChange('phone', country.dialCode + " ");
-                      }
-                    }}
-                  >
-                    {DEVELOPED_COUNTRIES.map(c => (
-                      <option key={c.code} value={c.code}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.phone}</label>
-                <div className="relative">
-                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <input 
-                    type="text" 
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    placeholder="+90 5XX XXX XX XX"
-                    value={branding.phone || ""}
-                    onChange={(e) => onBrandingChange('phone', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.address}</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-4 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <textarea 
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 min-h-[100px]"
-                    value={branding.address || ""}
-                    onChange={(e) => onBrandingChange('address', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.primaryColor}</label>
+            {!isAmazonConnected ? (
+              <button onClick={handleConnectAmazon} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all">
+                {t.connectAmazon}
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">{t.amazonConnectedDesc}</p>
                 <div className="flex gap-3">
-                  <div className="relative group shrink-0">
-                    <input 
-                      type="color" 
-                      className="h-10 w-10 p-0 bg-transparent border-none rounded-xl cursor-pointer overflow-hidden [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-xl shadow-sm"
-                      value={branding.primary_color || "#4f46e5"}
-                      onChange={(e) => onBrandingChange('primary_color', e.target.value)}
-                    />
-                    <div className="absolute inset-0 rounded-xl border border-slate-200 pointer-events-none group-hover:border-slate-300 transition-colors"></div>
-                  </div>
-                  <input 
-                    type="text" 
-                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-mono text-xs text-slate-700 font-bold"
-                    value={branding.primary_color || "#4f46e5"}
-                    onChange={(e) => onBrandingChange('primary_color', e.target.value)}
-                  />
+                  <button onClick={handleSyncOrders} disabled={syncing} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center space-x-2">
+                    <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                    <span>{syncing ? t.syncing : t.syncOrders}</span>
+                  </button>
+                  <button onClick={handleDisconnectAmazon} className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">
+                    {t.disconnect}
+                  </button>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* N11 Integration */}
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-slate-900 rounded-xl text-white">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">N11</h3>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-bold ${isN11Connected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                {isN11Connected ? t.connected : t.notConnected}
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <input type="text" placeholder="App Key" value={n11AppKey} onChange={(e) => setN11AppKey(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+              <input type="password" placeholder="App Secret" value={n11AppSecret} onChange={(e) => setN11AppSecret(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+              
+              <div className="flex gap-3">
+                <button onClick={handleSaveN11Settings} className="px-4 py-3 bg-slate-100 text-slate-900 rounded-xl font-bold hover:bg-slate-200 transition-all">
+                  {t.saveSettings}
+                </button>
+                {isN11Connected && (
+                  <>
+                    <button onClick={handleSyncN11Orders} disabled={n11Syncing} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center space-x-2">
+                      <RefreshCw className={`h-4 w-4 ${n11Syncing ? 'animate-spin' : ''}`} />
+                      <span>{n11Syncing ? t.syncing : t.syncOrders}</span>
+                    </button>
+                    <button onClick={handleDisconnectN11} className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">
+                      {t.disconnect}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
