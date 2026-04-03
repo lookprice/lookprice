@@ -817,8 +817,8 @@ router.post("/quotations/:id/action", async (req, res) => {
         );
 
         await client.query(
-          "INSERT INTO stock_movements (store_id, product_id, type, quantity, description) VALUES ($1, $2, 'out', $3, $4)",
-          [storeId, item.product_id, item.quantity, `Müşteri Onaylı Satış #${saleId} (Teklif #${quotation.id})`]
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, 'out', $3, 'quotation', $4, $5, $6)",
+          [storeId, item.product_id, item.quantity, `Müşteri Onaylı Satış #${saleId} (Teklif #${quotation.id})`, item.unit_price, quotation.customer_name]
         );
       }
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Package, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { X, Package, ArrowUpCircle, ArrowDownCircle, FileDown } from 'lucide-react';
 import { translations } from '../translations';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -26,6 +26,7 @@ const ProductMovementModal = ({ product, onClose }: ProductMovementModalProps) =
   const t = translations[lang].dashboard;
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     api.get(`/api/store/products/${product.id}/movements`)
@@ -44,14 +45,39 @@ const ProductMovementModal = ({ product, onClose }: ProductMovementModalProps) =
       });
   }, [product.id]);
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      await api.download(`/api/store/products/${product.id}/movements/export`, `hareketler_${product.name.replace(/\s+/g, '_')}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert(lang === 'tr' ? 'Dışa aktarma başarısız oldu' : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">{product.name} - {lang === 'tr' ? 'Hareket Geçmişi' : 'Movement History'}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-            <X className="h-5 w-5 text-slate-500" />
-          </button>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold text-slate-900">{product.name} - {lang === 'tr' ? 'Hareket Geçmişi' : 'Movement History'}</h2>
+            <p className="text-xs text-slate-500">{product.barcode}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleExport}
+              disabled={exporting || movements.length === 0}
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4" />
+              {exporting ? (lang === 'tr' ? 'İndiriliyor...' : 'Downloading...') : (lang === 'tr' ? 'Excel' : 'Excel')}
+            </button>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <X className="h-5 w-5 text-slate-500" />
+            </button>
+          </div>
         </div>
         <div className="p-6 overflow-y-auto">
           {loading ? (

@@ -31,10 +31,12 @@ async function checkProductLimit(storeId: number, additionalCount: number = 1) {
   return currentCount + additionalCount <= limit;
 }
 
-async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: number | null = null, customerInfo: string | null = null) {
+async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null) {
+  const price = unitPrice !== null && unitPrice !== undefined ? Number(unitPrice) : null;
+  const info = customerInfo !== null && customerInfo !== undefined ? String(customerInfo) : null;
   await client.query(
     "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-    [storeId, productId, type, quantity, source, description, unitPrice, customerInfo]
+    [storeId, productId, type, quantity, source, description, price, info]
   );
 }
 
@@ -48,6 +50,40 @@ router.get("/products/:id/movements", async (req: any, res) => {
       [id, storeId]
     );
     res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/products/:id/movements/export", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+    
+    const productRes = await pool.query("SELECT name FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (productRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
+    const productName = productRes.rows[0].name;
+
+    const result = await pool.query(
+      "SELECT created_at as \"Tarih\", type as \"Tip\", quantity as \"Miktar\", source as \"Kaynak\", description as \"Açıklama\", unit_price as \"Birim Fiyat\", customer_info as \"Müşteri/Tedarikçi\" FROM stock_movements WHERE product_id = $1 AND store_id = $2 ORDER BY created_at DESC",
+      [id, storeId]
+    );
+
+    const movements = result.rows.map(m => ({
+      ...m,
+      "Tarih": new Date(m.Tarih).toLocaleString('tr-TR'),
+      "Tip": m.Tip === 'in' ? 'Giriş' : 'Çıkış'
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(movements);
+    XLSX.utils.book_append_sheet(wb, ws, "Hareketler");
+    
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=hareketler_${productName.replace(/\s+/g, '_')}.xlsx`);
+    res.send(buffer);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

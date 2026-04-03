@@ -60,6 +60,18 @@ export const api = {
     });
     return handleResponse(res);
   },
+  async download(url: string, filename: string) {
+    const token = getToken(url);
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  },
   async upload(url: string, formData: FormData) {
     const token = getToken(url);
     const res = await fetch(url, {
