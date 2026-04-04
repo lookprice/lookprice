@@ -61,7 +61,7 @@ const CompaniesTab = ({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input 
             type="text" 
-            placeholder={lang === 'tr' ? 'Şirket ara...' : 'Search company...'}
+            placeholder={t.searchCompany}
             className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all text-sm placeholder:text-slate-400"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -72,7 +72,7 @@ const CompaniesTab = ({
             onClick={onExportReport}
             className="flex-1 md:flex-none flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
           >
-            <Download className="h-4 w-4 mr-2 text-slate-500" /> {lang === 'tr' ? 'Dışa Aktar' : 'Export'}
+            <Download className="h-4 w-4 mr-2 text-slate-500" /> {t.export}
           </button>
           <label className="flex items-center cursor-pointer group">
             <div className="relative flex items-center">
@@ -83,7 +83,7 @@ const CompaniesTab = ({
                 onChange={(e) => onIncludeZeroChange(e.target.checked)}
               />
             </div>
-            <span className="ml-2 text-xs font-medium text-slate-500 group-hover:text-slate-700 transition-colors">{lang === 'tr' ? 'Bakiyesi 0 olanları göster' : 'Show zero balance'}</span>
+            <span className="ml-2 text-xs font-medium text-slate-500 group-hover:text-slate-700 transition-colors">{t.showZeroBalance}</span>
           </label>
         </div>
       </div>
@@ -94,11 +94,11 @@ const CompaniesTab = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Şirket Ünvanı' : 'Company Name'}</th>
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Yetkili' : 'Contact Person'}</th>
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İletişim' : 'Contact'}</th>
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">{lang === 'tr' ? 'Bakiye' : 'Balance'}</th>
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">{lang === 'tr' ? 'İşlemler' : 'Actions'}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.companyName}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.contactPerson}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.contact}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">{t.balance}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -106,7 +106,7 @@ const CompaniesTab = ({
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                     <Store size={48} className="mx-auto mb-4 opacity-10" />
-                    <p className="text-sm font-medium">{lang === 'tr' ? 'Henüz bir şirket kaydı bulunmuyor.' : 'No company records found yet.'}</p>
+                    <p className="text-sm font-medium">{t.noCompaniesFound}</p>
                   </td>
                 </tr>
               ) : (
@@ -132,10 +132,10 @@ const CompaniesTab = ({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className={`text-sm font-bold tabular-nums ${Number(c.balance) > 0 ? 'text-rose-600' : Number(c.balance) < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                        {Math.abs(Number(c.balance)).toLocaleString('tr-TR')} <span className="text-[10px] font-medium ml-0.5">{(c.currency || 'TRY').substring(0, 3)}</span>
+                        {Math.abs(Number(c.balance)).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] font-medium ml-0.5">{(c.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[10px] font-bold uppercase tracking-tighter opacity-60">
-                        {Number(c.balance) > 0 ? (lang === 'tr' ? 'Borç' : 'Debit') : Number(c.balance) < 0 ? (lang === 'tr' ? 'Alacak' : 'Credit') : (lang === 'tr' ? 'Dengeli' : 'Balanced')}
+                        {Number(c.balance) > 0 ? t.statements.debt : Number(c.balance) < 0 ? t.statements.credit : t.balanced}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -143,7 +143,7 @@ const CompaniesTab = ({
                         <button 
                           onClick={() => onViewTransactions(c)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                          title={lang === 'tr' ? 'Hareketleri Gör' : 'View Transactions'}
+                          title={t.viewTransactions}
                         >
                           <FileText className="h-4 w-4" />
                         </button>
@@ -152,14 +152,14 @@ const CompaniesTab = ({
                             <button 
                               onClick={() => onEdit(c)}
                               className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
-                              title={lang === 'tr' ? 'Düzenle' : 'Edit'}
+                              title={t.edit}
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button 
                               onClick={() => onDelete(c.id)}
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                              title={lang === 'tr' ? 'Sil' : 'Delete'}
+                              title={t.delete}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -177,7 +177,7 @@ const CompaniesTab = ({
         {totalPages > 1 && (
           <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
             <p className="text-xs font-medium text-slate-500">
-              {filteredCompanies.length} {lang === 'tr' ? 'şirket' : 'companies'}
+              {filteredCompanies.length} {t.companies}
             </p>
             <div className="flex items-center space-x-3">
               <button 
@@ -185,7 +185,7 @@ const CompaniesTab = ({
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
               >
-                {lang === 'tr' ? 'Önceki' : 'Prev'}
+                {t.prev}
               </button>
               <div className="text-xs font-bold text-slate-600 tabular-nums">
                 {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
@@ -195,7 +195,7 @@ const CompaniesTab = ({
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
               >
-                {lang === 'tr' ? 'Sonraki' : 'Next'}
+                {t.next}
               </button>
             </div>
           </div>

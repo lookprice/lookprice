@@ -320,27 +320,24 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
   const handleDownloadDailyReportExcel = () => {
-    const isTr = lang === 'tr';
     if (!dailyReportData.details || dailyReportData.details.length === 0) {
-      alert(isTr ? "İndirilecek veri bulunamadı" : "No data to download");
+      alert(t.noDataToDownload || "İndirilecek veri bulunamadı");
       return;
     }
 
     const data = dailyReportData.details.map(d => ({
-      [isTr ? 'Tarih' : 'Date']: new Date(d.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
-      [isTr ? 'Müşteri' : 'Customer']: d.customer_name || '-',
-      [isTr ? 'Tutar' : 'Amount']: d.amount,
-      [isTr ? 'Ödeme Yöntemi' : 'Payment Method']: t[d.payment_method] || d.payment_method,
-      [isTr ? 'Kaynak' : 'Source']: d.source === 'sale_payment' ? (isTr ? 'Satış Ödemesi' : 'Sale Payment') : 
-                                  d.source === 'term_sale' ? (isTr ? 'Vadeli Satış' : 'Term Sale') : 
-                                  (isTr ? 'Tahsilat' : 'Collection'),
-      [isTr ? 'Satış ID' : 'Sale ID']: d.sale_id ? `#${d.sale_id}` : '-'
+      [t.statements.date]: new Date(d.created_at).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US'),
+      [t.customer]: d.customer_name || '-',
+      [t.amount]: d.amount,
+      [t.paymentMethod || 'Payment Method']: t[d.payment_method] || d.payment_method,
+      [t.statements.source]: t.sources[d.source] || d.source,
+      [t.saleId || 'Sale ID']: d.sale_id ? `#${d.sale_id}` : '-'
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Kasa Raporu" : "Cash Report");
-    XLSX.writeFile(wb, `Kasa_Raporu_${reportStartDate}_${reportEndDate}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, t.cashReport || "Kasa Raporu");
+    XLSX.writeFile(wb, `${t.cashReport || 'Kasa_Raporu'}_${reportStartDate}_${reportEndDate}.xlsx`);
   };
 
   const [notifications, setNotifications] = useState<any>({
@@ -613,19 +610,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
 
   const handleExportQuotations = () => {
-    const isTr = lang === 'tr';
     const data = quotationList.map(q => ({
-      [isTr ? 'Teklif No' : 'Quotation No']: q.id,
-      [isTr ? 'Tarih' : 'Date']: new Date(q.created_at).toLocaleDateString('tr-TR'),
-      [isTr ? 'Müşteri' : 'Customer']: q.customer_name,
-      [isTr ? 'Tutar' : 'Amount']: `${Number(q.total_amount).toLocaleString('tr-TR')} ${q.currency?.slice(0, 3)}`,
-      [isTr ? 'Durum' : 'Status']: q.status === 'approved' || q.status === 'sold' ? (isTr ? 'Tamamlandı' : 'Completed') : q.status === 'cancelled' ? (isTr ? 'İptal Edildi' : 'Cancelled') : (isTr ? 'Beklemede' : 'Pending')
+      [t.quotationNo || 'Quotation No']: q.id,
+      [t.statements.date]: new Date(q.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US'),
+      [t.customer]: q.customer_name,
+      [t.amount]: `${Number(q.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${q.currency?.slice(0, 3)}`,
+      [t.status]: q.status === 'approved' || q.status === 'sold' ? t.completed : q.status === 'cancelled' ? t.cancelled : t.pending
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Teklifler" : "Quotations");
-    XLSX.writeFile(wb, `Teklif_Raporu_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, t.quotations);
+    XLSX.writeFile(wb, `${t.quotations}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleFetchPurchaseInvoiceDetails = async (id: number) => {
@@ -674,10 +670,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
     { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
     { id: "companies", label: t.companies, icon: Store },
-    { id: "fleet", label: lang === 'tr' ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
+    { id: "fleet", label: t.fleet, icon: Car, badge: notifications.fleet },
     { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
-    { id: "fast-pos", label: lang === 'tr' ? "Hızlı POS" : "Fast POS", icon: Scan },
-    { id: "audit-logs", label: lang === 'tr' ? "İşlem Geçmişi" : "Audit Logs", icon: History },
+    { id: "fast-pos", label: t.fastPos, icon: Scan },
+    { id: "audit-logs", label: t.auditLogs, icon: History },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
   console.log("navItems:", navItems);
@@ -777,7 +773,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-all duration-200"
               >
                 <Globe className="h-4 w-4" />
-                <span className="tracking-tight">{lang === 'tr' ? 'Mağaza Web Sitesi' : 'Store Website'}</span>
+                <span className="tracking-tight">{t.storeWebsite}</span>
               </a>
               <a
                 href={scanUrl}
@@ -786,7 +782,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all duration-200"
               >
                 <Scan className="h-4 w-4" />
-                <span className="tracking-tight">{lang === 'tr' ? 'Barkod Okuyucu' : 'Barcode Scanner'}</span>
+                <span className="tracking-tight">{t.barcodeScanner}</span>
               </a>
             </div>
           </nav>
@@ -828,7 +824,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="space-y-2 md:space-y-4">
                 <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-wider">
                   <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                  <span>Module: {activeTab.toUpperCase()}</span>
+                  <span>{lang === 'tr' ? 'MODÜL' : 'MODULE'}: {t[activeTab as keyof typeof t] || activeTab}</span>
                 </div>
                 <div className="flex items-center justify-between w-full md:block">
                   <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">
@@ -849,18 +845,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                 </div>
                 <p className="hidden md:block text-sm text-slate-500 max-w-2xl leading-relaxed font-medium opacity-70">
-                  Bu modül, mağazanızın {activeTab === 'products' ? 'envanter verilerini' : 
-                                       activeTab === 'pos' ? 'satış ve ödeme işlemlerini' :
-                                       activeTab === 'quotations' ? 'teklif ve proforma süreçlerini' :
-                                       activeTab === 'service' ? 'teknik servis ve onarım süreçlerini' :
-                                       activeTab === 'stock_transfer' ? 'şubeler arası stok transfer süreçlerini' :
-                                       activeTab === 'procurements' ? 'tedarik ve sipariş süreçlerini' :
-                                       activeTab === 'fleet' ? 'araç envanteri ve filo yönetim süreçlerini' :
-                                       activeTab === 'purchase_invoices' ? 'alış faturalarını ve tedarik işlemlerini' :
-                                       activeTab === 'sales_invoices' ? 'satış faturalarını ve resmi satış işlemlerini' :
-                                       activeTab === 'companies' ? 'cari hesap ve finansal ilişkilerini' :
-                                       activeTab === 'analytics' ? 'performans metriklerini' : 'sistem yapılandırmasını'} 
-                  yönetmenize olanak tanır. Veriler gerçek zamanlı olarak senkronize edilir.
+                  {t.modulePrefix} {t.moduleDescriptions[activeTab as keyof typeof t.moduleDescriptions] || activeTab} {t.moduleDescSuffix}
                 </p>
               </div>
               
@@ -879,30 +864,30 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <div className="w-8 h-4 md:w-9 md:h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 md:after:h-4 md:after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                         </div>
                         <span className="text-[10px] md:text-xs font-bold text-slate-600 whitespace-nowrap uppercase tracking-wider">
-                          {lang === 'tr' ? 'Tüm Şubeler' : 'All Branches'}
+                          {t.allBranches}
                         </span>
                       </label>
                     </div>
                     <button onClick={() => setShowImportModal(true)} className="flex items-center space-x-2 px-3 md:px-4 py-2 md:py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] md:text-sm hover:bg-slate-50 transition-all shadow-sm uppercase tracking-wider">
                       <Upload className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                      <span className="hidden xs:inline">Import</span>
+                      <span className="hidden xs:inline">{t.import}</span>
                     </button>
                     <button onClick={() => { setEditingProduct(null); setShowProductModal(true); }} className="flex items-center space-x-2 px-3 md:px-4 py-2 md:py-2.5 bg-slate-900 text-white rounded-xl font-bold text-[10px] md:text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
                       <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                      <span>Add Entry</span>
+                      <span>{t.addEntry}</span>
                     </button>
                   </>
                 )}
                 {activeTab === 'quotations' && (
                   <button onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
                     <Plus className="h-4 w-4" />
-                    <span>New Quotation</span>
+                    <span>{t.newQuotation}</span>
                   </button>
                 )}
                 {activeTab === 'companies' && (
                   <button onClick={() => { setEditingCompany(null); setShowCompanyModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
                     <Plus className="h-4 w-4" />
-                    <span>Register Company</span>
+                    <span>{t.registerCompany}</span>
                   </button>
                 )}
               </div>
@@ -1095,8 +1080,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="p-8 text-center">
                 <div className="flex justify-between items-center mb-8">
                   <div className="text-left">
-                    <h3 className="text-2xl font-black text-gray-900">Mağaza QR Kodu</h3>
-                    <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">Müşterileriniz için paylaşın</p>
+                    <h3 className="text-2xl font-black text-gray-900">{t.storeQR}</h3>
+                    <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">{t.shareWithCustomers}</p>
                   </div>
                   <button onClick={() => setShowQrModal(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
                     <X className="h-6 w-6 text-gray-400" />
@@ -1124,7 +1109,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                 <div className="space-y-4">
                   <div className="text-left">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{lang === 'tr' ? 'MAĞAZA WEB SİTESİ' : 'STORE WEBSITE'}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.website?.toUpperCase() || 'WEBSITE'}</p>
                     <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
                       <Globe className="h-5 w-5 text-indigo-500 shrink-0" />
                       <a 
@@ -1149,7 +1134,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
 
                   <div className="text-left">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{lang === 'tr' ? 'BARKOD OKUYUCU' : 'BARCODE SCANNER'}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.barcodeScanner?.toUpperCase()}</p>
                     <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
                       <Scan className="h-5 w-5 text-slate-500 shrink-0" />
                       <a 
@@ -1179,7 +1164,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       className="flex items-center justify-center space-x-2 p-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all"
                     >
                       <Printer className="h-5 w-5" />
-                      <span>Yazdır</span>
+                      <span>{t.print}</span>
                     </button>
                     <button 
                       onClick={() => {
@@ -1205,7 +1190,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       className="flex items-center justify-center space-x-2 p-4 bg-indigo-600 rounded-2xl font-bold text-white hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
                     >
                       <Download className="h-5 w-5" />
-                      <span>İndir</span>
+                      <span>{t.download}</span>
                     </button>
                   </div>
                 </div>
@@ -1224,7 +1209,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{lang === 'tr' ? 'Alış Faturası Detayı' : 'Purchase Invoice Details'}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{t.purchaseInvoiceDetails}</h3>
                   <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">#{selectedPurchaseInvoice.invoice_number}</p>
                 </div>
                 <button onClick={() => setShowPurchaseInvoiceDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
@@ -1234,25 +1219,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'Fatura Tarihi' : 'Invoice Date'}</p>
-                    <p className="text-sm font-bold text-gray-900">{new Date(selectedPurchaseInvoice.invoice_date).toLocaleDateString('tr-TR')}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.invoiceDate}</p>
+                    <p className="text-sm font-bold text-gray-900">{new Date(selectedPurchaseInvoice.invoice_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'Ödeme Yöntemi' : 'Payment Method'}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.paymentMethod}</p>
                     <p className="text-sm font-bold text-gray-900 uppercase">{selectedPurchaseInvoice.payment_method || '-'}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Ürünler' : 'Products'}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t.items}</p>
                   <div className="border border-gray-100 rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Ürün' : 'Product'}</th>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'Adet' : 'Qty'}</th>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'Birim' : 'Unit'}</th>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'Toplam' : 'Total'}</th>
+                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</th>
+                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.quantity}</th>
+                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.unitPrice}</th>
+                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.total}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -1260,8 +1245,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <tr key={idx}>
                             <td className="py-3 px-4 text-xs font-bold text-gray-700">{item.product_name}</td>
                             <td className="py-3 px-4 text-xs font-bold text-gray-700 text-right">{item.quantity}</td>
-                            <td className="py-3 px-4 text-xs font-bold text-gray-700 text-right">{Number(item.unit_price).toLocaleString('tr-TR')}</td>
-                            <td className="py-3 px-4 text-xs font-black text-gray-900 text-right">{Number(item.total_price).toLocaleString('tr-TR')}</td>
+                            <td className="py-3 px-4 text-xs font-bold text-gray-700 text-right">{Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</td>
+                            <td className="py-3 px-4 text-xs font-black text-gray-900 text-right">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1271,8 +1256,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                 <div className="p-4 bg-indigo-600 rounded-2xl text-white">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{lang === 'tr' ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
-                    <span className="text-xl font-black">{Number(selectedPurchaseInvoice.grand_total).toLocaleString('tr-TR')} {selectedPurchaseInvoice.currency?.slice(0, 3)}</span>
+                    <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.grandTotal?.toUpperCase() || 'GRAND TOTAL'}</span>
+                    <span className="text-xl font-black">{Number(selectedPurchaseInvoice.grand_total).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedPurchaseInvoice.currency?.slice(0, 3)}</span>
                   </div>
                 </div>
               </div>
@@ -1298,13 +1283,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{lang === 'tr' ? 'Satış Detayı' : 'Sale Details'}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{t.saleDetails}</h3>
                   <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
-                    #{selectedSale.id} • {new Date(selectedSale.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    #{selectedSale.id} • {new Date(selectedSale.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handlePrint()} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title={lang === 'tr' ? 'Kargo Fişini Yazdır' : 'Print Shipping Slip'}>
+                  <button onClick={() => handlePrint()} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title={t.printShippingSlip}>
                     <Printer className="h-5 w-5 text-gray-400" />
                   </button>
                   <button onClick={() => setShowSaleDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
@@ -1326,15 +1311,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                   <div className="p-4 bg-indigo-50 rounded-2xl">
                     <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t.amount}</p>
-                    <p className="text-xl font-black text-indigo-600">{Number(selectedSale.total_amount).toLocaleString('tr-TR')} {selectedSale.currency?.substring(0, 3)}</p>
+                    <p className="text-xl font-black text-indigo-600">{Number(selectedSale.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.substring(0, 3)}</p>
                   </div>
                   <div className="p-4 bg-emerald-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{t.paymentMethod || 'Ödeme Şekli'}</p>
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{t.paymentMethod}</p>
                     <p className="font-bold text-emerald-600 uppercase text-xs">
-                      {selectedSale.payment_method === 'cash' ? (lang === 'tr' ? 'Nakit' : 'Cash') :
-                       selectedSale.payment_method === 'credit_card' ? (lang === 'tr' ? 'Kredi Kartı' : 'Credit Card') :
-                       selectedSale.payment_method === 'bank' ? (lang === 'tr' ? 'Havale/EFT' : 'Bank Transfer') :
-                       selectedSale.payment_method === 'term' ? (lang === 'tr' ? 'Vadeli' : 'Term') :
+                      {selectedSale.payment_method === 'cash' ? t.cash :
+                       selectedSale.payment_method === 'credit_card' ? t.credit_card :
+                       selectedSale.payment_method === 'bank' ? t.bank :
+                       selectedSale.payment_method === 'term' ? t.term :
                        selectedSale.payment_method || '-'}
                     </p>
                   </div>
@@ -1342,7 +1327,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                 {selectedSale.customer_address && (
                   <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TESLİMAT ADRESİ' : 'DELIVERY ADDRESS'}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t.deliveryAddress?.toUpperCase() || 'DELIVERY ADDRESS'}</p>
                     <p className="text-sm text-gray-700 font-medium leading-relaxed">{selectedSale.customer_address}</p>
                   </div>
                 )}
@@ -1767,7 +1752,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">{selectedCompany.title}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Cari Hesap Hareketleri' : 'Account Transactions'}</p>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{t.accountTransactions}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button 
@@ -1775,7 +1760,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all flex items-center"
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    {lang === 'tr' ? 'Yeni İşlem' : 'New Transaction'}
+                    {t.newTransaction}
                   </button>
                   <button onClick={() => setShowTransactionModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                     <X className="h-5 w-5 text-gray-400" />
@@ -1785,7 +1770,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
               <div className="p-4 bg-white border-b border-gray-100 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Başlangıç' : 'Start'}</label>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.start}</label>
                   <input 
                     type="date" 
                     value={transactionStartDate}
@@ -1794,7 +1779,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Bitiş' : 'End'}</label>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.end}</label>
                   <input 
                     type="date" 
                     value={transactionEndDate}
@@ -1805,7 +1790,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <button 
                   onClick={() => handleFetchTransactions(selectedCompany.id)}
                   className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
-                  title={lang === 'tr' ? 'Yenile' : 'Refresh'}
+                  title={t.refresh}
                 >
                   <History className={`h-4 w-4 ${transactionLoading ? 'animate-spin' : ''}`} />
                 </button>
@@ -1814,7 +1799,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-200 transition-all"
                 >
                   <FileDown className="h-4 w-4" />
-                  {lang === 'tr' ? 'PDF Ekstre' : 'PDF Statement'}
+                  {t.pdfStatement}
                 </button>
               </div>
 
@@ -1952,7 +1937,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                 <div className="flex flex-col">
-                  <h3 className="text-xl font-bold text-gray-900">{lang === 'tr' ? 'Yeni İşlem Ekle' : 'Add New Transaction'}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{t.addNewTransaction}</h3>
                   <p className="text-xs text-gray-500 font-medium">{selectedCompany.name}</p>
                 </div>
                 <button onClick={() => setShowAddTransactionModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">

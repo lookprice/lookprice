@@ -213,7 +213,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     
     vehicles.forEach(v => {
       if (v.maintenance_due && v.current_mileage >= v.maintenance_due) {
-        alerts.push({ type: 'maintenance', message: `${v.plate} için ${(t as any).fleet_terms?.routine || 'Bakım'} zamanı geldi! (${v.current_mileage.toLocaleString('tr-TR')} KM)`, icon: Wrench, color: 'text-red-600' });
+        alerts.push({ type: 'maintenance', message: `${v.plate} ${t.maintenanceDue} (${v.current_mileage.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} KM)`, icon: Wrench, color: 'text-red-600' });
       }
     });
 
@@ -225,13 +225,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       if (d.type === 'Ruhsat-Koçan') return;
 
       if (d.expiry_date && new Date(d.expiry_date) < soon) {
-        alerts.push({ type: 'document', message: `${d.type} belgesi yaklaşıyor! (Vade: ${safeFormatDate(d.expiry_date)})`, icon: FileText, color: 'text-orange-600' });
+        alerts.push({ type: 'document', message: `${d.type} ${t.documentExpiring} (${t.expiryDate}: ${safeFormatDate(d.expiry_date)})`, icon: FileText, color: 'text-orange-600' });
       }
     });
 
     allDriverDocuments.forEach(d => {
       if (d.expiry_date && new Date(d.expiry_date) < soon) {
-        alerts.push({ type: 'document', message: `${d.driver_name} için ${d.type} belgesi yaklaşıyor! (Vade: ${safeFormatDate(d.expiry_date)})`, icon: UserCheck, color: 'text-orange-600' });
+        alerts.push({ type: 'document', message: `${d.driver_name} ${t.documentExpiring} (${t.expiryDate}: ${safeFormatDate(d.expiry_date)})`, icon: UserCheck, color: 'text-orange-600' });
       }
     });
 
@@ -397,7 +397,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   };
 
   const handleDeleteVehicle = async (id: number) => {
-    if (!window.confirm('Bu aracı silmek istediğinize emin misiniz? Tüm kayıtlar silinecektir.')) return;
+    if (!window.confirm(t.deleteVehicleConfirm)) return;
     try {
       await api.deleteVehicle(id);
       setVehicles((vehicles || []).filter(v => v.id !== id));
@@ -457,7 +457,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         recurrence_period: '1 year'
       } as any);
     } catch (error) {
-      alert('Evrak kaydedilirken bir hata oluştu.');
+      alert(t.errorSavingDocument);
     }
   };
 
@@ -475,12 +475,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   };
 
   const handleDeleteDocument = async (id: number) => {
-    if (!window.confirm('Bu evrakı silmek istediğinize emin misiniz?')) return;
+    if (!window.confirm(t.deleteConfirm)) return;
     try {
       await api.deleteVehicleDocument(id);
       setDocuments((documents || []).filter(d => d.id !== id));
     } catch (error) {
-      alert('Evrak silinirken bir hata oluştu.');
+      alert(t.errorDeletingDocument);
     }
   };
 
@@ -508,7 +508,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setEditingMaintenance(null);
       setMaintenanceFormData({ type: 'routine', status: 'planned' } as any);
     } catch (error) {
-      alert('Bakım kaydı kaydedilirken bir hata oluştu.');
+      alert(t.errorSavingMaintenance);
     }
   };
 
@@ -569,7 +569,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         start_date: new Date().toISOString().split('T')[0]
       } as any);
     } catch (error) {
-      alert('Zimmet işlemi sırasında bir hata oluştu.');
+      alert(t.errorSavingAssignment);
     }
   };
 
@@ -587,7 +587,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setMileageFormData({});
       setVehicles((vehicles || []).map(v => v.id === selectedVehicle.id ? { ...v, current_mileage: res.mileage } : v));
     } catch (error) {
-      alert('KM eklenirken bir hata oluştu.');
+      alert(t.errorAddingMileage);
     }
   };
 
@@ -604,13 +604,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setShowIncidentModal(false);
       setIncidentFormData({ type: 'accident', status: 'open' });
     } catch (error) {
-      alert('Olay eklenirken bir hata oluştu.');
+      alert(t.errorAddingIncident);
     }
   };
 
   const handleUploadDriverDocument = async (driverId: number) => {
     if (!driverFile || !newDriverDoc.type) {
-      alert('Lütfen dosya seçin ve evrak türünü girin.');
+      alert(t.selectFileAndType);
       return;
     }
     const formData = new FormData();
@@ -639,18 +639,18 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         recurrence_period: '1 year'
       });
     } catch (error) {
-      alert('Evrak yüklenirken bir hata oluştu.');
+      alert(t.errorSavingDocument);
     }
   };
 
   const handleDeleteDriverDocument = async (docId: number) => {
-    if (!confirm('Bu evrağı silmek istediğinize emin misiniz?')) return;
+    if (!confirm(t.deleteConfirm)) return;
     try {
       await api.deleteDriverDocument(docId);
       setDrivers(drivers.map(d => ({ ...d, documents: (d.documents || []).filter(doc => doc.id !== docId) })));
       setEditingDriver({ ...editingDriver!, documents: (editingDriver!.documents || []).filter(doc => doc.id !== docId) });
     } catch (error) {
-      alert('Evrak silinirken bir hata oluştu.');
+      alert(t.errorDeletingDocument);
     }
   };
 
@@ -676,17 +676,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       setEditingDriver(null);
       setDriverFormData({ status: 'active' });
     } catch (error) {
-      alert('Sürücü kaydedilirken bir hata oluştu.');
+      alert(t.errorSavingDriver);
     }
   };
 
   const handleDeleteDriver = async (id: number) => {
-    if (!window.confirm('Bu sürücüyü silmek istediğinize emin misiniz?')) return;
+    if (!window.confirm(t.deleteConfirm)) return;
     try {
       await api.deleteDriver(id);
       setDrivers((drivers || []).filter(d => d.id !== id));
     } catch (error) {
-      alert('Sürücü silinirken bir hata oluştu.');
+      alert(t.errorDeletingDriver);
     }
   };
 
@@ -740,19 +740,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       [t.vehicleType]: v.type === 'company' ? t.company : t.personal,
       [t.currentMileage]: v.current_mileage,
       [t.status]: getStatusText(v.status),
-      'Sürücü': getCurrentDriverName(v.id),
+      [t.driver]: getCurrentDriverName(v.id),
       [t.chassisNumber]: v.chassis_number,
       [t.engineNumber]: v.engine_number
     }));
     const docData = allDocuments.map(d => ({
-      'Plaka': d.plate,
-      'Tür': d.type,
-      'Son Geçerlilik': d.expiry_date
+      [t.plate]: d.plate,
+      [t.type]: d.type,
+      [t.lastValidity]: d.expiry_date
     }));
     const ws = XLSX.utils.json_to_sheet(docData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t.fleet);
-    XLSX.writeFile(wb, `Filo_Raporu_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
+    XLSX.writeFile(wb, `${t.fleetReport}_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
   };
 
   const exportToPDF = () => {
@@ -760,19 +760,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     doc.text(t.fleet, 14, 15);
     autoTable(doc, {
       startY: 20,
-      head: [[t.plate, t.brand, t.model, t.year, t.vehicleType, t.currentMileage, t.status, 'Sürücü']],
+      head: [[t.plate, t.brand, t.model, t.year, t.vehicleType, t.currentMileage, t.status, t.driver]],
       body: (vehicles || []).map(v => [
         v.plate,
         v.brand,
         v.model,
         v.year,
-        v.type === 'company' ? 'Şirket' : 'Şahsi',
+        v.type === 'company' ? t.company : t.personal,
         v.current_mileage,
         getStatusText(v.status),
         getCurrentDriverName(v.id)
       ]),
     });
-    doc.save(`Filo_Raporu_${format(new Date(), 'dd_MM_yyyy')}.pdf`);
+    doc.save(`${t.fleetReport}_${format(new Date(), 'dd_MM_yyyy')}.pdf`);
   };
 
   const getVehiclePlate = (id: number) => (vehicles || []).find(v => v.id === id)?.plate || `ID: ${id}`;
@@ -806,8 +806,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   {getStatusText(vehicle.status)}
                 </span>
               </div>
-              <div className="space-y-1">
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Uyarılar</span>
+              
+              <div className="grid grid-cols-2 gap-4 py-3 border-y border-gray-50">
+                <div className="space-y-1">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.alerts}</span>
                   <div className="flex flex-wrap gap-1">
                     {allDocuments
                       .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
@@ -819,7 +821,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     }
                     {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
                       <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                        SERVİS
+                        {t.service}
                       </div>
                     )}
                     {(() => {
@@ -829,7 +831,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         if (driver && (driver.expiring_docs || 0) > 0) {
                           return (
                             <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
-                              ŞÖFÖR EVRAK ({driver.expiring_docs})
+                              {t.driverDoc} ({driver.expiring_docs})
                             </div>
                           );
                         }
@@ -838,11 +840,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     })()}
                     {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
                       <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                        BAKIM
+                        {t.maintenance}
                       </div>
                     )}
                     {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
-                      <span className="text-[10px] text-green-500 font-bold">SORUN YOK</span>
+                      <span className="text-[10px] text-green-500 font-bold">{t.noProblem}</span>
                     )}
                   </div>
                 </div>
@@ -856,7 +858,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
                   >
                     <Eye className="w-4 h-4" />
-                    Detaylar
+                    {t.details}
                   </button>
                   {!isViewer && (
                     <div className="flex gap-2">
@@ -890,7 +892,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   )}
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
           </div>
 
           {/* Desktop Table View */}
@@ -902,7 +905,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.status}</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
-                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Uyarılar</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.alerts}</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
                   </tr>
                 </thead>
@@ -962,11 +965,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
                             <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
                               <AlertCircle className="w-3 h-3" />
-                              SERVİS
+                              {t.service}
                             </div>
                           )}
                           {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
-                            <span className="text-[10px] text-green-500 font-bold">SORUN YOK</span>
+                            <span className="text-[10px] text-green-500 font-bold">{t.noProblem}</span>
                           )}
                         </div>
                       </td>
@@ -994,7 +997,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   disabled={currentPage === 1}
                   className="px-4 py-2 border border-gray-200 rounded-xl disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-all"
                 >
-                  Geri
+                  {t.prev}
                 </button>
                 <div className="flex items-center gap-1">
                   <span className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-lg text-sm font-bold">{currentPage}</span>
@@ -1006,7 +1009,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 border border-gray-200 rounded-xl disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-all"
                 >
-                  İleri
+                  {t.next}
                 </button>
               </div>
             )}
@@ -1038,13 +1041,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${driver.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {driver.status === 'active' ? 'Aktif' : 'Pasif'}
+                  {driver.status === 'active' ? t.active : t.passive}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 py-3 border-y border-gray-50">
                 <div className="space-y-1">
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">İletişim</span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.contact}</span>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1 text-xs font-bold text-gray-700">
                       <Phone className="w-3 h-3 text-gray-400" />
@@ -1053,10 +1056,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ehliyet</span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.license}</span>
                   <div className="flex items-center gap-1 text-xs font-bold text-gray-700">
                     <FileText className="w-3 h-3 text-gray-400" />
-                    {driver.license_class} Sınıfı
+                    {driver.license_class} {t.class}
                   </div>
                 </div>
               </div>
@@ -1071,7 +1074,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
                 >
                   <Eye className="w-4 h-4" />
-                  Detaylar
+                  {t.details}
                 </button>
                 {!isViewer && (
                   <div className="flex gap-2">
@@ -1143,10 +1146,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         <div>
                           <p className="font-bold text-gray-900">{driver.name}</p>
                           <div className="flex items-center gap-2">
-                            <p className="text-xs text-gray-500">{driver.license_class} Sınıfı</p>
+                            <p className="text-xs text-gray-500">{driver.license_class} {t.class}</p>
                             {(driver.expiring_docs || 0) > 0 && (
                               <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-black animate-pulse">
-                                {driver.expiring_docs} EKSİK/VADE
+                                {driver.expiring_docs} {t.driverDoc}
                               </span>
                             )}
                           </div>
@@ -1159,7 +1162,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                         driver.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
-                        {driver.status === 'active' ? 'Aktif' : 'Pasif'}
+                        {driver.status === 'active' ? t.active : t.passive}
                       </span>
                     </td>
                     <td className="p-4 text-right">
@@ -1240,7 +1243,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
                     m.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                   }`}>
-                    {m.status === 'completed' ? 'Tamamlandı' : 'Planlandı'}
+                    {m.status === 'completed' ? t.completed : t.planned}
                   </span>
                 </div>
                 <div className="flex gap-2">
@@ -1250,7 +1253,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
-                      title="Faturayı İndir"
+                      title={t.downloadInvoice}
                     >
                       <Download className="w-5 h-5" />
                     </a>
@@ -1265,7 +1268,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         }
                       }} 
                       className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all"
-                      title="Düzenle"
+                      title={t.edit}
                     >
                       <Edit2 className="w-5 h-5" />
                     </button>
@@ -1277,13 +1280,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               <div className="mt-4 p-3 bg-gray-50 rounded-xl flex flex-wrap gap-4">
                 {m.next_maintenance_date && (
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sonraki Tarih</span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.nextDate}</span>
                     <span className="text-xs font-black text-amber-600">{safeFormatDate(m.next_maintenance_date, 'dd.MM.yyyy')}</span>
                   </div>
                 )}
                 {m.next_maintenance_mileage && (
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sonraki KM</span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.nextKM}</span>
                     <span className="text-xs font-black text-amber-600">{m.next_maintenance_mileage.toLocaleString()} KM</span>
                   </div>
                 )}
@@ -1295,7 +1298,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       {allMaintenance.length === 0 && (
         <div className="py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-center">
           <Wrench className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <p className="text-gray-500 font-bold">Bakım kaydı bulunamadı.</p>
+          <p className="text-gray-500 font-bold">{t.noMaintenanceFound}</p>
         </div>
       )}
     </div>
@@ -1322,13 +1325,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-wider ${
               a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
             }`}>
-              {a.status === 'active' ? 'Aktif' : 'İade Edildi'}
+              {a.status === 'active' ? t.active : t.returned}
             </span>
           </div>
           
           <div className="grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-2xl mb-4">
             <div className="space-y-2">
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Teslim Alındı</p>
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{t.received}</p>
               <div className="space-y-1">
                 <p className="text-sm font-black text-gray-800">{safeFormatDate(a.start_date, 'dd.MM.yyyy')}</p>
                 <p className="text-xs font-bold text-blue-600">{(a.start_mileage || 0).toLocaleString()} KM</p>
@@ -1336,7 +1339,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             </div>
             {a.end_date ? (
               <div className="space-y-2 border-l border-gray-200 pl-6">
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">İade Edildi</p>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{t.returned}</p>
                 <div className="space-y-1">
                   <p className="text-sm font-black text-gray-800">{safeFormatDate(a.end_date, 'dd.MM.yyyy')}</p>
                   <p className="text-xs font-bold text-blue-600">{(a.end_mileage || 0).toLocaleString()} KM</p>
@@ -1344,7 +1347,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               </div>
             ) : (
               <div className="flex items-center justify-center border-l border-gray-200 pl-6">
-                <span className="text-[10px] text-gray-300 font-black uppercase tracking-widest">Devam Ediyor</span>
+                <span className="text-[10px] text-gray-300 font-black uppercase tracking-widest">{t.ongoing}</span>
               </div>
             )}
           </div>
@@ -1371,7 +1374,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl text-sm font-black hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all"
             >
               <History className="w-4 h-4" />
-              Zimmet İade Al
+              {t.returnAssignment}
             </button>
           )}
         </div>
@@ -1379,7 +1382,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       {allAssignments.length === 0 && (
         <div className="col-span-full py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-center">
           <ClipboardList className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <p className="text-gray-500 font-bold">Zimmet kaydı bulunamadı.</p>
+          <p className="text-gray-500 font-bold">{t.noAssignmentFound}</p>
         </div>
       )}
     </div>
@@ -1397,23 +1400,23 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <History className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Araç</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{t.vehicle}</p>
                   <p className="font-black text-gray-900">{getVehiclePlate(log.vehicle_id)}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Tarih</p>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{t.date}</p>
                 <p className="text-xs font-bold text-gray-700">{safeFormatDate(log.date, 'dd.MM.yyyy')}</p>
               </div>
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
               <div>
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Kilometre</p>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{t.kilometer}</p>
                 <p className="text-lg font-black text-blue-600">{(log.mileage || 0).toLocaleString()} KM</p>
               </div>
               {log.notes && (
                 <div className="max-w-[150px] text-right">
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Not</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{t.note}</p>
                   <p className="text-[10px] text-gray-600 line-clamp-2">{log.notes}</p>
                 </div>
               )}
@@ -1422,7 +1425,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         ))}
         {allMileage.length === 0 && (
           <div className="py-12 bg-white rounded-2xl border border-dashed border-gray-200 text-center">
-            <p className="text-gray-500 font-bold">Kilometre kaydı bulunamadı.</p>
+            <p className="text-gray-500 font-bold">{t.noMileageFound}</p>
           </div>
         )}
       </div>
@@ -1432,10 +1435,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Tarih</th>
+              <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">{t.date}</th>
               <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">{t.vehicles}</th>
               <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">KM</th>
-              <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">Notlar</th>
+              <th className="p-4 text-xs font-black text-gray-500 uppercase tracking-wider">{t.notes}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -1454,7 +1457,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             {allMileage.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-8 text-center text-gray-500">
-                  Kilometre kaydı bulunamadı.
+                  {t.noMileageFound}
                 </td>
               </tr>
             )}
@@ -1489,7 +1492,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
                     i.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>
-                    {i.status === 'resolved' ? 'Çözüldü' : 'Beklemede'}
+                    {i.status === 'resolved' ? t.resolved : t.pending}
                   </span>
                 </div>
                 <div className="flex gap-2">
@@ -1499,7 +1502,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
-                      title="Raporu İndir"
+                      title={t.downloadReport}
                     >
                       <Download className="w-5 h-5" />
                     </a>
@@ -1514,7 +1517,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         }
                       }} 
                       className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all"
-                      title="Düzenle"
+                      title={t.edit}
                     >
                       <Edit2 className="w-5 h-5" />
                     </button>
@@ -1524,7 +1527,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             </div>
             {i.description && (
               <div className="mt-4 p-3 bg-gray-50 rounded-xl">
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-1">Açıklama</p>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-1">{t.description}</p>
                 <p className="text-xs text-gray-600 leading-relaxed">{i.description}</p>
               </div>
             )}
@@ -1534,7 +1537,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       {allIncidents.length === 0 && (
         <div className="py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-center">
           <AlertTriangle className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <p className="text-gray-500 font-bold">Olay kaydı bulunamadı.</p>
+          <p className="text-gray-500 font-bold">{t.noIncidentFound}</p>
         </div>
       )}
     </div>
@@ -1552,7 +1555,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-black text-gray-900">Poliçeler, Vergiler ve Resmi İşlemler</h3>
+          <h3 className="text-lg font-black text-gray-900">{t.obligationsTitle}</h3>
           <div className="flex gap-2">
             <button
               onClick={() => {
@@ -1563,7 +1566,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              Yeni Araç Belgesi
+              {t.newVehicleDocument}
             </button>
           </div>
         </div>
@@ -1572,12 +1575,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Varlık / Kişi</th>
-                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Tür</th>
-                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Vade Tarihi</th>
-                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Tekrarlama</th>
-                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">Durum</th>
-                <th className="p-4 font-black text-gray-500 uppercase tracking-wider text-right">İşlem</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">{t.assetPerson}</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">{t.type}</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">{t.expiryDate}</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">{t.recurrence}</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider">{t.status}</th>
+                <th className="p-4 font-black text-gray-500 uppercase tracking-wider text-right">{t.action}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -1602,7 +1605,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         )}
                         <div>
                           <p className="font-bold text-gray-900">{doc.is_driver_doc ? doc.driver_name : doc.plate}</p>
-                          <p className="text-[10px] text-gray-400 uppercase font-black">{doc.is_driver_doc ? 'ŞÖFÖR' : 'ARAÇ'}</p>
+                          <p className="text-[10px] text-gray-400 uppercase font-black">{doc.is_driver_doc ? t.driver : t.vehicle}</p>
                         </div>
                       </div>
                     </td>
@@ -1616,17 +1619,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       {doc.is_recurring ? (
                         <span className="flex items-center gap-1 text-blue-600 font-bold text-xs uppercase">
                           <RefreshCw className="w-3 h-3" />
-                          {doc.recurrence_period === '1 year' ? 'Yıllık' : doc.recurrence_period === '6 months' ? '6 Aylık' : '2 Yıllık'}
+                          {doc.recurrence_period === '1 year' ? t.yearly : doc.recurrence_period === '6 months' ? t.sixMonths : t.twoYears}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs uppercase">Tek Seferlik</span>
+                        <span className="text-gray-400 text-xs uppercase">{t.oneTime}</span>
                       )}
                     </td>
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                         isExpired ? 'bg-red-100 text-red-700' : isExpiringSoon ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
                       }`}>
-                        {isExpired ? 'Süresi Doldu' : isExpiringSoon ? 'Yaklaşıyor' : 'Aktif'}
+                        {isExpired ? t.expired : isExpiringSoon ? t.approaching : t.active}
                       </span>
                     </td>
                     <td className="p-4 text-right">
@@ -1642,8 +1645,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <td colSpan={5} className="p-12 text-center">
                     <div className="max-w-xs mx-auto">
                       <ShieldCheck className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                      <p className="text-gray-500 font-bold">Kayıtlı poliçe veya vergi bulunamadı.</p>
-                      <p className="text-xs text-gray-400 mt-1">Araç veya şoför belgelerini ekleyerek buradan takip edebilirsiniz.</p>
+                      <p className="text-gray-500 font-bold">{t.noObligationFound}</p>
+                      <p className="text-xs text-gray-400 mt-1">{t.noObligationFoundDesc}</p>
                     </div>
                   </td>
                 </tr>
@@ -1677,7 +1680,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             <div className="p-2 bg-blue-50 rounded-lg">
               <Car className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
             </div>
-            Filo Yönetimi
+            {t.fleetManagement}
           </h2>
           <p className="text-gray-500 text-xs sm:text-sm mt-1">{t.fleet}</p>
         </div>
@@ -1721,7 +1724,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">{t.addVehicle}</span>
-              <span className="sm:hidden">Ekle</span>
+              <span className="sm:hidden">{t.add}</span>
             </button>
           )}
         </div>
@@ -1732,11 +1735,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         {[
           { id: 'vehicles', icon: Car, label: t.vehicles },
           { id: 'drivers', icon: UserCheck, label: t.drivers },
-          { id: 'maintenance', icon: Wrench, label: 'Bakım' },
-          { id: 'assignments', icon: ClipboardList, label: 'Zimmet' },
-          { id: 'mileage', icon: History, label: 'KM' },
-          { id: 'incidents', icon: AlertTriangle, label: 'Olaylar' },
-          { id: 'obligations', icon: FileText, label: 'Poliçeler & Vergiler' }
+          { id: 'maintenance', icon: Wrench, label: t.maintenance },
+          { id: 'assignments', icon: ClipboardList, label: t.assignments },
+          { id: 'mileage', icon: History, label: t.km },
+          { id: 'incidents', icon: AlertTriangle, label: t.incidents },
+          { id: 'obligations', icon: FileText, label: t.obligations }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1759,14 +1762,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1">
             <div className="flex items-center gap-2 text-blue-600 mb-1">
               <Car className="w-4 h-4" />
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">Toplam Araç</span>
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">{t.totalVehicles}</span>
             </div>
             <span className="text-2xl sm:text-3xl font-black text-gray-900">{(vehicles || []).length}</span>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1">
             <div className="flex items-center gap-2 text-green-600 mb-1">
               <CheckCircle2 className="w-4 h-4" />
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">Aktif Araç</span>
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">{t.activeVehicles}</span>
             </div>
             <span className="text-2xl sm:text-3xl font-black text-gray-900">
               {(vehicles || []).filter(v => v.status === 'active').length}
@@ -1775,7 +1778,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           <div className={`bg-white p-4 rounded-2xl border shadow-sm flex flex-col gap-1 ${(vehicles || []).some(v => Number(v.expiring_docs) > 0) ? 'border-amber-200 ring-1 ring-amber-100' : 'border-gray-100'}`}>
             <div className={`flex items-center gap-2 mb-1 ${(vehicles || []).some(v => Number(v.expiring_docs) > 0) ? 'text-amber-600' : 'text-gray-400'}`}>
               <AlertCircle className="w-4 h-4" />
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">Evrak Uyarısı</span>
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">{t.documentAlert}</span>
             </div>
             <span className={`text-2xl sm:text-3xl font-black ${(vehicles || []).some(v => Number(v.expiring_docs) > 0) ? 'text-amber-600' : 'text-gray-300'}`}>
               {(vehicles || []).reduce((acc, v) => acc + (Number(v.expiring_docs) || 0), 0)}
@@ -1784,7 +1787,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           <div className={`bg-white p-4 rounded-2xl border shadow-sm flex flex-col gap-1 ${(vehicles || []).some(v => Number(v.maintenance_due) > 0) ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100'}`}>
             <div className={`flex items-center gap-2 mb-1 ${(vehicles || []).some(v => Number(v.maintenance_due) > 0) ? 'text-red-600' : 'text-gray-400'}`}>
               <Wrench className="w-4 h-4" />
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">Bakım Uyarısı</span>
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider opacity-70">{t.maintenanceAlert}</span>
             </div>
             <span className={`text-2xl sm:text-3xl font-black ${(vehicles || []).some(v => Number(v.maintenance_due) > 0) ? 'text-red-600' : 'text-gray-300'}`}>
               {(vehicles || []).reduce((acc, v) => acc + (Number(v.maintenance_due) || 0), 0)}
@@ -1814,11 +1817,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 }}
                 className="w-full sm:w-48 pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none font-medium text-gray-700"
               >
-                <option value="all">Tüm Durumlar</option>
-                <option value="active">Aktif</option>
-                <option value="in_service">Serviste</option>
-                <option value="broken">Arızalı</option>
-                <option value="sold">Satıldı</option>
+                <option value="all">{t.allStatuses}</option>
+                <option value="active">{t.active}</option>
+                <option value="in_service">{t.inService}</option>
+                <option value="broken">{t.broken}</option>
+                <option value="sold">{t.sold}</option>
               </select>
             </div>
           </div>
@@ -1860,7 +1863,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       value={formData.plate}
                       onChange={(e) => setFormData({ ...formData, plate: e.target.value.toUpperCase() })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                      placeholder="34 ABC 123"
+                      placeholder={t.example_plate}
                     />
                   </div>
                   <div className="space-y-1">
@@ -1875,29 +1878,29 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Marka</label>
+                    <label className="text-sm font-medium text-gray-700">{t.brand}</label>
                     <input
                       required
                       type="text"
                       value={formData.brand}
                       onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                      placeholder="Örn: Ford"
+                      placeholder={t.example_ford}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Model</label>
+                    <label className="text-sm font-medium text-gray-700">{t.model}</label>
                     <input
                       required
                       type="text"
                       value={formData.model}
                       onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                      placeholder="Örn: Focus"
+                      placeholder={t.example_focus}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Yıl</label>
+                    <label className="text-sm font-medium text-gray-700">{t.year}</label>
                     <input
                       type="number"
                       value={formData.year}
@@ -1906,7 +1909,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Güncel KM</label>
+                    <label className="text-sm font-medium text-gray-700">{t.currentKM}</label>
                     <input
                       type="text"
                       value={formData.current_mileage.toLocaleString()}
@@ -1919,7 +1922,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Şasi No</label>
+                    <label className="text-sm font-medium text-gray-700">{t.chassisNumber}</label>
                     <input
                       type="text"
                       value={formData.chassis_number}
@@ -1928,7 +1931,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Motor No</label>
+                    <label className="text-sm font-medium text-gray-700">{t.engineNumber}</label>
                     <input
                       type="text"
                       value={formData.engine_number}
@@ -1938,16 +1941,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Durum</label>
+                  <label className="text-sm font-medium text-gray-700">{t.status}</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   >
-                    <option value="active">Aktif</option>
-                    <option value="in_service">Serviste</option>
-                    <option value="broken">Arızalı</option>
-                    <option value="sold">Satıldı</option>
+                    <option value="active">{t.active}</option>
+                    <option value="in_service">{t.inService}</option>
+                    <option value="broken">{t.broken}</option>
+                    <option value="sold">{t.sold}</option>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
@@ -1956,13 +1959,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     onClick={() => setShowAddModal(false)}
                     className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"
                   >
-                    İptal
+                    {t.cancel}
                   </button>
                   <button
                     type="submit"
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    {selectedVehicle ? 'Güncelle' : 'Kaydet'}
+                    {selectedVehicle ? t.update : t.save}
                   </button>
                 </div>
               </form>
@@ -2002,7 +2005,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
                     >
                       <Edit2 className="w-4 h-4" />
-                      Düzenle
+                      {t.edit}
                     </button>
                   )}
                   <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
@@ -2014,12 +2017,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               {/* Tabs */}
               <div className="flex border-b border-gray-100 bg-white overflow-x-auto">
                 {[
-                  { id: 'info', label: 'Genel Bilgiler', icon: Info },
-                  { id: 'docs', label: 'Evraklar', icon: FileText },
-                  { id: 'maintenance', label: 'Bakım & Onarım', icon: Wrench },
-                  { id: 'assignments', label: 'Zimmet Takibi', icon: UserCheck },
-                  { id: 'mileage', label: 'KM Geçmişi', icon: History },
-                  { id: 'incidents', label: 'Kaza & Arıza', icon: AlertTriangle },
+                  { id: 'info', label: t.generalInfo, icon: Info },
+                  { id: 'docs', label: t.documents, icon: FileText },
+                  { id: 'maintenance', label: t.maintenanceRepair, icon: Wrench },
+                  { id: 'assignments', label: t.assignmentTracking, icon: UserCheck },
+                  { id: 'mileage', label: t.mileageHistory, icon: History },
+                  { id: 'incidents', label: t.accidentIncident, icon: AlertTriangle },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -2041,35 +2044,35 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 {activeDetailTab === 'info' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
-                      <h4 className="text-lg font-bold text-gray-800 border-b pb-2">Teknik Detaylar</h4>
+                      <h4 className="text-lg font-bold text-gray-800 border-b pb-2">{t.technicalDetails}</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-xs text-gray-400 uppercase font-bold">Şasi Numarası</p>
-                          <p className="font-medium text-gray-700">{selectedVehicle.chassis_number || 'Belirtilmemiş'}</p>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.chassisNumber}</p>
+                          <p className="font-medium text-gray-700">{selectedVehicle.chassis_number || t.notSpecified}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-400 uppercase font-bold">Motor Numarası</p>
-                          <p className="font-medium text-gray-700">{selectedVehicle.engine_number || 'Belirtilmemiş'}</p>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.engineNumber}</p>
+                          <p className="font-medium text-gray-700">{selectedVehicle.engine_number || t.notSpecified}</p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-400 uppercase font-bold">{t.vehicleType}</p>
                           <p className="font-medium text-gray-700">{selectedVehicle.type === 'company' ? t.company : t.personal}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-400 uppercase font-bold">Kayıt Tarihi</p>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.registrationDate}</p>
                           <p className="font-medium text-gray-700">{safeFormatDate(selectedVehicle.created_at, 'dd MMMM yyyy', { locale: tr })}</p>
                         </div>
                       </div>
                     </div>
                     <div className="space-y-6">
-                      <h4 className="text-lg font-bold text-gray-800 border-b pb-2">Hızlı Durum</h4>
+                      <h4 className="text-lg font-bold text-gray-800 border-b pb-2">{t.quickStatus}</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                          <p className="text-xs text-blue-600 uppercase font-bold mb-1">Güncel KM</p>
-                          <p className="text-2xl font-bold text-blue-800">{(selectedVehicle.current_mileage || 0).toLocaleString()} KM</p>
+                          <p className="text-xs text-blue-600 uppercase font-bold mb-1">{t.currentKM}</p>
+                          <p className="text-2xl font-bold text-blue-800">{(selectedVehicle.current_mileage || 0).toLocaleString()} {t.km}</p>
                         </div>
                         <div className={`p-4 rounded-xl border ${getStatusColor(selectedVehicle.status)}`}>
-                          <p className="text-xs uppercase font-bold mb-1 opacity-70">Durum</p>
+                          <p className="text-xs uppercase font-bold mb-1 opacity-70">{t.status}</p>
                           <p className="text-2xl font-bold">{getStatusText(selectedVehicle.status)}</p>
                         </div>
                       </div>
@@ -2080,11 +2083,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 {activeDetailTab === 'docs' && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-lg font-bold text-gray-800">Resmi Evraklar & İzinler</h4>
+                      <h4 className="text-lg font-bold text-gray-800">{t.officialDocsPermissions}</h4>
                       {!isViewer && (
                         <button onClick={() => setShowDocumentModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <FilePlus className="w-4 h-4" />
-                          Evrak Ekle
+                          {t.addDocument}
                         </button>
                       )}
                     </div>
@@ -2097,7 +2100,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             </div>
                             <div>
                               <p className="font-bold text-gray-800">{doc.type}</p>
-                              <p className="text-xs text-gray-500">Vade: {safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}</p>
+                              <p className="text-xs text-gray-500">{t.expiry}: {safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2105,7 +2108,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               <button 
                                 onClick={() => window.open(doc.document_url, '_blank')}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                                title="İndir / Görüntüle"
+                                title={t.downloadView}
                               >
                                 <Download className="w-4 h-4" />
                               </button>
@@ -2115,14 +2118,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                 <button 
                                   onClick={() => handleEditDocument(doc)}
                                   className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg"
-                                  title="Düzenle"
+                                  title={t.edit}
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button 
                                   onClick={() => handleDeleteDocument(doc.id)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                  title="Sil"
+                                  title={t.delete}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -2133,7 +2136,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       ))}
                       {(documents || []).length === 0 && (
                         <div className="col-span-2 py-12 text-center text-gray-400">
-                          Henüz evrak kaydı bulunmuyor.
+                          {t.noDocumentFound}
                         </div>
                       )}
                     </div>
@@ -2143,11 +2146,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 {activeDetailTab === 'maintenance' && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-lg font-bold text-gray-800">Bakım & Onarım Geçmişi</h4>
+                      <h4 className="text-lg font-bold text-gray-800">{t.maintenanceRepairHistory}</h4>
                       {!isViewer && (
                         <button onClick={() => setShowMaintenanceModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <Plus className="w-4 h-4" />
-                          Bakım Kaydı
+                          {t.maintenanceRecord}
                         </button>
                       )}
                     </div>
@@ -2163,17 +2166,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                 <p className="font-bold text-gray-800">{t.fleet_terms[m.type as keyof typeof t.fleet_terms] || m.type}</p>
                                 <p className="text-xs text-gray-500">{safeFormatDate(m.date, 'dd MMMM yyyy', { locale: tr })} - {m.provider_name}</p>
                                 <p className="text-xs text-gray-600 mt-1">{m.description}</p>
-                                <p className="text-xs text-gray-500">Kilometre: {m.mileage.toLocaleString('tr-TR')}</p>
+                                <p className="text-xs text-gray-500">{t.kilometer}: {m.mileage.toLocaleString('tr-TR')}</p>
                               </div>
                             </div>
                             <div className="text-right flex flex-col items-end gap-2">
-                              <p className="font-bold text-gray-800">{(m.cost || 0).toLocaleString('tr-TR')} {m.currency || 'TL'}</p>
+                              <p className="font-bold text-gray-800">{(m.cost || 0).toLocaleString('tr-TR')} {m.currency || t.currency_tl}</p>
                               <div className="flex items-center gap-2">
                                 {m.invoice_url && (
                                   <button 
                                     onClick={() => window.open(m.invoice_url!, '_blank')}
                                     className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                    title="Fatura İndir"
+                                    title={t.downloadInvoice}
                                   >
                                     <Download className="w-4 h-4" />
                                   </button>
@@ -2182,17 +2185,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                   <button 
                                     onClick={() => handleEditMaintenance(m)}
                                     className="p-1 text-amber-600 hover:bg-amber-50 rounded"
-                                    title="Düzenle"
+                                    title={t.edit}
                                   >
                                     <Edit2 className="w-4 h-4" />
                                   </button>
                                 )}
-                                <p className="font-bold text-gray-900">{(m.cost || 0).toLocaleString()} {m.currency || 'TL'}</p>
+                                <p className="font-bold text-gray-900">{(m.cost || 0).toLocaleString()} {m.currency || t.currency_tl}</p>
                               </div>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                 m.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                               }`}>
-                                {m.status === 'completed' ? 'Tamamlandı' : 'Planlandı'}
+                                {m.status === 'completed' ? t.completed : t.planned}
                               </span>
                             </div>
                           </div>
@@ -2201,12 +2204,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-4 text-xs">
                               <div className="flex items-center gap-1 text-blue-600">
                                 <Calendar className="w-3 h-3" />
-                                Sonraki Bakım: {safeFormatDate(m.next_maintenance_date, 'dd.MM.yyyy')}
+                                {t.nextMaintenance}: {safeFormatDate(m.next_maintenance_date, 'dd.MM.yyyy')}
                               </div>
                               {m.next_maintenance_mileage && (
                                 <div className="flex items-center gap-1 text-blue-600">
                                   <MapPin className="w-3 h-3" />
-                                  Sonraki KM: {(m.next_maintenance_mileage || 0).toLocaleString()}
+                                  {t.nextKM}: {(m.next_maintenance_mileage || 0).toLocaleString()}
                                 </div>
                               )}
                             </div>
@@ -2215,7 +2218,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       ))}
                       {(maintenance || []).length === 0 && (
                         <div className="py-12 text-center text-gray-400">
-                          Henüz bakım kaydı bulunmuyor.
+                          {t.noMaintenanceFound}
                         </div>
                       )}
                     </div>
@@ -2225,11 +2228,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 {activeDetailTab === 'assignments' && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-lg font-bold text-gray-800">Zimmet & Kullanıcı Takibi</h4>
+                      <h4 className="text-lg font-bold text-gray-800">{t.assignmentUserTracking}</h4>
                       {!isViewer && (
                         <button onClick={() => setShowAssignmentModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <UserCheck className="w-4 h-4" />
-                          Zimmetle
+                          {t.assign}
                         </button>
                       )}
                     </div>
@@ -2237,10 +2240,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       <table className="w-full text-sm text-left text-gray-500">
                         <thead className="text-xs text-gray-700 uppercase bg-gray-50">
                           <tr>
-                            <th className="px-6 py-3">Kullanıcı E-postası</th>
-                            <th className="px-6 py-3">Başlangıç Tarihi</th>
-                            <th className="px-6 py-3">Bitiş Tarihi</th>
-                            <th className="px-6 py-3">Durum</th>
+                            <th className="px-6 py-3">{t.userEmail}</th>
+                            <th className="px-6 py-3">{t.startDate}</th>
+                            <th className="px-6 py-3">{t.endDate}</th>
+                            <th className="px-6 py-3">{t.status}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2248,12 +2251,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             <tr key={a.id} className="bg-white border-b hover:bg-gray-50">
                               <td className="px-6 py-4 font-medium text-gray-900">{a.user_email}</td>
                               <td className="px-6 py-4">{safeFormatDate(a.start_date, 'dd.MM.yyyy')}</td>
-                              <td className="px-6 py-4">{a.end_date ? safeFormatDate(a.end_date, 'dd.MM.yyyy') : 'Devam Ediyor'}</td>
+                              <td className="px-6 py-4">{a.end_date ? safeFormatDate(a.end_date, 'dd.MM.yyyy') : t.ongoing}</td>
                               <td className="px-6 py-4">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                   a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                                 }`}>
-                                  {a.status === 'active' ? 'Aktif Zimmet' : 'İade Edildi'}
+                                  {a.status === 'active' ? t.activeAssignment : t.returned}
                                 </span>
                               </td>
                             </tr>
@@ -2262,7 +2265,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       </table>
                       {(assignments || []).length === 0 && (
                         <div className="py-12 text-center text-gray-400">
-                          Henüz zimmet kaydı bulunmuyor.
+                          {t.noAssignmentFound}
                         </div>
                       )}
                     </div>
@@ -2272,11 +2275,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 {activeDetailTab === 'mileage' && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-lg font-bold text-gray-800">Kilometre Geçmişi</h4>
+                      <h4 className="text-lg font-bold text-gray-800">{t.mileageHistory}</h4>
                       {!isViewer && (
                         <button onClick={() => setShowMileageModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <History className="w-4 h-4" />
-                          KM Güncelle
+                          {t.updateKM}
                         </button>
                       )}
                     </div>
@@ -2290,7 +2293,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             </div>
                             <div className="flex-1 p-3 bg-gray-50 rounded-lg border border-gray-100 flex justify-between items-center">
                               <div>
-                                <p className="font-bold text-gray-800">{(log.mileage || 0).toLocaleString()} KM</p>
+                                <p className="font-bold text-gray-800">{(log.mileage || 0).toLocaleString()} {t.km}</p>
                                 <p className="text-xs text-gray-500">{safeFormatDate(log.date, 'dd MMMM yyyy', { locale: tr })}</p>
                               </div>
                               {log.notes && <p className="text-xs text-gray-400 italic">"{log.notes}"</p>}
@@ -2299,7 +2302,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         ))}
                         {(mileageLogs || []).length === 0 && (
                           <div className="py-12 text-center text-gray-400">
-                            Henüz KM kaydı bulunmuyor.
+                            {t.noMileageFound}
                           </div>
                         )}
                       </div>
@@ -2310,11 +2313,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 {activeDetailTab === 'incidents' && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-lg font-bold text-gray-800">Kaza & Arıza Kayıtları</h4>
+                      <h4 className="text-lg font-bold text-gray-800">{t.accidentIncidentRecords}</h4>
                       {!isViewer && (
                         <button onClick={() => setShowIncidentModal(true)} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm">
                           <AlertTriangle className="w-4 h-4" />
-                          Olay Kaydı
+                          {t.incidentRecord}
                         </button>
                       )}
                     </div>
@@ -2327,25 +2330,25 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                 <AlertTriangle className="w-6 h-6 text-red-600" />
                               </div>
                               <div>
-                                <p className="font-bold text-gray-800">{inc.type === 'accident' ? 'Kaza' : 'Arıza'}</p>
+                                <p className="font-bold text-gray-800">{inc.type === 'accident' ? t.accident : t.broken}</p>
                                 <p className="text-xs text-gray-500">{safeFormatDate(inc.date, 'dd.MM.yyyy')}</p>
                               </div>
                             </div>
                             <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                               inc.status === 'open' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'
                             }`}>
-                              {inc.status === 'open' ? 'Açık' : 'Onarıldı'}
+                              {inc.status === 'open' ? t.open : t.resolved}
                             </span>
                           </div>
                           <p className="text-sm text-gray-700">{inc.description}</p>
                           {inc.cost > 0 && (
-                            <p className="text-sm font-bold text-red-600 mt-2">Maliyet: {(inc.cost || 0).toLocaleString()} TRY</p>
+                            <p className="text-sm font-bold text-red-600 mt-2">{t.cost}: {(inc.cost || 0).toLocaleString()} {t.currency_try}</p>
                           )}
                         </div>
                       ))}
                       {(incidents || []).length === 0 && (
                         <div className="py-12 text-center text-gray-400">
-                          Henüz olay kaydı bulunmuyor.
+                          {t.noIncidentFound}
                         </div>
                       )}
                     </div>
@@ -2369,7 +2372,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 className="text-xl font-bold text-gray-800">
-                  {editingDocument ? 'Evrak Düzenle' : 'Evrak Ekle'}
+                  {editingDocument ? t.editDocument : t.addDocument}
                 </h3>
                 <button onClick={() => {
                   setShowDocumentModal(false);
@@ -2381,7 +2384,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               </div>
               <form onSubmit={handleAddDocument} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Evrak Tipi</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.documentType}</label>
                   <select
                     required
                     value={documentFormData.type || ''}
@@ -2389,19 +2392,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="registration">{t.vehicleLicense}</option>
-                    <option value="insurance">Sigorta Poliçesi</option>
-                    <option value="inspection">Muayene Belgesi</option>
-                    <option value="tax">Vergi Dekontu</option>
-                    <option value="other">Diğer</option>
+                    <option value="insurance">{t.insurancePolicy}</option>
+                    <option value="inspection">{t.inspectionDocument}</option>
+                    <option value="tax">{t.taxReceipt}</option>
+                    <option value="other">{t.other}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Dosya Yükle</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.uploadFile}</label>
                   <div className="flex items-center gap-2">
                     <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-400 cursor-pointer transition-colors">
                       <Upload className="w-5 h-5 text-gray-400" />
                       <span className="text-sm text-gray-600">
-                        {documentFile ? documentFile.name : 'Dosya Seç'}
+                        {documentFile ? documentFile.name : t.selectFile}
                       </span>
                       <input 
                         type="file" 
@@ -2411,11 +2414,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     </label>
                   </div>
                   {documentFormData.document_url && !documentFile && (
-                    <p className="text-xs text-blue-600 mt-1 truncate">Mevcut: {documentFormData.document_url}</p>
+                    <p className="text-xs text-blue-600 mt-1 truncate">{t.current}: {documentFormData.document_url}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Geçerlilik Tarihi</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.expiryDate}</label>
                   <input
                     type="date"
                     required
@@ -2432,24 +2435,24 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     onChange={(e) => setDocumentFormData({ ...documentFormData, is_recurring: e.target.checked })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="is_recurring" className="text-sm font-medium text-gray-700">Yıllık Tekrarlayan Belge</label>
+                  <label htmlFor="is_recurring" className="text-sm font-medium text-gray-700">{t.recurringDocument}</label>
                 </div>
                 {documentFormData.is_recurring && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tekrarlama Periyodu</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.recurrencePeriod}</label>
                     <select
                       value={documentFormData.recurrence_period || '1 year'}
                       onChange={(e) => setDocumentFormData({ ...documentFormData, recurrence_period: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="1 year">1 Yıl</option>
-                      <option value="6 months">6 Ay</option>
-                      <option value="2 years">2 Yıl</option>
+                      <option value="1 year">{t.yearly}</option>
+                      <option value="6 months">{t.sixMonths}</option>
+                      <option value="2 years">{t.twoYears}</option>
                     </select>
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.notes}</label>
                   <textarea
                     value={documentFormData.notes || ''}
                     onChange={(e) => setDocumentFormData({ ...documentFormData, notes: e.target.value })}
@@ -2458,8 +2461,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button type="button" onClick={() => setShowDocumentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
-                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                  <button type="button" onClick={() => setShowDocumentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">{t.cancel}</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t.save}</button>
                 </div>
               </form>
             </motion.div>
@@ -2479,7 +2482,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 className="text-xl font-bold text-gray-800">
-                  {editingMaintenance ? 'Bakım Kaydı Düzenle' : 'Bakım Kaydı Ekle'}
+                  {editingMaintenance ? t.editMaintenanceRecord : t.addMaintenanceRecord}
                 </h3>
                 <button onClick={() => {
                   setShowMaintenanceModal(false);
@@ -2491,20 +2494,20 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               <form onSubmit={handleAddMaintenance} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bakım Tipi</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.maintenanceType}</label>
                     <select
                       required
                       value={maintenanceFormData.type || ''}
                       onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, type: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="routine">Periyodik Bakım</option>
-                      <option value="repair">Onarım</option>
-                      <option value="tire">Lastik Değişimi</option>
+                      <option value="routine">{t.periodicMaintenance}</option>
+                      <option value="repair">{t.repair}</option>
+                      <option value="tire">{t.tireChange}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.date}</label>
                     <input
                       type="date"
                       required
@@ -2516,7 +2519,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.kilometer}</label>
                     <input
                       type="number"
                       required
@@ -2526,7 +2529,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Maliyet (TRY)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.cost} ({t.currency_try})</label>
                     <input
                       type="number"
                       required
@@ -2537,10 +2540,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </div>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl space-y-4">
-                  <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Gelecek Bakım Planı</p>
+                  <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">{t.nextMaintenancePlan}</p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sonraki Bakım Tarihi</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t.nextMaintenanceDate}</label>
                       <input
                         type="date"
                         value={maintenanceFormData.next_maintenance_date || ''}
@@ -2549,29 +2552,29 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sonraki Bakım KM</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t.nextMaintenanceKM}</label>
                       <input
                         type="number"
                         value={maintenanceFormData.next_maintenance_mileage || ''}
                         onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, next_maintenance_mileage: Number(e.target.value) })}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Örn: 110000"
+                        placeholder={t.example_km}
                       />
                     </div>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Servis / Sağlayıcı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.serviceProvider}</label>
                   <input
                     type="text"
                     value={maintenanceFormData.provider_name || ''}
                     onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, provider_name: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Örn: ABC Servis"
+                    placeholder={t.example_service}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.description}</label>
                   <textarea
                     value={maintenanceFormData.description || ''}
                     onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, description: e.target.value })}
@@ -2580,7 +2583,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fatura / Belge Yükle</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.uploadInvoiceDocument}</label>
                   <div className="flex items-center gap-4">
                     <input
                       type="file"
@@ -2596,7 +2599,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             }
                           } catch (err) {
                             console.error('Upload failed:', err);
-                            alert('Dosya yüklenirken bir hata oluştu.');
+                            alert(t.uploadError);
                           }
                         }
                       }}
@@ -2608,19 +2611,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                     >
                       <Upload className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Dosya Seç</span>
+                      <span className="text-sm text-gray-600">{t.selectFile}</span>
                     </label>
                     {maintenanceFormData.invoice_url && (
                       <div className="flex items-center gap-2 text-green-600 text-xs font-medium">
                         <CheckCircle2 className="w-4 h-4" />
-                        Yüklendi
+                        {t.uploaded}
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button type="button" onClick={() => setShowMaintenanceModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
-                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                  <button type="button" onClick={() => setShowMaintenanceModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">{t.cancel}</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t.save}</button>
                 </div>
               </form>
             </motion.div>
@@ -2671,7 +2674,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <input
                       type="text"
                       required
-                      placeholder="B, C, D, E..."
+                      placeholder={t.example_license_classes}
                       value={driverFormData.license_class || ''}
                       onChange={(e) => setDriverFormData({ ...driverFormData, license_class: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -2684,7 +2687,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       onChange={(e) => setDriverFormData({ ...driverFormData, blood_type: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">Seçiniz</option>
+                      <option value="">{t.select}</option>
                       {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-'].map(type => (
                         <option key={type} value={type}>{type}</option>
                       ))}
@@ -2726,25 +2729,25 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       onChange={(e) => setDriverFormData({ ...driverFormData, status: e.target.value as any })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="active">Aktif</option>
-                      <option value="inactive">Pasif</option>
+                      <option value="active">{t.active}</option>
+                      <option value="inactive">{t.inactive}</option>
                     </select>
                   </div>
                   <div className="md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">Yeni Belge Ekle</label>
+                    <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">{t.addNewDocument}</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Belge Türü</label>
+                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t.documentType}</label>
                         <input
                           type="text"
-                          placeholder="Örn: Psikoteknik, SRC..."
+                          placeholder={t.example_driver_docs}
                           value={newDriverDoc.type}
                           onChange={(e) => setNewDriverDoc({ ...newDriverDoc, type: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Geçerlilik Tarihi</label>
+                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t.expiryDate}</label>
                         <input
                           type="date"
                           value={newDriverDoc.expiry_date}
@@ -2760,19 +2763,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           onChange={(e) => setNewDriverDoc({ ...newDriverDoc, is_recurring: e.target.checked })}
                           className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
-                        <label htmlFor="driver_is_recurring" className="text-xs font-bold text-gray-500 uppercase">Yıllık Tekrarlayan</label>
+                        <label htmlFor="driver_is_recurring" className="text-xs font-bold text-gray-500 uppercase">{t.yearlyRecurring}</label>
                       </div>
                       {newDriverDoc.is_recurring && (
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Periyot</label>
+                          <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t.period}</label>
                           <select
                             value={newDriverDoc.recurrence_period}
                             onChange={(e) => setNewDriverDoc({ ...newDriverDoc, recurrence_period: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                           >
-                            <option value="1 year">1 Yıl</option>
-                            <option value="6 months">6 Ay</option>
-                            <option value="2 years">2 Yıl</option>
+                            <option value="1 year">{t.yearly}</option>
+                            <option value="6 months">{t.sixMonths}</option>
+                            <option value="2 years">{t.twoYears}</option>
                           </select>
                         </div>
                       )}
@@ -2789,7 +2792,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors shadow-sm"
                       >
                         <Upload className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-600">Dosya Seç</span>
+                        <span className="text-sm font-medium text-gray-600">{t.selectFile}</span>
                       </label>
                       {driverFile && (
                         <div className="flex items-center gap-2 text-green-600 text-xs font-medium">
@@ -2804,7 +2807,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           disabled={!driverFile || !newDriverDoc.type}
                           className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
                         >
-                          Belgeyi Yükle
+                          {t.uploadDocument}
                         </button>
                       )}
                     </div>
@@ -2812,7 +2815,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 </div>
                 {editingDriver && (
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Evraklar</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t.documents}</label>
                     <div className="space-y-2">
                       {(editingDriver.documents || []).map((doc: any) => (
                         <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -2831,8 +2834,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </div>
                 )}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button type="button" onClick={() => setShowDriverModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
-                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                  <button type="button" onClick={() => setShowDriverModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">{t.cancel}</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t.save}</button>
                 </div>
               </form>
             </motion.div>
@@ -2873,7 +2876,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
                     >
                       <Edit2 className="w-4 h-4" />
-                      Düzenle
+                      {t.edit}
                     </button>
                   )}
                   <button onClick={() => setShowDriverDetailModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
@@ -2888,21 +2891,21 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   {/* Left Column: Info */}
                   <div className="md:col-span-1 space-y-6">
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Sürücü Bilgileri</h4>
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">{t.driverInfo}</h4>
                       <div className="space-y-3">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Kan Grubu</span>
+                          <span className="text-sm text-gray-500">{t.bloodType}</span>
                           <span className="text-sm font-bold text-red-600">{selectedDriver.blood_type || '-'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Durum</span>
+                          <span className="text-sm text-gray-500">{t.status}</span>
                           <span className={`text-sm font-bold ${selectedDriver.status === 'active' ? 'text-green-600' : 'text-gray-400'}`}>
-                            {selectedDriver.status === 'active' ? 'Aktif' : 'Pasif'}
+                            {selectedDriver.status === 'active' ? t.active : t.inactive}
                           </span>
                         </div>
                         <div className="pt-3 border-t border-gray-200">
-                          <p className="text-xs text-gray-400 mb-1">Adres</p>
-                          <p className="text-sm text-gray-700">{selectedDriver.address || 'Belirtilmemiş'}</p>
+                          <p className="text-xs text-gray-400 mb-1">{t.address}</p>
+                          <p className="text-sm text-gray-700">{selectedDriver.address || t.notSpecified}</p>
                         </div>
                       </div>
                     </div>
@@ -2914,7 +2917,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div>
                       <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <FileText className="w-5 h-5 text-blue-600" />
-                        Sürücü Belgeleri
+                        {t.driverDocuments}
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {(driverDocuments || []).map((doc: any) => (
@@ -2926,7 +2929,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               <div>
                                 <p className="text-sm font-bold text-gray-800">{doc.type}</p>
                                 <p className="text-xs text-gray-500">
-                                  {doc.expiry_date ? `Skt: ${safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}` : 'Süresiz'}
+                                  {doc.expiry_date ? `${t.expiry}: ${safeFormatDate(doc.expiry_date, 'dd.MM.yyyy')}` : t.indefinite}
                                 </p>
                               </div>
                             </div>
@@ -2944,7 +2947,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         ))}
                         {(driverDocuments || []).length === 0 && (
                           <div className="col-span-full py-8 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                            Henüz belge yüklenmemiş.
+                            {t.noDocumentUploaded}
                           </div>
                         )}
                       </div>
@@ -2954,7 +2957,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div>
                       <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <Car className="w-5 h-5 text-blue-600" />
-                        Zimmetli Araçlar
+                        {t.assignedVehicles}
                       </h4>
                       <div className="space-y-3">
                         {(driverAssignments || []).filter(a => a.status === 'active').map((assign: any) => (
@@ -2965,15 +2968,15 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               </div>
                               <div>
                                 <p className="font-bold text-gray-800">{assign.vehicle_plate}</p>
-                                <p className="text-xs text-gray-500">Zimmet Tarihi: {safeFormatDate(assign.start_date, 'dd.MM.yyyy')}</p>
+                                <p className="text-xs text-gray-500">{t.assignmentDate}: {safeFormatDate(assign.start_date, 'dd.MM.yyyy')}</p>
                               </div>
                             </div>
-                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase">Aktif Zimmet</span>
+                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase">{t.activeAssignment}</span>
                           </div>
                         ))}
                         {(driverAssignments || []).filter(a => a.status === 'active').length === 0 && (
                           <div className="py-8 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                            Şu an zimmetli araç bulunmuyor.
+                            {t.noAssignedVehicleFound}
                           </div>
                         )}
                       </div>
@@ -2997,7 +3000,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="text-xl font-bold text-gray-800">{assignmentFormData.status === 'returned' ? 'İade Al' : 'Zimmetle'}</h3>
+                <h3 className="text-xl font-bold text-gray-800">{assignmentFormData.status === 'returned' ? t.returnVehicle : t.assign}</h3>
                 <button onClick={() => setShowAssignmentModal(false)} className="text-gray-400 hover:text-gray-600">
                   <X className="w-6 h-6" />
                 </button>
@@ -3030,7 +3033,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {assignmentFormData.status === 'returned' ? 'İade Tarihi' : 'Başlangıç Tarihi'}
+                    {assignmentFormData.status === 'returned' ? t.returnDate : t.startDate}
                   </label>
                   <input
                     type="date"
@@ -3048,7 +3051,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {assignmentFormData.status === 'returned' ? 'İade KM' : 'Başlangıç KM'}
+                    {assignmentFormData.status === 'returned' ? t.returnKM : t.startKM}
                   </label>
                   <input
                     type="number"
@@ -3065,7 +3068,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.notes}</label>
                   <textarea
                     value={assignmentFormData.notes || ''}
                     onChange={(e) => setAssignmentFormData({ ...assignmentFormData, notes: e.target.value })}
@@ -3074,8 +3077,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button type="button" onClick={() => setShowAssignmentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
-                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                  <button type="button" onClick={() => setShowAssignmentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">{t.cancel}</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t.save}</button>
                 </div>
               </form>
             </motion.div>
@@ -3094,14 +3097,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="text-xl font-bold text-gray-800">KM Güncelle</h3>
+                <h3 className="text-xl font-bold text-gray-800">{t.updateKM}</h3>
                 <button onClick={() => setShowMileageModal(false)} className="text-gray-400 hover:text-gray-600">
                   <X className="w-6 h-6" />
                 </button>
               </div>
               <form onSubmit={handleAddMileage} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.date}</label>
                   <input
                     type="date"
                     required
@@ -3111,7 +3114,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Yeni KM</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.newKM}</label>
                   <input
                     type="number"
                     required
@@ -3121,7 +3124,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.notes}</label>
                   <textarea
                     value={mileageFormData.notes || ''}
                     onChange={(e) => setMileageFormData({ ...mileageFormData, notes: e.target.value })}
@@ -3130,8 +3133,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button type="button" onClick={() => setShowMileageModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
-                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                  <button type="button" onClick={() => setShowMileageModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">{t.cancel}</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t.save}</button>
                 </div>
               </form>
             </motion.div>
@@ -3150,26 +3153,26 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="text-xl font-bold text-gray-800">Olay Kaydı Ekle</h3>
+                <h3 className="text-xl font-bold text-gray-800">{t.addIncidentRecord}</h3>
                 <button onClick={() => setShowIncidentModal(false)} className="text-gray-400 hover:text-gray-600">
                   <X className="w-6 h-6" />
                 </button>
               </div>
               <form onSubmit={handleAddIncident} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Olay Tipi</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.incidentType}</label>
                   <select
                     required
                     value={incidentFormData.type || ''}
                     onChange={(e) => setIncidentFormData({ ...incidentFormData, type: e.target.value as any })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="accident">Kaza</option>
-                    <option value="breakdown">Arıza</option>
+                    <option value="accident">{t.accident}</option>
+                    <option value="breakdown">{t.broken}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.date}</label>
                   <input
                     type="date"
                     required
@@ -3179,7 +3182,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.description}</label>
                   <textarea
                     required
                     value={incidentFormData.description || ''}
@@ -3189,7 +3192,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tahmini Maliyet (TRY)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.estimatedCost} ({t.currency_try})</label>
                   <input
                     type="number"
                     value={incidentFormData.cost || ''}
@@ -3198,8 +3201,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   />
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button type="button" onClick={() => setShowIncidentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">İptal</button>
-                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kaydet</button>
+                  <button type="button" onClick={() => setShowIncidentModal(false)} className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">{t.cancel}</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t.save}</button>
                 </div>
               </form>
             </motion.div>

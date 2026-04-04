@@ -69,20 +69,20 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     const isTr = lang === 'tr';
     const t = translations[lang].dashboard;
     const data = companies.map(c => ({
-      [t.statements.customerSupplier]: c.title,
-      [isTr ? 'Yetkili' : 'Contact Person']: c.contact_person || c.representative || '-',
-      [isTr ? 'Vergi Dairesi' : 'Tax Office']: c.tax_office || '-',
-      [isTr ? 'Vergi No' : 'Tax Number']: c.tax_number || '-',
-      [isTr ? 'Telefon' : 'Phone']: c.phone || '-',
-      [isTr ? 'E-posta' : 'Email']: c.email || '-',
+      [t.companyName]: c.title,
+      [t.contactPerson]: c.contact_person || c.representative || '-',
+      [t.taxOffice || 'Tax Office']: c.tax_office || '-',
+      [t.taxNumber || 'Tax Number']: c.tax_number || '-',
+      [t.phone || 'Phone']: c.phone || '-',
+      [t.email || 'Email']: c.email || '-',
       [t.statements.balance]: c.balance,
-      [isTr ? 'Adres' : 'Address']: c.address || '-'
+      [t.address || 'Address']: c.address || '-'
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Firmalar" : "Companies");
-    XLSX.writeFile(wb, `${isTr ? 'Firma_Listesi' : 'Company_List'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, t.companies);
+    XLSX.writeFile(wb, `${t.companies}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleFetchTransactions = async (companyId: number) => {
@@ -160,9 +160,9 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     doc.text(addressLines, 14, yPos);
     yPos += (addressLines.length * 4);
     
-    doc.text(`${fixTr(isTr ? 'Tel:' : 'Tel:')} ${branding.phone || ""}`, 14, yPos);
+    doc.text(`${fixTr(t.phone || 'Tel:')} ${branding.phone || ""}`, 14, yPos);
     yPos += 4;
-    doc.text(`${fixTr(isTr ? 'E-posta:' : 'Email:')} ${branding.email || ""}`, 14, yPos);
+    doc.text(`${fixTr(t.email || 'Email:')} ${branding.email || ""}`, 14, yPos);
     yPos += 10;
 
     doc.setDrawColor(200);
@@ -177,23 +177,23 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`${fixTr(isTr ? 'Firma:' : 'Company:')} ${fixTr(selectedCompany.title)}`, 14, yPos);
+    doc.text(`${fixTr(t.company || 'Company')}: ${fixTr(selectedCompany.title)}`, 14, yPos);
     yPos += 6;
-    doc.text(`${fixTr(isTr ? 'Tarih Araligi:' : 'Date Range:')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
+    doc.text(`${fixTr(t.dateRange || 'Date Range')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
     yPos += 10;
 
     let runningBalance = 0;
-    const tableData = companyTransactions.map(t => {
-      const amount = Number(t.amount);
-      if (t.type === 'debt') runningBalance += amount;
+    const tableData = companyTransactions.map(t_item => {
+      const amount = Number(t_item.amount);
+      if (t_item.type === 'debt') runningBalance += amount;
       else runningBalance -= amount;
       
       return [
-        t.transaction_date.split('T')[0],
-        fixTr(t.description || ""),
-        t.type === 'debt' ? amount.toLocaleString('tr-TR') : "-",
-        t.type === 'credit' ? amount.toLocaleString('tr-TR') : "-",
-        runningBalance.toLocaleString('tr-TR')
+        t_item.transaction_date.split('T')[0],
+        fixTr(t_item.description || ""),
+        t_item.type === 'debt' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
+        t_item.type === 'credit' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
+        runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
       ];
     });
 
@@ -222,7 +222,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     doc.setFont("helvetica", "bold");
     doc.text(`${fixTr(t.statements.balance)}: ${Number(selectedCompany.balance).toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
 
-    doc.save(`${isTr ? 'hesap_ekstresi' : 'account_statement'}_${selectedCompany.title}_${transactionStartDate}_${transactionEndDate}.pdf`);
+    doc.save(`${fixTr(t.statements.customerStatement.toLowerCase().replace(/\s+/g, '_'))}_${fixTr(selectedCompany.title)}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {

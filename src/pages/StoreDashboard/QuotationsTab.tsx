@@ -84,10 +84,10 @@ const QuotationsTab = ({
               value={statusFilter}
               onChange={(e) => { onStatusFilterChange(e.target.value); setPage(1); }}
             >
-              <option value="all">{lang === 'tr' ? 'Tüm Durumlar' : 'All Statuses'}</option>
-              <option value="pending">{lang === 'tr' ? 'Bekleyenler' : 'Pending'}</option>
-              <option value="approved">{lang === 'tr' ? 'Tamamlananlar' : 'Completed'}</option>
-              <option value="cancelled">{lang === 'tr' ? 'İptal Edilenler' : 'Cancelled'}</option>
+              <option value="all">{t.allStatuses}</option>
+              <option value="pending">{t.pendingStatuses}</option>
+              <option value="approved">{t.completedStatuses}</option>
+              <option value="cancelled">{t.cancelledStatuses}</option>
             </select>
           </div>
         </div>
@@ -96,13 +96,13 @@ const QuotationsTab = ({
             onClick={onShowQr}
             className="flex-1 md:flex-none flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
           >
-            <QrCode className="h-4 w-4 mr-2 text-slate-500" /> {lang === 'tr' ? 'QR' : 'QR'}
+            <QrCode className="h-4 w-4 mr-2 text-slate-500" /> {t.qr}
           </button>
           <button 
             onClick={onExportReport}
             className="flex-1 md:flex-none flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
           >
-            <Download className="h-4 w-4 mr-2 text-slate-500" /> {lang === 'tr' ? 'Dışa Aktar' : 'Export'}
+            <Download className="h-4 w-4 mr-2 text-slate-500" /> {t.export}
           </button>
         </div>
       </div>
@@ -135,17 +135,17 @@ const QuotationsTab = ({
                       {q.customer_title && <div className="text-xs text-slate-400 truncate max-w-[240px] mt-0.5">{q.customer_title}</div>}
                     </td>
                     <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                      {new Date(q.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {new Date(q.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-900">
-                        {Number(q.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(q.currency || 'TRY').substring(0, 3)}</span>
+                        {Number(q.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(q.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold tracking-tight flex items-center mt-0.5">
-                        <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[q.payment_method] || q.payment_method || (lang === 'tr' ? 'Belirtilmedi' : 'Not specified')}
+                        <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[q.payment_method] || q.payment_method || t.notSpecified}
                         {q.due_date && (
                           <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">
-                            {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(q.due_date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            {t.dueDate} {new Date(q.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         )}
                       </div>
@@ -157,13 +157,12 @@ const QuotationsTab = ({
                           q.status === 'cancelled' ? 'bg-rose-50 text-rose-600 border-rose-100' :
                           'bg-amber-50 text-amber-600 border-amber-100'
                         }`}>
-                          {q.status === 'approved' || q.status === 'completed' ? (lang === 'tr' ? 'Tamamlandı' : 'Completed') : 
-                           q.status === 'cancelled' ? (lang === 'tr' ? 'İptal Edildi' : 'Cancelled') :
-                           (lang === 'tr' ? 'Beklemede' : 'Pending')}
+                          {q.status === 'approved' || q.status === 'completed' ? t.completed : 
+                           q.status === 'cancelled' ? t.cancelled : t.pending}
                         </span>
                         {q.is_sale && (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white">
-                            {lang === 'tr' ? 'SATIŞ' : 'SALE'}
+                            {t.sale}
                           </span>
                         )}
                       </div>
@@ -189,10 +188,10 @@ const QuotationsTab = ({
                               const url = `${window.location.origin}/quotation/${q.id}`;
                               navigator.clipboard.writeText(url);
                               // Using a custom toast would be better, but keeping logic for now
-                              alert(lang === 'tr' ? "Teklif linki kopyalandı!" : "Quotation link copied!");
+                              alert(t.quotationLinkCopied);
                             }}
                             className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"
-                            title={lang === 'tr' ? 'Linki Kopyala' : 'Copy Link'}
+                            title={t.copyLink}
                           >
                             <Link className="h-5 w-5" />
                           </button>
@@ -201,14 +200,14 @@ const QuotationsTab = ({
                               <button 
                                 onClick={() => onConvertToSale(q)}
                                 className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all border border-transparent hover:border-emerald-100"
-                                title={lang === 'tr' ? 'Satışa Dönüştür' : 'Convert to Sale'}
+                                title={t.convertToSale}
                               >
                                 <CheckCircle2 className="h-5 w-5" />
                               </button>
                               <button 
                                 onClick={() => onCancel(q.id)}
                                 className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100"
-                                title={lang === 'tr' ? 'İptal Et' : 'Cancel'}
+                                title={t.cancel}
                               >
                                 <Trash2 className="h-5 w-5 rotate-45" />
                               </button>
@@ -246,7 +245,7 @@ const QuotationsTab = ({
         {totalPages > 1 && (
           <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
             <p className="text-xs font-medium text-slate-500">
-              {quotations.length} {lang === 'tr' ? 'Teklif/Satış' : 'Quotation/Sale'}
+              {quotations.length} {t.quotationSale}
             </p>
             <div className="flex items-center space-x-3">
               <button 

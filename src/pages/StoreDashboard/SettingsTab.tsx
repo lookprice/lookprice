@@ -350,7 +350,7 @@ const SettingsTab = ({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Varsayılan KDV Oranı (%)' : 'Default Tax Rate (%)'}</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultTaxRate || 'Varsayılan KDV Oranı (%)'}</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                   <input 
@@ -369,13 +369,13 @@ const SettingsTab = ({
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Kategori KDV Kuralları' : 'Category Tax Rules'}</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.categoryTaxRules || 'Kategori KDV Kuralları'}</label>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
                   <div className="flex gap-2">
                     <input 
                       type="text" 
                       id="new-category-name"
-                      placeholder={lang === 'tr' ? 'Kategori Adı (Örn: ALKOLLÜ İÇECEKLER)' : 'Category Name'}
+                      placeholder={t.categoryNamePlaceholder || 'Kategori Adı (Örn: ALKOLLÜ İÇECEKLER)'}
                       className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm"
                     />
                     <div className="relative w-24">
@@ -402,7 +402,7 @@ const SettingsTab = ({
                       }}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
                     >
-                      {lang === 'tr' ? 'Ekle' : 'Add'}
+                      {t.add}
                     </button>
                   </div>
                   
@@ -423,7 +423,7 @@ const SettingsTab = ({
                             }}
                             className="text-red-500 hover:text-red-700 text-sm font-medium"
                           >
-                            {lang === 'tr' ? 'Sil' : 'Remove'}
+                            {t.delete}
                           </button>
                         </div>
                       ))}
@@ -485,11 +485,11 @@ const SettingsTab = ({
               </div>
 
               <div className="md:col-span-2 mt-6">
-                <h4 className="text-sm font-bold text-slate-900 mb-4">{lang === 'tr' ? 'Çapraz Kurlar' : 'Cross Exchange Rates'}</h4>
+                <h4 className="text-sm font-bold text-slate-900 mb-4">{t.crossExchangeRates || 'Çapraz Kurlar'}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {['USD', 'EUR', 'GBP'].map(curr => (
                     <div key={curr} className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{curr} {lang === 'tr' ? 'Kuru' : 'Rate'}</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{curr} {t.rate || 'Kuru'}</label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₺</span>
                         <input 
@@ -527,7 +527,7 @@ const SettingsTab = ({
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{t.fiscalSettings}</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">{lang === 'tr' ? 'Mali onaylı cihaz ayarlarını yönetin' : 'Manage fiscal device settings'}</p>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">{t.fiscalSettingsDesc || 'Mali onaylı cihaz ayarlarını yönetin'}</p>
                   </div>
                 </div>
 
@@ -535,7 +535,7 @@ const SettingsTab = ({
                   <div className="flex items-center justify-between md:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
                     <div>
                       <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{t.fiscalIntegrationActive}</p>
-                      <p className="text-xs text-slate-500 font-medium mt-1">{lang === 'tr' ? 'Satışlarda mali fiş simülasyonu ve yazdırma aktif edilir.' : 'Enables fiscal receipt simulation and printing.'}</p>
+                      <p className="text-xs text-slate-500 font-medium mt-1">{t.fiscalIntegrationActiveDesc || 'Satışlarda mali fiş simülasyonu ve yazdırma aktif edilir.'}</p>
                     </div>
                     <button 
                       type="button"
@@ -549,7 +549,7 @@ const SettingsTab = ({
                   {branding.fiscal_active && (
                     <>
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Cihaz Markası' : 'Device Brand'}</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.deviceBrand || 'Cihaz Markası'}</label>
                         <div className="relative group">
                           <select 
                             className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 appearance-none cursor-pointer group-hover:border-slate-300"
@@ -570,7 +570,7 @@ const SettingsTab = ({
                         </div>
                       </div>
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Terminal ID / Seri No' : 'Terminal ID / Serial No'}</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.terminalIdSerial || 'Terminal ID / Seri No'}</label>
                         <input 
                           type="text" 
                           className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
@@ -581,7 +581,7 @@ const SettingsTab = ({
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Cihaz IP Adresi' : 'Device IP Address'}</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.deviceIpAddress || 'Cihaz IP Adresi'}</label>
                           <input 
                             type="text" 
                             className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
@@ -591,7 +591,7 @@ const SettingsTab = ({
                           />
                         </div>
                         <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'Cihaz Portu' : 'Device Port'}</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.devicePort || 'Cihaz Portu'}</label>
                           <input 
                             type="text" 
                             className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
@@ -608,14 +608,12 @@ const SettingsTab = ({
                             <Smartphone className="h-4 w-4" />
                           </div>
                           <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">
-                            {lang === 'tr' ? 'POS Bağlantı Köprüsü (Bridge)' : 'POS Connection Bridge'}
+                            {t.posBridgeTitle || 'POS Bağlantı Köprüsü (Bridge)'}
                           </h4>
                         </div>
                         
                         <p className="text-[11px] text-slate-500 font-bold leading-relaxed mb-6">
-                          {lang === 'tr' 
-                            ? 'Web tarayıcınızın yerel ağdaki POS cihazına erişebilmesi için bilgisayarınızda bir köprü yazılımı çalışmalıdır. Aşağıdaki butona tıklayarak Node.js tabanlı köprü dosyasını indirebilirsiniz.'
-                            : 'A bridge software must run on your computer for your browser to access the local POS device. Click the button below to download the Node.js based bridge file.'}
+                          {t.posBridgeDesc || 'Web tarayıcınızın yerel ağdaki POS cihazına erişebilmesi için bilgisayarınızda bir köprü yazılımı çalışmalıdır. Aşağıdaki butona tıklayarak Node.js tabanlı köprü dosyasını indirebilirsiniz.'}
                         </p>
 
                         <button 
@@ -670,15 +668,13 @@ app.listen(PORT, () => {
                           className="w-full py-4 bg-white border-2 border-slate-200 rounded-2xl text-xs font-black text-slate-900 uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center justify-center group"
                         >
                           <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
-                          {lang === 'tr' ? 'Köprü Dosyasını İndir (.js)' : 'Download Bridge File (.js)'}
+                          {t.downloadBridgeFile || 'Köprü Dosyasını İndir (.js)'}
                         </button>
                         
                         <div className="mt-4 flex items-start space-x-2">
                           <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
                           <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                            {lang === 'tr' 
-                              ? 'Çalıştırmak için bilgisayarınızda Node.js kurulu olmalıdır. Terminalde "node lookprice-pos-bridge.js" komutunu çalıştırın.'
-                              : 'Node.js must be installed on your computer to run this. Run "node lookprice-pos-bridge.js" in your terminal.'}
+                            {t.posBridgeNote || 'Çalıştırmak için bilgisayarınızda Node.js kurulu olmalıdır. Terminalde "node lookprice-pos-bridge.js" komutunu çalıştırın.'}
                           </p>
                         </div>
                       </div>

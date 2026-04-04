@@ -125,13 +125,13 @@ const ProductsTab = ({
             onClick={onShowQr}
             className="flex-1 md:flex-none flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
           >
-            <QrCode className="h-4 w-4 mr-2 text-slate-500" /> {lang === 'tr' ? 'QR' : 'QR'}
+            <QrCode className="h-4 w-4 mr-2 text-slate-500" /> {t.qr}
           </button>
           <button 
             onClick={onExportReport}
             className="flex-1 md:flex-none flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
           >
-            <Download className="h-4 w-4 mr-2 text-slate-500" /> {lang === 'tr' ? 'Rapor' : 'Export'}
+            <Download className="h-4 w-4 mr-2 text-slate-500" /> {t.report}
           </button>
           {!isViewer && (
             <>
@@ -140,18 +140,18 @@ const ProductsTab = ({
                   key={idx}
                   onClick={() => onApplyTaxRule(rule.category, rule.taxRate)}
                   className="flex-1 md:flex-none flex items-center justify-center bg-white text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-50 hover:border-indigo-300 transition-all"
-                  title={`${rule.category} kategorisindeki ürünlerin KDV'sini %${rule.taxRate} yap`}
+                  title={`${rule.category} ${t.taxRateUpdateTitle}${rule.taxRate}`}
                 >
-                  <Tag className="h-4 w-4 mr-2 text-indigo-500" /> {rule.category} KDV %{rule.taxRate}
+                  <Tag className="h-4 w-4 mr-2 text-indigo-500" /> {rule.category} {t.tax} %{rule.taxRate}
                 </button>
               ))}
               {onBulkPriceUpdate && (
                 <button 
                   onClick={onBulkPriceUpdate}
                   className="flex-1 md:flex-none flex items-center justify-center bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 hover:border-emerald-300 transition-all"
-                  title="Toplu Fiyat Güncelleme"
+                  title={t.bulkPriceUpdate}
                 >
-                  <Percent className="h-4 w-4 mr-2 text-emerald-500" /> Toplu Fiyat
+                  <Percent className="h-4 w-4 mr-2 text-emerald-500" /> {t.bulkPrice}
                 </button>
               )}
               <button 
@@ -174,11 +174,11 @@ const ProductsTab = ({
               <tr className="bg-slate-50/50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.barcode}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.productName}</th>
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Kategori' : 'Category'}</th>
-                {showStoreName && <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Şube' : 'Branch'}</th>}
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.category}</th>
+                {showStoreName && <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.branch}</th>}
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.price}</th>
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">KDV</th>
-                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Maliyet' : 'Cost'}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.tax}</th>
+                <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.cost}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t.stock}</th>
                 <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
               </tr>
@@ -256,7 +256,7 @@ const ProductsTab = ({
                     )}
                     <td className="px-6 py-4">
                       <span className="text-sm font-bold text-slate-900">
-                        {Number(p.price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
+                        {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -268,7 +268,7 @@ const ProductsTab = ({
                       {p.cost_price > 0 ? (
                         <div className="flex flex-col">
                           <span className="text-sm font-bold text-slate-600">
-                            {Number(p.cost_price).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
+                            {Number(p.cost_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
                           </span>
                           {(() => {
                             const profit = calculateProfitMargin(p);
@@ -276,7 +276,7 @@ const ProductsTab = ({
                             const isLoss = profit.margin < 0;
                             return (
                               <span className={`text-[10px] font-bold ${isLoss ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                {isLoss ? '' : '+'}{profit.margin.toFixed(1)}% {lang === 'tr' ? 'Kar' : 'Profit'}
+                                {isLoss ? '' : '+'}{profit.margin.toFixed(1)}% {t.profit}
                               </span>
                             );
                           })()}
@@ -292,7 +292,7 @@ const ProductsTab = ({
                         </span>
                         {Number(p.stock_quantity) <= Number(p.min_stock_level) && (
                           <div className="flex items-center px-1.5 py-0.5 bg-rose-50 rounded text-[10px] font-bold text-rose-600 border border-rose-100 uppercase tracking-tighter">
-                            <AlertTriangle className="h-3 w-3 mr-1" /> Low
+                            <AlertTriangle className="h-3 w-3 mr-1" /> {t.low}
                           </div>
                         )}
                       </div>
@@ -303,7 +303,7 @@ const ProductsTab = ({
                           <button 
                             onClick={() => setSelectedProduct(p)}
                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100"
-                            title={lang === 'tr' ? 'Hareket Geçmişi' : 'Movement History'}
+                            title={t.movementHistory}
                           >
                             <History className="h-4 w-4" />
                           </button>

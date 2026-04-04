@@ -95,7 +95,7 @@ const PosTab = ({
             onClick={onExportReport}
             className="flex items-center justify-center bg-slate-900 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-slate-800 transition-all shadow-md active:scale-95"
           >
-            <Download className="h-4 w-4 mr-2" /> {lang === 'tr' ? 'Kasa Raporu' : 'Cash Report'}
+            <Download className="h-4 w-4 mr-2" /> {t.cashReport}
           </button>
         </div>
       </div>
@@ -139,15 +139,15 @@ const PosTab = ({
                       <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">#{s.id}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-semibold text-slate-900">{new Date(s.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
-                      <div className="text-[10px] text-slate-400 font-medium">{new Date(s.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="text-sm font-semibold text-slate-900">{new Date(s.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                      <div className="text-[10px] text-slate-400 font-medium">{new Date(s.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-500">
                       {s.customer_name || "-"}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-900">
-                        {Number(s.total_amount).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(s.currency || 'TRY').substring(0, 3)}</span>
+                        {Number(s.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(s.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold tracking-tight flex items-center mt-0.5">
                         <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[s.payment_method] || s.payment_method}
@@ -189,7 +189,7 @@ const PosTab = ({
         {totalPages > 1 && (
           <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
             <p className="text-xs font-medium text-slate-500">
-              {sales.length} {lang === 'tr' ? 'satış' : 'sales'}
+              {sales.length} {t.sales}
             </p>
             <div className="flex items-center space-x-3">
               <button 
@@ -197,7 +197,7 @@ const PosTab = ({
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
               >
-                {lang === 'tr' ? 'Önceki' : 'Prev'}
+                {t.prev}
               </button>
               <div className="text-xs font-bold text-slate-600 tabular-nums">
                 {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
@@ -207,7 +207,7 @@ const PosTab = ({
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
               >
-                {lang === 'tr' ? 'Sonraki' : 'Next'}
+                {t.next}
               </button>
             </div>
           </div>

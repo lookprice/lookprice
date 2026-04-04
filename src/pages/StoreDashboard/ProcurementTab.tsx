@@ -109,7 +109,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
   };
 
   const handleDeleteProcurement = async (id: number) => {
-    if (!window.confirm("Bu tedarik kaydını silmek istediğinize emin misiniz?")) return;
+    if (!window.confirm(t.confirmDelete)) return;
     try {
       await api.deleteProcurement(id, storeId);
       fetchData();
@@ -135,7 +135,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
   };
 
   const handleDeleteApi = async (id: number) => {
-    if (!window.confirm("Bu API kaynağını silmek istediğinize emin misiniz?")) return;
+    if (!window.confirm(t.confirmDelete)) return;
     try {
       await api.deleteSupplierApi(id, storeId);
       fetchData();
@@ -189,7 +189,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
           className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
         >
           <Settings className="w-4 h-4" />
-          API Ayarları
+          {t.apiSettings}
         </button>
       </div>
 
@@ -205,7 +205,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <Database className="w-5 h-5 text-indigo-600" />
-                  Tedarikçi API Kaynakları
+                  {t.procurement.supplierApiSources}
                 </h3>
                 {!isViewer && (
                   <button
@@ -216,14 +216,14 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                     className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
                   >
                     <Plus className="w-4 h-4" />
-                    Yeni API Ekle
+                    {t.procurement.addNewApi}
                   </button>
                 )}
               </div>
               
               {supplierApis.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                  <p className="text-gray-500">Henüz tanımlanmış bir API kaynağı yok.</p>
+                  <p className="text-gray-500">{t.procurement.noApiSources}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -268,12 +268,12 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-bottom border-gray-200">
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ürün Bilgisi</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Miktar</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Müşteri / Satış</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Durum</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tedarikçi Sorgu</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">İşlemler</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.procurement.productInfo}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.service_tab.quantity}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.procurement.customerSale}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.status}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.procurement.supplierQuery}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -282,8 +282,8 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <Package className="w-12 h-12 text-gray-300" />
-                      <p className="text-gray-500 font-medium">Tedarik edilecek ürün bulunmuyor.</p>
-                      <p className="text-sm text-gray-400">Satışa dönüşen tekliflerdeki stokta olmayan ürünler burada listelenir.</p>
+                      <p className="text-gray-500 font-medium">{t.procurement.noProcurementItems}</p>
+                      <p className="text-sm text-gray-400">{t.procurement.noProcurementItemsDesc}</p>
                     </div>
                   </td>
                 </tr>
@@ -297,20 +297,20 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-gray-700 font-medium">{item.quantity} Adet</span>
+                      <span className="text-gray-700 font-medium">{item.quantity} {t.procurement.units}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm text-gray-900">{item.sale_customer_name || 'Bilinmeyen Müşteri'}</span>
-                        <span className="text-xs text-indigo-600 font-medium">Satış #{item.sale_id}</span>
+                        <span className="text-sm text-gray-900">{item.sale_customer_name || t.procurement.unknownCustomer}</span>
+                        <span className="text-xs text-indigo-600 font-medium">{t.sale} #{item.sale_id}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(item.status)}`}>
                         {getStatusIcon(item.status)}
-                        {item.status === 'pending' ? 'Bekliyor' : 
-                         item.status === 'ordered' ? 'Sipariş Edildi' : 
-                         item.status === 'received' ? 'Teslim Alındı' : 'İptal Edildi'}
+                        {item.status === 'pending' ? t.procurement.statuses.pending : 
+                         item.status === 'ordered' ? t.procurement.statuses.ordered : 
+                         item.status === 'received' ? t.procurement.statuses.received : t.procurement.statuses.cancelled}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -325,7 +325,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                           ) : (
                             <Search className="w-3 h-3" />
                           )}
-                          API Sorgula
+                          {t.procurement.queryApi}
                         </button>
                         
                         {queryResults[item.id] && (
@@ -335,10 +335,10 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                                 <span className="font-medium text-gray-700">{res.supplier_name}:</span>
                                 <div className="flex items-center gap-2">
                                   <span className={res.stock >= item.quantity ? 'text-emerald-600' : 'text-rose-600'}>
-                                    Stok: {res.stock}
+                                    {t.service_tab.stock}: {res.stock}
                                   </span>
                                   <span className="text-indigo-600">
-                                    {res.price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                                    {res.price.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: 'TRY' })}
                                   </span>
                                   {!isViewer && (
                                     <button
@@ -348,7 +348,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                                         supplier_price: res.price
                                       })}
                                       className="p-0.5 text-indigo-600 hover:bg-indigo-50 rounded"
-                                      title="Sipariş Ver"
+                                      title={t.procurement.placeOrder}
                                     >
                                       <ChevronRight className="w-3 h-3" />
                                     </button>
@@ -361,8 +361,8 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                         
                         {item.supplier_id && (
                           <div className="text-[10px] text-gray-500 italic">
-                            Seçili: {supplierApis.find(a => a.id === item.supplier_id)?.name} 
-                            ({item.supplier_price?.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })})
+                            {t.procurement.selected}: {supplierApis.find(a => a.id === item.supplier_id)?.name} 
+                            ({item.supplier_price?.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: 'TRY' })})
                           </div>
                         )}
                       </div>
@@ -375,7 +375,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                               <button
                                 onClick={() => handleUpdateStatus(item.id, 'received')}
                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                title="Teslim Alındı"
+                                title={t.received}
                               >
                                 <CheckCircle2 className="w-5 h-5" />
                               </button>
@@ -384,7 +384,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                               <button
                                 onClick={() => handleUpdateStatus(item.id, 'cancelled')}
                                 className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="İptal Et"
+                                title={t.cancel}
                               >
                                 <XCircle className="w-5 h-5" />
                               </button>
@@ -392,7 +392,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                             <button
                               onClick={() => handleDeleteProcurement(item.id)}
                               className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                              title="Sil"
+                              title={t.delete}
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>
@@ -410,7 +410,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
         {totalPages > 1 && (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
             <p className="text-xs font-medium text-gray-500">
-              {procurements.length} kayıt
+              {procurements.length} {t.records}
             </p>
             <div className="flex items-center space-x-3">
               <button 
@@ -418,7 +418,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
               >
-                Önceki
+                {t.prev}
               </button>
               <div className="text-xs font-medium text-gray-600 tabular-nums">
                 {page} <span className="text-gray-300 mx-1">/</span> {totalPages}
@@ -428,7 +428,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
               >
-                Sonraki
+                {t.next}
               </button>
             </div>
           </div>
@@ -447,7 +447,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
             >
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900">
-                  {editingApi?.id ? 'API Kaynağını Düzenle' : 'Yeni API Kaynağı Ekle'}
+                  {editingApi?.id ? t.procurement.editApiSource : t.procurement.addNewApiSource}
                 </h3>
                 <button onClick={() => setIsApiModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                   <XCircle className="w-6 h-6" />
@@ -455,13 +455,13 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tedarikçi Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.procurement.supplierName}</label>
                   <input
                     type="text"
                     value={editingApi?.name || ''}
                     onChange={e => setEditingApi(prev => ({ ...prev!, name: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="Örn: ABC Elektronik"
+                    placeholder={t.procurement.example_supplier}
                   />
                 </div>
                 <div>
@@ -475,7 +475,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key (Opsiyonel)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key ({t.procurement.optional})</label>
                   <input
                     type="password"
                     value={editingApi?.api_key || ''}
@@ -487,7 +487,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                 <div className="bg-amber-50 p-3 rounded-lg flex gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
                   <p className="text-xs text-amber-700">
-                    API kaynağı, barkod parametresi ile JSON formatında <code>{"{ \"stock\": 10, \"price\": 150.00 }"}</code> yanıtı döndürmelidir.
+                    {t.procurement.apiSourceInfo}
                   </p>
                 </div>
               </div>
@@ -496,13 +496,13 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                   onClick={() => setIsApiModalOpen(false)}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
                 >
-                  İptal
+                  {t.cancel}
                 </button>
                 <button
                   onClick={handleSaveApi}
                   className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
                 >
-                  Kaydet
+                  {t.save}
                 </button>
               </div>
             </motion.div>
