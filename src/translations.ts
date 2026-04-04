@@ -305,6 +305,7 @@ export const translations: Record<string, any> = {
       procurements: "Tedarik",
       service: "Teknik Servis",
       purchase_invoices: "Alış Faturaları",
+      sales_invoices: "Satış Faturaları",
       products: "Ürünler",
       analytics: "Analizler",
       quotations: "Teklifler / Satış",
@@ -459,7 +460,12 @@ export const translations: Record<string, any> = {
         storeProfile: "Mağaza Profili",
         appearance: "Görünüm ve Vitrin",
         financial: "Finansal ve Ödemeler",
-        team: "Ekip ve Sosyal Medya"
+        team: "Ekip ve Sosyal Medya",
+        eStores: "E-Mağazalar",
+        currencyExchange: "Para-Döviz",
+        taxUnits: "Vergi Birimleri",
+        posSettings: "POS Ayarları",
+        webSettings: "Web Ayarları"
       },
       saveSettings: "Ayarları Kaydet",
       integrations: "Entegrasyonlar",
@@ -650,6 +656,57 @@ export const translations: Record<string, any> = {
         tax: "Vergi",
         inspection: "Muayene",
         kasko: "Kasko"
+      },
+      service_tab: {
+        title: "Teknik Servis",
+        description: "Cihaz kayıtlarını ve onarım süreçlerini yönetin.",
+        newRecord: "Yeni Servis Kaydı",
+        deviceCustomer: "Cihaz / Müşteri",
+        deviceModel: "Cihaz Modeli",
+        customerName: "Müşteri Adı",
+        customerPhone: "Müşteri Telefonu",
+        issueDescription: "Arıza Açıklaması",
+        status: "Servis Durumu",
+        notesInternal: "Notlar (Dahili)",
+        partsAndLabor: "Parçalar ve İşçilik",
+        addPart: "Parça Ekle",
+        addLabor: "İşçilik Ekle",
+        unitPrice: "Birim Fiyat",
+        tax: "KDV",
+      taxRate: "KDV %",
+      taxAmount: "KDV Tutarı",
+      taxTotal: "KDV Toplam",
+        total: "Toplam",
+        convertToSale: "Satışa Dönüştür",
+        report: "Teknik Servis Raporu",
+        statuses: {
+          received: "Cihaz Kabul",
+          diagnosing: "Arıza Tespiti",
+          waitingApproval: "Onay Bekliyor",
+          repairing: "Onarımda",
+          ready: "Hazır",
+          delivered: "Teslim Edildi",
+          cancelled: "İptal Edildi"
+        }
+      },
+      procurement: {
+        title: "Tedarik Yönetimi",
+        description: "Stokta olmayan ürünlerin tedarik süreçlerini yönetin.",
+        apiSettings: "API Ayarları",
+        supplierApis: "Tedarikçi API Kaynakları",
+        newApi: "Yeni API Ekle",
+        productInfo: "Ürün Bilgisi",
+        customerSale: "Müşteri / Satış",
+        supplierQuery: "Tedarikçi Sorgu",
+        queryApi: "API Sorgula",
+        noRecords: "Tedarik edilecek ürün bulunmuyor.",
+        noRecordsDesc: "Satışa dönüşen tekliflerdeki stokta olmayan ürünler burada listelenir.",
+        statuses: {
+          pending: "Bekliyor",
+          ordered: "Sipariş Edildi",
+          received: "Teslim Alındı",
+          cancelled: "İptal Edildi"
+        }
       }
     },
     superAdmin: {
@@ -1013,6 +1070,7 @@ export const translations: Record<string, any> = {
       procurements: "Procurement",
       service: "Technical Service",
       purchase_invoices: "Purchase Invoices",
+      sales_invoices: "Sales Invoices",
       products: "Products",
       analytics: "Analytics",
       quotations: "Quotation / Sale",
@@ -1167,7 +1225,12 @@ export const translations: Record<string, any> = {
         storeProfile: "Store Profile",
         appearance: "Appearance & Showcase",
         financial: "Financial & Payments",
-        team: "Team & Social Media"
+        team: "Team & Social Media",
+        eStores: "E-Stores",
+        currencyExchange: "Currency-Exchange",
+        taxUnits: "Tax Units",
+        posSettings: "POS Settings",
+        webSettings: "Web Settings"
       },
       saveSettings: "Save Settings",
       integrations: "Integrations",
@@ -1355,6 +1418,65 @@ export const translations: Record<string, any> = {
       newRequests: "New Requests",
       totalStores: "Total Stores",
       newLeads: "New Sales Leads",
+      fleet_terms: {
+        insurance: "Insurance",
+        routine: "Routine Maintenance",
+        tires: "Tire Change",
+        tax: "Tax",
+        inspection: "Inspection",
+        kasko: "Comprehensive Insurance"
+      },
+      service_tab: {
+        title: "Technical Service",
+        description: "Manage device records and repair processes.",
+        newRecord: "New Service Record",
+        deviceCustomer: "Device / Customer",
+        deviceModel: "Device Model",
+        customerName: "Customer Name",
+        customerPhone: "Customer Phone",
+        issueDescription: "Issue Description",
+        status: "Service Status",
+        notesInternal: "Notes (Internal)",
+        partsAndLabor: "Parts and Labor",
+        addPart: "Add Part",
+        addLabor: "Add Labor",
+        unitPrice: "Unit Price",
+        tax: "VAT",
+        taxRate: "VAT %",
+        taxAmount: "VAT Amount",
+        taxTotal: "VAT Total",
+        total: "Total",
+        convertToSale: "Convert to Sale",
+        report: "Technical Service Report",
+        statuses: {
+          received: "Device Received",
+          diagnosing: "Diagnosing",
+          waitingApproval: "Waiting Approval",
+          repairing: "Repairing",
+          ready: "Ready",
+          delivered: "Delivered",
+          cancelled: "Cancelled"
+        }
+      },
+      procurement: {
+        title: "Procurement Management",
+        description: "Manage procurement processes for out-of-stock products.",
+        apiSettings: "API Settings",
+        supplierApis: "Supplier API Sources",
+        newApi: "Add New API",
+        productInfo: "Product Info",
+        customerSale: "Customer / Sale",
+        supplierQuery: "Supplier Query",
+        queryApi: "Query API",
+        noRecords: "No products to procure.",
+        noRecordsDesc: "Out-of-stock products from converted sales are listed here.",
+        statuses: {
+          pending: "Pending",
+          ordered: "Ordered",
+          received: "Received",
+          cancelled: "Cancelled"
+        }
+      }
     },
     superAdmin: {
       customerStore: "Customer / Store",
@@ -1992,6 +2114,65 @@ export const translations: Record<string, any> = {
       newRequests: "Neue Anfragen",
       totalStores: "Gesamt-Stores",
       newLeads: "Neue Verkaufsanfragen",
+      fleet_terms: {
+        insurance: "Versicherung",
+        routine: "Regelmäßige Wartung",
+        tires: "Reifenwechsel",
+        tax: "Steuer",
+        inspection: "Inspektion",
+        kasko: "Kaskoversicherung"
+      },
+      service_tab: {
+        title: "Technischer Service",
+        description: "Verwalten Sie Gerätedatensätze und Reparaturprozesse.",
+        newRecord: "Neuer Service-Datensatz",
+        deviceCustomer: "Gerät / Kunde",
+        deviceModel: "Gerätemodell",
+        customerName: "Kundenname",
+        customerPhone: "Kundentelefon",
+        issueDescription: "Problembeschreibung",
+        status: "Servicestatus",
+        notesInternal: "Notizen (Intern)",
+        partsAndLabor: "Teile und Arbeit",
+        addPart: "Teil hinzufügen",
+        addLabor: "Arbeit hinzufügen",
+        unitPrice: "Stückpreis",
+        tax: "MwSt",
+      taxRate: "MwSt %",
+      taxAmount: "MwSt Betrag",
+      taxTotal: "MwSt Gesamt",
+        total: "Gesamt",
+        convertToSale: "In Verkauf umwandeln",
+        report: "Technischer Servicebericht",
+        statuses: {
+          received: "Gerät erhalten",
+          diagnosing: "Diagnose",
+          waitingApproval: "Wartet auf Genehmigung",
+          repairing: "In Reparatur",
+          ready: "Bereit",
+          delivered: "Ausgeliefert",
+          cancelled: "Abgebrochen"
+        }
+      },
+      procurement: {
+        title: "Beschaffungsmanagement",
+        description: "Verwalten Sie Beschaffungsprozesse für nicht vorrätige Produkte.",
+        apiSettings: "API-Einstellungen",
+        supplierApis: "Lieferanten-API-Quellen",
+        newApi: "Neue API hinzufügen",
+        productInfo: "Produktinfo",
+        customerSale: "Kunde / Verkauf",
+        supplierQuery: "Lieferantenabfrage",
+        queryApi: "API abfragen",
+        noRecords: "Keine Produkte zu beschaffen.",
+        noRecordsDesc: "Nicht vorrätige Produkte aus umgewandelten Verkäufen werden hier aufgelistet.",
+        statuses: {
+          pending: "Ausstehend",
+          ordered: "Bestellt",
+          received: "Erhalten",
+          cancelled: "Abgebrochen"
+        }
+      }
     },
     superAdmin: {
       customerStore: "Kunde / Geschäft",

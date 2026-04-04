@@ -213,7 +213,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     
     vehicles.forEach(v => {
       if (v.maintenance_due && v.current_mileage >= v.maintenance_due) {
-        alerts.push({ type: 'maintenance', message: `${v.plate} için ${t.fleet_terms.routine || 'Bakım'} zamanı geldi! (${v.current_mileage.toLocaleString('tr-TR')} KM)`, icon: Wrench, color: 'text-red-600' });
+        alerts.push({ type: 'maintenance', message: `${v.plate} için ${(t as any).fleet_terms?.routine || 'Bakım'} zamanı geldi! (${v.current_mileage.toLocaleString('tr-TR')} KM)`, icon: Wrench, color: 'text-red-600' });
       }
     });
 

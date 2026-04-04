@@ -17,7 +17,9 @@ import {
   ChevronRight,
   Database
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
+import { translations } from '../../translations';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Procurement {
   id: number;
@@ -49,6 +51,8 @@ interface SupplierQueryResult {
 }
 
 export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> = ({ storeId, isViewer }) => {
+  const { lang } = useLanguage();
+  const t = translations[lang].dashboard;
   const [procurements, setProcurements] = useState<Procurement[]>([]);
   const [supplierApis, setSupplierApis] = useState<SupplierApi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,8 +181,8 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Tedarik Yönetimi</h2>
-          <p className="text-gray-500">Stokta olmayan ürünlerin tedarik süreçlerini yönetin.</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t.procurement.title}</h2>
+          <p className="text-gray-500">{t.procurement.description}</p>
         </div>
         <button
           onClick={() => setShowApiSettings(!showApiSettings)}

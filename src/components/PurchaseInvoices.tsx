@@ -304,7 +304,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       [isTr ? 'Satıcı' : 'Supplier']: inv.company_name,
       [isTr ? 'Vergi No' : 'Tax No']: inv.tax_number || '',
       [isTr ? 'Matrah' : 'Subtotal']: Number(inv.total_amount),
-      [isTr ? 'KDV' : 'Tax']: Number(inv.tax_amount),
+      [isTr ? 'KDV' : 'VAT']: Number(inv.tax_amount),
       [isTr ? 'Toplam' : 'Total']: Number(inv.grand_total),
       [isTr ? 'Para Birimi' : 'Currency']: inv.currency
     }));
@@ -345,7 +345,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         fixTr(isTr ? 'Fatura No' : 'Invoice No'),
         fixTr(isTr ? 'Cari' : 'Company'),
         fixTr(isTr ? 'Tutar' : 'Amount'),
-        fixTr(isTr ? 'KDV' : 'Tax'),
+        fixTr(isTr ? 'KDV' : 'VAT'),
         fixTr(isTr ? 'Genel Toplam' : 'Grand Total')
       ]],
       body: filteredInvoices.map((inv: any) => [
@@ -527,7 +527,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                 <th className="p-4 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
                 <th className="p-4 font-bold">{isTr ? "Vergi No" : "Tax No"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
-                <th className="p-4 font-bold text-right">{isTr ? "KDV" : "Tax"}</th>
+                <th className="p-4 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
                 <th className="p-4 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
@@ -849,7 +849,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                 <th className="p-3 text-xs font-medium text-slate-500 uppercase">{isTr ? "Ürün" : "Product"}</th>
                                 <th className="p-3 text-xs font-medium text-slate-500 uppercase w-24 text-center">{isTr ? "Adet" : "Qty"}</th>
                                 <th className="p-3 text-xs font-medium text-slate-500 uppercase w-36">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
-                                <th className="p-3 text-xs font-medium text-slate-500 uppercase w-24">{isTr ? "KDV %" : "Tax %"}</th>
+                                <th className="p-3 text-xs font-medium text-slate-500 uppercase w-24">{isTr ? "KDV %" : "VAT %"}</th>
                                 <th className="p-3 text-xs font-medium text-slate-500 uppercase w-36 text-right">{isTr ? "Toplam" : "Total"}</th>
                                 <th className="p-3 w-10"></th>
                               </tr>
@@ -972,7 +972,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                   </div>
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "KDV Oranı" : "Tax Rate"}</label>
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "KDV Oranı" : "VAT Rate"}</label>
                                   <input
                                     type="number"
                                     step="1"
@@ -1078,7 +1078,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         <span className="font-medium">{totals.subtotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}</span>
                       </div>
                       <div className="flex justify-between text-sm text-slate-600">
-                        <span>{isTr ? "KDV Toplam:" : "Tax Total:"}</span>
+                        <span>{isTr ? "KDV Toplam:" : "VAT Total:"}</span>
                         <span className="font-medium">{totals.taxTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}</span>
                       </div>
                       <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
@@ -1224,7 +1224,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                           <th className="p-3 text-xs font-medium text-slate-500 uppercase">{isTr ? "Ürün" : "Product"}</th>
                           <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "Adet" : "Qty"}</th>
                           <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
-                          <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "KDV" : "Tax"}</th>
+                          <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "KDV" : "VAT"}</th>
                           <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "Toplam" : "Total"}</th>
                         </tr>
                       </thead>
@@ -1259,7 +1259,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                       <span className="font-medium">{Number(selectedInvoice.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedInvoice.currency || 'TRY' })}</span>
                     </div>
                     <div className="flex justify-between text-sm text-slate-600">
-                      <span>{isTr ? "KDV Toplam:" : "Tax Total:"}</span>
+                      <span>{isTr ? "KDV Toplam:" : "VAT Total:"}</span>
                       <span className="font-medium">{Number(selectedInvoice.tax_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedInvoice.currency || 'TRY' })}</span>
                     </div>
                     <div className="pt-3 border-t border-slate-200 flex justify-between items-center">

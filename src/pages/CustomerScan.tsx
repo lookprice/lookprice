@@ -215,7 +215,7 @@ export default function CustomerScanPage() {
         alert(res.error);
       }
     } catch (e) {
-      alert("Sipariş oluşturulurken hata oluştu.");
+      alert(lang === 'tr' ? "Sipariş oluşturulurken hata oluştu." : "Error creating order.");
     } finally {
       setLoading(false);
     }
@@ -252,10 +252,10 @@ export default function CustomerScanPage() {
             <CheckCircle2 size={56} />
           </div>
           <h2 className="text-3xl font-black mb-3 text-gray-900">
-            {saleStatus === 'completed' ? (lang === 'tr' ? 'ÖDEME ALINDI!' : 'PAYMENT RECEIVED!') : t.saleCompleted.toUpperCase()}
+            {saleStatus === 'completed' ? (lang === 'tr' ? 'ÖDEME ALINDI!' : 'PAYMENT RECEIVED!') : (t.saleCompleted?.toUpperCase() || 'SALE COMPLETED')}
           </h2>
           <p className="text-gray-600 font-bold mb-8 text-lg">
-            {saleStatus === 'completed' ? (lang === 'tr' ? 'Alışverişiniz için teşekkür ederiz.' : 'Thank you for your purchase.') : t.orderSent}
+            {saleStatus === 'completed' ? (lang === 'tr' ? 'Alışverişiniz için teşekkür ederiz.' : 'Thank you for your purchase.') : (t.orderSent || 'Order sent')}
           </p>
           
           <div className="bg-gray-100 p-8 rounded-3xl mb-8 flex flex-col items-center border-2 border-gray-200">
@@ -448,7 +448,7 @@ export default function CustomerScanPage() {
                 </div>
                 <div className="text-center">
                   <h2 className="text-3xl font-black text-gray-900 leading-tight uppercase">{product.name}</h2>
-                  <p className="text-gray-500 mt-2 font-bold tracking-widest">BARKOD: {product.barcode}</p>
+                  <p className="text-gray-500 mt-2 font-bold tracking-widest">{lang === 'tr' ? 'BARKOD' : 'BARCODE'}: {product.barcode}</p>
                 </div>
                 <div className="p-8 rounded-[2.5rem] text-center shadow-[0_20px_40px_rgba(0,0,0,0.2)] transform -rotate-1 relative overflow-hidden" style={{ backgroundColor: primaryColor, color: contrastColor }}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
@@ -650,7 +650,7 @@ export default function CustomerScanPage() {
                     textShadow: contrastColor === 'white' ? '0 2px 4px rgba(0,0,0,0.3)' : 'none'
                   }}
                 >
-                  {isSendingToPos ? (lang === 'tr' ? "POS'A GÖNDERİLİYOR..." : "SENDING TO POS...") : (loading ? "İŞLENİYOR..." : t.checkout)}
+                  {isSendingToPos ? (lang === 'tr' ? "POS'A GÖNDERİLİYOR..." : "SENDING TO POS...") : (loading ? (lang === 'tr' ? "İŞLENİYOR..." : "PROCESSING...") : t.checkout)}
                 </button>
                 <button 
                   onClick={() => setShowBasket(false)}

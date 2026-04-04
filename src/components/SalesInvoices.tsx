@@ -372,7 +372,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       [isTr ? 'Müşteri / Cari' : 'Customer / Company']: inv.customer_name || inv.company_title || '-',
       [isTr ? 'Vergi No' : 'Tax No']: inv.tax_number || '',
       [isTr ? 'Matrah' : 'Subtotal']: Number(inv.total_amount),
-      [isTr ? 'KDV' : 'Tax']: Number(inv.tax_amount),
+      [isTr ? 'KDV' : 'VAT']: Number(inv.tax_amount),
       [isTr ? 'Toplam' : 'Total']: Number(inv.grand_total),
       [isTr ? 'Para Birimi' : 'Currency']: inv.currency,
       [isTr ? 'Durum' : 'Status']: inv.status === 'approved' ? (isTr ? 'Onaylandı' : 'Approved') : (inv.status === 'cancelled' ? (isTr ? 'İptal' : 'Cancelled') : (isTr ? 'Taslak' : 'Draft'))
@@ -444,7 +444,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     
     autoTable(doc, {
       startY: 130,
-      head: [[isTr ? 'Ürün' : 'Product', isTr ? 'Adet' : 'Qty', isTr ? 'Birim Fiyat' : 'Unit Price', isTr ? 'KDV' : 'Tax', isTr ? 'Toplam' : 'Total']],
+      head: [[isTr ? 'Ürün' : 'Product', isTr ? 'Adet' : 'Qty', isTr ? 'Birim Fiyat' : 'Unit Price', isTr ? 'KDV' : 'VAT', isTr ? 'Toplam' : 'Total']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
@@ -464,7 +464,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
     doc.text(isTr ? "Ara Toplam" : "Subtotal", totalsX, finalY + 15);
-    doc.text(isTr ? "KDV Toplam" : "Tax Total", totalsX, finalY + 22);
+    doc.text(isTr ? "KDV Toplam" : "VAT Total", totalsX, finalY + 22);
     
     doc.setTextColor(30, 41, 59);
     doc.text(`${Number(invoice.total_amount).toLocaleString('tr-TR')} ${invoice.currency}`, 190, finalY + 15, { align: 'right' });
@@ -597,7 +597,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Vergi No' : 'Tax No'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'Tax'}</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
@@ -1045,7 +1045,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{isTr ? 'Ürün' : 'Product'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-32">{isTr ? 'Adet' : 'Qty'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-40">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-32">{isTr ? 'KDV %' : 'Tax %'}</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-32">{isTr ? 'KDV %' : 'VAT %'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-44">{isTr ? 'Toplam' : 'Total'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-16"></th>
                           </tr>
@@ -1133,7 +1133,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <span className="font-bold">{totals.subtotal.toLocaleString('tr-TR')} {currency}</span>
                         </div>
                         <div className="flex justify-between items-center opacity-60">
-                          <span className="text-xs font-bold uppercase tracking-widest">{isTr ? 'KDV TOPLAM' : 'TAX TOTAL'}</span>
+                          <span className="text-xs font-bold uppercase tracking-widest">{isTr ? 'KDV TOPLAM' : 'VAT TOTAL'}</span>
                           <span className="font-bold">{totals.taxTotal.toLocaleString('tr-TR')} {currency}</span>
                         </div>
                       </div>

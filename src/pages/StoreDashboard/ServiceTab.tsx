@@ -27,7 +27,9 @@ import {
   Save,
   Download
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
+import { translations } from '../../translations';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Product } from '../../types';
 
 interface ServiceItem {
@@ -58,6 +60,8 @@ interface ServiceRecord {
 }
 
 export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; products: Product[] }> = ({ storeId, isViewer, products }) => {
+  const { lang } = useLanguage();
+  const t = translations[lang].dashboard;
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -415,8 +419,8 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Teknik Servis</h2>
-          <p className="text-gray-500">Cihaz kayıtlarını ve onarım süreçlerini yönetin.</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t.service_tab.title}</h2>
+          <p className="text-gray-500">{t.service_tab.description}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -436,7 +440,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
             >
               <Plus className="w-4 h-4" />
-              Yeni Servis Kaydı
+              {t.service_tab.newRecord}
             </button>
           )}
         </div>
@@ -602,7 +606,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     <Wrench className="h-5 w-5 text-indigo-600" />
                   </div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    {editingRecord?.id ? 'Servis Kaydını Düzenle' : 'Yeni Servis Kaydı'}
+                    {editingRecord?.id ? 'Servis Kaydını Düzenle' : t.service_tab.newRecord}
                   </h2>
                 </div>
                 <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -619,7 +623,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     </h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Müşteri Adı *</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.customerName} *</label>
                         <input
                           type="text"
                           value={editingRecord?.customer_name || ''}
@@ -647,7 +651,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     </h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cihaz Modeli *</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.deviceModel} *</label>
                         <input
                           type="text"
                           value={editingRecord?.device_model || ''}
@@ -673,7 +677,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 {/* Issue & Status */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Arıza Açıklaması</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.issueDescription}</label>
                     <textarea
                       value={editingRecord?.issue_description || ''}
                       onChange={(e) => setEditingRecord(prev => ({ ...prev!, issue_description: e.target.value }))}
@@ -682,21 +686,21 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     />
                   </div>
                   <div className="space-y-3">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Servis Durumu</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.status}</label>
                     <select
                       value={editingRecord?.status || 'received'}
                       onChange={(e) => setEditingRecord(prev => ({ ...prev!, status: e.target.value as any }))}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     >
-                      <option value="received">Cihaz Kabul</option>
-                      <option value="diagnosing">Arıza Tespiti</option>
-                      <option value="waiting_approval">Onay Bekliyor</option>
-                      <option value="repairing">Onarımda</option>
-                      <option value="ready">Hazır</option>
-                      <option value="delivered">Teslim Edildi</option>
-                      <option value="cancelled">İptal Edildi</option>
+                      <option value="received">{t.service_tab.statuses.received}</option>
+                      <option value="diagnosing">{t.service_tab.statuses.diagnosing}</option>
+                      <option value="waiting_approval">{t.service_tab.statuses.waitingApproval}</option>
+                      <option value="repairing">{t.service_tab.statuses.repairing}</option>
+                      <option value="ready">{t.service_tab.statuses.ready}</option>
+                      <option value="delivered">{t.service_tab.statuses.delivered}</option>
+                      <option value="cancelled">{t.service_tab.statuses.cancelled}</option>
                     </select>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mt-4 mb-1">Notlar (Dahili)</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mt-4 mb-1">{t.service_tab.notesInternal}</label>
                     <textarea
                       value={editingRecord?.notes || ''}
                       onChange={(e) => setEditingRecord(prev => ({ ...prev!, notes: e.target.value }))}
@@ -766,7 +770,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           />
                         </div>
                         <div className="w-32">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Birim Fiyat</label>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.unitPrice}</label>
                           <input
                             type="number"
                             value={item.unit_price}
@@ -775,7 +779,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           />
                         </div>
                         <div className="w-20">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">KDV %</label>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.taxRate}</label>
                           <input
                             type="number"
                             value={item.tax_rate}
@@ -784,7 +788,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           />
                         </div>
                         <div className="w-32">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Toplam</label>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.total}</label>
                           <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-700">
                             {item.total_price.toFixed(2)}
                           </div>
