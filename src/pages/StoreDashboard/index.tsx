@@ -61,6 +61,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
 import PurchaseInvoices from "../../components/PurchaseInvoices";
+import SalesInvoices from "../../components/SalesInvoices";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useProducts } from "../../hooks/useProducts";
 import { useQuotations } from "../../hooks/useQuotations";
@@ -671,6 +672,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
     { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
     { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+    { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
     { id: "companies", label: t.companies, icon: Store },
     { id: "fleet", label: lang === 'tr' ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
     { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
@@ -678,6 +680,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "audit-logs", label: lang === 'tr' ? "İşlem Geçmişi" : "Audit Logs", icon: History },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
+  console.log("navItems:", navItems);
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative">
@@ -854,6 +857,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                        activeTab === 'procurements' ? 'tedarik ve sipariş süreçlerini' :
                                        activeTab === 'fleet' ? 'araç envanteri ve filo yönetim süreçlerini' :
                                        activeTab === 'purchase_invoices' ? 'alış faturalarını ve tedarik işlemlerini' :
+                                       activeTab === 'sales_invoices' ? 'satış faturalarını ve resmi satış işlemlerini' :
                                        activeTab === 'companies' ? 'cari hesap ve finansal ilişkilerini' :
                                        activeTab === 'analytics' ? 'performans metriklerini' : 'sistem yapılandırmasını'} 
                   yönetmenize olanak tanır. Veriler gerçek zamanlı olarak senkronize edilir.
@@ -969,6 +973,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                     {activeTab === "purchase_invoices" && (
                       <PurchaseInvoices 
+                        storeId={currentStoreId} 
+                        role={user?.role} 
+                        lang={lang} 
+                        api={api} 
+                        branding={branding}
+                        onSave={fetchData}
+                      />
+                    )}
+                    {activeTab === "sales_invoices" && (
+                      <SalesInvoices 
                         storeId={currentStoreId} 
                         role={user?.role} 
                         lang={lang} 
@@ -1807,21 +1821,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{lang === 'tr' ? 'GÜNCEL BAKİYE' : 'CURRENT BALANCE'}</p>
+                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
                     <p className="text-2xl font-black">
-                      {Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balance).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
+                      {Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
                     </p>
                   </div>
                   <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM BORÇ' : 'TOTAL DEBT'}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
                     <p className="text-2xl font-black text-red-600">
-                      {companyTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
+                      {companyTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
                     </p>
                   </div>
                   <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM ALACAK' : 'TOTAL CREDIT'}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
                     <p className="text-2xl font-black text-green-600">
-                      {companyTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
+                      {companyTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
                     </p>
                   </div>
                 </div>
@@ -1835,18 +1849,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   ) : companyTransactions.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                       <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : 'No transactions in selected dates'}</p>
+                      <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : (lang === 'de' ? 'Keine Transaktionen in ausgewählten Daten' : 'No transactions in selected dates')}</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-gray-100">
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Tarih' : 'Date'}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Açıklama' : 'Description'}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'Borç' : 'Debt'}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'Alacak' : 'Credit'}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'Bakiye' : 'Balance'}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1860,10 +1874,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                               return (
                                 <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
                                   <td className="py-4 px-4">
-                                    <p className="text-xs font-bold text-gray-900">{new Date(t.transaction_date).toLocaleDateString('tr-TR')}</p>
+                                    <p className="text-xs font-bold text-gray-900">{new Date(t.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
                                     {t.due_date && (
                                       <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
-                                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(t.due_date).toLocaleDateString('tr-TR')}
+                                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(t.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                                       </span>
                                     )}
                                   </td>
@@ -1878,7 +1892,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                           }}
                                           className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
                                         >
-                                          #{t.sale_id} {lang === 'tr' ? 'Satış' : 'Sale'}
+                                          #{t.sale_id} {t.sources.pos}
                                         </button>
                                       )}
                                       {t.purchase_invoice_id && (
@@ -1886,24 +1900,24 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                           onClick={() => handleFetchPurchaseInvoiceDetails(t.purchase_invoice_id)}
                                           className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
                                         >
-                                          #{t.purchase_invoice_number || t.purchase_invoice_id} {lang === 'tr' ? 'Alış' : 'Purchase'}
+                                          #{t.purchase_invoice_number || t.purchase_invoice_id} {t.sources.purchase_invoice}
                                         </button>
                                       )}
                                     </div>
                                   </td>
                                   <td className="py-4 px-4 text-right">
                                     {t.type === 'debt' ? (
-                                      <span className="text-xs font-black text-red-600">{amount.toLocaleString('tr-TR')}</span>
+                                      <span className="text-xs font-black text-red-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
                                     ) : '-'}
                                   </td>
                                   <td className="py-4 px-4 text-right">
                                     {t.type === 'credit' ? (
-                                      <span className="text-xs font-black text-green-600">{amount.toLocaleString('tr-TR')}</span>
+                                      <span className="text-xs font-black text-green-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
                                     ) : '-'}
                                   </td>
                                   <td className="py-4 px-4 text-right">
                                     <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                                      {runningBalance.toLocaleString('tr-TR')}
+                                      {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                                     </span>
                                   </td>
                                 </tr>

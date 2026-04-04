@@ -19,9 +19,10 @@ interface Movement {
 interface ProductMovementModalProps {
   product: any;
   onClose: () => void;
+  branding: any;
 }
 
-const ProductMovementModal = ({ product, onClose }: ProductMovementModalProps) => {
+const ProductMovementModal = ({ product, onClose, branding }: ProductMovementModalProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -48,7 +49,7 @@ const ProductMovementModal = ({ product, onClose }: ProductMovementModalProps) =
   const handleExport = async () => {
     try {
       setExporting(true);
-      await api.download(`/api/store/products/${product.id}/movements/export`, `hareketler_${product.name.replace(/\s+/g, '_')}.xlsx`);
+      await api.download(`/api/store/products/${product.id}/movements/export?lang=${lang}`, `${lang === 'tr' ? 'hareketler' : 'movements'}_${product.name.replace(/\s+/g, '_')}.xlsx`);
     } catch (err) {
       console.error(err);
       alert(lang === 'tr' ? 'Dışa aktarma başarısız oldu' : 'Export failed');
@@ -96,14 +97,16 @@ const ProductMovementModal = ({ product, onClose }: ProductMovementModalProps) =
                     )}
                     <div>
                       <div className="font-bold text-slate-900">{m.description}</div>
-                      <div className="text-xs text-slate-500">{new Date(m.created_at).toLocaleString('tr-TR')} - {lang === 'tr' ? 'Kaynak' : 'Source'}: {m.source}</div>
+                      <div className="text-xs text-slate-500">
+                        {new Date(m.created_at).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} - {t.statements.source}: {t.sources[m.source] || m.source}
+                      </div>
                       {(m.customer_info || m.unit_price != null) && (
                         <div className="text-xs text-slate-600 mt-1 flex gap-3">
                           {m.customer_info && (
-                            <span><span className="font-medium">{lang === 'tr' ? 'Müşteri/Tedarikçi' : 'Customer/Supplier'}:</span> {m.customer_info}</span>
+                            <span><span className="font-medium">{t.statements.customerSupplier}:</span> {m.customer_info}</span>
                           )}
                           {m.unit_price != null && (
-                            <span><span className="font-medium">{lang === 'tr' ? 'Birim Fiyat' : 'Unit Price'}:</span> {m.unit_price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</span>
+                            <span><span className="font-medium">{t.statements.unitPrice}:</span> {m.unit_price.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding.default_currency || 'TRY' })}</span>
                           )}
                         </div>
                       )}

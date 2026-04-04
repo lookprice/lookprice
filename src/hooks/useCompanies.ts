@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { api } from "../services/api";
+import { translations } from "../translations";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -66,21 +67,22 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
 
   const handleExportCompanies = () => {
     const isTr = lang === 'tr';
+    const t = translations[lang].dashboard;
     const data = companies.map(c => ({
-      [isTr ? 'Firma/Müşteri Adı' : 'Company/Customer Name']: c.title,
+      [t.statements.customerSupplier]: c.title,
       [isTr ? 'Yetkili' : 'Contact Person']: c.contact_person || c.representative || '-',
       [isTr ? 'Vergi Dairesi' : 'Tax Office']: c.tax_office || '-',
       [isTr ? 'Vergi No' : 'Tax Number']: c.tax_number || '-',
       [isTr ? 'Telefon' : 'Phone']: c.phone || '-',
       [isTr ? 'E-posta' : 'Email']: c.email || '-',
-      [isTr ? 'Bakiye' : 'Balance']: c.balance,
+      [t.statements.balance]: c.balance,
       [isTr ? 'Adres' : 'Address']: c.address || '-'
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, isTr ? "Firmalar" : "Companies");
-    XLSX.writeFile(wb, `Firma_Listesi_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `${isTr ? 'Firma_Listesi' : 'Company_List'}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleFetchTransactions = async (companyId: number) => {
@@ -100,6 +102,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     if (!selectedCompany) return;
     const doc = new jsPDF();
     const isTr = lang === 'tr';
+    const t = translations[lang].dashboard;
     
     const fixTr = (text: any) => {
       if (text === null || text === undefined) return "";
@@ -169,14 +172,14 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
-    doc.text(fixTr(isTr ? 'HESAP EKSTRESI' : 'ACCOUNT STATEMENT'), 14, yPos);
+    doc.text(fixTr(t.statements.customerStatement.toUpperCase()), 14, yPos);
     yPos += 8;
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`${fixTr(isTr ? 'Firma:' : 'Company:')} ${fixTr(selectedCompany.title)}`, 14, yPos);
     yPos += 6;
-    doc.text(`${fixTr(isTr ? 'Tarih Araligi:' : 'Date Range:')} ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
+    doc.text(`${fixTr(isTr ? 'Tarih Araligi:' : 'Date Range:')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
     yPos += 10;
 
     let runningBalance = 0;
@@ -197,11 +200,11 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     autoTable(doc, {
       startY: yPos,
       head: [[
-        fixTr(isTr ? 'Tarih' : 'Date'),
-        fixTr(isTr ? 'Aciklama' : 'Description'),
-        fixTr(isTr ? 'Borc' : 'Debt'),
-        fixTr(isTr ? 'Alacak' : 'Credit'),
-        fixTr(isTr ? 'Bakiye' : 'Balance')
+        fixTr(t.statements.date),
+        fixTr(t.statements.description),
+        fixTr(t.statements.debt),
+        fixTr(t.statements.credit),
+        fixTr(t.statements.balance)
       ]],
       body: tableData,
       theme: 'grid',
@@ -217,9 +220,9 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`${fixTr(isTr ? 'Guncel Bakiye:' : 'Current Balance:')} ${Number(selectedCompany.balance).toLocaleString()} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
+    doc.text(`${fixTr(t.statements.balance)}: ${Number(selectedCompany.balance).toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
 
-    doc.save(`hesap_ekstresi_${selectedCompany.title}_${transactionStartDate}_${transactionEndDate}.pdf`);
+    doc.save(`${isTr ? 'hesap_ekstresi' : 'account_statement'}_${selectedCompany.title}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {

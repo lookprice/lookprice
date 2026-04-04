@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { useState, useCallback, useEffect } from "react";
 import { api } from "../services/api";
+import { translations } from "../translations";
 import { Product } from "../types";
 
 export const useProducts = (user: any, slug: string | undefined, includeBranches: boolean, branding: any, planLimits: Record<string, number>, lang: string) => {
@@ -275,18 +276,19 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
 
   const handleExportProducts = () => {
     const isTr = lang === 'tr';
+    const t = translations[lang].dashboard;
     const data = products.map(p => ({
-      [isTr ? 'Barkod' : 'Barcode']: p.barcode,
-      [isTr ? 'Ürün Adı' : 'Product Name']: p.name,
+      [t.barcode]: p.barcode,
+      [t.productName]: p.name,
       [isTr ? 'Kategori' : 'Category']: p.category,
       [isTr ? 'Alt Kategori' : 'Sub-Category']: p.sub_category || '',
       [isTr ? 'Marka' : 'Brand']: p.brand || '',
       [isTr ? 'Yazar' : 'Author']: p.author || '',
-      [isTr ? 'Fiyat' : 'Price']: p.price,
+      [t.price]: p.price,
       [isTr ? 'Para Birimi' : 'Currency']: p.currency,
       [isTr ? 'Maliyet Fiyatı' : 'Cost Price']: p.cost_price || 0,
       [isTr ? 'Maliyet Para Birimi' : 'Cost Currency']: p.cost_currency || '',
-      [isTr ? 'Stok' : 'Stock']: p.stock_quantity,
+      [t.stock]: p.stock_quantity,
       [isTr ? 'Min Stok' : 'Min Stock']: p.min_stock_level || 0,
       [isTr ? 'Birim' : 'Unit']: p.unit || '',
       [isTr ? 'KDV (%)' : 'Tax Rate (%)']: p.tax_rate || 0,
@@ -298,7 +300,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, isTr ? "Ürünler" : "Products");
-    XLSX.writeFile(wb, `Urun_Listesi_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `${isTr ? 'Urun_Listesi' : 'Product_List'}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   return {

@@ -103,6 +103,7 @@ const ProductsTab = ({
         <ProductMovementModal 
           product={selectedProduct} 
           onClose={() => setSelectedProduct(null)} 
+          branding={branding}
         />
       )}
       <div className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-slate-50/80 backdrop-blur-md border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

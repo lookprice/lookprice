@@ -69,25 +69,74 @@ router.get("/products/:id/movements/export", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
     const { id } = req.params;
+    const lang = req.query.lang || 'tr';
+    const isTr = lang === 'tr';
     
+    const sourceTranslations: Record<string, Record<string, string>> = {
+      tr: {
+        quotation: "Teklif",
+        purchase_invoice: "Alış Faturası",
+        pos: "Satış (POS)",
+        manual: "Manuel İşlem",
+        sale_payment: "Satış Ödemesi",
+        term_sale: "Vadeli Satış",
+        collection: "Tahsilat",
+        stock_transfer: "Stok Transferi",
+        service: "Teknik Servis"
+      },
+      en: {
+        quotation: "Quotation",
+        purchase_invoice: "Purchase Invoice",
+        pos: "Sale (POS)",
+        manual: "Manual Entry",
+        sale_payment: "Sale Payment",
+        term_sale: "Term Sale",
+        collection: "Collection",
+        stock_transfer: "Stock Transfer",
+        service: "Technical Service"
+      },
+      de: {
+        quotation: "Angebot",
+        purchase_invoice: "Eingangsrechnung",
+        pos: "Verkauf (POS)",
+        manual: "Manueller Eintrag",
+        sale_payment: "Verkaufszahlung",
+        term_sale: "Terminverkauf",
+        collection: "Inkasso",
+        stock_transfer: "Lagerumbuchung",
+        service: "Technischer Service"
+      }
+    };
+
+    const colNames: Record<string, any> = {
+      tr: { date: "Tarih", type: "Tip", quantity: "Miktar", source: "Kaynak", description: "Açıklama", price: "Birim Fiyat", customer: "Müşteri/Tedarikçi" },
+      en: { date: "Date", type: "Type", quantity: "Quantity", source: "Source", description: "Description", price: "Unit Price", customer: "Customer/Supplier" },
+      de: { date: "Datum", type: "Typ", quantity: "Menge", source: "Quelle", description: "Beschreibung", price: "Einzelpreis", customer: "Kunde/Lieferant" }
+    };
+    const currentCols = colNames[lang as string] || colNames.tr;
+
     const productRes = await pool.query("SELECT name FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (productRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     const productName = productRes.rows[0].name;
 
     const result = await pool.query(
-      "SELECT created_at as \"Tarih\", type as \"Tip\", quantity as \"Miktar\", source as \"Kaynak\", description as \"Açıklama\", unit_price as \"Birim Fiyat\", customer_info as \"Müşteri/Tedarikçi\" FROM stock_movements WHERE product_id = $1 AND store_id = $2 ORDER BY created_at DESC",
+      "SELECT created_at, type, quantity, source, description, unit_price, customer_info FROM stock_movements WHERE product_id = $1 AND store_id = $2 ORDER BY created_at DESC",
       [id, storeId]
     );
 
     const movements = result.rows.map(m => ({
-      ...m,
-      "Tarih": new Date(m.Tarih).toLocaleString('tr-TR'),
-      "Tip": m.Tip === 'in' ? 'Giriş' : 'Çıkış'
+      [currentCols.date]: new Date(m.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
+      [currentCols.type]: m.type === 'in' ? (isTr ? 'Giriş' : (lang === 'de' ? 'Eingang' : 'In')) : (isTr ? 'Çıkış' : (lang === 'de' ? 'Ausgang' : 'Out')),
+      [currentCols.quantity]: m.quantity,
+      [currentCols.source]: (sourceTranslations[lang as string] || sourceTranslations.tr)[m.source] || m.source,
+      [currentCols.description]: m.description,
+      [currentCols.price]: m.unit_price,
+      [currentCols.customer]: m.customer_info
     }));
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(movements);
-    XLSX.utils.book_append_sheet(wb, ws, "Hareketler");
+    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Hareketler" : (lang === 'de' ? "Bewegungen" : "Movements"));
     
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
     
