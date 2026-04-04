@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useDeferredValue } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2 } from "lucide-react";
+import React, { useState, useEffect, useDeferredValue, useRef } from "react";
+import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2, Printer } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useReactToPrint } from 'react-to-print';
 
 export default function SalesInvoices({ storeId, role, lang, api, branding, onSave }: any) {
   const [invoices, setInvoices] = useState([]);
@@ -18,6 +19,56 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const deferredSearch = useDeferredValue(search);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const invoiceRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: invoiceRef,
+  });
+
+  const handleDownloadPDF = () => {
+    if (!selectedInvoice) return;
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text(branding?.name || "Fatura", 14, 20);
+    doc.setFontSize(10);
+    doc.text(branding?.address || "", 14, 26);
+    doc.text(branding?.phone || "", 14, 30);
+    doc.text(branding?.email || "", 14, 34);
+
+    // Invoice Info
+    doc.setFontSize(12);
+    doc.text(`Fatura No: ${selectedInvoice.invoice_number}`, 140, 20);
+    doc.text(`Tarih: ${new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}`, 140, 26);
+
+    // Customer Info
+    doc.setFontSize(12);
+    doc.text("Müşteri Bilgileri:", 14, 50);
+    doc.setFontSize(10);
+    doc.text(selectedInvoice.customer_name || selectedInvoice.company_title || "", 14, 56);
+    doc.text(selectedInvoice.customer_phone || "", 14, 60);
+
+    // Items Table
+    const tableData = (selectedInvoice.items || []).map((item: any) => [
+      item.product_name,
+      item.quantity,
+      Number(item.unit_price).toLocaleString('tr-TR', { style: 'currency', currency: selectedInvoice.currency }),
+      Number(item.total_price).toLocaleString('tr-TR', { style: 'currency', currency: selectedInvoice.currency })
+    ]);
+
+    autoTable(doc, {
+      startY: 70,
+      head: [['Ürün', 'Adet', 'Birim Fiyat', 'Toplam']],
+      body: tableData,
+    });
+
+    // Totals
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.text(`Genel Toplam: ${Number(selectedInvoice.total_amount).toLocaleString('tr-TR', { style: 'currency', currency: selectedInvoice.currency })}`, 140, finalY);
+
+    doc.save(`fatura_${selectedInvoice.invoice_number}.pdf`);
+  };
 
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
@@ -55,7 +106,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
   const isTr = lang === 'tr';
 
-  const numberToTurkishWords = (number: number) => {
+  const numberToTurkishWords = (number: number, currency: string = 'TRY') => {
     const units = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
     const tens = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
     const thousands = ["", "Bin", "Milyon", "Milyar", "Trilyon"];
@@ -103,10 +154,17 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       }
     }
 
-    result += "TL";
+    const currencyMap: { [key: string]: { main: string, sub: string } } = {
+      'TRY': { main: 'TL', sub: 'Kr' },
+      'USD': { main: 'USD', sub: 'Cent' },
+      'EUR': { main: 'EUR', sub: 'Cent' }
+    };
+
+    const cur = currencyMap[currency] || { main: currency, sub: '' };
+    result += cur.main;
 
     if (decimalPart > 0) {
-      result += convertThreeDigits(decimalPart) + "Kr";
+      result += " " + convertThreeDigits(decimalPart) + " " + cur.sub;
     }
 
     return result;
@@ -1140,7 +1198,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                         <div className="space-y-2">
                           <span className="text-sm font-black uppercase tracking-[0.2em] block">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
                           <div className="text-[10px] font-bold text-indigo-300 italic">
-                            {isTr ? 'Yalnız: ' : 'Only: '} {numberToTurkishWords(totals.grandTotal)}
+                            {isTr ? 'Yalnız: ' : 'Only: '} {numberToTurkishWords(totals.grandTotal, currency)}
                           </div>
                         </div>
                         <div className="text-right flex items-baseline gap-2">
@@ -1194,11 +1252,19 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'Satış Faturası Detayı' : 'Sales Invoice Details'}</h3>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">#{selectedInvoice.invoice_number}</p>
                 </div>
-                <button onClick={() => setShowDetailsModal(false)} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
-                  <X className="h-6 w-6 text-slate-400" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={handlePrint} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
+                    <Printer className="h-6 w-6 text-slate-400" />
+                  </button>
+                  <button onClick={handleDownloadPDF} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
+                    <Download className="h-6 w-6 text-slate-400" />
+                  </button>
+                  <button onClick={() => setShowDetailsModal(false)} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
+                    <X className="h-6 w-6 text-slate-400" />
+                  </button>
+                </div>
               </div>
-              <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
+              <div ref={invoiceRef} className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</p>
