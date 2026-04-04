@@ -104,20 +104,20 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     };
 
     doc.setFontSize(18);
-    doc.text(replaceTurkishChars(`Teknik Servis Raporu - #${record.id}`), 10, 15);
+    doc.text(replaceTurkishChars(`${t.service_tab.report} - #${record.id}`), 10, 15);
     
     // Store Info
     if (storeInfo) {
       doc.setFontSize(10);
-      doc.text(replaceTurkishChars(`Magaza: ${storeInfo.name || ''}`), 150, 15);
-      doc.text(replaceTurkishChars(`Adres: ${storeInfo.address || ''}`), 150, 20);
+      doc.text(replaceTurkishChars(`${t.service_tab.store}: ${storeInfo.name || ''}`), 150, 15);
+      doc.text(replaceTurkishChars(`${t.service_tab.address}: ${storeInfo.address || ''}`), 150, 20);
     }
     
     doc.setFontSize(12);
-    doc.text(replaceTurkishChars(`Musteri: ${record.customer_name}`), 10, 25);
-    doc.text(replaceTurkishChars(`Cihaz: ${record.device_model}`), 10, 32);
-    doc.text(replaceTurkishChars(`Durum: ${record.status}`), 10, 39);
-    doc.text(replaceTurkishChars(`Tarih: ${new Date().toLocaleDateString()}`), 10, 46);
+    doc.text(replaceTurkishChars(`${t.service_tab.customer}: ${record.customer_name}`), 10, 25);
+    doc.text(replaceTurkishChars(`${t.service_tab.device}: ${record.device_model}`), 10, 32);
+    doc.text(replaceTurkishChars(`${t.service_tab.status}: ${t.service_tab.statuses[record.status]}`), 10, 39);
+    doc.text(replaceTurkishChars(`${t.service_tab.date}: ${new Date().toLocaleDateString()}`), 10, 46);
     
     const tableData = (record.items || []).map(item => [
       replaceTurkishChars(item.item_name),
@@ -127,7 +127,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     ]);
     
     autoTable(doc, {
-      head: [['Urun/Hizmet', 'Miktar', 'Birim Fiyat', 'Toplam']],
+      head: [[t.service_tab.itemService, t.service_tab.quantity, t.service_tab.unitPrice, t.service_tab.total]],
       body: tableData,
       startY: 55,
       theme: 'grid',
@@ -136,29 +136,29 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(14);
-    doc.text(replaceTurkishChars(`Toplam Tutar: ${record.total_amount} ${record.currency}`), 10, finalY);
+    doc.text(replaceTurkishChars(`${t.service_tab.totalAmount}: ${record.total_amount} ${record.currency}`), 10, finalY);
     
     doc.setFontSize(10);
-    doc.text(replaceTurkishChars('Servis Notlari:'), 10, finalY + 10);
+    doc.text(replaceTurkishChars(`${t.service_tab.serviceNotes}:`), 10, finalY + 10);
     doc.text(replaceTurkishChars('--------------------------------------------------'), 10, finalY + 13);
-    doc.text(replaceTurkishChars('Garanti Sartlari: Yapilan islemler 3 ay garantilidir.'), 10, finalY + 17);
-    doc.text(replaceTurkishChars('Servisimizden alinan hizmetler icin tesekkur ederiz.'), 10, finalY + 21);
+    doc.text(replaceTurkishChars(t.service_tab.warrantyTerms), 10, finalY + 17);
+    doc.text(replaceTurkishChars(t.service_tab.thankYouService), 10, finalY + 21);
     
     doc.save(`teknik_servis_${record.id}.pdf`);
   };
 
   const generateExcel = () => {
     const data = records.filter(r => statusFilter === 'all' || r.status === statusFilter).map(r => ({
-      'Servis No': r.id,
-      'Müşteri Adı': r.customer_name,
-      'Cihaz Modeli': r.device_model,
-      'Durum': r.status,
-      'Tarih': r.created_at,
-      'Toplam Tutar': r.total_amount
+      [t.service_tab.serviceNo]: r.id,
+      [t.service_tab.customerName]: r.customer_name,
+      [t.service_tab.deviceModel]: r.device_model,
+      [t.service_tab.status]: t.service_tab.statuses[r.status],
+      [t.service_tab.date]: r.created_at,
+      [t.service_tab.totalAmount]: r.total_amount
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Servis Kayıtları");
+    XLSX.utils.book_append_sheet(wb, ws, t.service_tab.serviceRecords);
     XLSX.writeFile(wb, "servis_kayitlari.xlsx");
   };
 
@@ -180,7 +180,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
   const handleSaveRecord = async () => {
     if (!editingRecord?.customer_name || !editingRecord?.device_model) {
-      alert("Lütfen müşteri adı ve cihaz modelini doldurun.");
+      alert(t.service_tab.fillRequiredFields);
       return;
     }
 
@@ -205,7 +205,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   };
 
   const handleDeleteRecord = async (id: number) => {
-    if (!window.confirm("Bu servis kaydını silmek istediğinize emin misiniz?")) return;
+    if (!window.confirm(t.service_tab.deleteServiceConfirm)) return;
     try {
       await api.deleteServiceRecord(id, storeId);
       fetchRecords();
@@ -252,7 +252,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
   const addItem = (type: 'part' | 'labor') => {
     const newItem: ServiceItem = {
-      item_name: type === 'labor' ? 'İşçilik Ücreti' : '',
+      item_name: type === 'labor' ? t.service_tab.laborCost : '',
       quantity: 1,
       unit_price: 0,
       tax_rate: 20,
@@ -297,16 +297,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   };
 
   const getStatusLabel = (status: ServiceRecord['status']) => {
-    switch (status) {
-      case 'received': return 'Cihaz Kabul';
-      case 'diagnosing': return 'Arıza Tespiti';
-      case 'waiting_approval': return 'Onay Bekliyor';
-      case 'repairing': return 'Onarımda';
-      case 'ready': return 'Hazır';
-      case 'delivered': return 'Teslim Edildi';
-      case 'cancelled': return 'İptal Edildi';
-      default: return status;
-    }
+    return t.service_tab.statuses[status] || status;
   };
 
   const filteredRecords = records.filter(r => {
@@ -391,25 +382,25 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100">
-                <h3 className="text-lg font-bold text-slate-900">Satışa Dönüştür</h3>
+                <h3 className="text-lg font-bold text-slate-900">{t.service_tab.convertToSale}</h3>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ödeme Yöntemi</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t.service_tab.paymentMethod}</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="cash">Nakit</option>
-                    <option value="credit_card">Kredi Kartı</option>
-                    <option value="bank_transfer">Havale/EFT</option>
-                    <option value="company">Cari Hesap</option>
+                    <option value="cash">{t.service_tab.cash}</option>
+                    <option value="credit_card">{t.service_tab.creditCard}</option>
+                    <option value="bank_transfer">{t.service_tab.bankTransfer}</option>
+                    <option value="company">{t.service_tab.currentAccount}</option>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
-                  <button onClick={() => setShowConversionModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">İptal</button>
-                  <button onClick={handleConvertToSale} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Onayla</button>
+                  <button onClick={() => setShowConversionModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">{t.common.cancel}</button>
+                  <button onClick={handleConvertToSale} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">{t.service_tab.confirm}</button>
                 </div>
               </div>
             </motion.div>
@@ -428,7 +419,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
           >
             <FileText className="w-4 h-4" />
-            Excel Raporu
+            {t.service_tab.excelReport}
           </button>
           {!isViewer && (
             <button
@@ -451,7 +442,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Müşteri, cihaz veya seri no ile ara..."
+            placeholder={t.service_tab.searchPlaceholderService}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -464,14 +455,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm"
           >
-            <option value="all">Tüm Durumlar</option>
-            <option value="received">Cihaz Kabul</option>
-            <option value="diagnosing">Arıza Tespiti</option>
-            <option value="waiting_approval">Onay Bekliyor</option>
-            <option value="repairing">Onarımda</option>
-            <option value="ready">Hazır</option>
-            <option value="delivered">Teslim Edildi</option>
-            <option value="cancelled">İptal Edildi</option>
+            <option value="all">{t.service_tab.allStatuses}</option>
+            {Object.entries(t.service_tab.statuses).map(([key, label]) => (
+              <option key={key} value={key}>{label as string}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -481,11 +468,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Cihaz / Müşteri</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Durum</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tutar</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tarih</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">İşlemler</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.service_tab.deviceCustomer}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.service_tab.status}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.service_tab.amount}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.service_tab.date}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">{t.service_tab.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -500,7 +487,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <Wrench className="w-12 h-12 opacity-20" />
-                      <p>Kayıt bulunamadı.</p>
+                      <p>{t.service_tab.noRecordsFound}</p>
                     </div>
                   </td>
                 </tr>
@@ -531,7 +518,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         <button
                           onClick={() => handleViewDetails(record)}
                           className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
-                          title="Detaylar"
+                          title={t.service_tab.details}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -540,14 +527,14 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                             <button
                               onClick={() => handleEdit(record)}
                               className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                              title="Düzenle"
+                              title={t.service_tab.edit}
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteRecord(record.id)}
                               className="p-2 text-gray-400 hover:text-rose-600 transition-colors"
-                              title="Sil"
+                              title={t.service_tab.delete}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -565,7 +552,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         {totalPages > 1 && (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
             <p className="text-xs font-medium text-gray-500">
-              {filteredRecords.length} kayıt
+              {filteredRecords.length} {t.service_tab.records}
             </p>
             <div className="flex items-center space-x-3">
               <button 
@@ -573,7 +560,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
               >
-                Önceki
+                {t.service_tab.prev}
               </button>
               <div className="text-xs font-medium text-gray-600 tabular-nums">
                 {page} <span className="text-gray-300 mx-1">/</span> {totalPages}
@@ -583,7 +570,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors"
               >
-                Sonraki
+                {t.service_tab.next}
               </button>
             </div>
           </div>
@@ -606,7 +593,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     <Wrench className="h-5 w-5 text-indigo-600" />
                   </div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    {editingRecord?.id ? 'Servis Kaydını Düzenle' : t.service_tab.newRecord}
+                    {editingRecord?.id ? t.service_tab.editServiceRecord : t.service_tab.newRecord}
                   </h2>
                 </div>
                 <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -619,7 +606,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <User className="w-4 h-4" /> Müşteri Bilgileri
+                      <User className="w-4 h-4" /> {t.service_tab.customerInfo}
                     </h3>
                     <div className="space-y-3">
                       <div>
@@ -629,17 +616,17 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           value={editingRecord?.customer_name || ''}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, customer_name: e.target.value }))}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                          placeholder="Ad Soyad"
+                          placeholder={t.service_tab.fullName}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefon</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.phone}</label>
                         <input
                           type="text"
                           value={editingRecord?.customer_phone || ''}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, customer_phone: e.target.value }))}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                          placeholder="05xx xxx xx xx"
+                          placeholder={t.service_tab.phonePlaceholder}
                         />
                       </div>
                     </div>
@@ -647,7 +634,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <Smartphone className="w-4 h-4" /> Cihaz Bilgileri
+                      <Smartphone className="w-4 h-4" /> {t.service_tab.deviceInfo}
                     </h3>
                     <div className="space-y-3">
                       <div>
@@ -657,17 +644,17 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           value={editingRecord?.device_model || ''}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, device_model: e.target.value }))}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                          placeholder="Örn: iPhone 13 Pro"
+                          placeholder={t.service_tab.example_device}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Seri No / IMEI</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.serialImei}</label>
                         <input
                           type="text"
                           value={editingRecord?.device_serial || ''}
                           onChange={(e) => setEditingRecord(prev => ({ ...prev!, device_serial: e.target.value }))}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                          placeholder="Seri numarası"
+                          placeholder={t.service_tab.serialPlaceholder}
                         />
                       </div>
                     </div>
@@ -682,7 +669,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       value={editingRecord?.issue_description || ''}
                       onChange={(e) => setEditingRecord(prev => ({ ...prev!, issue_description: e.target.value }))}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-24 resize-none"
-                      placeholder="Müşteri şikayeti..."
+                      placeholder={t.service_tab.issuePlaceholder}
                     />
                   </div>
                   <div className="space-y-3">
@@ -705,7 +692,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       value={editingRecord?.notes || ''}
                       onChange={(e) => setEditingRecord(prev => ({ ...prev!, notes: e.target.value }))}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-20 resize-none"
-                      placeholder="Teknik servis notları..."
+                      placeholder={t.service_tab.notesPlaceholder}
                     />
                   </div>
                 </div>
@@ -714,20 +701,20 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <Package className="w-4 h-4" /> Parçalar ve İşçilik
+                      <Package className="w-4 h-4" /> {t.service_tab.partsAndLabor}
                     </h3>
                     <div className="flex gap-2">
                       <button
                         onClick={() => addItem('part')}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all"
                       >
-                        <Plus className="w-3 h-3" /> Parça Ekle
+                        <Plus className="w-3 h-3" /> {t.service_tab.addPart}
                       </button>
                       <button
                         onClick={() => addItem('labor')}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all"
                       >
-                        <Plus className="w-3 h-3" /> İşçilik Ekle
+                        <Plus className="w-3 h-3" /> {t.service_tab.addLabor}
                       </button>
                     </div>
                   </div>
@@ -737,7 +724,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <div key={index} className="flex flex-wrap md:flex-nowrap items-end gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         <div className="flex-1 min-w-[200px]">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            {item.type === 'part' ? 'Yedek Parça' : 'Hizmet / İşçilik'}
+                            {item.type === 'part' ? t.service_tab.sparePart : t.service_tab.laborService}
                           </label>
                           {item.type === 'part' ? (
                             <select
@@ -745,7 +732,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                               onChange={(e) => updateItem(index, { product_id: e.target.value ? Number(e.target.value) : null })}
                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
                             >
-                              <option value="">Parça Seçin...</option>
+                              <option value="">{t.service_tab.selectPart}</option>
                               {products.map(p => (
                                 <option key={p.id} value={p.id}>{p.name} ({p.stock_quantity} {p.unit})</option>
                               ))}
@@ -756,12 +743,12 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                               value={item.item_name}
                               onChange={(e) => updateItem(index, { item_name: e.target.value })}
                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
-                              placeholder="İşçilik açıklaması..."
+                              placeholder={t.service_tab.laborDescriptionPlaceholder}
                             />
                           )}
                         </div>
                         <div className="w-24">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Miktar</label>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.quantity}</label>
                           <input
                             type="number"
                             value={item.quantity}
@@ -803,7 +790,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     ))}
                     {serviceItems.length === 0 && (
                       <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-sm">
-                        Henüz parça veya işçilik eklenmedi.
+                        {t.service_tab.noRecordsFound}
                       </div>
                     )}
                   </div>
@@ -812,7 +799,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
                 <div className="text-right">
-                  <p className="text-xs font-bold text-slate-400 uppercase">Toplam Servis Bedeli</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase">{t.service_tab.totalAmount}</p>
                   <p className="text-2xl font-black text-slate-900">
                     {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: editingRecord?.currency || 'TRY' })}
                   </p>
@@ -822,14 +809,14 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     onClick={() => setShowModal(false)}
                     className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all"
                   >
-                    Vazgeç
+                    {t.common.cancel}
                   </button>
                   <button
                     onClick={handleSaveRecord}
                     className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center gap-2"
                   >
                     <Save className="w-4 h-4" />
-                    Kaydet
+                    {t.common.save}
                   </button>
                 </div>
               </div>
@@ -851,7 +838,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-indigo-600" />
-                  Servis Detayı #{selectedRecord.id}
+                  {t.service_tab.details} #{selectedRecord.id}
                 </h2>
                 <div className="flex items-center gap-2">
                   {selectedRecord.status === 'delivered' && (
@@ -860,13 +847,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-bold flex items-center gap-2"
                     >
                       <Check className="w-4 h-4" />
-                      Satışa Dönüştür
+                      {t.service_tab.convertToSale}
                     </button>
                   )}
                   <button
                     onClick={() => generatePDF(selectedRecord)}
                     className="p-2 hover:bg-slate-100 rounded-full transition-colors text-indigo-600"
-                    title="PDF İndir"
+                    title={t.common.downloadPdf}
                   >
                     <Download className="h-6 w-6" />
                   </button>
@@ -878,24 +865,24 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">Müşteri</h4>
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.customer}</h4>
                     <p className="font-bold text-slate-900">{selectedRecord.customer_name}</p>
                     <p className="text-sm text-slate-500">{selectedRecord.customer_phone}</p>
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">Cihaz</h4>
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.device}</h4>
                     <p className="font-bold text-slate-900">{selectedRecord.device_model}</p>
                     <p className="text-sm text-slate-500">SN: {selectedRecord.device_serial || '-'}</p>
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">Arıza / Şikayet</h4>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.issueDescription}</h4>
                   <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    {selectedRecord.issue_description || 'Açıklama yok.'}
+                    {selectedRecord.issue_description || t.common.noDescription}
                   </p>
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">Parçalar ve İşlemler</h4>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">{t.service_tab.partsAndLabor}</h4>
                   <div className="space-y-2">
                     {selectedRecord.items?.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between text-sm p-2 border-b border-slate-50">
@@ -904,7 +891,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           <span className="text-slate-700">{item.item_name} x{item.quantity}</span>
                         </div>
                         <span className="font-bold text-slate-900">
-                          {Number(item.total_price).toLocaleString('tr-TR', { style: 'currency', currency: selectedRecord.currency })}
+                          {Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedRecord.currency })}
                         </span>
                       </div>
                     ))}
@@ -915,7 +902,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     {getStatusLabel(selectedRecord.status)}
                   </span>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Toplam Tutar</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">{t.service_tab.totalAmount}</p>
                     <p className="text-xl font-black text-indigo-600">
                       {Number(selectedRecord.total_amount).toLocaleString('tr-TR', { style: 'currency', currency: selectedRecord.currency })}
                     </p>
@@ -924,13 +911,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               </div>
               <div className="p-6 bg-slate-50 flex justify-end gap-3">
                 <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
-                  <Printer className="w-4 h-4" /> Yazdır
+                  <Printer className="w-4 h-4" /> {t.common.print}
                 </button>
                 <button
                   onClick={() => setShowDetailsModal(false)}
                   className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
                 >
-                  Kapat
+                  {t.common.close}
                 </button>
               </div>
             </motion.div>
