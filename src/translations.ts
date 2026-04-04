@@ -250,6 +250,7 @@ export const translations: Record<string, any> = {
     },
     dashboard: {
       pos: "Satışlar",
+      transferFlow: "Transfer Akışı",
       stock_transfer: "Stok Transferi",
       newTransfer: "Yeni Stok Transferi",
       fromBranch: "Çıkış Şubesi",
@@ -1358,6 +1359,7 @@ export const translations: Record<string, any> = {
     },
     dashboard: {
       pos: "Sales",
+      transferFlow: "Transfer Flow",
       stock_transfer: "Stock Transfer",
       newTransfer: "New Stock Transfer",
       fromBranch: "From Branch",
@@ -2470,6 +2472,7 @@ export const translations: Record<string, any> = {
     },
     dashboard: {
       pos: "Kasse / POS",
+      transferFlow: "Transferfluss",
       stock_transfer: "Lagerumschlag",
       newTransfer: "Neue Lagerumbuchung",
       fromBranch: "Von Filiale",
@@ -2713,6 +2716,7 @@ export const translations: Record<string, any> = {
       procurements: "Beschaffung",
       service: "Technischer Service",
       purchase_invoices: "Eingangsrechnungen",
+      sales_invoices: "Ausgangsrechnungen",
       products: "Produkte",
       analytics: "Analysen",
       quotations: "Angebote / Verkauf",

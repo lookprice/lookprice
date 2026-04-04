@@ -1851,52 +1851,52 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <tbody>
                           {(() => {
                             let runningBalance = 0;
-                            return companyTransactions.map((t: any) => {
-                              const amount = Number(t.amount);
-                              if (t.type === 'debt') runningBalance += amount;
+                            return companyTransactions.map((tx: any) => {
+                              const amount = Number(tx.amount);
+                              if (tx.type === 'debt') runningBalance += amount;
                               else runningBalance -= amount;
 
                               return (
-                                <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
+                                <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
                                   <td className="py-4 px-4">
-                                    <p className="text-xs font-bold text-gray-900">{new Date(t.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                                    {t.due_date && (
+                                    <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
+                                    {tx.due_date && (
                                       <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
-                                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(t.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                                       </span>
                                     )}
                                   </td>
                                   <td className="py-4 px-4">
-                                    <p className="text-xs font-bold text-gray-700">{t.description}</p>
+                                    <p className="text-xs font-bold text-gray-700">{tx.description}</p>
                                     <div className="flex gap-2 mt-1">
-                                      {t.sale_id && (
+                                      {tx.sale_id && (
                                         <button 
                                           onClick={() => {
-                                            setSelectedSale({ id: t.sale_id });
+                                            setSelectedSale({ id: tx.sale_id });
                                             setShowSaleDetailsModal(true);
                                           }}
                                           className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
                                         >
-                                          #{t.sale_id} {t.sources.pos}
+                                          #{tx.sale_id} {t.sources.pos}
                                         </button>
                                       )}
-                                      {t.purchase_invoice_id && (
+                                      {tx.purchase_invoice_id && (
                                         <button 
-                                          onClick={() => handleFetchPurchaseInvoiceDetails(t.purchase_invoice_id)}
+                                          onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
                                           className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
                                         >
-                                          #{t.purchase_invoice_number || t.purchase_invoice_id} {t.sources.purchase_invoice}
+                                          #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
                                         </button>
                                       )}
                                     </div>
                                   </td>
                                   <td className="py-4 px-4 text-right">
-                                    {t.type === 'debt' ? (
+                                    {tx.type === 'debt' ? (
                                       <span className="text-xs font-black text-red-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
                                     ) : '-'}
                                   </td>
                                   <td className="py-4 px-4 text-right">
-                                    {t.type === 'credit' ? (
+                                    {tx.type === 'credit' ? (
                                       <span className="text-xs font-black text-green-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
                                     ) : '-'}
                                   </td>

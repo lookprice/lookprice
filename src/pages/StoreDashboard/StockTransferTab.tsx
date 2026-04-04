@@ -316,7 +316,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                 <thead>
                   <tr className="bg-gray-50/50 border-bottom border-gray-100">
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">ID</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t.transferFlow || 'Transfer Akışı'}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t.transferFlow}</th>
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t.products || 'Ürünler'}</th>
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t.status || 'Durum'}</th>
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{t.actions || 'İşlem'}</th>
