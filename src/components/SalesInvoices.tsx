@@ -499,6 +499,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Durum' : 'Status'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'İrsaliye No' : 'Waybill No'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Vergi No' : 'Tax No'}</th>
@@ -531,6 +532,19 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-900">#{inv.invoice_number}</div>
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        inv.status === 'draft' ? 'bg-amber-100 text-amber-700' :
+                        inv.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                        inv.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        {inv.status === 'draft' ? (isTr ? 'Taslak' : 'Draft') :
+                         inv.status === 'approved' ? (isTr ? 'Onaylandı' : 'Approved') :
+                         inv.status === 'cancelled' ? (isTr ? 'İptal' : 'Cancelled') :
+                         inv.status}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-600">
                       {inv.waybill_number || '-'}
@@ -995,9 +1009,12 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                                 <td className="px-6 py-4">
                                   <input 
                                     type="number"
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:bg-white transition-all"
+                                    className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:bg-white transition-all"
                                     value={item.tax_rate}
                                     onChange={(e) => updateItem(idx, 'tax_rate', e.target.value)}
+                                    min="0"
+                                    max="100"
+                                    step="1"
                                   />
                                 </td>
                                 <td className="px-6 py-4 text-right">
@@ -1111,7 +1128,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   </button>
                 </div>
               </div>
-              <div ref={invoiceRef} className="p-8 space-y-8 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
+              <div ref={invoiceRef} className="p-8 space-y-8 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-8 print:bg-white">
                 {/* Print Header */}
                 <div className="hidden print:block mb-8 border-b border-slate-200 pb-8">
                   <div className="flex justify-between items-start">
@@ -1129,29 +1146,29 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 print:bg-white print:border-slate-200">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</p>
                     <p className="text-lg font-black text-slate-900">{new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</p>
                   </div>
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 print:bg-white print:border-slate-200">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Ödeme Yöntemi' : 'Payment Method'}</p>
                     <p className="text-lg font-black text-slate-900 uppercase">{selectedInvoice.payment_method || '-'}</p>
                   </div>
                 </div>
 
-                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 print:bg-white print:border-slate-200">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
                   <div className="flex items-center gap-3">
-                    {selectedInvoice.company_id ? <Building2 className="h-5 w-5 text-indigo-600" /> : <UserIcon className="h-5 w-5 text-slate-400" />}
+                    {selectedInvoice.company_id ? <Building2 className="h-5 w-5 text-indigo-600 print:text-slate-600" /> : <UserIcon className="h-5 w-5 text-slate-400" />}
                     <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name || selectedInvoice.company_title || selectedInvoice.sale_customer_name || '-'}</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Ürünler' : 'Products'}</p>
-                  <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                  <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm print:shadow-none print:border-slate-200">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50">
+                      <thead className="bg-slate-50 print:bg-slate-100">
                         <tr>
                           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">{isTr ? 'Ürün' : 'Product'}</th>
                           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Adet' : 'Qty'}</th>
@@ -1159,7 +1176,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-50">
+                      <tbody className="divide-y divide-slate-50 print:divide-slate-200">
                         {(selectedInvoice.items || []).map((item: any, idx: number) => (
                           <tr key={idx}>
                             <td className="py-4 px-6 text-sm font-bold text-slate-700">{item.product_name}</td>
@@ -1174,17 +1191,17 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                 </div>
 
                 {selectedInvoice.notes && (
-                  <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100">
-                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">{isTr ? 'Notlar' : 'Notes'}</p>
-                    <p className="text-sm font-medium text-amber-900 leading-relaxed">{selectedInvoice.notes}</p>
+                  <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 print:bg-white print:border-slate-200">
+                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2 print:text-slate-500">{isTr ? 'Notlar' : 'Notes'}</p>
+                    <p className="text-sm font-medium text-amber-900 leading-relaxed print:text-slate-800">{selectedInvoice.notes}</p>
                   </div>
                 )}
 
-                <div className="p-8 bg-slate-900 rounded-[2rem] text-white flex justify-between items-center shadow-xl shadow-slate-200">
-                  <span className="text-sm font-black uppercase tracking-[0.2em] opacity-60">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
+                <div className="p-8 bg-slate-900 rounded-[2rem] text-white flex justify-between items-center shadow-xl shadow-slate-200 print:bg-white print:text-slate-900 print:shadow-none print:border-2 print:border-slate-900">
+                  <span className="text-sm font-black uppercase tracking-[0.2em] opacity-60 print:opacity-100">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
                   <div className="text-right">
                     <span className="text-3xl font-black tracking-tighter">{Number(selectedInvoice.grand_total).toLocaleString('tr-TR')}</span>
-                    <span className="text-xs font-bold opacity-40 uppercase tracking-widest ml-2">{selectedInvoice.currency}</span>
+                    <span className="text-xs font-bold opacity-40 uppercase tracking-widest ml-2 print:opacity-100">{selectedInvoice.currency}</span>
                   </div>
                 </div>
               </div>
