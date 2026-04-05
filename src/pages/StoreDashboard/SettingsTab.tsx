@@ -619,9 +619,9 @@ const SettingsTab = ({
                         <button 
                           onClick={() => {
                             const script = `
-const express = require('express');
-const cors = require('cors');
-const net = require('net');
+import express from 'express';
+import cors from 'cors';
+import net from 'net';
 
 const app = express();
 app.use(cors());
@@ -662,20 +662,21 @@ app.listen(PORT, () => {
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = 'lookprice-pos-bridge.js';
+                            a.download = 'lookprice-pos-bridge.mjs';
                             a.click();
                           }}
                           className="w-full py-4 bg-white border-2 border-slate-200 rounded-2xl text-xs font-black text-slate-900 uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center justify-center group"
                         >
                           <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
-                          {t.downloadBridgeFile || 'Köprü Dosyasını İndir (.js)'}
+                          {t.downloadBridgeFile || 'Köprü Dosyasını İndir (.mjs)'}
                         </button>
                         
                         <div className="mt-4 flex items-start space-x-2">
                           <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                          <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                            {t.posBridgeNote || 'Çalıştırmak için bilgisayarınızda Node.js kurulu olmalıdır. Terminalde "node lookprice-pos-bridge.js" komutunu çalıştırın.'}
-                          </p>
+                          <div className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                            <p>{t.posBridgeNote || 'Çalıştırmak için bilgisayarınızda Node.js kurulu olmalıdır. Terminalde şu komutları çalıştırın:'}</p>
+                            <code className="block bg-slate-100 p-2 rounded mt-1 text-slate-600">npm install express cors<br/>node lookprice-pos-bridge.mjs</code>
+                          </div>
                         </div>
                       </div>
                     </>
