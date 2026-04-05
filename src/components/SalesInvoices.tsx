@@ -335,6 +335,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
           unit_price: Number(item.unit_price) || 0,
           tax_rate: Number(item.tax_rate) || 0
         })),
+        payment_method: paymentMethod,
         currency,
         status
       };

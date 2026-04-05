@@ -408,7 +408,9 @@ export async function initDb() {
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS invoice_type TEXT DEFAULT 'manual';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS payment_method TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS payment_method TEXT;
       ALTER TABLE sales_invoices DROP CONSTRAINT IF EXISTS fk_invoice_sale;
       ALTER TABLE sales_invoices ADD CONSTRAINT fk_invoice_sale FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS currency_rates JSONB DEFAULT '{"USD": 1, "EUR": 1, "GBP": 1}';

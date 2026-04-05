@@ -2085,6 +2085,7 @@ router.post("/sales-invoices", async (req: any, res) => {
       items, 
       notes, 
       currency, 
+      payment_method,
       invoice_type,
       status
     } = req.body;
@@ -2112,9 +2113,9 @@ router.post("/sales-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || 'TRY', notes, invoice_type || 'manual', status || 'draft']
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status, payment_method) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || 'TRY', notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash']
     );
     
     const invoiceId = invoiceResult.rows[0].id;
