@@ -50,10 +50,12 @@ interface ServiceRecord {
   device_model: string;
   device_serial: string;
   issue_description: string;
-  status: 'received' | 'diagnosing' | 'waiting_approval' | 'repairing' | 'ready' | 'delivered' | 'cancelled';
+  status: 'received' | 'diagnosing' | 'waiting_approval' | 'repairing' | 'ready' | 'delivered' | 'cancelled' | 'converted_to_sale';
   notes: string;
   total_amount: number;
   currency: string;
+  quotation_id?: number;
+  is_converted_to_sale?: boolean;
   created_at: string;
   updated_at: string;
   items?: ServiceItem[];
@@ -61,6 +63,7 @@ interface ServiceRecord {
 
 export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; products: Product[] }> = ({ storeId, isViewer, products }) => {
   const { lang } = useLanguage();
+  const isTr = lang === 'tr';
   const t = translations[lang].dashboard;
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,6 +195,9 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     try {
       if (editingRecord.id) {
         await api.updateServiceRecord(editingRecord.id, data, storeId);
+        if (data.status === 'waiting_approval') {
+          alert(isTr ? "Teknik servis durumu 'Onay Bekliyor' olarak güncellendi ve otomatik olarak bir teklif oluşturuldu. İşlemlere 'Teklifler/Satış' bölümünden devam edebilirsiniz." : "Service status updated to 'Waiting Approval' and a quotation has been automatically created. You can continue the process from the 'Quotations/Sales' section.");
+        }
       } else {
         await api.addServiceRecord(data, storeId);
       }
@@ -841,7 +847,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   {t.service_tab.details} #{selectedRecord.id}
                 </h2>
                 <div className="flex items-center gap-2">
-                  {selectedRecord.status === 'delivered' && (
+                  {selectedRecord.quotation_id && (
+                    <div className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5" />
+                      {isTr ? `Teklif #${selectedRecord.quotation_id}` : `Quotation #${selectedRecord.quotation_id}`}
+                    </div>
+                  )}
+                  {selectedRecord.status === 'delivered' && !selectedRecord.is_converted_to_sale && !selectedRecord.quotation_id && (
                     <button
                       onClick={() => setShowConversionModal(true)}
                       className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-bold flex items-center gap-2"
@@ -849,6 +861,12 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <Check className="w-4 h-4" />
                       {t.service_tab.convertToSale}
                     </button>
+                  )}
+                  {selectedRecord.is_converted_to_sale && (
+                    <div className="px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm font-bold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {t.service_tab.statuses.converted_to_sale}
+                    </div>
                   )}
                   <button
                     onClick={() => generatePDF(selectedRecord)}

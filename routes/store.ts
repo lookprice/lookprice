@@ -1373,6 +1373,36 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
         [paymentMethod, dueDate, quotation.id]
       );
 
+      // NEW: Automatically create a DRAFT Sales Invoice
+      const invoiceNumber = `INV-${Date.now()}`;
+      const taxAmount = itemsRes.rows.reduce((sum, item) => sum + (Number(item.total_price) * (Number(item.tax_rate || 20) / 100)), 0);
+      
+      const invRes = await client.query(
+        `INSERT INTO sales_invoices 
+          (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status, payment_method, quotation_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+        [storeId, saleId, quotation.company_id || null, null, invoiceNumber, new Date(), quotation.total_amount, taxAmount, Number(quotation.total_amount) + taxAmount, quotation.currency || 'TRY', `Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`, 'manual', 'draft', paymentMethod, quotation.id]
+      );
+      const invoiceId = invRes.rows[0].id;
+
+      for (const item of itemsRes.rows) {
+        const itemTax = Number(item.total_price) * (Number(item.tax_rate || 20) / 100);
+        await client.query(
+          `INSERT INTO sales_invoice_items 
+            (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [invoiceId, item.product_id, item.product_name, item.barcode || '', item.quantity, item.unit_price, item.tax_rate || 20, itemTax, item.total_price]
+        );
+      }
+
+      // NEW: If linked to a service record, update its status and mark as converted
+      if (quotation.service_id) {
+        await client.query(
+          "UPDATE service_records SET status = 'delivered', is_converted_to_sale = TRUE WHERE id = $1",
+          [quotation.service_id]
+        );
+      }
+
     await client.query("COMMIT");
     res.json({ success: true, saleId });
   } catch (err: any) {
@@ -2942,6 +2972,34 @@ router.put("/service-records/:id", async (req: any, res) => {
       }
     }
     await client.query("UPDATE service_records SET total_amount = $1 WHERE id = $2", [totalAmount, id]);
+
+    // NEW: If status is 'waiting_approval', automatically create a quotation if not already created
+    if (status === 'waiting_approval') {
+      const serviceRes = await client.query("SELECT quotation_id, customer_name, customer_phone, total_amount, currency, device_model FROM service_records WHERE id = $1", [id]);
+      const service = serviceRes.rows[0];
+      
+      if (!service.quotation_id) {
+        // Create Quotation
+        const quotRes = await client.query(
+          "INSERT INTO quotations (store_id, customer_name, total_amount, currency, status, notes, service_id) VALUES ($1, $2, $3, $4, 'pending', $5, $6) RETURNING id",
+          [storeId, service.customer_name, totalAmount, service.currency || 'TRY', `Teknik Servis #${id} - ${service.device_model}`, id]
+        );
+        const quotationId = quotRes.rows[0].id;
+
+        // Copy items
+        const serviceItemsRes = await client.query("SELECT * FROM service_items WHERE service_id = $1", [id]);
+        for (const item of serviceItemsRes.rows) {
+          await client.query(
+            "INSERT INTO quotation_items (quotation_id, product_id, product_name, quantity, unit_price, tax_rate, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [quotationId, item.product_id, item.item_name, item.quantity, item.unit_price, item.tax_rate, item.total_price]
+          );
+        }
+
+        // Update service record with quotation_id
+        await client.query("UPDATE service_records SET quotation_id = $1 WHERE id = $2", [quotationId, id]);
+      }
+    }
+
     await client.query("COMMIT");
     res.json({ success: true });
   } catch (e: any) {

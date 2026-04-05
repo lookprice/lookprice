@@ -137,9 +137,12 @@ export async function initDb() {
         currency TEXT DEFAULT 'TRY',
         status TEXT DEFAULT 'pending',
         notes TEXT,
+        service_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
       );
+
+      ALTER TABLE quotations ADD COLUMN IF NOT EXISTS service_id INTEGER;
 
       CREATE TABLE IF NOT EXISTS quotation_items (
         id SERIAL PRIMARY KEY,
@@ -305,10 +308,14 @@ export async function initDb() {
         notes TEXT,
         total_amount DECIMAL(12,2) DEFAULT 0,
         currency TEXT DEFAULT 'TRY',
+        quotation_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
       );
+
+      ALTER TABLE service_records ADD COLUMN IF NOT EXISTS quotation_id INTEGER;
+      ALTER TABLE service_records ADD COLUMN IF NOT EXISTS is_converted_to_sale BOOLEAN DEFAULT FALSE;
 
       CREATE TABLE IF NOT EXISTS service_items (
         id SERIAL PRIMARY KEY,
@@ -373,12 +380,15 @@ export async function initDb() {
         payment_method TEXT,
         invoice_type TEXT DEFAULT 'manual',
         status TEXT DEFAULT 'draft',
+        quotation_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL,
         FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
       );
+
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS quotation_id INTEGER;
 
       CREATE TABLE IF NOT EXISTS sales_invoice_items (
         id SERIAL PRIMARY KEY,

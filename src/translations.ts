@@ -965,7 +965,8 @@ export const translations: Record<string, any> = {
           repairing: "Onarımda",
           ready: "Hazır",
           delivered: "Teslim Edildi",
-          cancelled: "İptal Edildi"
+          cancelled: "İptal Edildi",
+          converted_to_sale: "Satışa Dönüştü"
         }
       },
       analytics_tab: {
@@ -2063,7 +2064,8 @@ export const translations: Record<string, any> = {
           repairing: "Repairing",
           ready: "Ready",
           delivered: "Delivered",
-          cancelled: "Cancelled"
+          cancelled: "Cancelled",
+          converted_to_sale: "Converted to Sale"
         }
       },
       analytics_tab: {
@@ -3088,7 +3090,8 @@ export const translations: Record<string, any> = {
           repairing: "In Reparatur",
           ready: "Bereit",
           delivered: "Ausgeliefert",
-          cancelled: "Abgebrochen"
+          cancelled: "Abgebrochen",
+          converted_to_sale: "In Verkauf umgewandelt"
         }
       },
       analytics_tab: {
