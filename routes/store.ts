@@ -1377,11 +1377,15 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       const invoiceNumber = `INV-${Date.now()}`;
       const taxAmount = itemsRes.rows.reduce((sum, item) => sum + (Number(item.total_price) * (Number(item.tax_rate || 20) / 100)), 0);
       
+      const invoiceNotes = quotation.service_id 
+        ? `Teknik Servis #${quotation.service_id} - Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`
+        : `Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`;
+      
       const invRes = await client.query(
         `INSERT INTO sales_invoices 
           (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status, payment_method, quotation_id) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-        [storeId, saleId, quotation.company_id || null, null, invoiceNumber, new Date(), quotation.total_amount, taxAmount, Number(quotation.total_amount) + taxAmount, quotation.currency || 'TRY', `Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`, 'manual', 'draft', paymentMethod, quotation.id]
+        [storeId, saleId, quotation.company_id || null, null, invoiceNumber, new Date(), quotation.total_amount, taxAmount, Number(quotation.total_amount) + taxAmount, quotation.currency || 'TRY', invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
       );
       const invoiceId = invRes.rows[0].id;
 
@@ -1398,7 +1402,7 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       // NEW: If linked to a service record, update its status and mark as converted
       if (quotation.service_id) {
         await client.query(
-          "UPDATE service_records SET status = 'delivered', is_converted_to_sale = TRUE WHERE id = $1",
+          "UPDATE service_records SET status = 'converted_to_sale', is_converted_to_sale = TRUE WHERE id = $1",
           [quotation.service_id]
         );
       }

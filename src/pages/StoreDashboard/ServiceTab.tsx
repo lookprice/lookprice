@@ -298,6 +298,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       case 'ready': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case 'delivered': return 'bg-gray-100 text-gray-500 border-gray-200';
       case 'cancelled': return 'bg-rose-100 text-rose-700 border-rose-200';
+      case 'converted_to_sale': return 'bg-slate-900 text-white border-slate-900';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };

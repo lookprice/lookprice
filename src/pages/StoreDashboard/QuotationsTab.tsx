@@ -11,7 +11,8 @@ import {
   Filter,
   Link,
   QrCode,
-  CreditCard
+  CreditCard,
+  Wrench
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -133,6 +134,14 @@ const QuotationsTab = ({
                     <td className="px-6 py-4">
                       <div className="text-sm font-semibold text-slate-900">{q.customer_name}</div>
                       {q.customer_title && <div className="text-xs text-slate-400 truncate max-w-[240px] mt-0.5">{q.customer_title}</div>}
+                      {q.service_id && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 text-[10px] font-bold border border-indigo-100">
+                            <Wrench className="w-2.5 h-2.5 mr-1" />
+                            {lang === 'tr' ? `${q.service_id} nolu Teknik Servis` : `Technical Service #${q.service_id}`}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-xs font-medium text-slate-500">
                       {new Date(q.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
