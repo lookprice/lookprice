@@ -2004,7 +2004,7 @@ router.get("/sales-invoices", async (req: any, res) => {
 
     let query = `
       SELECT si.*, 
-             c.title as company_name,
+             c.title as company_title,
              cust.full_name as customer_name,
              s.customer_name as sale_customer_name
       FROM sales_invoices si 
@@ -2042,7 +2042,7 @@ router.get("/sales-invoices/:id", async (req: any, res) => {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
     const invoiceResult = await pool.query(
       `SELECT si.*, 
-              c.title as company_name,
+              c.title as company_title,
               cust.full_name as customer_name
        FROM sales_invoices si 
        LEFT JOIN companies c ON si.company_id = c.id 
@@ -2358,9 +2358,9 @@ router.post("/sales/:id/create-invoice", async (req: any, res) => {
 
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft']
+        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status, payment_method) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'cash']
     );
 
     const invoiceId = invoiceResult.rows[0].id;

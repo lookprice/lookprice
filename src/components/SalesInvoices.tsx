@@ -400,7 +400,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setEditingInvoiceId(id);
       setCustomerId(data.customer_id || "");
       setCompanyId(data.company_id || "");
-      setCustomerSearch(data.customer_name || data.company_name || "");
+      setCustomerSearch(data.customer_name || data.company_title || "");
       setInvoiceNumber(data.invoice_number);
       setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
