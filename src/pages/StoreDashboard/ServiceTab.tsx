@@ -853,7 +853,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   <button
                     onClick={() => generatePDF(selectedRecord)}
                     className="p-2 hover:bg-slate-100 rounded-full transition-colors text-indigo-600"
-                    title={t.common.downloadPdf}
+                    title={t.downloadAsPDF}
                   >
                     <Download className="h-6 w-6" />
                   </button>
