@@ -1258,7 +1258,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     <Printer className="h-6 w-6 text-slate-400" />
                   </button>
                   <button onClick={handleDownloadPDF} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
-                    <Download className="h-6 w-6 text-slate-400" />
+                    <FileDown className="h-6 w-6 text-slate-400" />
                   </button>
                   <button onClick={() => setShowDetailsModal(false)} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
                     <X className="h-6 w-6 text-slate-400" />

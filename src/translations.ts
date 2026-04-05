@@ -422,21 +422,6 @@ export const translations: Record<string, any> = {
       edit: "Düzenle",
       details: "Detaylar",
       all: "Hepsi",
-      statements: {
-        date: "Tarih",
-        description: "Açıklama",
-        debt: "Borç",
-        credit: "Alacak",
-        balance: "Bakiye",
-        source: "Kaynak",
-        customerStatement: "Hesap Ekstresi",
-        customerSupplier: "Müşteri/Tedarikçi"
-      },
-      sources: {
-        sale_payment: "Satış Ödemesi",
-        term_sale: "Vadeli Satış",
-        collection: "Tahsilat"
-      },
       driverName: "Sürücü Adı",
       licenseNumber: "Ehliyet No",
       licenseClass: "Ehliyet Sınıfı",
@@ -1531,21 +1516,6 @@ export const translations: Record<string, any> = {
       edit: "Edit",
       details: "Details",
       all: "All",
-      statements: {
-        date: "Date",
-        description: "Description",
-        debt: "Debt",
-        credit: "Credit",
-        balance: "Balance",
-        source: "Source",
-        customerStatement: "Account Statement",
-        customerSupplier: "Customer/Supplier"
-      },
-      sources: {
-        sale_payment: "Sale Payment",
-        term_sale: "Term Sale",
-        collection: "Collection"
-      },
       driverName: "Driver Name",
       licenseNumber: "License Number",
       licenseClass: "License Class",
@@ -2644,21 +2614,6 @@ export const translations: Record<string, any> = {
       edit: "Bearbeiten",
       details: "Details",
       all: "Alle",
-      statements: {
-        date: "Datum",
-        description: "Beschreibung",
-        debt: "Soll",
-        credit: "Haben",
-        balance: "Saldo",
-        source: "Quelle",
-        customerStatement: "Kontoauszug",
-        customerSupplier: "Kunde/Lieferant"
-      },
-      sources: {
-        sale_payment: "Verkauf Zahlung",
-        term_sale: "Terminverkauf",
-        collection: "Inkasso"
-      },
       driverName: "Fahrername",
       licenseNumber: "Führerscheinnummer",
       licenseClass: "Führerscheinklasse",
