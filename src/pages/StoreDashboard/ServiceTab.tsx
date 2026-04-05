@@ -399,7 +399,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
-                  <button onClick={() => setShowConversionModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">{t.common.cancel}</button>
+                  <button onClick={() => setShowConversionModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">{t.cancel}</button>
                   <button onClick={handleConvertToSale} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">{t.service_tab.confirm}</button>
                 </div>
               </div>
@@ -809,14 +809,14 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     onClick={() => setShowModal(false)}
                     className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all"
                   >
-                    {t.common.cancel}
+                    {t.cancel}
                   </button>
                   <button
                     onClick={handleSaveRecord}
                     className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center gap-2"
                   >
                     <Save className="w-4 h-4" />
-                    {t.common.save}
+                    {t.save}
                   </button>
                 </div>
               </div>
@@ -911,13 +911,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               </div>
               <div className="p-6 bg-slate-50 flex justify-end gap-3">
                 <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
-                  <Printer className="w-4 h-4" /> {t.common.print}
+                  <Printer className="w-4 h-4" /> {t.print}
                 </button>
                 <button
                   onClick={() => setShowDetailsModal(false)}
                   className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
                 >
-                  {t.common.close}
+                  {t.close}
                 </button>
               </div>
             </motion.div>
