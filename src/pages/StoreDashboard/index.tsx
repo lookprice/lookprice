@@ -403,210 +403,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
 
+  const quotationPrintRef = useRef<HTMLDivElement>(null);
+  const handlePrintQuotation = useReactToPrint({
+    contentRef: quotationPrintRef,
+  });
+
   // Handlers for Users
-  const handleGenerateQuotationPDF = async (quotation: any) => {
-    const doc = new jsPDF();
-    const isTr = lang === 'tr';
-    
-    // Helper to fix Turkish characters for jsPDF default fonts
-    const fixTr = (text: string) => {
-      if (!text) return "";
-      return text
-        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
-        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
-        .replace(/ş/g, 's').replace(/Ş/g, 'S')
-        .replace(/ı/g, 'i').replace(/İ/g, 'I')
-        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
-        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
-    };
 
-    // Helper to convert image URL to base64 for jsPDF
-    const getBase64Image = (url: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.setAttribute('crossOrigin', 'anonymous');
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL("image/png"));
-        };
-        img.onerror = (e) => reject(e);
-        img.src = url;
-      });
-    };
-
-    let logoBase64 = "";
-    if (branding.logo_url) {
-      try {
-        logoBase64 = await getBase64Image(branding.logo_url);
-      } catch (e) {
-        console.error("Logo loading error for PDF:", e);
-      }
-    }
-
-    const addHeader = (doc: jsPDF) => {
-      // Logo (if exists) - Top Left
-      if (logoBase64) {
-        try {
-          doc.addImage(logoBase64, 'PNG', 14, 8, 15, 15);
-        } catch (e) {
-          console.error("Logo addImage error:", e);
-        }
-      }
-      
-      doc.setTextColor(0, 0, 0);
-      
-      // Title - Top Center
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text(fixTr(isTr ? "TEKLİF FORMU" : "QUOTATION FORM"), 105, 12, { align: 'center' });
-      
-      // Store Name - Below Title
-      doc.setFontSize(10);
-      const storeName = fixTr(branding.name || branding.store_name || "LookPrice");
-      const splitStoreName = doc.splitTextToSize(storeName, 100);
-      doc.text(splitStoreName, 105, 18, { align: 'center' });
-      
-      // Quotation Info - Top Right
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100);
-      doc.text(fixTr(`${isTr ? "Teklif No" : "Quotation No"}: #${quotation.id}`), 196, 12, { align: 'right' });
-      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 17, { align: 'right' });
-
-      // Contact Info - Small below store name
-      doc.setFontSize(7);
-      const contactInfo = [
-        branding.address,
-        branding.phone,
-        branding.email
-      ].filter(Boolean).map(fixTr).join(" | ");
-      if (contactInfo) {
-        doc.text(contactInfo, 105, 25, { align: 'center' });
-      }
-      
-      // Separator Line
-      doc.setDrawColor(230);
-      doc.line(14, 28, 196, 28);
-    };
-
-    const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(7);
-      doc.setTextColor(150);
-      doc.text(fixTr(`${branding.name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 290);
-      doc.text(`${pageNumber} / ${totalPages}`, 196, 290, { align: 'right' });
-    };
-
-    addHeader(doc);
-
-    let yPos = 35;
-
-    // Customer Info Box - More compact
-    doc.setFillColor(249, 250, 251);
-    doc.roundedRect(14, yPos, 182, 18, 1, 1, 'F');
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 6);
-    
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(50);
-    const customerInfo = [quotation.customer_name, quotation.customer_title].filter(Boolean).join(" - ");
-    doc.text(fixTr(customerInfo), 18, yPos + 12);
-    yPos += 25;
-
-    // Items Table
-    const tableData = quotation.items.map((item: any) => [
-      fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
-      item.quantity,
-      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
-      `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
-    ]);
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [[
-        fixTr(isTr ? "Ürün Açıklaması" : "Product Description"), 
-        fixTr(isTr ? "Miktar" : "Qty"), 
-        fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
-        fixTr(isTr ? "Toplam" : "Total")
-      ]],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      styles: { fontSize: 7, cellPadding: 2, font: "helvetica" },
-      columnStyles: {
-        1: { halign: 'center', cellWidth: 15 },
-        2: { halign: 'right', cellWidth: 30 },
-        3: { halign: 'right', cellWidth: 30 }
-      },
-      margin: { left: 14, right: 14, top: 30, bottom: 15 },
-      didDrawPage: (data) => {
-        if (data.pageNumber > 1) {
-          addHeader(doc);
-        }
-      }
-    });
-
-    let finalY = (doc as any).lastAutoTable.finalY + 5;
-
-    // Check if summary fits on page
-    if (finalY > 270) {
-      doc.addPage();
-      addHeader(doc);
-      finalY = 35;
-    }
-
-    // Summary Section
-    doc.setDrawColor(230);
-    doc.line(130, finalY, 196, finalY);
-    finalY += 6;
-    
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
-    
-    finalY += 6;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
-
-    // Notes Section
-    if (quotation.notes) {
-      finalY += 10;
-      if (finalY > 270) {
-        doc.addPage();
-        addHeader(doc);
-        finalY = 35;
-      }
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(50);
-      doc.text(fixTr(isTr ? "Notlar ve Koşullar:" : "Notes & Terms:"), 14, finalY);
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100);
-      const splitNotes = doc.splitTextToSize(fixTr(quotation.notes), 180);
-      doc.text(splitNotes, 14, finalY + 5);
-    }
-
-    // Add page numbers to all pages
-    const totalPages = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      addFooter(doc, i, totalPages);
-    }
-
-    doc.save(`Teklif_${quotation.id}_${quotation.customer_name.replace(/\s+/g, '_')}.pdf`);
-  };
 
 
   const handleExportQuotations = () => {
@@ -934,7 +737,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         quotations={quotationList}
                         isViewer={isViewer}
                         onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
-                        onGeneratePDF={handleGenerateQuotationPDF}
+                        onGeneratePDF={(q) => { setSelectedQuotationDetails(q); setTimeout(() => handlePrintQuotation(), 100); }}
                         onApprove={handleApproveQuotation}
                         onCancel={handleCancelQuotation}
                         onConvertToSale={handleConvertToSale}
@@ -1570,11 +1373,33 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <h3 className="text-xl font-bold text-gray-900">{lang === 'tr' ? 'Teklif Detayı' : 'Quotation Details'}</h3>
                   <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">#{selectedQuotationDetails.id} • {new Date(selectedQuotationDetails.created_at).toLocaleString('tr-TR')}</p>
                 </div>
-                <button onClick={() => setShowQuotationDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={handlePrintQuotation} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title={lang === 'tr' ? "Yazdır / PDF" : "Print / PDF"}>
+                    <Printer className="h-5 w-5 text-gray-400" />
+                  </button>
+                  <button onClick={() => setShowQuotationDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
               </div>
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div ref={quotationPrintRef} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
+                {/* Print Header */}
+                <div className="hidden print:block mb-8 border-b border-gray-200 pb-8">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h1 className="text-3xl font-black text-gray-900 tracking-tight">{branding?.name || "Teklif"}</h1>
+                      <p className="text-sm text-gray-500 mt-2 max-w-xs">{branding?.address}</p>
+                      <p className="text-sm text-gray-500">{branding?.phone}</p>
+                      <p className="text-sm text-gray-500">{branding?.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-2xl font-black text-gray-900 tracking-tight">{lang === 'tr' ? 'TEKLİF FORMU' : 'QUOTATION FORM'}</h2>
+                      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-1">#{selectedQuotationDetails.id}</p>
+                      <p className="text-sm text-gray-500 mt-1">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 rounded-2xl">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t.customer}</p>
@@ -1622,12 +1447,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 )}
               </div>
               <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
-                <button 
-                  onClick={() => handleGenerateQuotationPDF(selectedQuotationDetails)}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
-                >
-                  <FileDown className="h-5 w-5" /> {lang === 'tr' ? 'PDF İndir' : 'Download PDF'}
-                </button>
                 {selectedQuotationDetails.status === 'pending' && !isViewer && (
                   <button 
                     onClick={() => { setShowQuotationDetailsModal(false); handleConvertToSale(selectedQuotationDetails); }}
@@ -1636,6 +1455,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     {lang === 'tr' ? 'Satışa Dönüştür' : 'Convert to Sale'}
                   </button>
                 )}
+                <button 
+                  onClick={() => setShowQuotationDetailsModal(false)}
+                  className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                >
+                  {t.close || 'Kapat'}
+                </button>
               </div>
             </motion.div>
           </div>

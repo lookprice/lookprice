@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { useReactToPrint } from 'react-to-print';
 import { 
   Wrench, 
   Plus, 
@@ -80,6 +81,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   const [storeInfo, setStoreInfo] = useState<any>(null);
   const itemsPerPage = 15;
 
+  const printRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+  });
+
   useEffect(() => {
     const fetchStoreInfo = async () => {
       try {
@@ -92,63 +98,6 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     fetchStoreInfo();
   }, [storeId]);
 
-  const generatePDF = (record: ServiceRecord) => {
-    const doc = new jsPDF();
-    
-    // Helper to replace Turkish characters
-    const replaceTurkishChars = (str: string) => {
-      return str
-        .replace(/ç/g, 'c').replace(/Ç/g, 'C')
-        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
-        .replace(/ı/g, 'i').replace(/İ/g, 'I')
-        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
-        .replace(/ş/g, 's').replace(/Ş/g, 'S')
-        .replace(/ü/g, 'u').replace(/Ü/g, 'U');
-    };
-
-    doc.setFontSize(18);
-    doc.text(replaceTurkishChars(`${t.service_tab.report} - #${record.id}`), 10, 15);
-    
-    // Store Info
-    if (storeInfo) {
-      doc.setFontSize(10);
-      doc.text(replaceTurkishChars(`${t.service_tab.store}: ${storeInfo.name || ''}`), 150, 15);
-      doc.text(replaceTurkishChars(`${t.service_tab.address}: ${storeInfo.address || ''}`), 150, 20);
-    }
-    
-    doc.setFontSize(12);
-    doc.text(replaceTurkishChars(`${t.service_tab.customer}: ${record.customer_name}`), 10, 25);
-    doc.text(replaceTurkishChars(`${t.service_tab.device}: ${record.device_model}`), 10, 32);
-    doc.text(replaceTurkishChars(`${t.service_tab.status}: ${t.service_tab.statuses[record.status]}`), 10, 39);
-    doc.text(replaceTurkishChars(`${t.service_tab.date}: ${new Date().toLocaleDateString()}`), 10, 46);
-    
-    const tableData = (record.items || []).map(item => [
-      replaceTurkishChars(item.item_name),
-      item.quantity,
-      `${item.unit_price} ${record.currency}`,
-      `${item.total_price} ${record.currency}`
-    ]);
-    
-    autoTable(doc, {
-      head: [[t.service_tab.itemService, t.service_tab.quantity, t.service_tab.unitPrice, t.service_tab.total]],
-      body: tableData,
-      startY: 55,
-      theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185] },
-    });
-    
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(14);
-    doc.text(replaceTurkishChars(`${t.service_tab.totalAmount}: ${record.total_amount} ${record.currency}`), 10, finalY);
-    
-    doc.setFontSize(10);
-    doc.text(replaceTurkishChars(`${t.service_tab.serviceNotes}:`), 10, finalY + 10);
-    doc.text(replaceTurkishChars('--------------------------------------------------'), 10, finalY + 13);
-    doc.text(replaceTurkishChars(t.service_tab.warrantyTerms), 10, finalY + 17);
-    doc.text(replaceTurkishChars(t.service_tab.thankYouService), 10, finalY + 21);
-    
-    doc.save(`teknik_servis_${record.id}.pdf`);
-  };
 
   const generateExcel = () => {
     const data = records.filter(r => statusFilter === 'all' || r.status === statusFilter).map(r => ({
@@ -852,18 +801,34 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     </div>
                   )}
                   <button
-                    onClick={() => generatePDF(selectedRecord)}
+                    onClick={handlePrint}
                     className="p-2 hover:bg-slate-100 rounded-full transition-colors text-indigo-600"
-                    title={t.downloadAsPDF}
+                    title={t.print}
                   >
-                    <Download className="h-6 w-6" />
+                    <Printer className="h-6 w-6" />
                   </button>
                   <button onClick={() => setShowDetailsModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                     <XCircle className="h-6 w-6 text-slate-400" />
                   </button>
                 </div>
               </div>
-              <div className="p-6 space-y-6">
+              <div ref={printRef} className="p-6 space-y-6 print:p-0">
+                {/* Print Header */}
+                <div className="hidden print:block mb-8 border-b border-slate-200 pb-8">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h1 className="text-3xl font-black text-slate-900 tracking-tight">{storeInfo?.name || "Teknik Servis"}</h1>
+                      <p className="text-sm text-slate-500 mt-2 max-w-xs">{storeInfo?.address}</p>
+                      <p className="text-sm text-slate-500">{storeInfo?.phone}</p>
+                      <p className="text-sm text-slate-500">{storeInfo?.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'TEKNİK SERVİS FORMU' : 'SERVICE FORM'}</h2>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">#{selectedRecord.id.toString().padStart(6, '0')}</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.customer}</h4>
@@ -911,7 +876,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 </div>
               </div>
               <div className="p-6 bg-slate-50 flex justify-end gap-3">
-                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
+                <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
                   <Printer className="w-4 h-4" /> {t.print}
                 </button>
                 {!selectedRecord.is_converted_to_sale && (

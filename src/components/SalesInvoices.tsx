@@ -25,51 +25,6 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     contentRef: invoiceRef,
   });
 
-  const handleDownloadPDF = () => {
-    if (!selectedInvoice) return;
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.text(branding?.name || "Fatura", 14, 20);
-    doc.setFontSize(10);
-    doc.text(branding?.address || "", 14, 26);
-    doc.text(branding?.phone || "", 14, 30);
-    doc.text(branding?.email || "", 14, 34);
-
-    // Invoice Info
-    doc.setFontSize(12);
-    doc.text(`Fatura No: ${selectedInvoice.invoice_number}`, 140, 20);
-    doc.text(`Tarih: ${new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}`, 140, 26);
-
-    // Customer Info
-    doc.setFontSize(12);
-    doc.text("Müşteri Bilgileri:", 14, 50);
-    doc.setFontSize(10);
-    doc.text(selectedInvoice.customer_name || selectedInvoice.company_title || "", 14, 56);
-    doc.text(selectedInvoice.customer_phone || "", 14, 60);
-
-    // Items Table
-    const tableData = (selectedInvoice.items || []).map((item: any) => [
-      item.product_name,
-      item.quantity,
-      Number(item.unit_price).toLocaleString('tr-TR', { style: 'currency', currency: selectedInvoice.currency }),
-      Number(item.total_price).toLocaleString('tr-TR', { style: 'currency', currency: selectedInvoice.currency })
-    ]);
-
-    autoTable(doc, {
-      startY: 70,
-      head: [['Ürün', 'Adet', 'Birim Fiyat', 'Toplam']],
-      body: tableData,
-    });
-
-    // Totals
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.text(`Genel Toplam: ${Number(selectedInvoice.total_amount).toLocaleString('tr-TR', { style: 'currency', currency: selectedInvoice.currency })}`, 140, finalY);
-
-    doc.save(`fatura_${selectedInvoice.invoice_number}.pdf`);
-  };
-
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
@@ -441,113 +396,6 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     XLSX.writeFile(wb, `satis_faturalari_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const handleExportPDF = (invoice: any) => {
-    const doc = new jsPDF();
-    const isTr = lang === 'tr';
-    
-    // Header
-    doc.setFontSize(24);
-    doc.setTextColor(30, 41, 59); // slate-800
-    doc.text(isTr ? "SATIŞ FATURASI" : "SALES INVOICE", 105, 25, { align: 'center' });
-    
-    // Store Info
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139); // slate-500
-    doc.text(branding?.store_name || 'LookPrice', 20, 45);
-    doc.setFontSize(8);
-    doc.text(branding?.address || '-', 20, 50, { maxWidth: 80 });
-    doc.text(`${isTr ? 'Tel' : 'Phone'}: ${branding?.phone || '-'}`, 20, 60);
-    
-    // Invoice Info
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    doc.text(`${isTr ? "Fatura No" : "Invoice No"}:`, 140, 45);
-    doc.setFontSize(12);
-    doc.text(invoice.invoice_number, 140, 52);
-    
-    doc.setFontSize(10);
-    doc.text(`${isTr ? "Tarih" : "Date"}:`, 140, 62);
-    doc.setFontSize(12);
-    doc.text(new Date(invoice.invoice_date).toLocaleDateString('tr-TR'), 140, 69);
-    
-    // Customer Info
-    doc.setFillColor(248, 250, 252); // slate-50
-    doc.rect(20, 80, 170, 40, 'F');
-    
-    doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139);
-    doc.text(isTr ? "SAYIN (MÜŞTERİ / CARİ)" : "BILL TO", 25, 88);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(30, 41, 59);
-    const customerName = invoice.customer_name || invoice.company_title || '-';
-    doc.text(customerName, 25, 96);
-    
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    if (invoice.company_id) {
-      doc.text(`${isTr ? 'V.D.' : 'Tax Office'}: ${invoice.tax_office || '-'}`, 25, 104);
-      doc.text(`${isTr ? 'V.N.' : 'Tax No'}: ${invoice.tax_number || '-'}`, 25, 109);
-    }
-    doc.text(invoice.customer_address || invoice.company_address || '-', 25, 115, { maxWidth: 160 });
-    
-    // Items Table
-    const tableData = invoice.items.map((item: any) => [
-      item.product_name,
-      item.quantity,
-      Number(item.unit_price).toLocaleString('tr-TR'),
-      Number(item.tax_rate).toLocaleString('tr-TR') + "%",
-      Number(item.total_price).toLocaleString('tr-TR')
-    ]);
-    
-    autoTable(doc, {
-      startY: 130,
-      head: [[isTr ? 'Ürün' : 'Product', isTr ? 'Adet' : 'Qty', isTr ? 'Birim Fiyat' : 'Unit Price', isTr ? 'KDV' : 'VAT', isTr ? 'Toplam' : 'Total']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 4 },
-      columnStyles: {
-        1: { halign: 'center' },
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
-      }
-    });
-    
-    const finalY = (doc as any).lastAutoTable.finalY || 150;
-    
-    // Totals
-    const totalsX = 140;
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139);
-    doc.text(isTr ? "Ara Toplam" : "Subtotal", totalsX, finalY + 15);
-    doc.text(isTr ? "KDV Toplam" : "VAT Total", totalsX, finalY + 22);
-    
-    doc.setTextColor(30, 41, 59);
-    doc.text(`${Number(invoice.total_amount).toLocaleString('tr-TR')} ${invoice.currency}`, 190, finalY + 15, { align: 'right' });
-    doc.text(`${Number(invoice.tax_amount).toLocaleString('tr-TR')} ${invoice.currency}`, 190, finalY + 22, { align: 'right' });
-    
-    doc.setFontSize(14);
-    doc.setTextColor(79, 70, 229); // indigo-600
-    doc.text(isTr ? "GENEL TOPLAM" : "GRAND TOTAL", totalsX, finalY + 35);
-    doc.text(`${Number(invoice.grand_total).toLocaleString('tr-TR')} ${invoice.currency}`, 190, finalY + 35, { align: 'right' });
-    
-    // Notes
-    if (invoice.notes) {
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(isTr ? "NOTLAR:" : "NOTES:", 20, finalY + 50);
-      doc.text(invoice.notes, 20, finalY + 55, { maxWidth: 100 });
-    }
-    
-    // Footer / Signature
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    doc.text(isTr ? "Bu belge elektronik ortamda oluşturulmuştur." : "This document was generated electronically.", 105, 285, { align: 'center' });
-    
-    doc.save(`fatura_${invoice.invoice_number}.pdf`);
-  };
 
   const filteredInvoices = invoices.filter((inv: any) => {
     const matchesSearch = 
@@ -690,7 +538,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {inv.company_id ? <Building2 className="h-3.5 w-3.5 text-indigo-500" /> : <UserIcon className="h-3.5 w-3.5 text-slate-400" />}
-                        <div className="text-sm font-bold text-slate-700">{inv.customer_name || inv.company_title || '-'}</div>
+                        <div className="text-sm font-bold text-slate-700">{inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500">
@@ -729,10 +577,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
-                          onClick={() => handleExportPDF(inv)}
+                          onClick={() => { setSelectedInvoice(inv); setTimeout(() => handlePrint(), 100); }}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                          title={isTr ? "Yazdır / PDF" : "Print / PDF"}
                         >
-                          <FileDown className="h-4 w-4" />
+                          <Printer className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleDelete(inv.id)}
@@ -1254,18 +1103,31 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">#{selectedInvoice.invoice_number}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={handlePrint} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
+                  <button onClick={handlePrint} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors" title={isTr ? "Yazdır / PDF Kaydet" : "Print / Save PDF"}>
                     <Printer className="h-6 w-6 text-slate-400" />
-                  </button>
-                  <button onClick={handleDownloadPDF} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
-                    <FileDown className="h-6 w-6 text-slate-400" />
                   </button>
                   <button onClick={() => setShowDetailsModal(false)} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
                     <X className="h-6 w-6 text-slate-400" />
                   </button>
                 </div>
               </div>
-              <div ref={invoiceRef} className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
+              <div ref={invoiceRef} className="p-8 space-y-8 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
+                {/* Print Header */}
+                <div className="hidden print:block mb-8 border-b border-slate-200 pb-8">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h1 className="text-3xl font-black text-slate-900 tracking-tight">{branding?.name || "Fatura"}</h1>
+                      <p className="text-sm text-slate-500 mt-2 max-w-xs">{branding?.address}</p>
+                      <p className="text-sm text-slate-500">{branding?.phone}</p>
+                      <p className="text-sm text-slate-500">{branding?.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'SATIŞ FATURASI' : 'SALES INVOICE'}</h2>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">#{selectedInvoice.invoice_number}</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-6">
                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</p>
@@ -1281,7 +1143,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
                   <div className="flex items-center gap-3">
                     {selectedInvoice.company_id ? <Building2 className="h-5 w-5 text-indigo-600" /> : <UserIcon className="h-5 w-5 text-slate-400" />}
-                    <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name || selectedInvoice.company_title || '-'}</p>
+                    <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name || selectedInvoice.company_title || selectedInvoice.sale_customer_name || '-'}</p>
                   </div>
                 </div>
 
@@ -1325,21 +1187,6 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     <span className="text-xs font-bold opacity-40 uppercase tracking-widest ml-2">{selectedInvoice.currency}</span>
                   </div>
                 </div>
-              </div>
-              <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex gap-4">
-                <button 
-                  onClick={() => handleExportPDF(selectedInvoice)}
-                  className="flex-1 px-6 py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  <FileDown className="h-5 w-5 text-emerald-600" />
-                  PDF {isTr ? "İndir" : "Download"}
-                </button>
-                <button 
-                  onClick={() => setShowDetailsModal(false)}
-                  className="flex-1 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest"
-                >
-                  {isTr ? "Kapat" : "Close"}
-                </button>
               </div>
             </motion.div>
           </div>
