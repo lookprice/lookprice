@@ -225,6 +225,12 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='source') THEN
           ALTER TABLE stock_movements ADD COLUMN source TEXT DEFAULT 'manual';
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='unit_price') THEN
+          ALTER TABLE stock_movements ADD COLUMN unit_price DECIMAL(12,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='customer_info') THEN
+          ALTER TABLE stock_movements ADD COLUMN customer_info TEXT;
+        END IF;
       END $$;
 
       CREATE TABLE IF NOT EXISTS sales (
@@ -304,7 +310,7 @@ export async function initDb() {
         device_model TEXT NOT NULL,
         device_serial TEXT,
         issue_description TEXT,
-        status TEXT DEFAULT 'received' CHECK (status IN ('received', 'diagnosing', 'waiting_approval', 'repairing', 'ready', 'delivered', 'cancelled')),
+        status TEXT DEFAULT 'received' CHECK (status IN ('received', 'diagnosing', 'waiting_approval', 'repairing', 'ready', 'delivered', 'cancelled', 'converted_to_sale')),
         notes TEXT,
         total_amount DECIMAL(12,2) DEFAULT 0,
         currency TEXT DEFAULT 'TRY',
@@ -316,6 +322,13 @@ export async function initDb() {
 
       ALTER TABLE service_records ADD COLUMN IF NOT EXISTS quotation_id INTEGER;
       ALTER TABLE service_records ADD COLUMN IF NOT EXISTS is_converted_to_sale BOOLEAN DEFAULT FALSE;
+
+      -- Update service_records status check constraint
+      DO $$ 
+      BEGIN 
+        ALTER TABLE service_records DROP CONSTRAINT IF EXISTS service_records_status_check;
+        ALTER TABLE service_records ADD CONSTRAINT service_records_status_check CHECK (status IN ('received', 'diagnosing', 'waiting_approval', 'repairing', 'ready', 'delivered', 'cancelled', 'converted_to_sale'));
+      END $$;
 
       CREATE TABLE IF NOT EXISTS service_items (
         id SERIAL PRIMARY KEY,
@@ -579,6 +592,12 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='company_id') THEN
           ALTER TABLE quotations ADD COLUMN company_id INTEGER;
           ALTER TABLE quotations ADD CONSTRAINT fk_quotation_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='customer_id') THEN
+          ALTER TABLE quotations ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='service_id') THEN
+          ALTER TABLE quotations ADD COLUMN service_id INTEGER;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='expiry_date') THEN
           ALTER TABLE quotations ADD COLUMN expiry_date DATE;

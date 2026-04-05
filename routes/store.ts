@@ -1311,8 +1311,8 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       }
 
       const saleRes = await client.query(
-        "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, due_date, quotation_id, notes, company_id) VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, $8, $9) RETURNING id",
-        [storeId, quotation.total_amount, quotation.currency, quotation.customer_name, paymentMethod, dueDate, quotation.id, notes || quotation.notes, quotation.company_id]
+        "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, due_date, quotation_id, notes, company_id, customer_id) VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+        [storeId, quotation.total_amount, quotation.currency, quotation.customer_name, paymentMethod, dueDate, quotation.id, notes || quotation.notes, quotation.company_id, quotation.customer_id]
       );
       const saleId = saleRes.rows[0].id;
 
@@ -1385,7 +1385,7 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
         `INSERT INTO sales_invoices 
           (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status, payment_method, quotation_id) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-        [storeId, saleId, quotation.company_id || null, null, invoiceNumber, new Date(), quotation.total_amount, taxAmount, Number(quotation.total_amount) + taxAmount, quotation.currency || 'TRY', invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
+        [storeId, saleId, quotation.company_id || null, quotation.customer_id || null, invoiceNumber, new Date(), quotation.total_amount, taxAmount, Number(quotation.total_amount) + taxAmount, quotation.currency || 'TRY', invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
       );
       const invoiceId = invRes.rows[0].id;
 

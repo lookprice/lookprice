@@ -61,7 +61,7 @@ interface ServiceRecord {
   items?: ServiceItem[];
 }
 
-export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; products: Product[] }> = ({ storeId, isViewer, products }) => {
+export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; products: Product[]; onTabChange: (tab: string) => void }> = ({ storeId, isViewer, products, onTabChange }) => {
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
   const t = translations[lang].dashboard;
@@ -326,53 +326,35 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
   const handleConvertToSale = async () => {
     if (!selectedRecord) return;
-    console.log("Converting to sale:", selectedRecord);
-    try {
-      // 1. Update Service Record status to completed
-      console.log("Updating service record status to completed");
-      await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'completed' }, storeId);
-      
-      // 2. Create Quotation
-      // The backend addQuotation will handle company creation if it doesn't exist
-      console.log("Creating quotation");
-      const quotResult = await api.addQuotation({
-        customer_name: selectedRecord.customer_name,
-        customer_phone: selectedRecord.customer_phone,
-        items: (selectedRecord.items || []).map(item => ({
-          product_id: item.product_id, // CRITICAL: pass product_id for stock update
-          product_name: item.item_name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.total_price
-        })),
-        total_amount: selectedRecord.total_amount,
-        currency: selectedRecord.currency,
-        payment_method: paymentMethod === 'company' ? 'term' : paymentMethod,
-        notes: `Teknik Servis #${selectedRecord.id} - ${selectedRecord.device_model}`
-      }, storeId);
+    
+    if (selectedRecord.is_converted_to_sale) {
+      alert(isTr ? "Bu kayıt zaten satışa dönüştürülmüş." : "This record has already been converted to a sale.");
+      setShowConversionModal(false);
+      return;
+    }
 
-      if (quotResult && quotResult.id) {
-        console.log("Quotation created with ID:", quotResult.id);
-        
-        // 3. Approve Quotation
-        // This handles: Sale creation, Stock update, Stock movements, Current account transactions, Sale payments
-        console.log("Approving quotation to create sale and update stock");
-        await api.approveQuotation(quotResult.id, {
-          payment_method: paymentMethod === 'company' ? 'term' : paymentMethod
-        }, storeId);
-        
-        console.log("Conversion completed successfully");
-      } else {
-        throw new Error("Teklif oluşturulamadı.");
-      }
-      
+    if (selectedRecord.quotation_id) {
+      // Already has a quotation, just redirect
       setShowConversionModal(false);
       setShowDetailsModal(false);
-      fetchRecords();
-      alert("Satış başarıyla oluşturuldu ve stoklar güncellendi.");
+      onTabChange('quotations');
+      return;
+    }
+
+    try {
+      // Update status to waiting_approval which triggers quotation creation in backend
+      await api.updateServiceRecord(selectedRecord.id, { ...selectedRecord, status: 'waiting_approval' }, storeId);
+      
+      // Refresh records and redirect
+      await fetchRecords();
+      setShowConversionModal(false);
+      setShowDetailsModal(false);
+      onTabChange('quotations');
+      
+      alert(isTr ? "Teklif oluşturuldu. 'Teklifler/Satış' bölümüne yönlendiriliyorsunuz." : "Quotation created. Redirecting to 'Quotations/Sales' section.");
     } catch (err: any) {
       console.error("Error converting to sale:", err);
-      alert("Satışa dönüştürülürken bir hata oluştu: " + (err.message || err));
+      alert(isTr ? "İşlem sırasında bir hata oluştu: " + (err.message || err) : "An error occurred during the process: " + (err.message || err));
     }
   };
 
@@ -932,6 +914,19 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
                   <Printer className="w-4 h-4" /> {t.print}
                 </button>
+                {!selectedRecord.is_converted_to_sale && (
+                  <button
+                    onClick={() => handleConvertToSale()}
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all"
+                  >
+                    {t.service_tab.convertToSale}
+                  </button>
+                )}
+                {selectedRecord.is_converted_to_sale && (
+                  <div className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold border border-emerald-100 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" /> {t.service_tab.statuses.converted_to_sale}
+                  </div>
+                )}
                 <button
                   onClick={() => setShowDetailsModal(false)}
                   className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"

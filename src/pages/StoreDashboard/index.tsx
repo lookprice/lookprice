@@ -987,6 +987,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         storeId={currentStoreId}
                         isViewer={isViewer}
                         products={products}
+                        onTabChange={setActiveTab}
                       />
                     )}
                     {activeTab === "stock_transfer" && (
