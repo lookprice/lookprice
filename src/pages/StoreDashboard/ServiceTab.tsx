@@ -878,7 +878,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.issueDescription}</h4>
                   <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    {selectedRecord.issue_description || t.common.noDescription}
+                    {selectedRecord.issue_description || "Açıklama girilmemiş"}
                   </p>
                 </div>
                 <div>
