@@ -68,8 +68,6 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       notes: data.notes,
       items: quotationItems,
       company_id: data.company_id ? parseInt(String(data.company_id)) : null,
-      tax_number: data.tax_number,
-      tax_office: data.tax_office,
       expiry_date: data.expiry_date,
       payment_method: data.payment_method,
       due_date: data.due_date
@@ -79,16 +77,13 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       if (editingQuotation) {
         await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);
       } else {
-        console.log("Adding quotation:", quotationData);
-        const response = await api.addQuotation(quotationData, currentStoreId || undefined);
-        console.log("Add quotation response:", response);
+        await api.addQuotation(quotationData, currentStoreId || undefined);
       }
       setShowQuotationModal(false);
       setEditingQuotation(null);
       setQuotationItems([]);
       fetchQuotations();
     } catch (error) {
-      console.error("Error adding quotation:", error);
       alert("Hata oluştu");
     }
   };
