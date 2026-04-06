@@ -236,7 +236,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       const product = products.find(p => p.id === Number(updates.product_id));
       if (product) {
         item.item_name = product.name;
-        item.unit_price = Number(product.price);
+        const taxRate = Number(product.tax_rate) || 20;
+        // If price_2 is available, it's KDV Hariç. Convert to KDV Dahil for display.
+        if (product.price_2 && Number(product.price_2) > 0) {
+          item.unit_price = Number(product.price_2) * (1 + taxRate / 100);
+        } else {
+          item.unit_price = Number(product.price);
+        }
       }
     }
 

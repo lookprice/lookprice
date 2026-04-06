@@ -58,6 +58,7 @@ interface Product {
   brand?: string;
   author?: string;
   labels?: string[];
+  is_web_sale?: boolean;
   image_url?: string;
   updated_at: string;
 }
@@ -555,7 +556,7 @@ const StoreShowcase: React.FC = () => {
         storeRes.currency = storeRes.default_currency || 'TRY';
         setStore(storeRes);
         document.title = storeRes.name || 'Store';
-        setProducts(productsRes);
+        setProducts(productsRes.filter((p: Product) => p.is_web_sale !== false));
         
         // If customer is logged in, sync their info to checkout
         if (customer) {

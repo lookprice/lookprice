@@ -30,6 +30,10 @@ export interface Product {
   brand?: string;
   author?: string;
   labels?: string[];
+  is_web_sale?: boolean;
+  product_type?: 'product' | 'service';
+  price_2?: number;
+  price_2_currency?: string;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +76,9 @@ export interface Quotation {
   notes?: string;
   created_at: string;
   items: QuotationItem[];
+  company_id?: number;
+  tax_number?: string;
+  tax_office?: string;
 }
 
 export interface QuotationItem {

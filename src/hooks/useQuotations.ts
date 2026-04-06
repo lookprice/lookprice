@@ -67,6 +67,8 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       notes: data.notes,
       items: quotationItems,
       company_id: data.company_id ? parseInt(String(data.company_id)) : null,
+      tax_number: data.tax_number,
+      tax_office: data.tax_office,
       expiry_date: data.expiry_date,
       payment_method: data.payment_method,
       due_date: data.due_date

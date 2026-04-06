@@ -52,8 +52,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [productSearch, setProductSearch] = useState("");
   const deferredProductSearch = useDeferredValue(productSearch);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
+  const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
   
   const selectedCompany = companies.find((c: any) => c.id === Number(companyId));
@@ -199,15 +200,23 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     } else {
       const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20");
       const taxRate = Number(taxRateStr);
-      const kdvDahilPrice = Number(product.price) || 0;
-      const kdvHaricPrice = kdvDahilPrice / (1 + taxRate / 100);
+      
+      let unitPrice: number;
+      if (product.price_2 && Number(product.price_2) > 0) {
+        // If price_2 is set, use it as the base price (KDV Hariç)
+        unitPrice = Number(product.price_2);
+      } else {
+        // Otherwise calculate from tax-inclusive price
+        const kdvDahilPrice = Number(product.price) || 0;
+        unitPrice = kdvDahilPrice / (1 + taxRate / 100);
+      }
 
       setItems([...items, {
         product_id: product.id,
         product_name: product.name,
         barcode: product.barcode,
         quantity: "1",
-        unit_price: kdvHaricPrice.toFixed(2),
+        unit_price: unitPrice.toFixed(2),
         tax_rate: taxRateStr
       }]);
     }
@@ -315,6 +324,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         })),
         payment_method: paymentMethod,
         currency,
+        exchange_rate: Number(String(exchangeRate).replace(',', '.')) || 1,
         status
       };
 
@@ -385,6 +395,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method || 'cash');
       setCurrency(data.currency || 'TRY');
+      setExchangeRate(String(data.exchange_rate || 1));
       setStatus(data.status || 'draft');
       setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,
@@ -971,7 +982,12 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <select 
                             className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
                             value={currency}
-                            onChange={(e) => setCurrency(e.target.value)}
+                            onChange={(e) => {
+                              setCurrency(e.target.value);
+                              if (e.target.value === (branding?.default_currency || 'TRY')) {
+                                setExchangeRate("1");
+                              }
+                            }}
                           >
                             <option value="TRY">TRY</option>
                             <option value="USD">USD</option>
@@ -979,6 +995,18 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                             <option value="GBP">GBP</option>
                           </select>
                         </div>
+                        {currency !== (branding?.default_currency || 'TRY') && (
+                          <div className="space-y-4 flex-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Döviz Kuru' : 'Exchange Rate'}</label>
+                            <input 
+                              type="text"
+                              className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                              value={exchangeRate}
+                              onChange={(e) => setExchangeRate(e.target.value)}
+                              placeholder="1.0000"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1204,6 +1232,12 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Fatura Tarihi:' : 'Invoice Date:'}</td>
                           <td className="border border-slate-900 p-0.5">{new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</td>
                         </tr>
+                        {selectedInvoice.currency !== (branding?.default_currency || 'TRY') && (
+                          <tr>
+                            <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Döviz Kuru:' : 'Exchange Rate:'}</td>
+                            <td className="border border-slate-900 p-0.5">{Number(selectedInvoice.exchange_rate).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>

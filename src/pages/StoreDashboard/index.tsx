@@ -216,6 +216,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     newTransactionDescription, setNewTransactionDescription,
     newTransactionDate, setNewTransactionDate,
     newTransactionPaymentMethod, setNewTransactionPaymentMethod,
+    newTransactionCurrency, setNewTransactionCurrency,
     fetchCompanies,
     handleAddCompany,
     handleDeleteCompany,
@@ -404,6 +405,64 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
 
   const quotationPrintRef = useRef<HTMLDivElement>(null);
+  const handleDownloadQuotationPDF = (quotation: any) => {
+    const doc = new jsPDF();
+    const isTr = lang === 'tr';
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text(isTr ? "TEKLİF FORMU" : "QUOTATION FORM", 105, 20, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.text(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}`, 190, 30, { align: "right" });
+    doc.text(`${isTr ? "Teklif No" : "Quotation No"}: #${quotation.id}`, 190, 35, { align: "right" });
+    
+    // Company Info
+    doc.setFontSize(12);
+    doc.text(branding.store_name || "Store Name", 20, 45);
+    doc.setFontSize(10);
+    doc.text(branding.address || "", 20, 50);
+    doc.text(branding.phone || "", 20, 55);
+    
+    // Customer Info
+    doc.setFontSize(12);
+    doc.text(isTr ? "Müşteri Bilgileri" : "Customer Information", 20, 70);
+    doc.setFontSize(10);
+    doc.text(`${isTr ? "Firma" : "Company"}: ${quotation.customer_name}`, 20, 75);
+    if (quotation.customer_title) doc.text(`${isTr ? "Yetkili" : "Representative"}: ${quotation.customer_title}`, 20, 80);
+    
+    // Items Table
+    const tableData = (quotation.items || []).map((item: any, index: number) => [
+      index + 1,
+      item.product_name,
+      item.quantity,
+      `${Number(item.unit_price).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${quotation.currency}`,
+      `${Number(item.total_price).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${quotation.currency}`
+    ]);
+    
+    autoTable(doc, {
+      startY: 90,
+      head: [[isTr ? "No" : "No", isTr ? "Ürün" : "Product", isTr ? "Adet" : "Qty", isTr ? "Birim Fiyat" : "Unit Price", isTr ? "Toplam" : "Total"]],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] }
+    });
+    
+    // Totals
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.text(`${isTr ? "Genel Toplam" : "Grand Total"}: ${Number(quotation.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${quotation.currency}`, 190, finalY, { align: "right" });
+    
+    // Notes
+    if (quotation.notes) {
+      doc.setFontSize(10);
+      doc.text(isTr ? "Notlar:" : "Notes:", 20, finalY + 20);
+      doc.text(quotation.notes, 20, finalY + 25);
+    }
+    
+    doc.save(`Quotation_${quotation.id}.pdf`);
+  };
+
   const handlePrintQuotation = useReactToPrint({
     contentRef: quotationPrintRef,
   });
@@ -737,11 +796,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         quotations={quotationList}
                         isViewer={isViewer}
                         onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
-                        onGeneratePDF={(q) => { 
-                          setSelectedQuotationDetails(q); 
-                          setShowQuotationDetailsModal(true);
-                          setTimeout(() => handlePrintQuotation(), 100); 
-                        }}
+                        onGeneratePDF={(q) => handleDownloadQuotationPDF(q)}
                         onApprove={handleApproveQuotation}
                         onCancel={handleCancelQuotation}
                         onConvertToSale={handleConvertToSale}
@@ -1484,14 +1539,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 )}
               </div>
               <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
-                {selectedQuotationDetails.status === 'pending' && !isViewer && (
-                  <button 
-                    onClick={() => { setShowQuotationDetailsModal(false); handleConvertToSale(selectedQuotationDetails); }}
-                    className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                  >
-                    {lang === 'tr' ? 'Satışa Dönüştür' : 'Convert to Sale'}
-                  </button>
-                )}
                 <button 
                   onClick={() => setShowQuotationDetailsModal(false)}
                   className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
@@ -1666,117 +1713,132 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
-                    <p className="text-2xl font-black">
-                      {Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
-                    <p className="text-2xl font-black text-red-600">
-                      {companyTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
-                    <p className="text-2xl font-black text-green-600">
-                      {companyTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                    </p>
-                  </div>
-                </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                {(() => {
+                  const currencies = Array.from(new Set(companyTransactions.map(t => t.currency || branding.default_currency || 'TRY')));
+                  
+                  if (currencies.length === 0) {
+                    return (
+                      <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                        <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : 'No transactions in selected dates'}</p>
+                      </div>
+                    );
+                  }
 
-                <div className="space-y-3">
-                  {transactionLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
-                      <p className="text-gray-500 font-medium">{t.loading}</p>
-                    </div>
-                  ) : companyTransactions.length === 0 ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                      <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : (lang === 'de' ? 'Keine Transaktionen in ausgewählten Daten' : 'No transactions in selected dates')}</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-gray-100">
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                            let runningBalance = 0;
-                            return companyTransactions.map((tx: any) => {
-                              const amount = Number(tx.amount);
-                              if (tx.type === 'debt') runningBalance += amount;
-                              else runningBalance -= amount;
+                  return currencies.map(curr => {
+                    const filteredTx = companyTransactions.filter(t => (t.currency || branding.default_currency || 'TRY') === curr);
+                    let runningBalance = 0;
+                    const debtTotal = filteredTx.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0);
+                    const creditTotal = filteredTx.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0);
+                    const balanceTotal = debtTotal - creditTotal;
 
-                              return (
-                                <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
-                                  <td className="py-4 px-4">
-                                    <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                                    {tx.due_date && (
-                                      <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
-                                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                    return (
+                      <div key={curr} className="space-y-4 border-b border-gray-100 pb-8 last:border-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Globe className="h-5 w-5 text-indigo-600" />
+                            {curr} {lang === 'tr' ? 'Ekstresi' : 'Statement'}
+                          </h4>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
+                            <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
+                            <p className="text-2xl font-black">
+                              {balanceTotal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {curr}
+                            </p>
+                          </div>
+                          <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
+                            <p className="text-2xl font-black text-red-600">
+                              {debtTotal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {curr}
+                            </p>
+                          </div>
+                          <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
+                            <p className="text-2xl font-black text-green-600">
+                              {creditTotal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {curr}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="border-b border-gray-100">
+                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
+                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
+                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
+                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
+                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredTx.map((tx: any) => {
+                                const amount = Number(tx.amount);
+                                if (tx.type === 'debt') runningBalance += amount;
+                                else runningBalance -= amount;
+
+                                return (
+                                  <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
+                                    <td className="py-4 px-4">
+                                      <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
+                                      {tx.due_date && (
+                                        <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
+                                          {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-4 px-4">
+                                      <p className="text-xs font-bold text-gray-700">{tx.description}</p>
+                                      <div className="flex gap-2 mt-1">
+                                        {tx.sale_id && (
+                                          <button 
+                                            onClick={() => {
+                                              setSelectedSale({ id: tx.sale_id });
+                                              setShowSaleDetailsModal(true);
+                                            }}
+                                            className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
+                                          >
+                                            #{tx.sale_id} {t.sources.pos}
+                                          </button>
+                                        )}
+                                        {tx.purchase_invoice_id && (
+                                          <button 
+                                            onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
+                                            className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
+                                          >
+                                            #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-4 text-right">
+                                      {tx.type === 'debt' ? (
+                                        <span className="text-xs font-black text-red-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+                                      ) : '-'}
+                                    </td>
+                                    <td className="py-4 px-4 text-right">
+                                      {tx.type === 'credit' ? (
+                                        <span className="text-xs font-black text-green-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+                                      ) : '-'}
+                                    </td>
+                                    <td className="py-4 px-4 text-right">
+                                      <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                                        {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                                       </span>
-                                    )}
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <p className="text-xs font-bold text-gray-700">{tx.description}</p>
-                                    <div className="flex gap-2 mt-1">
-                                      {tx.sale_id && (
-                                        <button 
-                                          onClick={() => {
-                                            setSelectedSale({ id: tx.sale_id });
-                                            setShowSaleDetailsModal(true);
-                                          }}
-                                          className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
-                                        >
-                                          #{tx.sale_id} {t.sources.pos}
-                                        </button>
-                                      )}
-                                      {tx.purchase_invoice_id && (
-                                        <button 
-                                          onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
-                                          className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
-                                        >
-                                          #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    {tx.type === 'debt' ? (
-                                      <span className="text-xs font-black text-red-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
-                                    ) : '-'}
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    {tx.type === 'credit' ? (
-                                      <span className="text-xs font-black text-green-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
-                                    ) : '-'}
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                                      {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            });
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
               <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
                 <button 
@@ -1841,16 +1903,31 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </button>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={newTransactionAmount}
-                    onChange={(e) => setNewTransactionAmount(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                    placeholder="0.00"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={newTransactionAmount}
+                      onChange={(e) => setNewTransactionAmount(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
+                    <select
+                      value={newTransactionCurrency}
+                      onChange={(e) => setNewTransactionCurrency(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
+                    >
+                      <option value="TRY">TRY</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
                 </div>
 
                 {newTransactionType === 'credit' && (
@@ -1940,41 +2017,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.paymentMethod || 'Ödeme Yöntemi'}</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['cash', 'credit_card', 'bank', 'term'].map((method) => (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setPaymentMethod(method as any)}
-                        className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
-                          paymentMethod === method 
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                            : 'bg-white border-gray-100 text-gray-600 hover:border-indigo-200'
-                        }`}
-                      >
-                        {t[method] || method}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.dueDate || 'Vade Tarihi'}</label>
+                  <input 
+                    type="date" 
+                    required 
+                    className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
                 </div>
-
-                {paymentMethod === 'term' && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.dueDate || 'Vade Tarihi'}</label>
-                    <input 
-                      type="date" 
-                      required 
-                      className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                    />
-                  </motion.div>
-                )}
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.notes}</label>
@@ -2284,7 +2335,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     {/* Row 3: Price & Currency */}
                     <div className="grid grid-cols-12 gap-4">
                       <div className="space-y-1 col-span-8">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.price}</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.price} (KDV Dahil)</label>
                         <input 
                           name="price" 
                           type="text" 
@@ -2299,6 +2350,33 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <select 
                           name="currency" 
                           defaultValue={editingProduct?.currency || branding.default_currency} 
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                        >
+                          <option value="TRY">TRY</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 3.5: Price 2 (KDV Hariç / Invoice Price) */}
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="space-y-1 col-span-8">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? '2. SATIŞ FİYATI (KDV HARİÇ)' : '2ND SALE PRICE (EXCL. TAX)'}</label>
+                        <input 
+                          name="price_2" 
+                          type="text" 
+                          defaultValue={editingProduct?.price_2 || 0} 
+                          onFocus={(e) => e.target.select()}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-emerald-600" 
+                        />
+                      </div>
+                      <div className="space-y-1 col-span-4">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'PARA BİRİMİ' : 'CURRENCY'}</label>
+                        <select 
+                          name="price_2_currency" 
+                          defaultValue={editingProduct?.price_2_currency || branding.default_currency} 
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
                         >
                           <option value="TRY">TRY</option>
@@ -2383,6 +2461,37 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />
+                      </div>
+                    </div>
+
+                    {/* Row 7: Web Sale & Product Type */}
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-50">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          {lang === 'tr' ? 'ÜRÜN TİPİ' : 'PRODUCT TYPE'}
+                        </label>
+                        <select 
+                          name="product_type" 
+                          defaultValue={editingProduct?.product_type || 'product'} 
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                        >
+                          <option value="product">{lang === 'tr' ? 'Stoklu Ürün' : 'Inventory Product'}</option>
+                          <option value="service">{lang === 'tr' ? 'Hizmet / Servis' : 'Service / Fee'}</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center space-x-3 pt-6">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            name="is_web_sale" 
+                            defaultChecked={editingProduct?.is_web_sale !== false} 
+                            className="sr-only peer" 
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                          <span className="ml-3 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            {lang === 'tr' ? 'WEB SATIŞI' : 'WEB SALE'}
+                          </span>
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -2715,14 +2824,34 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       defaultValue={editingQuotation?.customer_name} 
                       onChange={(e) => {
                         const company = companies.find(c => c.title === e.target.value);
+                        const companyIdInput = (e.target as HTMLInputElement).form?.elements.namedItem('company_id') as HTMLInputElement;
+                        const taxOfficeInput = (e.target as HTMLInputElement).form?.elements.namedItem('tax_office') as HTMLInputElement;
+                        const taxNumberInput = (e.target as HTMLInputElement).form?.elements.namedItem('tax_number') as HTMLInputElement;
+                        
                         if (company) {
                           const titleInput = (e.target as HTMLInputElement).form?.elements.namedItem('customer_title') as HTMLInputElement;
                           if (titleInput) titleInput.value = company.representative || company.contact_person || '';
+                          if (companyIdInput) companyIdInput.value = company.id.toString();
+                          if (taxOfficeInput) taxOfficeInput.value = company.tax_office || '';
+                          if (taxNumberInput) taxNumberInput.value = company.tax_number || '';
+                        } else {
+                          if (companyIdInput) companyIdInput.value = '';
                         }
                       }}
                       className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                       placeholder={lang === 'tr' ? 'Firma ismi yazın veya seçin...' : 'Type or select company name...'}
                     />
+                    <input type="hidden" name="company_id" defaultValue={editingQuotation?.company_id} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi Dairesi' : 'Tax Office'}</label>
+                        <input name="tax_office" defaultValue={editingQuotation?.tax_office} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi No' : 'Tax Number'}</label>
+                        <input name="tax_number" defaultValue={editingQuotation?.tax_number} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
+                      </div>
+                    </div>
                     <datalist id="company-list">
                       {companies.map(c => (
                         <option key={c.id} value={c.title} />
@@ -2775,6 +2904,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           className="product-option w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors"
                           onClick={() => {
                             const existingIdx = quotationItems.findIndex(item => item.product_id === p.id);
+                            const taxRate = Math.round(Number(p.tax_rate ?? branding.default_tax_rate ?? 20));
+                            
+                            let unitPrice: number;
+                            if (p.price_2 && Number(p.price_2) > 0) {
+                              // If price_2 is set, it's KDV Hariç. Convert to KDV Dahil for quotation display.
+                              unitPrice = Number(p.price_2) * (1 + taxRate / 100);
+                            } else {
+                              unitPrice = Number(p.price);
+                            }
+
                             if (existingIdx > -1) {
                               const newItems = [...quotationItems];
                               newItems[existingIdx].quantity += 1;
@@ -2786,9 +2925,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                 product_name: p.name,
                                 barcode: p.barcode,
                                 quantity: 1,
-                                unit_price: Number(p.price),
-                                tax_rate: Math.round(Number(p.tax_rate ?? branding.default_tax_rate ?? 20)),
-                                total_price: Number(p.price)
+                                unit_price: unitPrice,
+                                tax_rate: taxRate,
+                                total_price: unitPrice
                               }]);
                             }
                             setQuotationProductSearch("");

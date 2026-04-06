@@ -33,6 +33,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
+  const [exchangeRate, setExchangeRate] = useState("1");
   const [companySearch, setCompanySearch] = useState("");
   const deferredCompanySearch = useDeferredValue(companySearch);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
@@ -181,7 +182,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             tax_rate: Number(item.tax_rate) || 0
           })),
           payment_method: paymentMethod,
-          currency
+          currency,
+          exchange_rate: Number(String(exchangeRate).replace(',', '.')) || 1
         })
       });
 
@@ -261,6 +263,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method || 'term');
       setCurrency(data.currency || 'TRY');
+      setExchangeRate(String(data.exchange_rate || 1));
       setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,
@@ -771,21 +774,43 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                        <Percent className="h-4 w-4 text-slate-400" />
-                        {isTr ? "Para Birimi" : "Currency"} *
-                      </label>
-                      <select
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
-                        className="w-[10ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                      >
-                        <option value="TRY">TRY</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                      </select>
+                    <div className="space-y-1.5 flex flex-wrap gap-4">
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                          <Percent className="h-4 w-4 text-slate-400" />
+                          {isTr ? "Para Birimi" : "Currency"} *
+                        </label>
+                        <select
+                          value={currency}
+                          onChange={(e) => {
+                            setCurrency(e.target.value);
+                            if (e.target.value === (branding?.default_currency || 'TRY')) {
+                              setExchangeRate("1");
+                            }
+                          }}
+                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                        >
+                          <option value="TRY">TRY</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                        </select>
+                      </div>
+                      {currency !== (branding?.default_currency || 'TRY') && (
+                        <div className="flex-1 min-w-[120px]">
+                          <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                            <Hash className="h-4 w-4 text-slate-400" />
+                            {isTr ? "Döviz Kuru" : "Exchange Rate"}
+                          </label>
+                          <input 
+                            type="text"
+                            className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                            value={exchangeRate}
+                            onChange={(e) => setExchangeRate(e.target.value)}
+                            placeholder="1.0000"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1209,6 +1234,12 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                     <div className="text-sm text-slate-500 mb-1">{isTr ? "Tarih" : "Date"}</div>
                     <div className="font-medium text-slate-900">{new Date(selectedInvoice.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</div>
                   </div>
+                  {selectedInvoice.currency !== (branding?.default_currency || 'TRY') && (
+                    <div>
+                      <div className="text-sm text-slate-500 mb-1">{isTr ? "Döviz Kuru" : "Exchange Rate"}</div>
+                      <div className="font-medium text-slate-900">{Number(selectedInvoice.exchange_rate).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</div>
+                    </div>
+                  )}
                 </div>
 
                 <div>

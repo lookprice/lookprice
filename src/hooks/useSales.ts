@@ -20,7 +20,7 @@ export const useSales = (
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [isConfirmingSale, setIsConfirmingSale] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('term');
   const [dueDate, setDueDate] = useState('');
   const [saleNotes, setSaleNotes] = useState('');
   const [createCompanyFromSale, setCreateCompanyFromSale] = useState(false);
@@ -136,7 +136,7 @@ export const useSales = (
 
   const handleConvertToSale = (quotation: any) => {
     setSelectedQuotation(quotation);
-    setPaymentMethod('cash');
+    setPaymentMethod('term');
     setDueDate('');
     setSaleNotes('');
     setShowSaleModal(true);
@@ -157,8 +157,8 @@ export const useSales = (
           email: selectedQuotation.customer_email || '',
           phone: selectedQuotation.customer_phone || '',
           address: selectedQuotation.customer_address || '',
-          tax_office: '',
-          tax_number: ''
+          tax_office: selectedQuotation.tax_office || '',
+          tax_number: selectedQuotation.tax_number || ''
         }, targetStoreId);
         companyId = newCompany.id;
         

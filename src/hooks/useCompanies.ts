@@ -22,6 +22,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
   const [newTransactionDescription, setNewTransactionDescription] = useState('');
   const [newTransactionDate, setNewTransactionDate] = useState(new Date().toISOString().split('T')[0]);
   const [newTransactionPaymentMethod, setNewTransactionPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
+  const [newTransactionCurrency, setNewTransactionCurrency] = useState(branding?.default_currency || 'TRY');
 
   const fetchCompanies = useCallback(async () => {
     if (!currentStoreId) return;
@@ -182,45 +183,62 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     doc.text(`${fixTr(t.dateRange || 'Date Range')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
     yPos += 10;
 
-    let runningBalance = 0;
-    const tableData = companyTransactions.map(t_item => {
-      const amount = Number(t_item.amount);
-      if (t_item.type === 'debt') runningBalance += amount;
-      else runningBalance -= amount;
-      
-      return [
-        t_item.transaction_date.split('T')[0],
-        fixTr(t_item.description || ""),
-        t_item.type === 'debt' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
-        t_item.type === 'credit' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
-        runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
-      ];
-    });
+    const currencies = Array.from(new Set(companyTransactions.map(t => t.currency || branding.default_currency || 'TRY')));
 
-    autoTable(doc, {
-      startY: yPos,
-      head: [[
-        fixTr(t.statements.date),
-        fixTr(t.statements.description),
-        fixTr(t.statements.debt),
-        fixTr(t.statements.credit),
-        fixTr(t.statements.balance)
-      ]],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 8 },
-      columnStyles: {
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
+    for (const curr of currencies) {
+      if (currencies.indexOf(curr) > 0) {
+        doc.addPage();
+        yPos = 20;
       }
-    });
 
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${fixTr(t.statements.balance)}: ${Number(selectedCompany.balance).toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${fixTr(t.statements.customerStatement)} - ${curr}`, 14, yPos);
+      yPos += 10;
+
+      let runningBalance = 0;
+      const filteredTransactions = companyTransactions.filter(t_item => (t_item.currency || branding.default_currency || 'TRY') === curr);
+      
+      const tableData = filteredTransactions.map(t_item => {
+        const amount = Number(t_item.amount);
+        if (t_item.type === 'debt') runningBalance += amount;
+        else runningBalance -= amount;
+        
+        return [
+          t_item.transaction_date.split('T')[0],
+          fixTr(t_item.description || ""),
+          t_item.type === 'debt' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
+          t_item.type === 'credit' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
+          runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
+        ];
+      });
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [[
+          fixTr(t.statements.date),
+          fixTr(t.statements.description),
+          fixTr(t.statements.debt),
+          fixTr(t.statements.credit),
+          fixTr(t.statements.balance)
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8 },
+        columnStyles: {
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' }
+        }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${fixTr(t.statements.balance)}: ${runningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${curr}`, 196, yPos, { align: 'right' });
+      yPos += 15;
+    }
 
     doc.save(`${fixTr(t.statements.customerStatement.toLowerCase().replace(/\s+/g, '_'))}_${fixTr(selectedCompany.title)}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
@@ -236,7 +254,8 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
         amount: Number(String(newTransactionAmount).replace(',', '.')),
         description: newTransactionDescription,
         transaction_date: newTransactionDate,
-        payment_method: newTransactionPaymentMethod
+        payment_method: newTransactionPaymentMethod,
+        currency: newTransactionCurrency
       }, targetStoreId);
       
       setShowAddTransactionModal(false);
@@ -267,6 +286,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     newTransactionDescription, setNewTransactionDescription,
     newTransactionDate, setNewTransactionDate,
     newTransactionPaymentMethod, setNewTransactionPaymentMethod,
+    newTransactionCurrency, setNewTransactionCurrency,
     fetchCompanies,
     handleAddCompany,
     handleDeleteCompany,

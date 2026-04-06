@@ -798,6 +798,15 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='currency') THEN
           ALTER TABLE purchase_invoices ADD COLUMN currency TEXT DEFAULT 'TRY';
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='exchange_rate') THEN
+          ALTER TABLE purchase_invoices ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales_invoices' AND column_name='exchange_rate') THEN
+          ALTER TABLE sales_invoices ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='currency') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN currency TEXT DEFAULT 'TRY';
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='payment_method') THEN
           ALTER TABLE purchase_invoices ADD COLUMN payment_method TEXT;
         END IF;

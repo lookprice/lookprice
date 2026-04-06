@@ -232,6 +232,16 @@ const ProductsTab = ({
                                 {p.author}
                               </span>
                             )}
+                            {p.product_type === 'service' && (
+                              <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100 uppercase">
+                                {lang === 'tr' ? 'Hizmet' : 'Service'}
+                              </span>
+                            )}
+                            {p.is_web_sale === false && (
+                              <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1 py-0.5 rounded border border-slate-200 uppercase">
+                                {lang === 'tr' ? 'Web Kapalı' : 'Web Off'}
+                              </span>
+                            )}
                             {p.labels && Array.isArray(p.labels) && p.labels.map((label: string, idx: number) => (
                               <span key={idx} className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-100 uppercase">
                                 {label}
@@ -286,16 +296,20 @@ const ProductsTab = ({
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <span className={`text-sm font-bold ${Number(p.stock_quantity) <= Number(p.min_stock_level) ? 'text-rose-600' : 'text-slate-700'}`}>
-                          {p.stock_quantity}
-                        </span>
-                        {Number(p.stock_quantity) <= Number(p.min_stock_level) && (
-                          <div className="flex items-center px-1.5 py-0.5 bg-rose-50 rounded text-[10px] font-bold text-rose-600 border border-rose-100 uppercase tracking-tighter">
-                            <AlertTriangle className="h-3 w-3 mr-1" /> {t.low}
-                          </div>
-                        )}
-                      </div>
+                      {p.product_type === 'service' ? (
+                        <span className="text-xs text-slate-400 italic">{lang === 'tr' ? 'Stok Takipsiz' : 'No Stock Tracking'}</span>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-sm font-bold ${Number(p.stock_quantity) <= Number(p.min_stock_level) ? 'text-rose-600' : 'text-slate-700'}`}>
+                            {p.stock_quantity}
+                          </span>
+                          {Number(p.stock_quantity) <= Number(p.min_stock_level) && (
+                            <div className="flex items-center px-1.5 py-0.5 bg-rose-50 rounded text-[10px] font-bold text-rose-600 border border-rose-100 uppercase tracking-tighter">
+                              <AlertTriangle className="h-3 w-3 mr-1" /> {t.low}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       {!isViewer && (
