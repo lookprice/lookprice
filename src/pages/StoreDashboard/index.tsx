@@ -2342,6 +2342,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           required 
                           defaultValue={editingProduct?.price} 
                           onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const target = e.target as HTMLInputElement;
+                            const form = target.closest('form');
+                            if (form) {
+                              const price = parseFloat(target.value.replace(',', '.')) || 0;
+                              const taxInput = form.querySelector('input[name="tax_rate"]') as HTMLInputElement;
+                              const taxRate = parseFloat(taxInput?.value) || 0;
+                              const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
+                              if (price2Input) {
+                                price2Input.value = (price / (1 + taxRate / 100)).toFixed(2).replace('.', ',');
+                              }
+                            }
+                          }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600 text-lg" 
                         />
                       </div>
@@ -2458,6 +2471,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onInput={(e) => {
                             const target = e.target as HTMLInputElement;
                             target.value = target.value.replace(/[^0-9]/g, '').substring(0, 2);
+                            
+                            const form = target.closest('form');
+                            if (form) {
+                              const priceInput = form.querySelector('input[name="price"]') as HTMLInputElement;
+                              const price = parseFloat(priceInput?.value.replace(',', '.')) || 0;
+                              const taxRate = parseFloat(target.value) || 0;
+                              const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
+                              if (price2Input) {
+                                price2Input.value = (price / (1 + taxRate / 100)).toFixed(2).replace('.', ',');
+                              }
+                            }
                           }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />
