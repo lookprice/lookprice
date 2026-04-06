@@ -17,6 +17,7 @@ import {
 import { motion } from "motion/react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { api } from "../../services/api";
 import ProductMovementModal from "../../components/ProductMovementModal";
 
 interface ProductsTabProps {
