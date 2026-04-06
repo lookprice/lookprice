@@ -179,6 +179,7 @@ const CompaniesTab = ({
                     </td>
                   </tr>
                 ))
+              )}
             </tbody>
           </table>
         </div>
