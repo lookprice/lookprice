@@ -20,6 +20,7 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
     if (!currentStoreId) return;
     try {
       const data = await api.getQuotations(quotationSearch, quotationStatusFilter, currentStoreId);
+      console.log("Fetched quotations:", data);
       setQuotationList(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching quotations:', error);
@@ -78,13 +79,16 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       if (editingQuotation) {
         await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);
       } else {
-        await api.addQuotation(quotationData, currentStoreId || undefined);
+        console.log("Adding quotation:", quotationData);
+        const response = await api.addQuotation(quotationData, currentStoreId || undefined);
+        console.log("Add quotation response:", response);
       }
       setShowQuotationModal(false);
       setEditingQuotation(null);
       setQuotationItems([]);
       fetchQuotations();
     } catch (error) {
+      console.error("Error adding quotation:", error);
       alert("Hata oluştu");
     }
   };
