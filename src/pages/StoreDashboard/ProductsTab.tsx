@@ -32,6 +32,7 @@ interface ProductsTabProps {
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
+  currentStoreId?: number;
 }
 
 const ProductsTab = ({ 
@@ -46,7 +47,8 @@ const ProductsTab = ({
   onBulkPriceUpdate,
   onShowQr,
   branding,
-  showStoreName
+  showStoreName,
+  currentStoreId
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -161,7 +163,7 @@ const ProductsTab = ({
                       ...p,
                       price_2: (Number(p.price) / (1 + Number(p.tax_rate) / 100)).toFixed(2)
                     }));
-                    Promise.all(updatedProducts.map(p => api.updateProduct(p.id, { ...p, price_2: p.price_2 }, undefined))).then(() => {
+                    Promise.all(updatedProducts.map(p => api.updateProduct(p.id, { ...p, price_2: p.price_2 }, currentStoreId))).then(() => {
                       alert(lang === 'tr' ? 'Tüm ürünler güncellendi.' : 'All products updated.');
                       window.location.reload();
                     });

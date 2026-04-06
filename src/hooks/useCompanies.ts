@@ -28,6 +28,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     if (!currentStoreId) return;
     try {
       const res = await api.getCompanies(includeZeroBalance, currentStoreId);
+      console.log("Companies API response:", res);
       setCompanies(Array.isArray(res) ? res : []);
     } catch (error) {
       console.error("Fetch companies error:", error);

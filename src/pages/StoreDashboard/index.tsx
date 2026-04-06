@@ -786,6 +786,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onShowQr={() => setShowQrModal(true)}
                         branding={branding}
                         showStoreName={includeBranches}
+                        currentStoreId={currentStoreId}
                       />
                     )}
                     {activeTab === "analytics" && (
