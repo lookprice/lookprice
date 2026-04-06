@@ -136,52 +136,51 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
 
     let yPos = 20;
 
+    // 1. Store Info (Left)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(fixTr(branding.name || branding.store_name || "LookPrice"), 14, yPos);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 50);
+    doc.text(addressLines, 14, yPos + 5);
+    let storeY = yPos + 5 + (addressLines.length * 4);
+    doc.text(`${fixTr(t.phone || 'Tel:')} ${branding.phone || ""}`, 14, storeY);
+    doc.text(`${fixTr(t.email || 'Email:')} ${branding.email || ""}`, 14, storeY + 4);
+
+    // 2. Logo (Center)
     if (branding.logo_url) {
       try {
         const logoBase64 = await getBase64Image(branding.logo_url);
-        doc.addImage(logoBase64, 'PNG', 14, 10, 40, 15);
-        yPos = 30;
+        // Square logo, centered
+        doc.addImage(logoBase64, 'PNG', 90, 10, 30, 30);
       } catch (e) {
         console.error("Logo addImage error:", e);
       }
     }
 
-    const storeTitle = branding.name || branding.store_name || "LookPrice";
+    // 3. Customer Info (Right)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
+    doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text(fixTr(storeTitle), 14, yPos);
-    
+    doc.text(fixTr(t.company || 'Company'), 150, yPos);
+    doc.text(fixTr(selectedCompany.title), 150, yPos + 5);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(100);
-    yPos += 5;
-    
-    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 80);
-    doc.text(addressLines, 14, yPos);
-    yPos += (addressLines.length * 4);
-    
-    doc.text(`${fixTr(t.phone || 'Tel:')} ${branding.phone || ""}`, 14, yPos);
-    yPos += 4;
-    doc.text(`${fixTr(t.email || 'Email:')} ${branding.email || ""}`, 14, yPos);
-    yPos += 10;
+    doc.text(`${fixTr(t.dateRange || 'Date Range')}:`, 150, yPos + 10);
+    doc.text(`${transactionStartDate} - ${transactionEndDate}`, 150, yPos + 14);
 
-    doc.setDrawColor(200);
-    doc.line(14, yPos, 196, yPos);
-    yPos += 10;
+    yPos = 50; // Move below the top section
 
+    // 4. Title (Centered)
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
-    doc.text(fixTr(t.statements.customerStatement.toUpperCase()), 14, yPos);
-    yPos += 8;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${fixTr(t.company || 'Company')}: ${fixTr(selectedCompany.title)}`, 14, yPos);
-    yPos += 6;
-    doc.text(`${fixTr(t.dateRange || 'Date Range')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
-    yPos += 10;
+    doc.text(fixTr(t.statements.customerStatement.toUpperCase()), 105, yPos, { align: 'center' });
+    yPos += 15;
 
     const currencies = Array.from(new Set(companyTransactions.map(t => t.currency || branding.default_currency || 'TRY')));
 
