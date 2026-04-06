@@ -155,6 +155,23 @@ const ProductsTab = ({
                 </button>
               )}
               <button 
+                onClick={() => {
+                  if (window.confirm(lang === 'tr' ? 'Tüm ürünlerin 2. Satış Fiyatları (KDV Hariç) güncellensin mi?' : 'Update 2nd Sales Prices (Excl. Tax) for all products?')) {
+                    const updatedProducts = products.map(p => ({
+                      ...p,
+                      price_2: (Number(p.price) / (1 + Number(p.tax_rate) / 100)).toFixed(2)
+                    }));
+                    Promise.all(updatedProducts.map(p => api.updateProduct(p.id, { ...p, price_2: p.price_2 }, undefined))).then(() => {
+                      alert(lang === 'tr' ? 'Tüm ürünler güncellendi.' : 'All products updated.');
+                      window.location.reload();
+                    });
+                  }
+                }}
+                className="flex-1 md:flex-none flex items-center justify-center bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-all"
+              >
+                {lang === 'tr' ? 'Tüm Fiyatları Hesapla' : 'Calculate All Prices'}
+              </button>
+              <button 
                 onClick={onDeleteAll}
                 className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all border border-transparent hover:border-red-100"
                 title={t.deleteAll}
