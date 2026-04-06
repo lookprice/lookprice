@@ -203,7 +203,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         barcode: product.barcode,
         quantity: "1",
         unit_price: product.price || "0",
-        tax_rate: product.tax_rate !== undefined ? String(product.tax_rate) : (branding?.default_tax_rate !== undefined ? String(branding.default_tax_rate) : "20")
+        tax_rate: product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20")
       }]);
     }
     setProductSearch("");
@@ -387,7 +387,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         barcode: item.barcode,
         quantity: String(item.quantity),
         unit_price: String(item.unit_price),
-        tax_rate: String(item.tax_rate)
+        tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
       })));
       setShowModal(true);
     } catch (error: any) {
@@ -1026,7 +1026,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                                   <input 
                                     type="text"
                                     className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:bg-white transition-all"
-                                    value={item.tax_rate}
+                                    value={Math.floor(Number(item.tax_rate) || 0)}
                                     onChange={(e) => updateItem(idx, 'tax_rate', e.target.value)}
                                   />
                                 </td>

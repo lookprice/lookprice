@@ -2375,7 +2375,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <input 
                           name="tax_rate" 
                           type="text" 
-                          defaultValue={editingProduct?.tax_rate ?? branding.default_tax_rate ?? 20} 
+                          defaultValue={editingProduct?.tax_rate !== undefined ? Math.floor(Number(editingProduct.tax_rate)) : (branding.default_tax_rate !== undefined ? Math.floor(Number(branding.default_tax_rate)) : 20)} 
                           onFocus={(e) => e.target.select()}
                           onInput={(e) => {
                             const target = e.target as HTMLInputElement;

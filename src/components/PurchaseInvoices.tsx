@@ -91,7 +91,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         barcode: product.barcode,
         quantity: "1",
         unit_price: product.price || "0", // Default to selling price, user can change
-        tax_rate: product.tax_rate !== undefined ? String(product.tax_rate) : (branding?.default_tax_rate !== undefined ? String(branding.default_tax_rate) : "20") // Default KDV
+        tax_rate: product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20") // Default KDV
       }]);
     }
     setProductSearch("");
@@ -262,7 +262,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         barcode: item.barcode,
         quantity: String(item.quantity),
         unit_price: String(item.unit_price),
-        tax_rate: String(item.tax_rate)
+        tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
       })));
       setShowModal(true);
     } catch (error) {
@@ -892,7 +892,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                       <input
                                         type="text"
                                         list="tax-rates"
-                                        value={item.tax_rate}
+                                        value={Math.floor(Number(item.tax_rate) || 0)}
                                         onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
                                         onFocus={(e) => e.target.select()}
                                         className="w-[8ch] px-2 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
@@ -971,7 +971,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                   <input
                                     type="text"
                                     list="tax-rates-mobile"
-                                    value={item.tax_rate}
+                                    value={Math.floor(Number(item.tax_rate) || 0)}
                                     onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
                                     onFocus={(e) => e.target.select()}
                                     className="w-[8ch] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"

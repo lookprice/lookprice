@@ -356,7 +356,7 @@ const SettingsTab = ({
                   <input 
                     type="text" 
                     className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    value={branding.default_tax_rate !== undefined ? String(branding.default_tax_rate) : '20'}
+                    value={branding.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : '20'}
                     onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
                     onFocus={(e) => e.target.select()}
                   />
@@ -389,7 +389,7 @@ const SettingsTab = ({
                         const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
                         if (catInput.value.trim() && taxInput.value) {
                           const newRules = [...(branding.category_tax_rules || [])];
-                          newRules.push({ category: catInput.value.trim(), taxRate: parseFloat(taxInput.value.replace(',', '.')) });
+                          newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value.replace(/[^0-9]/g, '')) || 0 });
                           onBrandingChange('category_tax_rules', newRules);
                           catInput.value = '';
                           taxInput.value = '';

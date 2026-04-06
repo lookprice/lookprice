@@ -183,7 +183,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         ...item,
         quantity: Number(item.quantity),
         unit_price: Number(item.unit_price),
-        tax_rate: Number(item.tax_rate),
+        tax_rate: Math.floor(Number(item.tax_rate) || 0),
         total_price: Number(item.total_price)
       })));
       setShowModal(true);
@@ -732,7 +732,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.taxRate}</label>
                           <input
                             type="text"
-                            value={item.tax_rate}
+                            value={Math.floor(Number(item.tax_rate) || 0)}
                             onChange={(e) => updateItem(index, { tax_rate: e.target.value })}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
                           />
