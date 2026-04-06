@@ -514,50 +514,49 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-8 rounded-2xl max-w-3xl w-full relative max-h-[90vh] overflow-y-auto shadow-2xl print:shadow-none print:max-h-none print:rounded-none"
+              className="bg-white p-6 rounded-xl max-w-2xl w-full relative max-h-[90vh] overflow-y-auto shadow-2xl print:shadow-none print:max-h-none print:rounded-none print:p-0"
             >
-              <button onClick={() => setShowDispatchNote(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 print:hidden"><XCircle className="h-5 w-5" /></button>
+              <button onClick={() => setShowDispatchNote(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 print:hidden"><XCircle className="h-4 w-4" /></button>
               
-              <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
+              <div className="flex justify-between items-start mb-4 border-b border-gray-100 pb-3">
                 <div>
-                  <h1 className="text-2xl font-black text-indigo-600 tracking-tighter mb-1 uppercase">{t.dispatchNote || 'SEVK İRSALİYESİ'}</h1>
-                  <p className="text-xs text-gray-400 font-mono">Transfer ID: #{showDispatchNote.id}</p>
+                  <h1 className="text-lg font-black text-indigo-600 tracking-tighter mb-0.5 uppercase">{t.dispatchNote || 'SEVK İRSALİYESİ'}</h1>
+                  <p className="text-[9px] text-gray-400 font-mono">ID: #{showDispatchNote.id}</p>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-bold text-gray-900 uppercase">{t.date || 'Tarih'}: {new Date(showDispatchNote.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</div>
-                  <div className="text-[10px] text-gray-500 font-mono uppercase">{t.time || 'Saat'}: {new Date(showDispatchNote.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US')}</div>
+                  <div className="text-xs font-bold text-gray-900 uppercase">{t.date || 'Tarih'}: {new Date(showDispatchNote.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</div>
+                  <div className="text-[9px] text-gray-500 font-mono uppercase">{t.time || 'Saat'}: {new Date(showDispatchNote.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US')}</div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{t.senderStore || 'GÖNDEREN MAĞAZA'}</h3>
-                  <div className="text-sm font-bold text-slate-900">{showDispatchNote.from_store_name}</div>
-                  <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-tight">{t.preparedBy || 'Hazırlayan'}: {showDispatchNote.prepared_by_email || (lang === 'tr' ? 'Sistem' : 'System')}</div>
-                  <div className="text-[10px] text-slate-500 uppercase tracking-tight">{t.shippedBy || 'Sevk Eden'}: {showDispatchNote.shipped_by_email || (lang === 'tr' ? 'Sistem' : 'System')}</div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.senderStore || 'GÖNDEREN MAĞAZA'}</h3>
+                  <div className="text-xs font-bold text-slate-900">{showDispatchNote.from_store_name}</div>
+                  <div className="text-[9px] text-slate-500 mt-0.5 uppercase tracking-tight">{t.preparedBy || 'Hazırlayan'}: {showDispatchNote.prepared_by_email || (lang === 'tr' ? 'Sistem' : 'System')}</div>
                 </div>
-                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                  <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">{t.receiverStore || 'ALICI MAĞAZA'}</h3>
-                  <div className="text-sm font-bold text-indigo-900">{showDispatchNote.to_store_name}</div>
-                  <div className="text-[10px] text-indigo-500 mt-1 uppercase tracking-tight">{t.requestedBy || 'Talep Eden'}: {showDispatchNote.created_by_email || (lang === 'tr' ? 'Sistem' : 'System')}</div>
+                <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                  <h3 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1">{t.receiverStore || 'ALICI MAĞAZA'}</h3>
+                  <div className="text-xs font-bold text-indigo-900">{showDispatchNote.to_store_name}</div>
+                  <div className="text-[9px] text-indigo-500 mt-0.5 uppercase tracking-tight">{t.requestedBy || 'Talep Eden'}: {showDispatchNote.created_by_email || (lang === 'tr' ? 'Sistem' : 'System')}</div>
                 </div>
               </div>
 
-              <div className="mb-8 overflow-hidden rounded-xl border border-gray-100">
+              <div className="mb-4 overflow-hidden rounded-lg border border-gray-100">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase">{t.barcode || 'Barkod'}</th>
-                      <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase">{t.productName || 'Ürün Adı'}</th>
-                      <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase text-right">{t.quantity || 'Miktar'}</th>
+                      <th className="px-3 py-2 text-[9px] font-bold text-gray-400 uppercase">{t.barcode || 'Barkod'}</th>
+                      <th className="px-3 py-2 text-[9px] font-bold text-gray-400 uppercase">{t.productName || 'Ürün Adı'}</th>
+                      <th className="px-3 py-2 text-[9px] font-bold text-gray-400 uppercase text-right">{t.quantity || 'Miktar'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {showDispatchNote.items?.map((item: any, idx: number) => (
                       <tr key={idx}>
-                        <td className="px-4 py-3 text-xs font-mono text-gray-500">{item.barcode}</td>
-                        <td className="px-4 py-3 text-xs font-bold text-gray-900">{item.product_name}</td>
-                        <td className="px-4 py-3 text-xs font-bold text-gray-900 text-right">{item.quantity} {t.units || (lang === 'tr' ? 'Adet' : 'Units')}</td>
+                        <td className="px-3 py-2 text-[10px] font-mono text-gray-500">{item.barcode}</td>
+                        <td className="px-3 py-2 text-[10px] font-bold text-gray-900">{item.product_name}</td>
+                        <td className="px-3 py-2 text-[10px] font-bold text-gray-900 text-right">{item.quantity} {t.units || (lang === 'tr' ? 'Adet' : 'Units')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -565,29 +564,29 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
               </div>
 
               {showDispatchNote.notes && (
-                <div className="mb-8 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                  <h3 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">{t.notes || 'Notlar'}</h3>
-                  <p className="text-xs text-amber-800 italic">{showDispatchNote.notes}</p>
+                <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <h3 className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-0.5">{t.notes || 'Notlar'}</h3>
+                  <p className="text-[10px] text-amber-800 italic">{showDispatchNote.notes}</p>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-dashed border-gray-200">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-dashed border-gray-200">
                 <div className="text-center">
-                  <div className="h-20 border-b border-gray-200 mb-2"></div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">{t.senderSignature || 'Teslim Eden İmza'}</p>
+                  <div className="h-12 border-b border-gray-200 mb-1"></div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase">{t.senderSignature || 'Teslim Eden İmza'}</p>
                 </div>
                 <div className="text-center">
-                  <div className="h-20 border-b border-gray-200 mb-2"></div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">{t.receiverSignature || 'Teslim Alan İmza'}</p>
+                  <div className="h-12 border-b border-gray-200 mb-1"></div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase">{t.receiverSignature || 'Teslim Alan İmza'}</p>
                 </div>
               </div>
 
-              <div className="mt-8 flex justify-end space-x-3 print:hidden">
+              <div className="mt-6 flex justify-end space-x-3 print:hidden">
                 <button
                   onClick={() => window.print()}
-                  className="flex items-center px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
+                  className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
                 >
-                  <Printer className="h-4 w-4 mr-2" />
+                  <Printer className="h-3.5 w-3.5 mr-1.5" />
                   {t.print || 'Yazdır'}
                 </button>
               </div>

@@ -37,9 +37,9 @@ interface ServiceItem {
   id?: number;
   product_id?: number | null;
   item_name: string;
-  quantity: number;
-  unit_price: number;
-  tax_rate: number;
+  quantity: number | string;
+  unit_price: number | string;
+  tax_rate: number | string;
   total_price: number;
   type: 'part' | 'labor';
 }
@@ -138,7 +138,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
     const data = {
       ...editingRecord,
-      items: serviceItems
+      items: serviceItems.map(item => ({
+        ...item,
+        quantity: Number(String(item.quantity).replace(',', '.')) || 0,
+        unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
+        tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0,
+        total_price: Number(String(item.total_price).replace(',', '.')) || 0
+      }))
     };
 
     try {
@@ -221,6 +227,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     const newItems = [...serviceItems];
     const item = { ...newItems[index], ...updates };
     
+    // Force integer for tax rate if it's being updated
+    if ('tax_rate' in updates) {
+      item.tax_rate = String(updates.tax_rate).replace(/[^0-9]/g, '').substring(0, 2);
+    }
+
     if (updates.product_id) {
       const product = products.find(p => p.id === Number(updates.product_id));
       if (product) {
@@ -229,7 +240,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       }
     }
 
-    item.total_price = item.quantity * item.unit_price * (1 + item.tax_rate / 100);
+    const qty = Number(String(item.quantity).replace(',', '.')) || 0;
+    const price = Number(String(item.unit_price).replace(',', '.')) || 0;
+    const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
+
+    item.total_price = Number((qty * price * (1 + tax / 100)).toFixed(2));
     newItems[index] = item;
     setServiceItems(newItems);
   };
@@ -453,6 +468,16 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            handleViewDetails(record);
+                            setTimeout(() => handlePrint(), 100);
+                          }}
+                          className="p-2 text-gray-400 hover:text-slate-600 transition-colors"
+                          title={t.print}
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleViewDetails(record)}
                           className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
@@ -688,34 +713,34 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         <div className="w-24">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.quantity}</label>
                           <input
-                            type="number"
+                            type="text"
                             value={item.quantity}
-                            onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+                            onChange={(e) => updateItem(index, { quantity: e.target.value })}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
                           />
                         </div>
                         <div className="w-32">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.unitPrice}</label>
                           <input
-                            type="number"
+                            type="text"
                             value={item.unit_price}
-                            onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
+                            onChange={(e) => updateItem(index, { unit_price: e.target.value })}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
                           />
                         </div>
                         <div className="w-20">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.taxRate}</label>
                           <input
-                            type="number"
+                            type="text"
                             value={item.tax_rate}
-                            onChange={(e) => updateItem(index, { tax_rate: Number(e.target.value) })}
+                            onChange={(e) => updateItem(index, { tax_rate: e.target.value })}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
                           />
                         </div>
                         <div className="w-32">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.total}</label>
                           <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-700">
-                            {item.total_price.toFixed(2)}
+                            {item.total_price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         </div>
                         <button
@@ -812,67 +837,115 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   </button>
                 </div>
               </div>
-              <div ref={printRef} className="p-6 space-y-6 print:p-0">
-                {/* Print Header */}
-                <div className="hidden print:block mb-8 border-b border-slate-200 pb-8">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h1 className="text-3xl font-black text-slate-900 tracking-tight">{storeInfo?.name || "Teknik Servis"}</h1>
-                      <p className="text-sm text-slate-500 mt-2 max-w-xs">{storeInfo?.address}</p>
-                      <p className="text-sm text-slate-500">{storeInfo?.phone}</p>
-                      <p className="text-sm text-slate-500">{storeInfo?.email}</p>
-                    </div>
-                    <div className="text-right">
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'TEKNİK SERVİS FORMU' : 'SERVICE FORM'}</h2>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">#{selectedRecord.id.toString().padStart(6, '0')}</p>
+              <div ref={printRef} className="p-6 max-h-[75vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-6 print:bg-white text-slate-900 font-sans text-[10px]">
+                {/* Top Border */}
+                <div className="border-t-2 border-slate-900 mb-3"></div>
+
+                {/* Header */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-1/2 space-y-0.5 pr-4">
+                    <h1 className="font-bold text-xs uppercase">{storeInfo?.name || "Teknik Servis"}</h1>
+                    <p className="leading-tight">{storeInfo?.address}</p>
+                    <p>Tel: {storeInfo?.phone}</p>
+                    <p>E-Posta: {storeInfo?.email}</p>
+                  </div>
+                  <div className="w-1/2 flex justify-end items-start">
+                    <div className="text-center mr-4">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full mx-auto mb-1 flex items-center justify-center border border-slate-200">
+                        <Wrench className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <span className="font-bold text-base uppercase tracking-widest">{isTr ? 'TEKNİK SERVİS FORMU' : 'SERVICE FORM'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.customer}</h4>
-                    <p className="font-bold text-slate-900">{selectedRecord.customer_name}</p>
-                    <p className="text-sm text-slate-500">{selectedRecord.customer_phone}</p>
+                {/* Middle Border */}
+                <div className="border-t-2 border-slate-900 mb-3"></div>
+
+                {/* Customer & Service Info */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-1/2 space-y-0.5 pr-4">
+                    <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'MÜŞTERİ BİLGİLERİ' : 'CUSTOMER INFO'}</p>
+                    <p className="font-bold text-[11px]">{selectedRecord.customer_name || '-'}</p>
+                    <p>Tel: {selectedRecord.customer_phone || '-'}</p>
                   </div>
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.device}</h4>
-                    <p className="font-bold text-slate-900">{selectedRecord.device_model}</p>
-                    <p className="text-sm text-slate-500">SN: {selectedRecord.device_serial || '-'}</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.issueDescription}</h4>
-                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    {selectedRecord.issue_description || "Açıklama girilmemiş"}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">{t.service_tab.partsAndLabor}</h4>
-                  <div className="space-y-2">
-                    {selectedRecord.items?.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-sm p-2 border-b border-slate-50">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${item.type === 'part' ? 'bg-blue-400' : 'bg-amber-400'}`} />
-                          <span className="text-slate-700">{item.item_name} x{item.quantity}</span>
-                        </div>
-                        <span className="font-bold text-slate-900">
-                          {Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedRecord.currency })}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="w-1/2 pl-4">
+                    <table className="w-full border-collapse border border-slate-900 text-[9px]">
+                      <tbody>
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold w-1/3">{isTr ? 'Kayıt No:' : 'Record No:'}</td>
+                          <td className="border border-slate-900 p-0.5">#{selectedRecord.id.toString().padStart(6, '0')}</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Tarih:' : 'Date:'}</td>
+                          <td className="border border-slate-900 p-0.5">{new Date(selectedRecord.created_at).toLocaleDateString('tr-TR')}</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Durum:' : 'Status:'}</td>
+                          <td className="border border-slate-900 p-0.5 uppercase">{getStatusLabel(selectedRecord.status)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(selectedRecord.status)}`}>
-                    {getStatusLabel(selectedRecord.status)}
-                  </span>
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{t.service_tab.totalAmount}</p>
-                    <p className="text-xl font-black text-indigo-600">
-                      {Number(selectedRecord.total_amount).toLocaleString('tr-TR', { style: 'currency', currency: selectedRecord.currency })}
-                    </p>
+
+                {/* Device Info */}
+                <div className="mb-4">
+                  <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'CİHAZ BİLGİLERİ & AÇIKLAMA' : 'DEVICE INFO & DESCRIPTION'}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p><span className="font-bold">{isTr ? 'Cihaz Modeli:' : 'Device Model:'}</span> {selectedRecord.device_model}</p>
+                      <p><span className="font-bold">{isTr ? 'Seri No:' : 'Serial No:'}</span> {selectedRecord.device_serial || '-'}</p>
+                    </div>
+                    <div>
+                      <p><span className="font-bold">{isTr ? 'Açıklama:' : 'Description:'}</span> {selectedRecord.issue_description || '-'}</p>
+                    </div>
                   </div>
+                </div>
+
+                {/* Items Table */}
+                <table className="w-full border-collapse border border-slate-900 text-xs mb-4">
+                  <thead>
+                    <tr className="bg-slate-100 print:bg-slate-100">
+                      <th className="border border-slate-900 p-2 text-center w-12">{isTr ? 'Sıra No' : 'No'}</th>
+                      <th className="border border-slate-900 p-2 text-left">{isTr ? 'Parça / İşçilik' : 'Part / Labor'}</th>
+                      <th className="border border-slate-900 p-2 text-center w-20">{isTr ? 'Miktar' : 'Qty'}</th>
+                      <th className="border border-slate-900 p-2 text-right w-24">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
+                      <th className="border border-slate-900 p-2 text-right w-28">{isTr ? 'Toplam' : 'Total'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedRecord.items || []).map((item: any, idx: number) => {
+                      const unitPrice = Number(item.unit_price) || 0;
+                      const qty = Number(item.quantity) || 0;
+                      const lineTotal = unitPrice * qty;
+
+                      return (
+                        <tr key={idx}>
+                          <td className="border border-slate-900 p-2 text-center">{idx + 1}</td>
+                          <td className="border border-slate-900 p-2">
+                            <div className="font-bold">{item.item_name}</div>
+                            <div className="text-[10px] text-slate-500 uppercase">{item.type === 'part' ? (isTr ? 'Yedek Parça' : 'Spare Part') : (isTr ? 'İşçilik' : 'Labor')}</div>
+                          </td>
+                          <td className="border border-slate-900 p-2 text-center">{qty}</td>
+                          <td className="border border-slate-900 p-2 text-right">{unitPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {selectedRecord.currency}</td>
+                          <td className="border border-slate-900 p-2 text-right">{lineTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {selectedRecord.currency}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Totals */}
+                <div className="flex justify-end mb-4">
+                  <table className="w-1/2 border-collapse border border-slate-900 text-[9px]">
+                    <tbody>
+                      <tr className="bg-slate-50">
+                        <td className="border border-slate-900 p-1 font-bold text-right text-[10px]">{isTr ? 'Genel Toplam' : 'Grand Total'}</td>
+                        <td className="border border-slate-900 p-1 text-right font-bold w-32 text-[10px]">{Number(selectedRecord.total_amount).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {selectedRecord.currency}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
               <div className="p-6 bg-slate-50 flex justify-end gap-3">

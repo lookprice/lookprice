@@ -233,7 +233,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     try {
       await api.addCompanyTransaction(selectedCompany.id, {
         type: newTransactionType,
-        amount: Number(newTransactionAmount),
+        amount: Number(String(newTransactionAmount).replace(',', '.')),
         description: newTransactionDescription,
         transaction_date: newTransactionDate,
         payment_method: newTransactionPaymentMethod

@@ -354,15 +354,10 @@ const SettingsTab = ({
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                   <input 
-                    type="number" 
-                    step="1"
-                    min="0"
-                    max="99"
-                    maxLength={2}
-                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                    type="text" 
                     className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    value={branding.default_tax_rate !== undefined ? Math.round(branding.default_tax_rate) : 20}
-                    onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value) || 0)}
+                    value={branding.default_tax_rate !== undefined ? String(branding.default_tax_rate) : '20'}
+                    onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
                     onFocus={(e) => e.target.select()}
                   />
                 </div>
@@ -381,7 +376,7 @@ const SettingsTab = ({
                     <div className="relative w-24">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                       <input 
-                        type="number" 
+                        type="text" 
                         id="new-category-tax"
                         placeholder="0"
                         className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
@@ -394,7 +389,7 @@ const SettingsTab = ({
                         const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
                         if (catInput.value.trim() && taxInput.value) {
                           const newRules = [...(branding.category_tax_rules || [])];
-                          newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value) });
+                          newRules.push({ category: catInput.value.trim(), taxRate: parseFloat(taxInput.value.replace(',', '.')) });
                           onBrandingChange('category_tax_rules', newRules);
                           catInput.value = '';
                           taxInput.value = '';

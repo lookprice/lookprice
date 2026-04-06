@@ -737,7 +737,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         quotations={quotationList}
                         isViewer={isViewer}
                         onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
-                        onGeneratePDF={(q) => { setSelectedQuotationDetails(q); setTimeout(() => handlePrintQuotation(), 100); }}
+                        onGeneratePDF={(q) => { 
+                          setSelectedQuotationDetails(q); 
+                          setShowQuotationDetailsModal(true);
+                          setTimeout(() => handlePrintQuotation(), 100); 
+                        }}
                         onApprove={handleApproveQuotation}
                         onCancel={handleCancelQuotation}
                         onConvertToSale={handleConvertToSale}
@@ -1168,12 +1172,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <td className="px-4 py-3 text-center">
                               {selectedSale.status === 'pending' ? (
                                 <input 
-                                  type="number" 
+                                  type="text" 
                                   className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-center font-bold"
                                   value={item.quantity === 0 ? '' : item.quantity}
                                   onChange={(e) => handleUpdateSaleItem(idx, 'quantity', e.target.value)}
                                   onFocus={(e) => e.target.select()}
-                                  min="1"
                                 />
                               ) : (
                                 <span className="text-gray-600">{item.quantity}</span>
@@ -1184,7 +1187,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                 <div className="flex flex-col items-end gap-1">
                                   <div className="flex items-center gap-1">
                                     <input 
-                                      type="number" 
+                                      type="text" 
                                       className="w-24 px-2 py-1 border border-gray-200 rounded-lg text-right font-bold text-indigo-600"
                                       value={item.unit_price === 0 ? '' : item.unit_price}
                                       onChange={(e) => handleUpdateSaleItem(idx, 'unit_price', e.target.value)}
@@ -1193,7 +1196,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                     <span className="text-[10px] font-bold text-gray-400">{item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
                                   </div>
                                   <div className="text-[10px] font-black text-gray-900">
-                                    {t.total}: {Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}
+                                    {t.total}: {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}
                                   </div>
                                   <button 
                                     onClick={() => handleRemoveSaleItem(idx)}
@@ -1203,7 +1206,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                   </button>
                                 </div>
                               ) : (
-                                <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
+                                <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
                               )}
                             </td>
                           </tr>
@@ -1238,12 +1241,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.quantity}</span>
                             {selectedSale.status === 'pending' ? (
                               <input 
-                                type="number" 
+                                type="text" 
                                 className="w-16 px-2 py-1 bg-white border border-gray-200 rounded-lg text-center font-bold text-sm"
                                 value={item.quantity === 0 ? '' : item.quantity}
                                 onChange={(e) => handleUpdateSaleItem(idx, 'quantity', e.target.value)}
                                 onFocus={(e) => e.target.select()}
-                                min="1"
                               />
                             ) : (
                               <span className="font-bold text-gray-900">{item.quantity}</span>
@@ -1254,7 +1256,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             {selectedSale.status === 'pending' ? (
                               <div className="flex items-center gap-1">
                                 <input 
-                                  type="number" 
+                                  type="text" 
                                   className="w-24 px-2 py-1 bg-white border border-gray-200 rounded-lg text-right font-bold text-sm text-indigo-600"
                                   value={item.unit_price === 0 ? '' : item.unit_price}
                                   onChange={(e) => handleUpdateSaleItem(idx, 'unit_price', e.target.value)}
@@ -1382,67 +1384,102 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </button>
                 </div>
               </div>
-              <div ref={quotationPrintRef} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
-                {/* Print Header */}
-                <div className="hidden print:block mb-8 border-b border-gray-200 pb-8">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h1 className="text-3xl font-black text-gray-900 tracking-tight">{branding?.name || "Teklif"}</h1>
-                      <p className="text-sm text-gray-500 mt-2 max-w-xs">{branding?.address}</p>
-                      <p className="text-sm text-gray-500">{branding?.phone}</p>
-                      <p className="text-sm text-gray-500">{branding?.email}</p>
-                    </div>
-                    <div className="text-right">
-                      <h2 className="text-2xl font-black text-gray-900 tracking-tight">{lang === 'tr' ? 'TEKLİF FORMU' : 'QUOTATION FORM'}</h2>
-                      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-1">#{selectedQuotationDetails.id}</p>
-                      <p className="text-sm text-gray-500 mt-1">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
+              <div ref={quotationPrintRef} className="p-6 max-h-[75vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-6 print:bg-white text-slate-900 font-sans text-[10px]">
+                {/* Top Border */}
+                <div className="border-t-2 border-slate-900 mb-3"></div>
+
+                {/* Header */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-1/2 space-y-0.5 pr-4">
+                    <h1 className="font-bold text-xs uppercase">{branding?.name || "Teklif"}</h1>
+                    <p className="leading-tight">{branding?.address}</p>
+                    <p>Tel: {branding?.phone}</p>
+                    <p>E-Posta: {branding?.email}</p>
+                  </div>
+                  <div className="w-1/2 flex justify-end items-start">
+                    <div className="text-center mr-4">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full mx-auto mb-1 flex items-center justify-center border border-slate-200">
+                        <FileText className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <span className="font-bold text-base uppercase tracking-widest">{lang === 'tr' ? 'TEKLİF FORMU' : 'QUOTATION'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t.customer}</p>
-                    <p className="font-bold text-gray-900">{selectedQuotationDetails.customer_name}</p>
-                    {selectedQuotationDetails.customer_title && <p className="text-xs text-gray-500 mt-1">{selectedQuotationDetails.customer_title}</p>}
-                  </div>
-                  <div className="p-4 bg-indigo-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t.amount}</p>
-                    <p className="text-xl font-black text-indigo-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR')} {selectedQuotationDetails.currency?.slice(0, 3)}</p>
-                  </div>
-                </div>
+                {/* Middle Border */}
+                <div className="border-t-2 border-slate-900 mb-3"></div>
 
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.items || 'Ürünler'}</h4>
-                  <div className="border border-gray-100 rounded-2xl overflow-hidden">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50">
+                {/* Customer & Quotation Info */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-1/2 space-y-0.5 pr-4">
+                    <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{lang === 'tr' ? 'SAYIN' : 'TO'}</p>
+                    <p className="font-bold text-[11px]">{selectedQuotationDetails.customer_name || '-'}</p>
+                    <p>{selectedQuotationDetails.customer_title || '-'}</p>
+                  </div>
+                  <div className="w-1/2 pl-4">
+                    <table className="w-full border-collapse border border-slate-900 text-[9px]">
+                      <tbody>
                         <tr>
-                          <th className="px-4 py-2 font-bold text-gray-600">{t.productName}</th>
-                          <th className="px-4 py-2 font-bold text-gray-600 text-center">{t.quantity}</th>
-                          <th className="px-4 py-2 font-bold text-gray-600 text-right">{t.total}</th>
+                          <td className="border border-slate-900 p-0.5 font-bold w-1/3">{lang === 'tr' ? 'Teklif No:' : 'Quotation No:'}</td>
+                          <td className="border border-slate-900 p-0.5">{selectedQuotationDetails.id}</td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {selectedQuotationDetails.items?.map((item: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-3">
-                              <div className="font-bold text-gray-900">{item.product_name}</div>
-                              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{item.barcode || `#${item.product_id}`}</div>
-                            </td>
-                            <td className="px-4 py-3 text-center text-gray-600">{item.quantity}</td>
-                            <td className="px-4 py-3 text-right font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {selectedQuotationDetails.currency?.slice(0, 3)}</td>
-                          </tr>
-                        ))}
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{lang === 'tr' ? 'Tarih:' : 'Date:'}</td>
+                          <td className="border border-slate-900 p-0.5">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{lang === 'tr' ? 'Durum:' : 'Status:'}</td>
+                          <td className="border border-slate-900 p-0.5 uppercase">{selectedQuotationDetails.status}</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
 
+                {/* Items Table */}
+                <table className="w-full border-collapse border border-slate-900 text-xs mb-4">
+                  <thead>
+                    <tr className="bg-slate-100 print:bg-slate-100">
+                      <th className="border border-slate-900 p-2 text-center w-12">{lang === 'tr' ? 'Sıra No' : 'No'}</th>
+                      <th className="border border-slate-900 p-2 text-left">{lang === 'tr' ? 'Mal Hizmet' : 'Product/Service'}</th>
+                      <th className="border border-slate-900 p-2 text-center w-20">{lang === 'tr' ? 'Miktar' : 'Qty'}</th>
+                      <th className="border border-slate-900 p-2 text-right w-28">{lang === 'tr' ? 'Mal Hizmet Tutarı' : 'Total'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedQuotationDetails.items || []).map((item: any, idx: number) => {
+                      return (
+                        <tr key={idx}>
+                          <td className="border border-slate-900 p-2 text-center">{idx + 1}</td>
+                          <td className="border border-slate-900 p-2">
+                            <div className="font-bold">{item.product_name}</div>
+                            <div className="text-[10px] text-slate-500">{item.barcode || `#${item.product_id}`}</div>
+                          </td>
+                          <td className="border border-slate-900 p-2 text-center">{item.quantity}</td>
+                          <td className="border border-slate-900 p-2 text-right">{Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Totals */}
+                <div className="flex justify-end mb-4">
+                  <table className="w-1/2 border-collapse border border-slate-900 text-[9px]">
+                    <tbody>
+                      <tr className="bg-slate-50">
+                        <td className="border border-slate-900 p-1 font-bold text-right text-[10px]">{lang === 'tr' ? 'Genel Toplam' : 'Grand Total'}</td>
+                        <td className="border border-slate-900 p-1 text-right font-bold w-32 text-[10px]">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Notes */}
                 {selectedQuotationDetails.notes && (
-                  <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">{t.notes}</p>
-                    <p className="text-sm text-orange-700">{selectedQuotationDetails.notes}</p>
+                  <div className="border border-slate-900 p-4 text-xs">
+                    <p className="font-bold mb-1">{lang === 'tr' ? 'Notlar:' : 'Notes:'}</p>
+                    <p>{selectedQuotationDetails.notes}</p>
                   </div>
                 )}
               </div>
@@ -1524,7 +1561,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           </span>
                         </div>
                         <p className="text-xl font-black text-gray-900">
-                          {Number(data.total_amount).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
+                          {Number(data.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {branding.default_currency?.slice(0, 3)}
                         </p>
                       </div>
                     );
@@ -1536,7 +1573,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <div>
                       <p className="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM GENEL' : 'GRAND TOTAL'}</p>
                       <p className="text-3xl font-black">
-                        {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
+                        {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {branding.default_currency?.slice(0, 3)}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1807,7 +1844,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
                   <input 
-                    type="number" 
+                    type="text" 
                     required 
                     value={newTransactionAmount}
                     onChange={(e) => setNewTransactionAmount(e.target.value)}
@@ -2250,8 +2287,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.price}</label>
                         <input 
                           name="price" 
-                          type="number" 
-                          step="0.01" 
+                          type="text" 
                           required 
                           defaultValue={editingProduct?.price} 
                           onFocus={(e) => e.target.select()}
@@ -2279,8 +2315,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'MALİYET FİYATI' : 'COST PRICE'}</label>
                         <input 
                           name="cost_price" 
-                          type="number" 
-                          step="0.01" 
+                          type="text" 
                           defaultValue={editingProduct?.cost_price} 
                           onFocus={(e) => e.target.select()}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-600" 
@@ -2307,8 +2342,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.stock}</label>
                         <input 
                           name="stock_quantity" 
-                          type="number" 
-                          step="0.01"
+                          type="text" 
                           defaultValue={editingProduct?.stock_quantity || 0} 
                           onFocus={(e) => e.target.select()}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
@@ -2318,8 +2352,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.minStock}</label>
                         <input 
                           name="min_stock_level" 
-                          type="number" 
-                          step="0.01"
+                          type="text" 
                           defaultValue={editingProduct?.min_stock_level ?? 5} 
                           onFocus={(e) => e.target.select()}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
@@ -2341,9 +2374,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">KDV %</label>
                         <input 
                           name="tax_rate" 
-                          type="number" 
+                          type="text" 
                           defaultValue={editingProduct?.tax_rate ?? branding.default_tax_rate ?? 20} 
                           onFocus={(e) => e.target.select()}
+                          onInput={(e) => {
+                            const target = e.target as HTMLInputElement;
+                            target.value = target.value.replace(/[^0-9]/g, '').substring(0, 2);
+                          }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />
                       </div>

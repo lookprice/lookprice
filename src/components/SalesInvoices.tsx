@@ -25,6 +25,19 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     contentRef: invoiceRef,
   });
 
+  const handleViewDetails = async (invoice: any, shouldPrint: boolean = false) => {
+    try {
+      const fullInvoice = await api.getSalesInvoice(invoice.id, storeId);
+      setSelectedInvoice(fullInvoice);
+      setShowDetailsModal(true);
+      if (shouldPrint) {
+        setTimeout(() => handlePrint(), 500);
+      }
+    } catch (err) {
+      console.error("Error fetching invoice details:", err);
+    }
+  };
+
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
@@ -199,7 +212,12 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...items];
-    newItems[index][field] = value;
+    if (field === 'tax_rate') {
+      // Force integer for tax rate
+      newItems[index][field] = value.replace(/[^0-9]/g, '').substring(0, 2);
+    } else {
+      newItems[index][field] = value;
+    }
     setItems(newItems);
   };
 
@@ -212,9 +230,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     let taxTotal = 0;
     
     items.forEach(item => {
-      const qty = Number(item.quantity) || 0;
-      const price = Number(item.unit_price) || 0;
-      const tax = Number(item.tax_rate) || 0;
+      const qty = Number(String(item.quantity).replace(',', '.')) || 0;
+      const price = Number(String(item.unit_price).replace(',', '.')) || 0;
+      const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
       
       const itemTotal = qty * price;
       const itemTax = itemTotal * (tax / 100);
@@ -223,9 +241,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     });
     
     return {
-      subtotal,
-      taxTotal,
-      grandTotal: subtotal + taxTotal
+      subtotal: Number(subtotal.toFixed(2)),
+      taxTotal: Number(taxTotal.toFixed(2)),
+      grandTotal: Number((subtotal + taxTotal).toFixed(2))
     };
   };
 
@@ -286,9 +304,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         notes,
         items: items.map(item => ({
           ...item,
-          quantity: Number(item.quantity) || 0,
-          unit_price: Number(item.unit_price) || 0,
-          tax_rate: Number(item.tax_rate) || 0
+          quantity: Number(String(item.quantity).replace(',', '.')) || 0,
+          unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
+          tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
         })),
         payment_method: paymentMethod,
         currency,
@@ -560,17 +578,17 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="text-sm font-bold text-slate-700">
-                        {Number(inv.total_amount).toLocaleString('tr-TR')}
+                        {Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="text-sm font-bold text-slate-600">
-                        {Number(inv.tax_amount).toLocaleString('tr-TR')}
+                        {Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="text-sm font-black text-slate-900">
-                        {Number(inv.grand_total).toLocaleString('tr-TR')}
+                        {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center text-xs font-black text-slate-400">
@@ -585,13 +603,13 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <Edit className="h-4 w-4" />
                         </button>
                         <button 
-                          onClick={() => { setSelectedInvoice(inv); setShowDetailsModal(true); }}
+                          onClick={() => handleViewDetails(inv)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
-                          onClick={() => { setSelectedInvoice(inv); setTimeout(() => handlePrint(), 100); }}
+                          onClick={() => handleViewDetails(inv, true)}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
                           title={isTr ? "Yazdır / PDF" : "Print / PDF"}
                         >
@@ -987,39 +1005,34 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                                 </td>
                                 <td className="px-6 py-4">
                                   <input 
-                                    type="number"
+                                    type="text"
                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:bg-white transition-all"
                                     value={item.quantity}
                                     onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                                    min="1"
                                   />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-3 py-4">
                                   <div className="relative">
                                     <input 
-                                      type="number"
-                                      step="0.01"
-                                      className="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-right font-bold text-slate-700 focus:bg-white transition-all"
+                                      type="text"
+                                      className="w-full pl-2 pr-6 py-2 bg-slate-50 border border-slate-200 rounded-xl text-right font-bold text-slate-700 text-xs focus:bg-white transition-all"
                                       value={item.unit_price}
                                       onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
                                     />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currency}</span>
+                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-400">{currency}</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4">
                                   <input 
-                                    type="number"
+                                    type="text"
                                     className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:bg-white transition-all"
                                     value={item.tax_rate}
                                     onChange={(e) => updateItem(idx, 'tax_rate', e.target.value)}
-                                    min="0"
-                                    max="100"
-                                    step="1"
                                   />
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   <div className="text-sm font-black text-slate-900">
-                                    {(Number(item.quantity) * Number(item.unit_price)).toLocaleString('tr-TR')} <span className="text-[10px] text-slate-400">{currency}</span>
+                                    {((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400">{currency}</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
@@ -1054,11 +1067,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       <div className="space-y-4">
                         <div className="flex justify-between items-center opacity-60">
                           <span className="text-xs font-bold uppercase tracking-widest">{isTr ? 'ARA TOPLAM' : 'SUBTOTAL'}</span>
-                          <span className="font-bold">{totals.subtotal.toLocaleString('tr-TR')} {currency}</span>
+                          <span className="font-bold">{totals.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                         </div>
                         <div className="flex justify-between items-center opacity-60">
                           <span className="text-xs font-bold uppercase tracking-widest">{isTr ? 'KDV TOPLAM' : 'VAT TOTAL'}</span>
-                          <span className="font-bold">{totals.taxTotal.toLocaleString('tr-TR')} {currency}</span>
+                          <span className="font-bold">{totals.taxTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                         </div>
                       </div>
                       <div className="pt-6 border-t border-white/10 flex justify-between items-end">
@@ -1069,7 +1082,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           </div>
                         </div>
                         <div className="text-right flex items-baseline gap-2">
-                          <div className="text-4xl font-black tracking-tighter whitespace-nowrap">{totals.grandTotal.toLocaleString('tr-TR')}</div>
+                          <div className="text-4xl font-black tracking-tighter whitespace-nowrap">{totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                           <div className="text-sm font-bold opacity-40 uppercase tracking-widest">{currency}</div>
                         </div>
                       </div>
@@ -1128,81 +1141,144 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   </button>
                 </div>
               </div>
-              <div ref={invoiceRef} className="p-8 space-y-8 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-8 print:bg-white">
-                {/* Print Header */}
-                <div className="hidden print:block mb-8 border-b border-slate-200 pb-8">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h1 className="text-3xl font-black text-slate-900 tracking-tight">{branding?.name || "Fatura"}</h1>
-                      <p className="text-sm text-slate-500 mt-2 max-w-xs">{branding?.address}</p>
-                      <p className="text-sm text-slate-500">{branding?.phone}</p>
-                      <p className="text-sm text-slate-500">{branding?.email}</p>
+              <div ref={invoiceRef} className="p-6 max-h-[75vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-6 print:bg-white text-slate-900 font-sans text-[10px]">
+                {/* Top Border */}
+                <div className="border-t-2 border-slate-900 mb-3"></div>
+
+                {/* Header */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-1/2 space-y-0.5 pr-4">
+                    <h1 className="font-bold text-xs uppercase">{branding?.name || "Fatura"}</h1>
+                    <p className="leading-tight">{branding?.address}</p>
+                    <p>Tel: {branding?.phone}</p>
+                    <p>E-Posta: {branding?.email}</p>
+                  </div>
+                  <div className="w-1/2 flex justify-end items-start">
+                    <div className="text-center mr-4">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full mx-auto mb-1 flex items-center justify-center border border-slate-200">
+                        <Building2 className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <span className="font-bold text-base uppercase tracking-widest">{isTr ? 'e-FATURA' : 'e-INVOICE'}</span>
                     </div>
-                    <div className="text-right">
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'SATIŞ FATURASI' : 'SALES INVOICE'}</h2>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">#{selectedInvoice.invoice_number}</p>
-                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 print:bg-white print:border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</p>
-                    <p className="text-lg font-black text-slate-900">{new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</p>
-                  </div>
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 print:bg-white print:border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Ödeme Yöntemi' : 'Payment Method'}</p>
-                    <p className="text-lg font-black text-slate-900 uppercase">{selectedInvoice.payment_method || '-'}</p>
-                  </div>
-                </div>
+                {/* Middle Border */}
+                <div className="border-t-2 border-slate-900 mb-3"></div>
 
-                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 print:bg-white print:border-slate-200">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
-                  <div className="flex items-center gap-3">
-                    {selectedInvoice.company_id ? <Building2 className="h-5 w-5 text-indigo-600 print:text-slate-600" /> : <UserIcon className="h-5 w-5 text-slate-400" />}
-                    <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name || selectedInvoice.company_title || selectedInvoice.sale_customer_name || '-'}</p>
+                {/* Customer & Invoice Info */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-1/2 space-y-0.5 pr-4">
+                    <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'SAYIN' : 'TO'}</p>
+                    <p className="font-bold text-[11px]">{selectedInvoice.customer_name || selectedInvoice.company_title || selectedInvoice.sale_customer_name || '-'}</p>
+                    <p className="leading-tight">{selectedInvoice.customer_address || selectedInvoice.company_address || '-'}</p>
+                    <p>Tel: {selectedInvoice.customer_phone || selectedInvoice.company_phone || '-'}</p>
+                    <p>Vergi Dairesi: {selectedInvoice.tax_office || '-'}</p>
+                    <p>VKN/TCKN: {selectedInvoice.tax_number || '-'}</p>
                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Ürünler' : 'Products'}</p>
-                  <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm print:shadow-none print:border-slate-200">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50 print:bg-slate-100">
+                  <div className="w-1/2 pl-4">
+                    <table className="w-full border-collapse border border-slate-900 text-[9px]">
+                      <tbody>
                         <tr>
-                          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">{isTr ? 'Ürün' : 'Product'}</th>
-                          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Adet' : 'Qty'}</th>
-                          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Birim' : 'Unit'}</th>
-                          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
+                          <td className="border border-slate-900 p-0.5 font-bold w-1/3">{isTr ? 'Özelleştirme No:' : 'Customization No:'}</td>
+                          <td className="border border-slate-900 p-0.5">TR1.2</td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 print:divide-slate-200">
-                        {(selectedInvoice.items || []).map((item: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="py-4 px-6 text-sm font-bold text-slate-700">{item.product_name}</td>
-                            <td className="py-4 px-6 text-sm font-black text-slate-900 text-right">{item.quantity}</td>
-                            <td className="py-4 px-6 text-sm font-bold text-slate-600 text-right">{Number(item.unit_price).toLocaleString('tr-TR')}</td>
-                            <td className="py-4 px-6 text-sm font-black text-slate-900 text-right">{Number(item.total_price).toLocaleString('tr-TR')}</td>
-                          </tr>
-                        ))}
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Senaryo:' : 'Scenario:'}</td>
+                          <td className="border border-slate-900 p-0.5">TICARIFATURA</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Fatura Tipi:' : 'Invoice Type:'}</td>
+                          <td className="border border-slate-900 p-0.5">SATIŞ</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Fatura No:' : 'Invoice No:'}</td>
+                          <td className="border border-slate-900 p-0.5 font-bold">{selectedInvoice.invoice_number}</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Fatura Tarihi:' : 'Invoice Date:'}</td>
+                          <td className="border border-slate-900 p-0.5">{new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
 
-                {selectedInvoice.notes && (
-                  <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 print:bg-white print:border-slate-200">
-                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2 print:text-slate-500">{isTr ? 'Notlar' : 'Notes'}</p>
-                    <p className="text-sm font-medium text-amber-900 leading-relaxed print:text-slate-800">{selectedInvoice.notes}</p>
-                  </div>
-                )}
+                {/* ETTN */}
+                <div className="mb-4 text-[10px]">
+                  <span className="font-bold">ETTN:</span> {selectedInvoice.id}
+                </div>
 
-                <div className="p-8 bg-slate-900 rounded-[2rem] text-white flex justify-between items-center shadow-xl shadow-slate-200 print:bg-white print:text-slate-900 print:shadow-none print:border-2 print:border-slate-900">
-                  <span className="text-sm font-black uppercase tracking-[0.2em] opacity-60 print:opacity-100">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
-                  <div className="text-right">
-                    <span className="text-3xl font-black tracking-tighter">{Number(selectedInvoice.grand_total).toLocaleString('tr-TR')}</span>
-                    <span className="text-xs font-bold opacity-40 uppercase tracking-widest ml-2 print:opacity-100">{selectedInvoice.currency}</span>
-                  </div>
+                {/* Items Table */}
+                <table className="w-full border-collapse border border-slate-900 text-xs mb-4">
+                  <thead>
+                    <tr className="bg-slate-100 print:bg-slate-100">
+                      <th className="border border-slate-900 p-2 text-center w-12">{isTr ? 'Sıra No' : 'No'}</th>
+                      <th className="border border-slate-900 p-2 text-left">{isTr ? 'Mal Hizmet' : 'Product/Service'}</th>
+                      <th className="border border-slate-900 p-2 text-center w-20">{isTr ? 'Miktar' : 'Qty'}</th>
+                      <th className="border border-slate-900 p-2 text-right w-24">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
+                      <th className="border border-slate-900 p-2 text-center w-20">{isTr ? 'KDV Oranı' : 'VAT %'}</th>
+                      <th className="border border-slate-900 p-2 text-right w-24">{isTr ? 'KDV Tutarı' : 'VAT Amount'}</th>
+                      <th className="border border-slate-900 p-2 text-right w-28">{isTr ? 'Mal Hizmet Tutarı' : 'Total'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedInvoice.items || []).map((item: any, idx: number) => {
+                      const unitPrice = Number(item.unit_price) || 0;
+                      const qty = Number(item.quantity) || 0;
+                      const taxRate = Number(item.tax_rate) || 0;
+                      const lineTotal = unitPrice * qty;
+                      const taxAmount = lineTotal * (taxRate / 100);
+
+                      return (
+                        <tr key={idx}>
+                          <td className="border border-slate-900 p-2 text-center">{idx + 1}</td>
+                          <td className="border border-slate-900 p-2">{item.product_name}</td>
+                          <td className="border border-slate-900 p-2 text-center">{qty}</td>
+                          <td className="border border-slate-900 p-2 text-right">{unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
+                          <td className="border border-slate-900 p-2 text-center">%{taxRate}</td>
+                          <td className="border border-slate-900 p-2 text-right">{taxAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
+                          <td className="border border-slate-900 p-2 text-right">{lineTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Totals */}
+                <div className="flex justify-end mb-4">
+                  <table className="w-1/2 border-collapse border border-slate-900 text-[9px]">
+                    <tbody>
+                      <tr>
+                        <td className="border border-slate-900 p-1 font-bold text-right">{isTr ? 'Mal Hizmet Toplam Tutarı' : 'Subtotal'}</td>
+                        <td className="border border-slate-900 p-1 text-right w-32">{Number(selectedInvoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-900 p-1 font-bold text-right">{isTr ? 'Hesaplanan KDV' : 'Calculated VAT'}</td>
+                        <td className="border border-slate-900 p-1 text-right">{Number(selectedInvoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-900 p-1 font-bold text-right">{isTr ? 'Vergiler Dahil Toplam Tutar' : 'Total with Taxes'}</td>
+                        <td className="border border-slate-900 p-1 text-right">{Number(selectedInvoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="border border-slate-900 p-1 font-bold text-right text-[10px]">{isTr ? 'Ödenecek Tutar' : 'Payable Amount'}</td>
+                        <td className="border border-slate-900 p-1 text-right font-bold text-[10px]">{Number(selectedInvoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Notes */}
+                <div className="border border-slate-900 p-4 text-xs">
+                  <p>{isTr ? 'İrsaliye yerine geçer.' : 'Serves as a waybill.'}</p>
+                  <p>{isTr ? 'e-Arşiv izni kapsamında elektronik ortamda iletilmiştir.' : 'Transmitted electronically under e-Archive permission.'}</p>
+                  {selectedInvoice.payment_method && (
+                    <p className="mt-2 font-bold">{isTr ? 'Ödeme Koşulu:' : 'Payment Terms:'} <span className="uppercase">{selectedInvoice.payment_method}</span></p>
+                  )}
+                  {selectedInvoice.notes && (
+                    <p className="mt-2">{selectedInvoice.notes}</p>
+                  )}
                 </div>
               </div>
             </motion.div>

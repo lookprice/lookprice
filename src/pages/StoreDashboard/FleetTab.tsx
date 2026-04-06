@@ -2521,20 +2521,20 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t.kilometer}</label>
                     <input
-                      type="number"
+                      type="text"
                       required
                       value={maintenanceFormData.mileage || ''}
-                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, mileage: Number(e.target.value) })}
+                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, mileage: Number(e.target.value.replace(',', '.')) })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t.cost} ({t.currency_try})</label>
                     <input
-                      type="number"
+                      type="text"
                       required
                       value={maintenanceFormData.cost || ''}
-                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, cost: Number(e.target.value) })}
+                      onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, cost: Number(e.target.value.replace(',', '.')) })}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -2554,9 +2554,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">{t.nextMaintenanceKM}</label>
                       <input
-                        type="number"
+                        type="text"
                         value={maintenanceFormData.next_maintenance_mileage || ''}
-                        onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, next_maintenance_mileage: Number(e.target.value) })}
+                        onChange={(e) => setMaintenanceFormData({ ...maintenanceFormData, next_maintenance_mileage: Number(e.target.value.replace(',', '.')) })}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                         placeholder={t.example_km}
                       />

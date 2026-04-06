@@ -94,7 +94,15 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     }
 
     const formData = new FormData(e.target as HTMLFormElement);
-    const data = Object.fromEntries(formData.entries());
+    const rawData = Object.fromEntries(formData.entries());
+    
+    // Parse numeric fields with comma support
+    const data: any = { ...rawData };
+    ['price', 'cost_price', 'stock_quantity', 'min_stock_level', 'tax_rate'].forEach(field => {
+      if (data[field]) {
+        data[field] = Number(String(data[field]).replace(',', '.'));
+      }
+    });
 
     const catName = String(data.category).trim().toLocaleLowerCase('tr-TR');
     const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === catName);

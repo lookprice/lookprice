@@ -64,12 +64,12 @@ export const useSales = (
     if (!selectedSale) return;
     const newItems = [...(selectedSale.items || [])];
     
-    const val = value === '' ? 0 : Number(value);
+    const val = value === '' ? 0 : Number(String(value).replace(',', '.'));
     
     newItems[idx] = { 
       ...newItems[idx], 
-      [field]: val,
-      total_price: field === 'quantity' ? val * Number(newItems[idx].unit_price) : Number(newItems[idx].quantity) * val
+      [field]: value, // Keep the string value for the input field
+      total_price: field === 'quantity' ? val * (Number(String(newItems[idx].unit_price).replace(',', '.')) || 0) : (Number(String(newItems[idx].quantity).replace(',', '.')) || 0) * val
     };
     
     const newTotal = newItems.reduce((acc, curr) => {

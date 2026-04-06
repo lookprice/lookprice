@@ -1,7 +1,7 @@
 
-const express = require('express');
-const cors = require('cors');
-const net = require('net');
+import express from 'express';
+import cors from 'cors';
+import net from 'net';
 
 const app = express();
 app.use(cors());

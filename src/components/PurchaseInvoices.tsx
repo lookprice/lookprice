@@ -100,7 +100,12 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...items];
-    newItems[index][field] = value;
+    if (field === 'tax_rate') {
+      // Force integer for tax rate
+      newItems[index][field] = value.replace(/[^0-9]/g, '').substring(0, 2);
+    } else {
+      newItems[index][field] = value;
+    }
     setItems(newItems);
   };
 
@@ -113,9 +118,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     let taxTotal = 0;
     
     items.forEach(item => {
-      const qty = Number(item.quantity) || 0;
-      const price = Number(item.unit_price) || 0;
-      const tax = Number(item.tax_rate) || 0;
+      const qty = Number(String(item.quantity).replace(',', '.')) || 0;
+      const price = Number(String(item.unit_price).replace(',', '.')) || 0;
+      const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
       
       const itemTotal = qty * price;
       const itemTax = itemTotal * (tax / 100);
@@ -124,9 +129,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     });
     
     return {
-      subtotal,
-      taxTotal,
-      grandTotal: subtotal + taxTotal
+      subtotal: Number(subtotal.toFixed(2)),
+      taxTotal: Number(taxTotal.toFixed(2)),
+      grandTotal: Number((subtotal + taxTotal).toFixed(2))
     };
   };
 
@@ -352,9 +357,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         new Date(inv.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US'),
         inv.invoice_number,
         fixTr(inv.company_name),
-        `${Number(inv.total_amount).toLocaleString('tr-TR')} ${inv.currency || 'TRY'}`,
-        `${Number(inv.tax_amount).toLocaleString('tr-TR')} ${inv.currency || 'TRY'}`,
-        `${Number(inv.grand_total).toLocaleString('tr-TR')} ${inv.currency || 'TRY'}`
+        `${Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${inv.currency || 'TRY'}`,
+        `${Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${inv.currency || 'TRY'}`,
+        `${Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${inv.currency || 'TRY'}`
       ]),
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
@@ -863,8 +868,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                   </td>
                                   <td className="p-3">
                                     <input
-                                      type="number"
-                                      min="1"
+                                      type="text"
                                       value={item.quantity}
                                       onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                                       onFocus={(e) => e.target.select()}
@@ -874,9 +878,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                   <td className="p-3">
                                     <div className="relative">
                                       <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
+                                        type="text"
                                         value={item.unit_price}
                                         onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
                                         onFocus={(e) => e.target.select()}
@@ -888,14 +890,10 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                   <td className="p-3">
                                     <div className="relative">
                                       <input
-                                        type="number"
-                                        step="1"
-                                        min="0"
-                                        max="99"
+                                        type="text"
                                         list="tax-rates"
-                                        value={item.tax_rate === '0' ? '0' : (item.tax_rate ? Math.round(Number(item.tax_rate)) : '')}
+                                        value={item.tax_rate}
                                         onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                                         onFocus={(e) => e.target.select()}
                                         className="w-[8ch] px-2 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                       />
@@ -908,7 +906,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                     </div>
                                   </td>
                                   <td className="p-3 text-right text-sm font-bold text-slate-900">
-                                    {((Number(item.quantity) * Number(item.unit_price)) * (1 + Number(item.tax_rate) / 100)).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
+                                    {( (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100) ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
                                   </td>
                                   <td className="p-3 text-right">
                                     <button
@@ -948,8 +946,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Miktar" : "Quantity"}</label>
                                   <input
-                                    type="number"
-                                    min="1"
+                                    type="text"
                                     value={item.quantity}
                                     onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                                     onFocus={(e) => e.target.select()}
@@ -960,9 +957,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Birim Fiyat" : "Unit Price"}</label>
                                   <div className="relative">
                                     <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
+                                      type="text"
                                       value={item.unit_price}
                                       onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
                                       onFocus={(e) => e.target.select()}
@@ -974,15 +969,11 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "KDV Oranı" : "VAT Rate"}</label>
                                   <input
-                                    type="number"
-                                    step="1"
+                                    type="text"
                                     list="tax-rates-mobile"
                                     value={item.tax_rate}
                                     onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                                     onFocus={(e) => e.target.select()}
-                                    maxLength={2}
-                                    max={99}
                                     className="w-[8ch] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                                   />
                                   <datalist id="tax-rates-mobile">
@@ -995,7 +986,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                 <div className="space-y-1 flex flex-col justify-end items-end">
                                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Satır Toplamı" : "Line Total"}</label>
                                   <div className="text-lg font-black text-indigo-600">
-                                    {((Number(item.quantity) * Number(item.unit_price)) * (1 + Number(item.tax_rate) / 100)).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
+                                    {( (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100) ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
                                   </div>
                                 </div>
                               </div>

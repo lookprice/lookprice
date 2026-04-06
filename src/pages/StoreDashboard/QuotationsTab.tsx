@@ -148,7 +148,7 @@ const QuotationsTab = ({
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-900">
-                        {Number(q.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(q.currency || 'TRY').substring(0, 3)}</span>
+                        {Number(q.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(q.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold tracking-tight flex items-center mt-0.5">
                         <CreditCard className="h-2.5 w-2.5 mr-1" /> {t[q.payment_method] || q.payment_method || t.notSpecified}
