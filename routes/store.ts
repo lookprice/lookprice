@@ -1375,8 +1375,21 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
 
       // NEW: Automatically create a DRAFT Sales Invoice
       const invoiceNumber = `INV-${Date.now()}`;
-      const taxAmount = itemsRes.rows.reduce((sum, item) => sum + (Number(item.total_price) * (Number(item.tax_rate || 20) / 100)), 0);
       
+      // Calculate base amounts (Matrah) and tax amounts backwards since quotation total is KDV Dahil
+      let totalBaseAmount = 0;
+      let totalTaxAmount = 0;
+      
+      for (const item of itemsRes.rows) {
+        const taxRate = Number(item.tax_rate || 20);
+        const kdvDahilTotal = Number(item.total_price);
+        const kdvHaricTotal = kdvDahilTotal / (1 + taxRate / 100);
+        const taxAmount = kdvDahilTotal - kdvHaricTotal;
+        
+        totalBaseAmount += kdvHaricTotal;
+        totalTaxAmount += taxAmount;
+      }
+
       const invoiceNotes = quotation.service_id 
         ? `Teknik Servis #${quotation.service_id} - Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`
         : `Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`;
@@ -1385,17 +1398,24 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
         `INSERT INTO sales_invoices 
           (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status, payment_method, quotation_id) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-        [storeId, saleId, quotation.company_id || null, quotation.customer_id || null, invoiceNumber, new Date(), quotation.total_amount, taxAmount, Number(quotation.total_amount) + taxAmount, quotation.currency || 'TRY', invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
+        [storeId, saleId, quotation.company_id || null, quotation.customer_id || null, invoiceNumber, new Date(), totalBaseAmount, totalTaxAmount, quotation.total_amount, quotation.currency || 'TRY', invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
       );
       const invoiceId = invRes.rows[0].id;
 
       for (const item of itemsRes.rows) {
-        const itemTax = Number(item.total_price) * (Number(item.tax_rate || 20) / 100);
+        const taxRate = Number(item.tax_rate || 20);
+        const kdvDahilPrice = Number(item.unit_price);
+        const kdvHaricPrice = kdvDahilPrice / (1 + taxRate / 100);
+        
+        const kdvDahilTotal = Number(item.total_price);
+        const kdvHaricTotal = kdvDahilTotal / (1 + taxRate / 100);
+        const itemTax = kdvDahilTotal - kdvHaricTotal;
+
         await client.query(
           `INSERT INTO sales_invoice_items 
             (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [invoiceId, item.product_id, item.product_name, item.barcode || '', item.quantity, item.unit_price, item.tax_rate || 20, itemTax, item.total_price]
+          [invoiceId, item.product_id, item.product_name, item.barcode || '', item.quantity, kdvHaricPrice, taxRate, itemTax, kdvHaricTotal]
         );
       }
 
@@ -2371,22 +2391,25 @@ router.post("/sales/:id/create-invoice", async (req: any, res) => {
         if (prodRes.rows.length > 0) taxRate = Number(prodRes.rows[0].tax_rate || 20);
       }
 
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (taxRate / 100);
+      const kdvDahilTotal = Number(item.quantity) * Number(item.unit_price);
+      const kdvHaricTotal = kdvDahilTotal / (1 + taxRate / 100);
+      const itemTax = kdvDahilTotal - kdvHaricTotal;
       
-      total_amount += itemTotal;
+      total_amount += kdvHaricTotal;
       tax_amount += itemTax;
-      grand_total += (itemTotal + itemTax);
+      grand_total += kdvDahilTotal;
+
+      const kdvHaricPrice = Number(item.unit_price) / (1 + taxRate / 100);
 
       invoiceItems.push({
         product_id: item.product_id,
         product_name: item.product_name,
         barcode: item.barcode,
         quantity: item.quantity,
-        unit_price: item.unit_price,
+        unit_price: kdvHaricPrice,
         tax_rate: taxRate,
         tax_amount: itemTax,
-        total_price: itemTotal
+        total_price: kdvHaricTotal
       });
     }
 

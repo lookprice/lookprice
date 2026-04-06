@@ -85,13 +85,18 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
           : item
       ));
     } else {
+      const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20");
+      const taxRate = Number(taxRateStr);
+      const kdvDahilPrice = Number(product.cost_price || product.price) || 0;
+      const kdvHaricPrice = kdvDahilPrice / (1 + taxRate / 100);
+
       setItems([...items, {
         product_id: product.id,
         product_name: product.name,
         barcode: product.barcode,
         quantity: "1",
-        unit_price: product.price || "0", // Default to selling price, user can change
-        tax_rate: product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20") // Default KDV
+        unit_price: kdvHaricPrice.toFixed(2),
+        tax_rate: taxRateStr
       }]);
     }
     setProductSearch("");

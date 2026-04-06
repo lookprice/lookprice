@@ -244,7 +244,8 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     const price = Number(String(item.unit_price).replace(',', '.')) || 0;
     const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
 
-    item.total_price = Number((qty * price * (1 + tax / 100)).toFixed(2));
+    // Since price is KDV Dahil, total is just qty * price
+    item.total_price = Number((qty * price).toFixed(2));
     newItems[index] = item;
     setServiceItems(newItems);
   };
