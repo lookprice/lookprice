@@ -77,13 +77,16 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       if (editingQuotation) {
         await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);
       } else {
-        await api.addQuotation(quotationData, currentStoreId || undefined);
+        console.log("Sending quotation data:", quotationData);
+        const response = await api.addQuotation(quotationData, currentStoreId || undefined);
+        console.log("Add quotation response:", response);
       }
       setShowQuotationModal(false);
       setEditingQuotation(null);
       setQuotationItems([]);
       fetchQuotations();
     } catch (error) {
+      console.error("Error adding quotation:", error);
       alert("Hata oluştu");
     }
   };
