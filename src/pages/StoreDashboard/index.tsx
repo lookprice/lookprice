@@ -470,61 +470,185 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
 
   const quotationPrintRef = useRef<HTMLDivElement>(null);
-  const handleDownloadQuotationPDF = (quotation: any) => {
+  const handleDownloadQuotationPDF = async (quotation: any) => {
     const doc = new jsPDF();
     const isTr = lang === 'tr';
     
-    // Header
-    doc.setFontSize(20);
-    doc.text(isTr ? "TEKLİF FORMU" : "QUOTATION FORM", 105, 20, { align: "center" });
+    const fixTr = (text: string) => {
+      if (!text) return "";
+      return text
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+        .replace(/ş/g, 's').replace(/Ş/g, 'S')
+        .replace(/ı/g, 'i').replace(/İ/g, 'I')
+        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+    };
+
+    // Helper to convert image URL to base64 for jsPDF
+    const getBase64Image = (url: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.setAttribute('crossOrigin', 'anonymous');
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = (e) => reject(e);
+        img.src = url;
+      });
+    };
+
+    let logoBase64 = "";
+    if (branding.logo_url) {
+      try {
+        logoBase64 = await getBase64Image(branding.logo_url);
+      } catch (e) {
+        console.error("Logo loading error for PDF:", e);
+      }
+    }
+
+    const addHeader = (doc: jsPDF) => {
+      // Logo (if exists) - Top Left
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, 'PNG', 14, 8, 15, 15);
+        } catch (e) {
+          console.error("Logo addImage error:", e);
+        }
+      }
+      
+      doc.setTextColor(0, 0, 0);
+      
+      // Title - Top Center
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(fixTr(isTr ? "TEKLİF FORMU" : "QUOTATION FORM"), 105, 12, { align: 'center' });
+      
+      // Store Name - Below Title
+      doc.setFontSize(10);
+      const storeName = fixTr(branding.store_name || branding.name || "LookPrice");
+      const splitStoreName = doc.splitTextToSize(storeName, 100);
+      doc.text(splitStoreName, 105, 18, { align: 'center' });
+      
+      // Quotation Info - Top Right
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      doc.text(fixTr(`${isTr ? "Teklif No" : "Quotation No"}: #${quotation.id}`), 196, 12, { align: 'right' });
+      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 17, { align: 'right' });
+
+      // Contact Info - Small below store name
+      doc.setFontSize(7);
+      const contactInfo = [
+        branding.address,
+        branding.phone,
+        branding.email
+      ].filter(Boolean).map(fixTr).join(" | ");
+      if (contactInfo) {
+        doc.text(contactInfo, 105, 25, { align: 'center' });
+      }
+      
+      // Separator Line
+      doc.setDrawColor(230);
+      doc.line(14, 28, 196, 28);
+    };
+
+    const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
+      doc.setFontSize(7);
+      doc.setTextColor(150);
+      doc.text(fixTr(`${branding.store_name || branding.name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 290);
+      doc.text(`${pageNumber} / ${totalPages}`, 196, 290, { align: 'right' });
+    };
+
+    addHeader(doc);
+    let yPos = 35;
+
+    // Customer Info Box - More compact
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(14, yPos, 182, 18, 1, 1, 'F');
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(79, 70, 229);
+    doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 6);
     
-    doc.setFontSize(10);
-    doc.text(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}`, 190, 30, { align: "right" });
-    doc.text(`${isTr ? "Teklif No" : "Quotation No"}: #${quotation.id}`, 190, 35, { align: "right" });
-    
-    // Company Info
-    doc.setFontSize(12);
-    doc.text(branding.store_name || "Store Name", 20, 45);
-    doc.setFontSize(10);
-    doc.text(branding.address || "", 20, 50);
-    doc.text(branding.phone || "", 20, 55);
-    
-    // Customer Info
-    doc.setFontSize(12);
-    doc.text(isTr ? "Müşteri Bilgileri" : "Customer Information", 20, 70);
-    doc.setFontSize(10);
-    doc.text(`${isTr ? "Firma" : "Company"}: ${quotation.customer_name}`, 20, 75);
-    if (quotation.customer_title) doc.text(`${isTr ? "Yetkili" : "Representative"}: ${quotation.customer_title}`, 20, 80);
-    
-    // Items Table
-    const tableData = (quotation.items || []).map((item: any, index: number) => [
-      index + 1,
-      item.product_name,
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(50);
+    const customerInfo = [quotation.customer_name, quotation.customer_title].filter(Boolean).join(" - ");
+    doc.text(fixTr(customerInfo), 18, yPos + 12);
+    yPos += 25;
+
+    const tableData = (quotation.items || []).map((item: any) => [
+      fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
-      `${Number(item.unit_price).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${quotation.currency}`,
-      `${Number(item.total_price).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${quotation.currency}`
+      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
+      `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
     ]);
-    
+
     autoTable(doc, {
-      startY: 90,
-      head: [[isTr ? "No" : "No", isTr ? "Ürün" : "Product", isTr ? "Adet" : "Qty", isTr ? "Birim Fiyat" : "Unit Price", isTr ? "Toplam" : "Total"]],
+      startY: yPos,
+      head: [[
+        fixTr(isTr ? "Ürün Açıklaması" : "Product Description"), 
+        fixTr(isTr ? "Miktar" : "Qty"), 
+        fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
+        fixTr(isTr ? "Toplam" : "Total")
+      ]],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] }
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 7, cellPadding: 2, font: "helvetica" },
+      columnStyles: {
+        1: { halign: 'center', cellWidth: 15 },
+        2: { halign: 'right', cellWidth: 30 },
+        3: { halign: 'right', cellWidth: 30 }
+      },
+      margin: { left: 14, right: 14, top: 30, bottom: 15 },
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) {
+          addHeader(doc);
+        }
+      }
     });
+
+    let finalY = (doc as any).lastAutoTable.finalY + 5;
     
-    // Totals
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.text(`${isTr ? "Genel Toplam" : "Grand Total"}: ${Number(quotation.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} ${quotation.currency}`, 190, finalY, { align: "right" });
-    
-    // Notes
-    if (quotation.notes) {
-      doc.setFontSize(10);
-      doc.text(isTr ? "Notlar:" : "Notes:", 20, finalY + 20);
-      doc.text(quotation.notes, 20, finalY + 25);
+    // Check if summary fits on page
+    if (finalY > 270) {
+      doc.addPage();
+      addHeader(doc);
+      finalY = 35;
     }
+
+    // Summary Section
+    doc.setDrawColor(230);
+    doc.line(130, finalY, 196, finalY);
+    finalY += 6;
     
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
+    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+    
+    finalY += 6;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(79, 70, 229);
+    doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
+    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+
+    // Add page numbers to all pages
+    const totalPages = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addFooter(doc, i, totalPages);
+    }
+
     doc.save(`Quotation_${quotation.id}.pdf`);
   };
 
@@ -1483,160 +1607,182 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         )}
 
         {showQuotationDetailsModal && selectedQuotationDetails && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+            <style>
+              {`
+                @media print {
+                  @page { margin: 15mm; size: auto; }
+                  body { margin: 0; background: white; }
+                  .no-print { display: none !important; }
+                  .print-only { display: block !important; }
+                  .print-shadow-none { box-shadow: none !important; }
+                  .print-rounded-none { border-radius: 0 !important; }
+                  .print-bg-white { background-color: white !important; }
+                  .print-p-0 { padding: 0 !important; }
+                  .print-m-0 { margin: 0 !important; }
+                }
+              `}
+            </style>
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100"
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden my-8 no-print"
             >
-              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-white relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600" />
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Teklif Detayı' : 'Quotation Details'}</h3>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-                      #{selectedQuotationDetails.id}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                      {new Date(selectedQuotationDetails.created_at).toLocaleString('tr-TR')}
-                    </span>
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.quotationDetails || "Teklif Detayları"}</h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">#{selectedQuotationDetails.id} • {new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center space-x-2">
                   <button 
-                    onClick={handlePrintQuotation} 
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition-all duration-200"
+                    onClick={() => setShowQuotationDetailsModal(false)}
+                    className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
                   >
-                    <Printer className="h-4 w-4" /> {lang === 'tr' ? "Yazdır" : "Print"}
-                  </button>
-                  <button 
-                    onClick={() => setShowQuotationDetailsModal(false)} 
-                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition-all duration-200"
-                  >
-                    <X className="h-6 w-6" />
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
-              <div ref={quotationPrintRef} className="p-8 sm:p-12 max-h-[70vh] overflow-y-auto custom-scrollbar print:max-h-none print:overflow-visible print:p-0 print:bg-white">
-                <div className="space-y-12">
-                  {/* Header */}
-                  <div className="flex flex-col md:flex-row justify-between items-start gap-8">
-                    <div className="flex items-center gap-6">
-                      {branding?.logo_url ? (
-                        <img src={branding.logo_url} alt="Logo" className="h-20 w-20 bg-white rounded-2xl p-2 shadow-sm object-contain border border-slate-100" />
-                      ) : (
-                        <div className="h-20 w-20 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 text-indigo-600">
-                          <FileText className="h-10 w-10" />
-                        </div>
-                      )}
-                      <div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">{branding?.store_name || "LookPrice"}</h1>
-                        <div className="mt-2 space-y-1">
-                          {branding?.address && <p className="text-xs text-slate-500 font-medium max-w-xs">{branding.address}</p>}
-                          {branding?.phone && <p className="text-xs text-slate-500 font-medium">{branding.phone}</p>}
-                        </div>
+              <div ref={quotationPrintRef} className="p-8 md:p-12 space-y-10 overflow-y-auto max-h-[75vh] print-bg-white print-rounded-none print:max-h-none print:overflow-visible">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+                  <div className="flex items-center space-x-6">
+                    {branding?.logo_url && (
+                      <div className="w-20 h-20 bg-slate-50 rounded-3xl p-3 flex items-center justify-center border border-slate-100 shadow-inner">
+                        <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
                       </div>
-                    </div>
-                    <div className="text-right print:text-left">
-                      <h2 className="text-4xl font-black text-slate-200 uppercase tracking-tighter print:text-slate-900 print:text-2xl">{lang === 'tr' ? 'TEKLİF' : 'QUOTATION'}</h2>
-                      <div className="mt-4 space-y-1">
-                        <div className="flex justify-end gap-4 text-xs print:justify-start">
-                          <span className="text-slate-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Tarih' : 'Date'}</span>
-                          <span className="text-slate-900 font-black">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</span>
-                        </div>
-                        <div className="flex justify-end gap-4 text-xs print:justify-start">
-                          <span className="text-slate-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Durum' : 'Status'}</span>
-                          <span className={`font-black uppercase ${
-                            selectedQuotationDetails.status === 'approved' ? 'text-emerald-600' : 
-                            selectedQuotationDetails.status === 'cancelled' ? 'text-rose-600' : 'text-amber-600'
-                          }`}>
-                            {selectedQuotationDetails.status}
-                          </span>
-                        </div>
+                    )}
+                    <div>
+                      <h1 className="text-2xl font-black text-slate-900 tracking-tight">{branding?.store_name || branding?.name || "LookPrice"}</h1>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-slate-500 font-medium flex items-center gap-2">
+                          <MapPin className="h-3 w-3" /> {branding?.address}
+                        </p>
+                        <p className="text-xs text-slate-500 font-medium flex items-center gap-2">
+                          <Smartphone className="h-3 w-3" /> {branding?.phone}
+                        </p>
                       </div>
                     </div>
                   </div>
+                  <div className="text-right space-y-2">
+                    <div className="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">
+                      {isTr ? "TEKLİF FORMU" : "QUOTATION FORM"}
+                    </div>
+                    <p className="text-sm font-black text-slate-900">#{selectedQuotationDetails.id}</p>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
+                  </div>
+                </div>
 
-                  {/* Customer Info */}
-                  <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-5"><UserIcon className="h-16 w-16" /></div>
-                    <div className="relative">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{lang === 'tr' ? 'MÜŞTERİ BİLGİLERİ' : 'CUSTOMER INFORMATION'}</h3>
-                      <p className="text-xl font-black text-slate-900">{selectedQuotationDetails.customer_name || '-'}</p>
-                      {selectedQuotationDetails.customer_title && <p className="text-sm font-bold text-indigo-600 mt-1">{selectedQuotationDetails.customer_title}</p>}
+                {/* Customer Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-inner">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="p-2 bg-white rounded-xl text-indigo-600 shadow-sm">
+                        <UserIcon className="h-4 w-4" />
+                      </div>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.customer || "Müşteri"}</h4>
+                    </div>
+                    <p className="text-lg font-black text-slate-900">{selectedQuotationDetails.customer_name}</p>
+                    {selectedQuotationDetails.customer_title && (
+                      <p className="text-sm text-slate-500 font-bold mt-1">{selectedQuotationDetails.customer_title}</p>
+                    )}
+                  </div>
+                  <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-inner">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="p-2 bg-white rounded-xl text-indigo-600 shadow-sm">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.validUntil || "Geçerlilik Tarihi"}</h4>
+                    </div>
+                    <p className="text-lg font-black text-slate-900">
+                      {selectedQuotationDetails.expiry_date 
+                        ? new Date(selectedQuotationDetails.expiry_date).toLocaleDateString('tr-TR')
+                        : new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')
+                      }
+                    </p>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{t.sevenDaysValid || "7 Gün Geçerlidir"}</p>
+                  </div>
+                </div>
+
+                {/* Items Table */}
+                <div className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-900 text-white">
+                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">{t.product || "Ürün"}</th>
+                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t.quantity || "Miktar"}</th>
+                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right">{t.unitPrice || "Birim Fiyat"}</th>
+                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right">{t.total || "Toplam"}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {(selectedQuotationDetails.items || []).map((item: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-8 py-6">
+                            <p className="font-black text-slate-900">{item.product_name}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">#{item.product_id}</p>
+                          </td>
+                          <td className="px-8 py-6 text-center font-bold text-slate-600">{item.quantity}</td>
+                          <td className="px-8 py-6 text-right font-bold text-slate-600">
+                            {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
+                          </td>
+                          <td className="px-8 py-6 text-right font-black text-slate-900">
+                            {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Summary Section */}
+                <div className="flex flex-col md:flex-row justify-between items-start gap-8 pt-6">
+                  <div className="flex-1 max-w-md">
+                    {selectedQuotationDetails.notes && (
+                      <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.notes || "Notlar"}</p>
+                        <p className="text-sm text-slate-600 font-medium leading-relaxed italic">"{selectedQuotationDetails.notes}"</p>
+                      </div>
+                    )}
+                    <div className="mt-4 p-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isTr ? "YALNIZ" : "TOTAL IN WORDS"}</p>
+                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                        # {numberToTurkishWords(Number(selectedQuotationDetails.total_amount), selectedQuotationDetails.currency)} #
+                      </p>
                     </div>
                   </div>
-
-                  {/* Items Table */}
-                  <div className="space-y-6">
-                    <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50/50 border-b border-slate-100">
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">#</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'ÜRÜN / HİZMET' : 'PRODUCT / SERVICE'}</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{lang === 'tr' ? 'MİKTAR' : 'QTY'}</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'TOPLAM' : 'TOTAL'}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {(selectedQuotationDetails.items || []).map((item: any, idx: number) => (
-                            <tr key={idx} className="group hover:bg-slate-50/30 transition-colors">
-                              <td className="px-8 py-6 text-slate-400 font-bold text-xs">{idx + 1}</td>
-                              <td className="px-8 py-6">
-                                <div className="font-black text-slate-900">{item.product_name}</div>
-                                <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">{item.barcode || `#${item.product_id}`}</div>
-                              </td>
-                              <td className="px-8 py-6 text-center">
-                                <span className="inline-flex items-center justify-center px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-black">
-                                  {item.quantity}
-                                </span>
-                              </td>
-                              <td className="px-8 py-6 text-right font-black text-slate-900">
-                                {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 ml-0.5">{selectedQuotationDetails.currency?.slice(0, 3)}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      
-                      <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{lang === 'tr' ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</p>
-                        <div className="text-3xl font-black tracking-tighter flex items-baseline gap-2">
-                          {Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                          <span className="text-sm text-indigo-400 uppercase tracking-widest">{selectedQuotationDetails.currency?.slice(0, 3)}</span>
-                        </div>
-                      </div>
+                  <div className="w-full md:w-80 space-y-4">
+                    <div className="flex justify-between items-center px-4">
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.subtotal || "Ara Toplam"}</span>
+                      <span className="font-bold text-slate-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
+                    </div>
+                    <div className="bg-white p-8 text-slate-900 border-2 border-slate-900 flex justify-between items-center rounded-2xl shadow-sm">
+                      <span className="text-sm font-black uppercase tracking-[0.2em]">{t.grandTotal || "Genel Toplam"}</span>
+                      <span className="text-2xl font-black tracking-tight">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
                     </div>
                   </div>
-
-                  {/* Notes */}
-                  {selectedQuotationDetails.notes && (
-                    <div className="space-y-4 break-inside-avoid">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'NOTLAR' : 'NOTES'}</h3>
-                      <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-200" />
-                        <p className="text-slate-700 font-medium leading-relaxed whitespace-pre-wrap italic">"{selectedQuotationDetails.notes}"</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
-              
-              <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4 print:hidden">
+
+              <div className="p-8 border-t border-slate-100 bg-slate-50/30 flex gap-4 no-print">
                 <button 
                   onClick={() => setShowQuotationDetailsModal(false)}
-                  className="flex-1 px-8 py-4 bg-white border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all duration-200"
+                  className="flex-1 px-6 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all duration-200"
                 >
                   {t.close || 'Kapat'}
                 </button>
                 <button 
                   onClick={handlePrintQuotation}
-                  className="flex-1 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all duration-200 shadow-xl shadow-indigo-100"
+                  className="flex-[1.5] px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all duration-200 shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
                 >
-                  {lang === 'tr' ? 'Yazdır / PDF' : 'Print / PDF'}
+                  <Printer className="h-4 w-4" />
+                  {lang === 'tr' ? 'Yazdır / PDF İndir' : 'Print / Download PDF'}
                 </button>
               </div>
             </motion.div>

@@ -74,6 +74,7 @@ export interface Quotation {
   currency: string;
   status: 'pending' | 'approved' | 'sold' | 'cancelled';
   notes?: string;
+  expiry_date?: string;
   created_at: string;
   items: QuotationItem[];
   company_id?: number;

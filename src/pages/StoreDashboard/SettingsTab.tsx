@@ -1239,6 +1239,16 @@ app.listen(PORT, () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Mağaza Ünvanı' : 'Store Name'}</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
+                  value={branding.store_name || ""}
+                  onChange={(e) => onBrandingChange('store_name', e.target.value)}
+                  placeholder={lang === 'tr' ? 'Mağaza Ünvanı' : 'Store Name'}
+                />
+              </div>
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.heroTitle}</label>
                 <input 
