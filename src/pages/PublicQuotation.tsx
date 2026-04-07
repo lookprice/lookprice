@@ -11,7 +11,12 @@ import {
   Mail,
   Download,
   AlertCircle,
-  Printer
+  Printer,
+  User as UserIcon,
+  Hash,
+  CreditCard,
+  Calendar,
+  Building2
 } from "lucide-react";
 import { api } from "../services/api";
 import { jsPDF } from "jspdf";
@@ -28,6 +33,71 @@ const PublicQuotation = () => {
   const [dueDate, setDueDate] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [lang, setLang] = useState<'tr' | 'en'>('tr');
+  const isTr = lang === 'tr';
+
+  const numberToTurkishWords = (number: number, currency: string = 'TRY') => {
+    const units = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
+    const tens = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
+    const thousands = ["", "Bin", "Milyon", "Milyar", "Trilyon"];
+
+    const convertThreeDigits = (n: number) => {
+      let str = "";
+      const h = Math.floor(n / 100);
+      const t = Math.floor((n % 100) / 10);
+      const u = n % 10;
+
+      if (h > 0) {
+        str += (h === 1 ? "" : units[h]) + "Yüz";
+      }
+      if (t > 0) {
+        str += tens[t];
+      }
+      if (u > 0) {
+        str += units[u];
+      }
+      return str;
+    };
+
+    if (number === 0) return "Sıfır";
+
+    const parts = number.toFixed(2).split(".");
+    const integerPart = parseInt(parts[0]);
+    const decimalPart = parseInt(parts[1]);
+
+    let result = "";
+    let tempInteger = integerPart;
+    let i = 0;
+
+    if (tempInteger === 0) {
+      result = "Sıfır";
+    } else {
+      while (tempInteger > 0) {
+        const threeDigits = tempInteger % 1000;
+        if (threeDigits > 0) {
+          let partStr = convertThreeDigits(threeDigits);
+          if (i === 1 && threeDigits === 1) partStr = ""; 
+          result = partStr + thousands[i] + result;
+        }
+        tempInteger = Math.floor(tempInteger / 1000);
+        i++;
+      }
+    }
+
+    const currencyMap: { [key: string]: { main: string, sub: string } } = {
+      'TRY': { main: 'TL', sub: 'Kr' },
+      'USD': { main: 'USD', sub: 'Cent' },
+      'EUR': { main: 'EUR', sub: 'Cent' }
+    };
+
+    const cur = currencyMap[currency] || { main: currency, sub: '' };
+    result += cur.main;
+
+    if (decimalPart > 0) {
+      result += " " + convertThreeDigits(decimalPart) + " " + cur.sub;
+    }
+
+    return result;
+  };
 
   useEffect(() => {
     if (id) {
@@ -309,227 +379,346 @@ const PublicQuotation = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 grid-pattern print:bg-white print:py-0 print:px-0">
+      <div className="max-w-4xl mx-auto print:max-w-none">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl shadow-xl overflow-hidden"
+          className="bg-white rounded-[2rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100 print:shadow-none print:border-none print:rounded-none"
         >
-          {/* Header */}
-          <div className="bg-indigo-600 p-8 text-white relative">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="flex items-center gap-4">
+          {/* Top Accent Bar */}
+          <div className="h-2 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 print:hidden" />
+
+          {/* Header Section */}
+          <div className="p-8 sm:p-12 border-b border-slate-50 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/30 rounded-full -mr-32 -mt-32 blur-3xl print:hidden" />
+            
+            <div className="relative flex flex-col md:flex-row justify-between items-start gap-8">
+              <div className="flex items-center gap-6">
                 {quotation.logo_url ? (
-                  <img src={quotation.logo_url} alt="Logo" className="h-16 w-16 bg-white rounded-2xl p-2 object-contain" />
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200 print:hidden"></div>
+                    <img src={quotation.logo_url} alt="Logo" className="relative h-20 w-20 bg-white rounded-2xl p-2 shadow-sm object-contain border border-slate-100" />
+                  </div>
                 ) : (
-                  <div className="h-16 w-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                    <FileText className="h-8 w-8" />
+                  <div className="h-20 w-20 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 text-indigo-600">
+                    <FileText className="h-10 w-10" />
                   </div>
                 )}
                 <div>
-                  <h1 className="text-2xl font-bold">{quotation.store_name}</h1>
-                  <p className="text-indigo-100 opacity-80">{lang === 'tr' ? 'Teklif' : 'Quotation'} #{quotation.id}</p>
+                  <h1 className="text-3xl font-black text-slate-900 tracking-tight">{quotation.store_name}</h1>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold tracking-wider uppercase">
+                      {lang === 'tr' ? 'Teklif' : 'Quotation'} #{quotation.id}
+                    </span>
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      quotation.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 
+                      quotation.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      isExpired ? 'bg-slate-100 text-slate-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {quotation.status === 'approved' ? t.status.approved : 
+                       quotation.status === 'cancelled' ? t.status.rejected :
+                       isExpired ? t.status.expired : t.status.pending}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-3">
-                <div className="flex items-center gap-2 mb-1 print:hidden">
+
+              <div className="flex flex-col items-end gap-4 print:items-start print:mt-4">
+                <div className="flex items-center gap-2 print:hidden">
                   <button 
                     onClick={() => setLang('tr')}
-                    className={`px-2 py-1 text-[10px] font-bold rounded ${lang === 'tr' ? 'bg-white text-indigo-600' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${lang === 'tr' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                   >
                     TR
                   </button>
                   <button 
                     onClick={() => setLang('en')}
-                    className={`px-2 py-1 text-[10px] font-bold rounded ${lang === 'en' ? 'bg-white text-indigo-600' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${lang === 'en' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                   >
                     EN
                   </button>
                 </div>
-                <div className={`inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${
-                  quotation.status === 'approved' ? 'bg-emerald-500 text-white' : 
-                  quotation.status === 'cancelled' ? 'bg-red-500 text-white' :
-                  isExpired ? 'bg-gray-500 text-white' :
-                  'bg-amber-500 text-white'
-                }`}>
-                  {quotation.status === 'approved' ? t.status.approved : 
-                   quotation.status === 'cancelled' ? t.status.rejected :
-                   isExpired ? t.status.expired : t.status.pending}
-                </div>
+                
                 <div className="flex items-center gap-2 print:hidden">
                   <button 
                     onClick={handlePrint}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-sm font-bold transition-all duration-200 shadow-sm"
                   >
                     <Printer className="h-4 w-4" /> {t.print}
                   </button>
                   <button 
                     onClick={handleDownloadPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-slate-200"
                   >
                     <Download className="h-4 w-4" /> {t.download}
                   </button>
+                </div>
+
+                <div className="hidden print:block text-right text-slate-500 text-xs space-y-1">
+                  <p className="font-bold text-slate-900">{isTr ? 'Tarih' : 'Date'}: {new Date(quotation.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</p>
+                  {quotation.expiry_date && <p>{t.validUntil}: {new Date(quotation.expiry_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</p>}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-8 space-y-8">
+          <div className="p-8 sm:p-12 space-y-12">
             {/* Success Message */}
             {success && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-700 font-bold"
+                className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-4 text-emerald-800"
               >
-                <CheckCircle2 className="h-6 w-6" />
-                {success}
+                <div className="h-12 w-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-emerald-200">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-black text-lg leading-tight">{lang === 'tr' ? 'Harika!' : 'Great!'}</p>
+                  <p className="text-emerald-600 font-medium">{success}</p>
+                </div>
               </motion.div>
             )}
 
-            {/* Store & Customer Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.from}</h3>
-                <div className="space-y-2">
-                  <p className="font-bold text-gray-900">{quotation.store_name}</p>
-                  {quotation.store_address && <p className="text-sm text-gray-600 flex items-center gap-2"><MapPin className="h-4 w-4" /> {quotation.store_address}</p>}
-                  {quotation.store_phone && <p className="text-sm text-gray-600 flex items-center gap-2"><Phone className="h-4 w-4" /> {quotation.store_phone}</p>}
-                  {quotation.store_email && <p className="text-sm text-gray-600 flex items-center gap-2"><Mail className="h-4 w-4" /> {quotation.store_email}</p>}
+            {/* Info Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-4 bg-indigo-600 rounded-full" />
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.from}</h3>
+                </div>
+                <div className="space-y-4">
+                  <p className="text-xl font-black text-slate-900">{quotation.store_name}</p>
+                  <div className="space-y-3">
+                    {quotation.store_address && (
+                      <div className="flex items-start gap-3 text-slate-600">
+                        <div className="mt-1 p-1.5 bg-slate-100 rounded-lg text-slate-400"><MapPin className="h-3.5 w-3.5" /></div>
+                        <p className="text-sm font-medium leading-relaxed">{quotation.store_address}</p>
+                      </div>
+                    )}
+                    {quotation.store_phone && (
+                      <div className="flex items-center gap-3 text-slate-600">
+                        <div className="p-1.5 bg-slate-100 rounded-lg text-slate-400"><Phone className="h-3.5 w-3.5" /></div>
+                        <p className="text-sm font-medium">{quotation.store_phone}</p>
+                      </div>
+                    )}
+                    {quotation.store_email && (
+                      <div className="flex items-center gap-3 text-slate-600">
+                        <div className="p-1.5 bg-slate-100 rounded-lg text-slate-400"><Mail className="h-3.5 w-3.5" /></div>
+                        <p className="text-sm font-medium">{quotation.store_email}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.to}</h3>
-                <div className="space-y-2">
-                  <p className="font-bold text-gray-900">{quotation.customer_name}</p>
-                  {quotation.customer_title && <p className="text-sm text-gray-600">{quotation.customer_title}</p>}
-                  {quotation.expiry_date && (
-                    <p className={`text-sm flex items-center gap-2 font-bold ${isExpired ? 'text-red-600' : 'text-amber-600'}`}>
-                      <Clock className="h-4 w-4" /> {t.validUntil}: {new Date(quotation.expiry_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                    </p>
-                  )}
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-4 bg-violet-600 rounded-full" />
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.to}</h3>
+                </div>
+                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-5"><UserIcon className="h-12 w-12" /></div>
+                  <div className="relative">
+                    <p className="text-xl font-black text-slate-900">{quotation.customer_name}</p>
+                    {quotation.customer_title && <p className="text-sm font-bold text-indigo-600 mt-1">{quotation.customer_title}</p>}
+                    
+                    <div className="mt-6 pt-6 border-t border-slate-200/60 space-y-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider">{isTr ? 'Teklif Tarihi' : 'Quotation Date'}</span>
+                        <span className="text-slate-900 font-black">{new Date(quotation.created_at).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</span>
+                      </div>
+                      {quotation.expiry_date && (
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider">{t.validUntil}</span>
+                          <span className={`font-black ${isExpired ? 'text-red-600' : 'text-amber-600'}`}>
+                            {new Date(quotation.expiry_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Items Table */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.items}</h3>
-              <div className="border border-gray-100 rounded-3xl overflow-hidden overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[600px]">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                      <th className="px-6 py-4 text-sm font-bold text-gray-600">{t.product}</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-600 text-center">{t.qty}</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-600 text-right">{t.price}</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-600 text-right">{t.total}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {quotation.items.map((item: any) => (
-                      <tr key={item.id}>
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-gray-900">{item.product_name}</div>
-                          <div className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-0.5">{item.barcode || `#${item.product_id}`}</div>
-                        </td>
-                        <td className="px-6 py-4 text-center text-gray-600 font-medium">{item.quantity}</td>
-                        <td className="px-6 py-4 text-right text-gray-600 font-medium">{Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</td>
-                        <td className="px-6 py-4 text-right font-bold text-gray-900">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</td>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-4 bg-slate-900 rounded-full" />
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.items}</h3>
+                </div>
+                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{quotation.items.length} {isTr ? 'KALEM' : 'ITEMS'}</span>
+              </div>
+              
+              <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-100">
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.product}</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.qty}</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t.price}</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t.total}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-indigo-50/50">
-                      <td colSpan={3} className="px-6 py-6 text-right font-black text-gray-500 uppercase tracking-widest text-xs">{t.totalAmount}</td>
-                      <td className="px-6 py-6 text-right text-2xl font-black text-indigo-600">
-                        {Number(quotation.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {quotation.items.map((item: any) => (
+                        <tr key={item.id} className="group hover:bg-slate-50/30 transition-colors">
+                          <td className="px-8 py-6">
+                            <div className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{item.product_name}</div>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <Hash className="h-3 w-3 text-slate-300" />
+                              <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">{item.barcode || `#${item.product_id}`}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 text-center">
+                            <span className="inline-flex items-center justify-center px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-black">
+                              {item.quantity}
+                            </span>
+                          </td>
+                          <td className="px-8 py-6 text-right text-slate-600 font-bold text-sm">
+                            {Number(item.unit_price).toLocaleString(isTr ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 ml-0.5">{quotation.currency?.slice(0, 3)}</span>
+                          </td>
+                          <td className="px-8 py-6 text-right font-black text-slate-900">
+                            {Number(item.total_price).toLocaleString(isTr ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 ml-0.5">{quotation.currency?.slice(0, 3)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div className="bg-slate-900 p-8 sm:p-12 text-white flex flex-col sm:flex-row justify-between items-center gap-8">
+                  <div className="space-y-1 text-center sm:text-left">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{t.totalAmount}</p>
+                    <p className="text-slate-300 text-xs font-medium max-w-xs">{isTr ? 'Tüm fiyatlara KDV dahildir.' : 'All prices include VAT.'}</p>
+                  </div>
+                  <div className="text-center sm:text-right">
+                    <div className="text-4xl sm:text-5xl font-black tracking-tighter flex items-baseline gap-2">
+                      {Number(quotation.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
+                      <span className="text-lg text-indigo-400 uppercase tracking-widest">{quotation.currency?.slice(0, 3)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Notes */}
+            {/* Notes Section */}
             {quotation.notes && (
-              <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 break-inside-avoid">
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">{t.notes}</h3>
-                <p className="text-gray-700 whitespace-pre-wrap">{quotation.notes}</p>
+              <div className="space-y-4 break-inside-avoid">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-4 bg-slate-300 rounded-full" />
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.notes}</h3>
+                </div>
+                <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-indigo-200" />
+                  <p className="text-slate-700 font-medium leading-relaxed whitespace-pre-wrap italic">"{quotation.notes}"</p>
+                </div>
               </div>
             )}
 
-            {/* Actions */}
+            {/* Actions Section */}
             {quotation.status === 'pending' && !isExpired && !success && (
-              <div className="space-y-6 pt-6 border-t border-gray-100 print:hidden">
-                {quotation.company_id && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                        {lang === 'tr' ? 'Ödeme Yöntemi' : 'Payment Method'}
-                      </label>
-                      <select
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'term')}
-                        className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
-                      >
-                        <option value="cash">{lang === 'tr' ? 'Nakit / Kredi Kartı' : 'Cash / Credit Card'}</option>
-                        <option value="term">{lang === 'tr' ? 'Cari Hesap (Vadeli)' : 'Term (Current Account)'}</option>
-                      </select>
-                    </div>
-                    {paymentMethod === 'term' && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                          {lang === 'tr' ? 'Vade Tarihi' : 'Due Date'}
-                        </label>
-                        <input
-                          type="date"
-                          value={dueDate}
-                          onChange={(e) => setDueDate(e.target.value)}
-                          required
-                          className="w-[16ch] px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.messageLabel}</label>
-                  <textarea 
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder={t.messagePlaceholder}
-                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all h-24 resize-none"
-                  />
+              <div className="space-y-8 pt-12 border-t border-slate-100 print:hidden">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-4 bg-indigo-600 rounded-full" />
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{lang === 'tr' ? 'KARARINIZ' : 'YOUR DECISION'}</h3>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {quotation.company_id && (
+                    <div className="space-y-6 md:col-span-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                            {lang === 'tr' ? 'Ödeme Yöntemi' : 'Payment Method'}
+                          </label>
+                          <div className="relative group">
+                            <CreditCard className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                            <select
+                              value={paymentMethod}
+                              onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'term')}
+                              className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl transition-all font-bold text-slate-900 appearance-none outline-none"
+                            >
+                              <option value="cash">{lang === 'tr' ? 'Nakit / Kredi Kartı' : 'Cash / Credit Card'}</option>
+                              <option value="term">{lang === 'tr' ? 'Cari Hesap (Vadeli)' : 'Term (Current Account)'}</option>
+                            </select>
+                          </div>
+                        </div>
+                        {paymentMethod === 'term' && (
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                              {lang === 'tr' ? 'Vade Tarihi' : 'Due Date'}
+                            </label>
+                            <div className="relative group">
+                              <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                              <input
+                                type="date"
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                                required
+                                className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl transition-all font-bold text-slate-900 outline-none"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-3 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.messageLabel}</label>
+                    <textarea 
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder={t.messagePlaceholder}
+                      className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl transition-all h-32 resize-none font-medium text-slate-900 outline-none"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button 
                     disabled={actionLoading}
                     onClick={() => handleAction('reject')}
-                    className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-white border-2 border-red-100 text-red-600 rounded-2xl font-bold hover:bg-red-50 transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-3 px-8 py-5 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-sm hover:border-red-100 hover:text-red-600 hover:bg-red-50 transition-all duration-300 disabled:opacity-50"
                   >
                     <XCircle className="h-5 w-5" /> {t.reject}
                   </button>
                   <button 
                     disabled={actionLoading}
                     onClick={() => handleAction('approve')}
-                    className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-3 px-8 py-5 bg-indigo-600 text-white rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all duration-300 shadow-2xl shadow-indigo-200 disabled:opacity-50 group"
                   >
-                    <CheckCircle2 className="h-5 w-5" /> {t.approve}
+                    <CheckCircle2 className="h-5 w-5 group-hover:scale-110 transition-transform" /> {t.approve}
                   </button>
                 </div>
               </div>
             )}
 
             {/* Footer */}
-            <div className="text-center pt-8">
-              <p className="text-xs text-gray-400 font-medium">
+            <div className="text-center pt-12 border-t border-slate-50">
+              <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.3em]">
                 {t.officialMsg}
               </p>
+              <div className="mt-4 flex justify-center gap-4 opacity-20 grayscale">
+                <div className="h-6 w-6 bg-slate-400 rounded-full" />
+                <div className="h-6 w-24 bg-slate-400 rounded-full" />
+              </div>
             </div>
           </div>
         </motion.div>
+        
+        {/* Powered By */}
+        <div className="mt-8 text-center print:hidden">
+          <p className="text-xs text-slate-400 font-bold">
+            Powered by <span className="text-indigo-600">LookPrice GAP OS</span>
+          </p>
+        </div>
       </div>
     </div>
   );

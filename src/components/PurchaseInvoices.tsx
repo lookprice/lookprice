@@ -33,7 +33,6 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
-  const [exchangeRate, setExchangeRate] = useState("1");
   const [companySearch, setCompanySearch] = useState("");
   const deferredCompanySearch = useDeferredValue(companySearch);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
@@ -182,8 +181,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             tax_rate: Number(item.tax_rate) || 0
           })),
           payment_method: paymentMethod,
-          currency,
-          exchange_rate: Number(String(exchangeRate).replace(',', '.')) || 1
+          currency
         })
       });
 
@@ -263,7 +261,6 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method || 'term');
       setCurrency(data.currency || 'TRY');
-      setExchangeRate(String(data.exchange_rate || 1));
       setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,
@@ -774,43 +771,21 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                       />
                     </div>
-                    <div className="space-y-1.5 flex flex-wrap gap-4">
-                      <div className="flex-1 min-w-[120px]">
-                        <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                          <Percent className="h-4 w-4 text-slate-400" />
-                          {isTr ? "Para Birimi" : "Currency"} *
-                        </label>
-                        <select
-                          value={currency}
-                          onChange={(e) => {
-                            setCurrency(e.target.value);
-                            if (e.target.value === (branding?.default_currency || 'TRY')) {
-                              setExchangeRate("1");
-                            }
-                          }}
-                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                        >
-                          <option value="TRY">TRY</option>
-                          <option value="USD">USD</option>
-                          <option value="EUR">EUR</option>
-                          <option value="GBP">GBP</option>
-                        </select>
-                      </div>
-                      {currency !== (branding?.default_currency || 'TRY') && (
-                        <div className="flex-1 min-w-[120px]">
-                          <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                            <Hash className="h-4 w-4 text-slate-400" />
-                            {isTr ? "Döviz Kuru" : "Exchange Rate"}
-                          </label>
-                          <input 
-                            type="text"
-                            className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            value={exchangeRate}
-                            onChange={(e) => setExchangeRate(e.target.value)}
-                            placeholder="1.0000"
-                          />
-                        </div>
-                      )}
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                        <Percent className="h-4 w-4 text-slate-400" />
+                        {isTr ? "Para Birimi" : "Currency"} *
+                      </label>
+                      <select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="w-[10ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                      >
+                        <option value="TRY">TRY</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                      </select>
                     </div>
                   </div>
 
@@ -1197,113 +1172,214 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       {/* Details Modal */}
       <AnimatePresence>
         {showDetailsModal && selectedInvoice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-              onClick={() => setShowDetailsModal(false)}
-            />
-            <motion.div
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <FileDown className="h-5 w-5 text-indigo-600" />
-                  {isTr ? "Fatura Detayı" : "Invoice Details"} - #{selectedInvoice.invoice_number}
-                </h3>
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                    <FileDown className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'Alış Faturası Detayı' : 'Purchase Invoice Details'}</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">#{selectedInvoice.invoice_number}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowDetailsModal(false)} 
+                  className="p-3 hover:bg-slate-200 rounded-2xl transition-colors"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-6 w-6 text-slate-400" />
                 </button>
               </div>
-
-              <div className="p-6 overflow-y-auto flex-1 space-y-6">
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div>
-                    <div className="text-sm text-slate-500 mb-1">{isTr ? "Cari" : "Company"}</div>
-                    <div className="font-medium text-slate-900">{selectedInvoice.company_name}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-slate-500 mb-1">{isTr ? "Tarih" : "Date"}</div>
-                    <div className="font-medium text-slate-900">{new Date(selectedInvoice.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}</div>
-                  </div>
-                  {selectedInvoice.currency !== (branding?.default_currency || 'TRY') && (
-                    <div>
-                      <div className="text-sm text-slate-500 mb-1">{isTr ? "Döviz Kuru" : "Exchange Rate"}</div>
-                      <div className="font-medium text-slate-900">{Number(selectedInvoice.exchange_rate).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</div>
+              
+              <div className="p-8 max-h-[75vh] overflow-y-auto bg-slate-50/30">
+                <div className="bg-white p-10 rounded-[2rem] shadow-xl border border-slate-100 text-slate-900 font-sans">
+                  {/* Premium Header */}
+                  <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12 border-b border-slate-100 pb-12">
+                    <div className="space-y-4 max-w-md">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200">
+                          <Building2 className="w-6 h-6" />
+                        </div>
+                        <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">
+                          {selectedInvoice.company_name || (isTr ? "TEDARİKÇİ ADI" : "SUPPLIER NAME")}
+                        </h1>
+                      </div>
+                      <div className="space-y-1 text-sm text-slate-500 font-medium leading-relaxed">
+                        <p className="flex items-start gap-2">
+                          <span className="text-indigo-500 mt-1">•</span>
+                          {selectedInvoice.company_address || (isTr ? "Adres bilgisi girilmemiş" : "Address not provided")}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <span className="text-indigo-500">•</span>
+                          {selectedInvoice.company_phone || (isTr ? "Telefon girilmemiş" : "Phone not provided")}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <span className="text-indigo-500">•</span>
+                          {selectedInvoice.tax_number || (isTr ? "Vergi no girilmemiş" : "Tax number not provided")}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                <div>
-                  <h4 className="font-medium text-slate-900 mb-3">{isTr ? "Ürünler" : "Products"}</h4>
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          <th className="p-3 text-xs font-medium text-slate-500 uppercase">{isTr ? "Ürün" : "Product"}</th>
-                          <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "Adet" : "Qty"}</th>
-                          <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
-                          <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "KDV" : "VAT"}</th>
-                          <th className="p-3 text-xs font-medium text-slate-500 uppercase text-right">{isTr ? "Toplam" : "Total"}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {selectedInvoice.items?.map((item: any, index: number) => (
-                          <tr key={index}>
-                            <td className="p-3">
-                              <div className="font-medium text-sm text-slate-900">{item.product_name}</div>
-                              <div className="text-xs text-slate-500">{item.barcode}</div>
-                            </td>
-                            <td className="p-3 text-right text-sm text-slate-600">{item.quantity}</td>
-                            <td className="p-3 text-right text-sm text-slate-600">
-                              {Number(item.unit_price).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedInvoice.currency || 'TRY' })}
-                            </td>
-                            <td className="p-3 text-right text-sm text-slate-600">
-                              %{item.tax_rate}
-                            </td>
-                            <td className="p-3 text-right text-sm font-medium text-slate-900">
-                              {(Number(item.total_price) + Number(item.tax_amount)).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedInvoice.currency || 'TRY' })}
-                            </td>
+                    <div className="text-right space-y-4">
+                      <div className="inline-block px-6 py-2 bg-slate-100 rounded-full">
+                        <span className="text-slate-700 font-black text-sm uppercase tracking-widest">
+                          {isTr ? 'ALIŞ BELGESİ' : 'PURCHASE DOCUMENT'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'FATURA NO' : 'INVOICE NO'}</span>
+                          <span className="text-xl font-black text-slate-900">#{selectedInvoice.invoice_number}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'TARİH' : 'DATE'}</span>
+                          <span className="text-sm font-bold text-slate-600">{new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Document Info Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
+                    <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <FileDown className="w-16 h-16 text-indigo-600" />
+                      </div>
+                      <h3 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
+                        {isTr ? 'BELGE BİLGİLERİ' : 'DOCUMENT INFORMATION'}
+                      </h3>
+                      <div className="space-y-4 relative z-10">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'İRSALİYE NO' : 'WAYBILL NO'}</p>
+                            <p className="text-slate-700 font-bold">{selectedInvoice.waybill_number || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</p>
+                            <p className="text-slate-700 font-bold uppercase">{selectedInvoice.payment_method || '-'}</p>
+                          </div>
+                        </div>
+                        <div className="pt-4 mt-4 border-t border-slate-200">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'PARA BİRİMİ' : 'CURRENCY'}</p>
+                          <p className="text-slate-700 font-bold">{selectedInvoice.currency}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-indigo-600 p-8 rounded-[2rem] text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
+                      <div className="absolute -right-4 -bottom-4 opacity-10">
+                        <Building2 className="w-32 h-32" />
+                      </div>
+                      <h3 className="text-[10px] font-black text-indigo-200 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-indigo-200 rounded-full"></div>
+                        {isTr ? 'ALICI MAĞAZA' : 'BUYER STORE'}
+                      </h3>
+                      <div className="space-y-4">
+                        <p className="text-lg font-black leading-tight uppercase">
+                          {branding?.name || (isTr ? "MAĞAZAMIZ" : "OUR STORE")}
+                        </p>
+                        <div className="space-y-2 text-sm text-indigo-100 font-medium leading-relaxed">
+                          <p>{branding?.address || '-'}</p>
+                          <p>{branding?.phone || '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <div className="mb-12">
+                    <div className="overflow-hidden rounded-[2rem] border border-slate-100 shadow-sm">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-900 text-white">
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest w-16 text-center">#</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest">{isTr ? 'ÜRÜN / HİZMET' : 'PRODUCT / SERVICE'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center w-24">{isTr ? 'MİKTAR' : 'QTY'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-right w-32">{isTr ? 'BİRİM FİYAT' : 'UNIT PRICE'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center w-24">{isTr ? 'KDV %' : 'VAT %'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-right w-40">{isTr ? 'TOPLAM' : 'TOTAL'}</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(selectedInvoice.items || []).map((item: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-6 py-5 text-xs font-black text-slate-400 text-center">{idx + 1}</td>
+                              <td className="px-6 py-5">
+                                <div className="text-sm font-black text-slate-900">{item.product_name}</div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{item.barcode}</div>
+                              </td>
+                              <td className="px-6 py-5 text-sm font-bold text-slate-600 text-center">{item.quantity}</td>
+                              <td className="px-6 py-5 text-sm font-bold text-slate-600 text-right">
+                                {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                              </td>
+                              <td className="px-6 py-5 text-center">
+                                <span className="px-2 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500">%{item.tax_rate}</span>
+                              </td>
+                              <td className="px-6 py-5 text-sm font-black text-slate-900 text-right">
+                                {(Number(item.total_price) + Number(item.tax_amount)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Summary & Notes */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-8">
+                      {selectedInvoice.notes && (
+                        <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
+                            {isTr ? 'NOTLAR' : 'NOTES'}
+                          </h4>
+                          <p className="text-sm font-bold text-slate-700 leading-relaxed italic">
+                            {selectedInvoice.notes}
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="px-8">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] text-center">
+                          {isTr ? 'BU BELGE SİSTEM ÜZERİNDEN KAYDEDİLMİŞTİR' : 'THIS DOCUMENT WAS RECORDED VIA SYSTEM'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="bg-white rounded-[2rem] border-2 border-slate-100 p-8 space-y-4 shadow-sm">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'ARA TOPLAM' : 'SUBTOTAL'}</span>
+                          <span className="font-black text-slate-700">
+                            {Number(selectedInvoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'TOPLAM KDV' : 'TOTAL VAT'}</span>
+                          <span className="font-black text-slate-700">
+                            {Number(selectedInvoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                          </span>
+                        </div>
+                        <div className="pt-6 mt-6 border-t-2 border-slate-100 flex justify-between items-center">
+                          <div>
+                            <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">{isTr ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
+                            <span className="text-3xl font-black text-slate-900 tracking-tight">
+                              {Number(selectedInvoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex justify-end">
-                  <div className="w-full md:w-64 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <div className="flex justify-between text-sm text-slate-600">
-                      <span>{isTr ? "Ara Toplam:" : "Subtotal:"}</span>
-                      <span className="font-medium">{Number(selectedInvoice.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedInvoice.currency || 'TRY' })}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-slate-600">
-                      <span>{isTr ? "KDV Toplam:" : "VAT Total:"}</span>
-                      <span className="font-medium">{Number(selectedInvoice.tax_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedInvoice.currency || 'TRY' })}</span>
-                    </div>
-                    <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-                      <span className="font-bold text-slate-900">{isTr ? "Genel Toplam:" : "Grand Total:"}</span>
-                      <span className="font-bold text-indigo-600 text-lg">{Number(selectedInvoice.grand_total).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: selectedInvoice.currency || 'TRY' })}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedInvoice.notes && (
-                  <div>
-                    <h4 className="font-medium text-slate-900 mb-2">{isTr ? "Notlar" : "Notes"}</h4>
-                    <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      {selectedInvoice.notes}
-                    </p>
-                  </div>
-                )}
               </div>
             </motion.div>
           </div>

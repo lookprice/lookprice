@@ -97,6 +97,72 @@ interface StoreDashboardProps {
 export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) {
   const { slug } = useParams();
   const { lang } = useLanguage();
+  const isTr = lang === 'tr';
+
+  const numberToTurkishWords = (number: number, currency: string = 'TRY') => {
+    const units = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
+    const tens = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
+    const thousands = ["", "Bin", "Milyon", "Milyar", "Trilyon"];
+
+    const convertThreeDigits = (n: number) => {
+      let str = "";
+      const h = Math.floor(n / 100);
+      const t = Math.floor((n % 100) / 10);
+      const u = n % 10;
+
+      if (h > 0) {
+        str += (h === 1 ? "" : units[h]) + "Yüz";
+      }
+      if (t > 0) {
+        str += tens[t];
+      }
+      if (u > 0) {
+        str += units[u];
+      }
+      return str;
+    };
+
+    if (number === 0) return "Sıfır";
+
+    const parts = number.toFixed(2).split(".");
+    const integerPart = parseInt(parts[0]);
+    const decimalPart = parseInt(parts[1]);
+
+    let result = "";
+    let tempInteger = integerPart;
+    let i = 0;
+
+    if (tempInteger === 0) {
+      result = "Sıfır";
+    } else {
+      while (tempInteger > 0) {
+        const threeDigits = tempInteger % 1000;
+        if (threeDigits > 0) {
+          let partStr = convertThreeDigits(threeDigits);
+          if (i === 1 && threeDigits === 1) partStr = ""; 
+          result = partStr + thousands[i] + result;
+        }
+        tempInteger = Math.floor(tempInteger / 1000);
+        i++;
+      }
+    }
+
+    const currencyMap: { [key: string]: { main: string, sub: string } } = {
+      'TRY': { main: 'TL', sub: 'Kr' },
+      'USD': { main: 'USD', sub: 'Cent' },
+      'EUR': { main: 'EUR', sub: 'Cent' }
+    };
+
+    const cur = currencyMap[currency] || { main: currency, sub: '' };
+    result += cur.main;
+
+    if (decimalPart > 0) {
+      result += " " + convertThreeDigits(decimalPart) + " " + cur.sub;
+    }
+
+    return result;
+  };
+
   const t = translations[lang].dashboard;
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem(`storeDashboardTab_${user.store_id || 'admin'}`) || "products";
@@ -216,7 +282,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     newTransactionDescription, setNewTransactionDescription,
     newTransactionDate, setNewTransactionDate,
     newTransactionPaymentMethod, setNewTransactionPaymentMethod,
-    newTransactionCurrency, setNewTransactionCurrency,
     fetchCompanies,
     handleAddCompany,
     handleDeleteCompany,
@@ -786,7 +851,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onShowQr={() => setShowQrModal(true)}
                         branding={branding}
                         showStoreName={includeBranches}
-                        currentStoreId={currentStoreId}
                       />
                     )}
                     {activeTab === "analytics" && (
@@ -1419,132 +1483,160 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         )}
 
         {showQuotationDetailsModal && selectedQuotationDetails && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100"
             >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-white relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600" />
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{lang === 'tr' ? 'Teklif Detayı' : 'Quotation Details'}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">#{selectedQuotationDetails.id} • {new Date(selectedQuotationDetails.created_at).toLocaleString('tr-TR')}</p>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Teklif Detayı' : 'Quotation Details'}</h3>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                      #{selectedQuotationDetails.id}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                      {new Date(selectedQuotationDetails.created_at).toLocaleString('tr-TR')}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={handlePrintQuotation} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title={lang === 'tr' ? "Yazdır / PDF" : "Print / PDF"}>
-                    <Printer className="h-5 w-5 text-gray-400" />
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handlePrintQuotation} 
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition-all duration-200"
+                  >
+                    <Printer className="h-4 w-4" /> {lang === 'tr' ? "Yazdır" : "Print"}
                   </button>
-                  <button onClick={() => setShowQuotationDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                    <X className="h-5 w-5 text-gray-400" />
+                  <button 
+                    onClick={() => setShowQuotationDetailsModal(false)} 
+                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition-all duration-200"
+                  >
+                    <X className="h-6 w-6" />
                   </button>
                 </div>
               </div>
-              <div ref={quotationPrintRef} className="p-6 max-h-[75vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-6 print:bg-white text-slate-900 font-sans text-[10px]">
-                {/* Top Border */}
-                <div className="border-t-2 border-slate-900 mb-3"></div>
 
-                {/* Header */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-1/2 space-y-0.5 pr-4">
-                    <h1 className="font-bold text-xs uppercase">{branding?.name || "Teklif"}</h1>
-                    <p className="leading-tight">{branding?.address}</p>
-                    <p>Tel: {branding?.phone}</p>
-                    <p>E-Posta: {branding?.email}</p>
-                  </div>
-                  <div className="w-1/2 flex justify-end items-start">
-                    <div className="text-center mr-4">
-                      <div className="w-12 h-12 bg-slate-100 rounded-full mx-auto mb-1 flex items-center justify-center border border-slate-200">
-                        <FileText className="w-6 h-6 text-slate-400" />
+              <div ref={quotationPrintRef} className="p-8 sm:p-12 max-h-[70vh] overflow-y-auto custom-scrollbar print:max-h-none print:overflow-visible print:p-0 print:bg-white">
+                <div className="space-y-12">
+                  {/* Header */}
+                  <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+                    <div className="flex items-center gap-6">
+                      {branding?.logo_url ? (
+                        <img src={branding.logo_url} alt="Logo" className="h-20 w-20 bg-white rounded-2xl p-2 shadow-sm object-contain border border-slate-100" />
+                      ) : (
+                        <div className="h-20 w-20 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 text-indigo-600">
+                          <FileText className="h-10 w-10" />
+                        </div>
+                      )}
+                      <div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">{branding?.store_name || "LookPrice"}</h1>
+                        <div className="mt-2 space-y-1">
+                          {branding?.address && <p className="text-xs text-slate-500 font-medium max-w-xs">{branding.address}</p>}
+                          {branding?.phone && <p className="text-xs text-slate-500 font-medium">{branding.phone}</p>}
+                        </div>
                       </div>
-                      <span className="font-bold text-base uppercase tracking-widest">{lang === 'tr' ? 'TEKLİF FORMU' : 'QUOTATION'}</span>
+                    </div>
+                    <div className="text-right print:text-left">
+                      <h2 className="text-4xl font-black text-slate-200 uppercase tracking-tighter print:text-slate-900 print:text-2xl">{lang === 'tr' ? 'TEKLİF' : 'QUOTATION'}</h2>
+                      <div className="mt-4 space-y-1">
+                        <div className="flex justify-end gap-4 text-xs print:justify-start">
+                          <span className="text-slate-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Tarih' : 'Date'}</span>
+                          <span className="text-slate-900 font-black">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</span>
+                        </div>
+                        <div className="flex justify-end gap-4 text-xs print:justify-start">
+                          <span className="text-slate-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Durum' : 'Status'}</span>
+                          <span className={`font-black uppercase ${
+                            selectedQuotationDetails.status === 'approved' ? 'text-emerald-600' : 
+                            selectedQuotationDetails.status === 'cancelled' ? 'text-rose-600' : 'text-amber-600'
+                          }`}>
+                            {selectedQuotationDetails.status}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Middle Border */}
-                <div className="border-t-2 border-slate-900 mb-3"></div>
-
-                {/* Customer & Quotation Info */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-1/2 space-y-0.5 pr-4">
-                    <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{lang === 'tr' ? 'SAYIN' : 'TO'}</p>
-                    <p className="font-bold text-[11px]">{selectedQuotationDetails.customer_name || '-'}</p>
-                    <p>{selectedQuotationDetails.customer_title || '-'}</p>
+                  {/* Customer Info */}
+                  <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-5"><UserIcon className="h-16 w-16" /></div>
+                    <div className="relative">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{lang === 'tr' ? 'MÜŞTERİ BİLGİLERİ' : 'CUSTOMER INFORMATION'}</h3>
+                      <p className="text-xl font-black text-slate-900">{selectedQuotationDetails.customer_name || '-'}</p>
+                      {selectedQuotationDetails.customer_title && <p className="text-sm font-bold text-indigo-600 mt-1">{selectedQuotationDetails.customer_title}</p>}
+                    </div>
                   </div>
-                  <div className="w-1/2 pl-4">
-                    <table className="w-full border-collapse border border-slate-900 text-[9px]">
-                      <tbody>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold w-1/3">{lang === 'tr' ? 'Teklif No:' : 'Quotation No:'}</td>
-                          <td className="border border-slate-900 p-0.5">{selectedQuotationDetails.id}</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{lang === 'tr' ? 'Tarih:' : 'Date:'}</td>
-                          <td className="border border-slate-900 p-0.5">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{lang === 'tr' ? 'Durum:' : 'Status:'}</td>
-                          <td className="border border-slate-900 p-0.5 uppercase">{selectedQuotationDetails.status}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+
+                  {/* Items Table */}
+                  <div className="space-y-6">
+                    <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/50 border-b border-slate-100">
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">#</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'ÜRÜN / HİZMET' : 'PRODUCT / SERVICE'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{lang === 'tr' ? 'MİKTAR' : 'QTY'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'TOPLAM' : 'TOTAL'}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {(selectedQuotationDetails.items || []).map((item: any, idx: number) => (
+                            <tr key={idx} className="group hover:bg-slate-50/30 transition-colors">
+                              <td className="px-8 py-6 text-slate-400 font-bold text-xs">{idx + 1}</td>
+                              <td className="px-8 py-6">
+                                <div className="font-black text-slate-900">{item.product_name}</div>
+                                <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">{item.barcode || `#${item.product_id}`}</div>
+                              </td>
+                              <td className="px-8 py-6 text-center">
+                                <span className="inline-flex items-center justify-center px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-black">
+                                  {item.quantity}
+                                </span>
+                              </td>
+                              <td className="px-8 py-6 text-right font-black text-slate-900">
+                                {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 ml-0.5">{selectedQuotationDetails.currency?.slice(0, 3)}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      
+                      <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{lang === 'tr' ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</p>
+                        <div className="text-3xl font-black tracking-tighter flex items-baseline gap-2">
+                          {Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                          <span className="text-sm text-indigo-400 uppercase tracking-widest">{selectedQuotationDetails.currency?.slice(0, 3)}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Notes */}
+                  {selectedQuotationDetails.notes && (
+                    <div className="space-y-4 break-inside-avoid">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{lang === 'tr' ? 'NOTLAR' : 'NOTES'}</h3>
+                      <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-200" />
+                        <p className="text-slate-700 font-medium leading-relaxed whitespace-pre-wrap italic">"{selectedQuotationDetails.notes}"</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Items Table */}
-                <table className="w-full border-collapse border border-slate-900 text-xs mb-4">
-                  <thead>
-                    <tr className="bg-slate-100 print:bg-slate-100">
-                      <th className="border border-slate-900 p-2 text-center w-12">{lang === 'tr' ? 'Sıra No' : 'No'}</th>
-                      <th className="border border-slate-900 p-2 text-left">{lang === 'tr' ? 'Mal Hizmet' : 'Product/Service'}</th>
-                      <th className="border border-slate-900 p-2 text-center w-20">{lang === 'tr' ? 'Miktar' : 'Qty'}</th>
-                      <th className="border border-slate-900 p-2 text-right w-28">{lang === 'tr' ? 'Mal Hizmet Tutarı' : 'Total'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(selectedQuotationDetails.items || []).map((item: any, idx: number) => {
-                      return (
-                        <tr key={idx}>
-                          <td className="border border-slate-900 p-2 text-center">{idx + 1}</td>
-                          <td className="border border-slate-900 p-2">
-                            <div className="font-bold">{item.product_name}</div>
-                            <div className="text-[10px] text-slate-500">{item.barcode || `#${item.product_id}`}</div>
-                          </td>
-                          <td className="border border-slate-900 p-2 text-center">{item.quantity}</td>
-                          <td className="border border-slate-900 p-2 text-right">{Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {/* Totals */}
-                <div className="flex justify-end mb-4">
-                  <table className="w-1/2 border-collapse border border-slate-900 text-[9px]">
-                    <tbody>
-                      <tr className="bg-slate-50">
-                        <td className="border border-slate-900 p-1 font-bold text-right text-[10px]">{lang === 'tr' ? 'Genel Toplam' : 'Grand Total'}</td>
-                        <td className="border border-slate-900 p-1 text-right font-bold w-32 text-[10px]">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Notes */}
-                {selectedQuotationDetails.notes && (
-                  <div className="border border-slate-900 p-4 text-xs">
-                    <p className="font-bold mb-1">{lang === 'tr' ? 'Notlar:' : 'Notes:'}</p>
-                    <p>{selectedQuotationDetails.notes}</p>
-                  </div>
-                )}
               </div>
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
+              
+              <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4 print:hidden">
                 <button 
                   onClick={() => setShowQuotationDetailsModal(false)}
-                  className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                  className="flex-1 px-8 py-4 bg-white border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all duration-200"
                 >
                   {t.close || 'Kapat'}
+                </button>
+                <button 
+                  onClick={handlePrintQuotation}
+                  className="flex-1 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all duration-200 shadow-xl shadow-indigo-100"
+                >
+                  {lang === 'tr' ? 'Yazdır / PDF' : 'Print / PDF'}
                 </button>
               </div>
             </motion.div>
@@ -1714,132 +1806,117 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                {(() => {
-                  const currencies = Array.from(new Set(companyTransactions.map(t => t.currency || branding.default_currency || 'TRY')));
-                  
-                  if (currencies.length === 0) {
-                    return (
-                      <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                        <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : 'No transactions in selected dates'}</p>
-                      </div>
-                    );
-                  }
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
+                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
+                    <p className="text-2xl font-black">
+                      {Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
+                    <p className="text-2xl font-black text-red-600">
+                      {companyTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
+                    <p className="text-2xl font-black text-green-600">
+                      {companyTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
+                    </p>
+                  </div>
+                </div>
 
-                  return currencies.map(curr => {
-                    const filteredTx = companyTransactions.filter(t => (t.currency || branding.default_currency || 'TRY') === curr);
-                    let runningBalance = 0;
-                    const debtTotal = filteredTx.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0);
-                    const creditTotal = filteredTx.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0);
-                    const balanceTotal = debtTotal - creditTotal;
+                <div className="space-y-3">
+                  {transactionLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
+                      <p className="text-gray-500 font-medium">{t.loading}</p>
+                    </div>
+                  ) : companyTransactions.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                      <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : (lang === 'de' ? 'Keine Transaktionen in ausgewählten Daten' : 'No transactions in selected dates')}</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-gray-100">
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
+                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            let runningBalance = 0;
+                            return companyTransactions.map((tx: any) => {
+                              const amount = Number(tx.amount);
+                              if (tx.type === 'debt') runningBalance += amount;
+                              else runningBalance -= amount;
 
-                    return (
-                      <div key={curr} className="space-y-4 border-b border-gray-100 pb-8 last:border-0">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            <Globe className="h-5 w-5 text-indigo-600" />
-                            {curr} {lang === 'tr' ? 'Ekstresi' : 'Statement'}
-                          </h4>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-                            <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
-                            <p className="text-2xl font-black">
-                              {balanceTotal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {curr}
-                            </p>
-                          </div>
-                          <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
-                            <p className="text-2xl font-black text-red-600">
-                              {debtTotal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {curr}
-                            </p>
-                          </div>
-                          <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
-                            <p className="text-2xl font-black text-green-600">
-                              {creditTotal.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {curr}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse">
-                            <thead>
-                              <tr className="border-b border-gray-100">
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredTx.map((tx: any) => {
-                                const amount = Number(tx.amount);
-                                if (tx.type === 'debt') runningBalance += amount;
-                                else runningBalance -= amount;
-
-                                return (
-                                  <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
-                                    <td className="py-4 px-4">
-                                      <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                                      {tx.due_date && (
-                                        <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
-                                          {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="py-4 px-4">
-                                      <p className="text-xs font-bold text-gray-700">{tx.description}</p>
-                                      <div className="flex gap-2 mt-1">
-                                        {tx.sale_id && (
-                                          <button 
-                                            onClick={() => {
-                                              setSelectedSale({ id: tx.sale_id });
-                                              setShowSaleDetailsModal(true);
-                                            }}
-                                            className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
-                                          >
-                                            #{tx.sale_id} {t.sources.pos}
-                                          </button>
-                                        )}
-                                        {tx.purchase_invoice_id && (
-                                          <button 
-                                            onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
-                                            className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
-                                          >
-                                            #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
-                                          </button>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="py-4 px-4 text-right">
-                                      {tx.type === 'debt' ? (
-                                        <span className="text-xs font-black text-red-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
-                                      ) : '-'}
-                                    </td>
-                                    <td className="py-4 px-4 text-right">
-                                      {tx.type === 'credit' ? (
-                                        <span className="text-xs font-black text-green-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
-                                      ) : '-'}
-                                    </td>
-                                    <td className="py-4 px-4 text-right">
-                                      <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                                        {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                              return (
+                                <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
+                                  <td className="py-4 px-4">
+                                    <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
+                                    {tx.due_date && (
+                                      <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
+                                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                                       </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
+                                    )}
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <p className="text-xs font-bold text-gray-700">{tx.description}</p>
+                                    <div className="flex gap-2 mt-1">
+                                      {tx.sale_id && (
+                                        <button 
+                                          onClick={() => {
+                                            setSelectedSale({ id: tx.sale_id });
+                                            setShowSaleDetailsModal(true);
+                                          }}
+                                          className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
+                                        >
+                                          #{tx.sale_id} {t.sources.pos}
+                                        </button>
+                                      )}
+                                      {tx.purchase_invoice_id && (
+                                        <button 
+                                          onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
+                                          className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
+                                        >
+                                          #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4 text-right">
+                                    {tx.type === 'debt' ? (
+                                      <span className="text-xs font-black text-red-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+                                    ) : '-'}
+                                  </td>
+                                  <td className="py-4 px-4 text-right">
+                                    {tx.type === 'credit' ? (
+                                      <span className="text-xs font-black text-green-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+                                    ) : '-'}
+                                  </td>
+                                  <td className="py-4 px-4 text-right">
+                                    <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                                      {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            });
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
                 <button 
@@ -1904,31 +1981,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={newTransactionAmount}
-                      onChange={(e) => setNewTransactionAmount(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
-                    <select
-                      value={newTransactionCurrency}
-                      onChange={(e) => setNewTransactionCurrency(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
-                    >
-                      <option value="TRY">TRY</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={newTransactionAmount}
+                    onChange={(e) => setNewTransactionAmount(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                    placeholder="0.00"
+                  />
                 </div>
 
                 {newTransactionType === 'credit' && (
@@ -2343,19 +2405,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           required 
                           defaultValue={editingProduct?.price} 
                           onFocus={(e) => e.target.select()}
-                          onChange={(e) => {
-                            const target = e.target as HTMLInputElement;
-                            const form = target.closest('form');
-                            if (form) {
-                              const price = parseFloat(target.value.replace(',', '.')) || 0;
-                              const taxInput = form.querySelector('input[name="tax_rate"]') as HTMLInputElement;
-                              const taxRate = parseFloat(taxInput?.value) || 0;
-                              const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
-                              if (price2Input) {
-                                price2Input.value = (price / (1 + taxRate / 100)).toFixed(2).replace('.', ',');
-                              }
-                            }
-                          }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600 text-lg" 
                         />
                       </div>
@@ -2472,17 +2521,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onInput={(e) => {
                             const target = e.target as HTMLInputElement;
                             target.value = target.value.replace(/[^0-9]/g, '').substring(0, 2);
-                            
-                            const form = target.closest('form');
-                            if (form) {
-                              const priceInput = form.querySelector('input[name="price"]') as HTMLInputElement;
-                              const price = parseFloat(priceInput?.value.replace(',', '.')) || 0;
-                              const taxRate = parseFloat(target.value) || 0;
-                              const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
-                              if (price2Input) {
-                                price2Input.value = (price / (1 + taxRate / 100)).toFixed(2).replace('.', ',');
-                              }
-                            }
                           }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />

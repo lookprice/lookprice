@@ -54,7 +54,6 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
-  const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
   
   const selectedCompany = companies.find((c: any) => c.id === Number(companyId));
@@ -324,7 +323,6 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         })),
         payment_method: paymentMethod,
         currency,
-        exchange_rate: Number(String(exchangeRate).replace(',', '.')) || 1,
         status
       };
 
@@ -395,7 +393,6 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method || 'cash');
       setCurrency(data.currency || 'TRY');
-      setExchangeRate(String(data.exchange_rate || 1));
       setStatus(data.status || 'draft');
       setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,
@@ -982,12 +979,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <select 
                             className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
                             value={currency}
-                            onChange={(e) => {
-                              setCurrency(e.target.value);
-                              if (e.target.value === (branding?.default_currency || 'TRY')) {
-                                setExchangeRate("1");
-                              }
-                            }}
+                            onChange={(e) => setCurrency(e.target.value)}
                           >
                             <option value="TRY">TRY</option>
                             <option value="USD">USD</option>
@@ -995,18 +987,6 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                             <option value="GBP">GBP</option>
                           </select>
                         </div>
-                        {currency !== (branding?.default_currency || 'TRY') && (
-                          <div className="space-y-4 flex-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Döviz Kuru' : 'Exchange Rate'}</label>
-                            <input 
-                              type="text"
-                              className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
-                              value={exchangeRate}
-                              onChange={(e) => setExchangeRate(e.target.value)}
-                              placeholder="1.0000"
-                            />
-                          </div>
-                        )}
                       </div>
                     </div>
 
@@ -1155,169 +1135,257 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         {showDetailsModal && selectedInvoice && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl my-auto overflow-hidden border border-slate-200"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
             >
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'Satış Faturası Detayı' : 'Sales Invoice Details'}</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">#{selectedInvoice.invoice_number}</p>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">{isTr ? 'Satış Faturası Detayı' : 'Sales Invoice Details'}</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">#{selectedInvoice.invoice_number}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={handlePrint} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors" title={isTr ? "Yazdır / PDF Kaydet" : "Print / Save PDF"}>
-                    <Printer className="h-6 w-6 text-slate-400" />
+                  <button 
+                    onClick={handlePrint} 
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+                  >
+                    <Printer className="h-4 w-4 text-indigo-600" />
+                    {isTr ? "Yazdır" : "Print"}
                   </button>
-                  <button onClick={() => setShowDetailsModal(false)} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors">
+                  <button 
+                    onClick={() => setShowDetailsModal(false)} 
+                    className="p-3 hover:bg-slate-200 rounded-2xl transition-colors"
+                  >
                     <X className="h-6 w-6 text-slate-400" />
                   </button>
                 </div>
               </div>
-              <div ref={invoiceRef} className="p-6 max-h-[75vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-6 print:bg-white text-slate-900 font-sans text-[10px]">
-                {/* Top Border */}
-                <div className="border-t-2 border-slate-900 mb-3"></div>
-
-                {/* Header */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-1/2 space-y-0.5 pr-4">
-                    <h1 className="font-bold text-xs uppercase">{branding?.name || "Fatura"}</h1>
-                    <p className="leading-tight">{branding?.address}</p>
-                    <p>Tel: {branding?.phone}</p>
-                    <p>E-Posta: {branding?.email}</p>
-                  </div>
-                  <div className="w-1/2 flex justify-end items-start">
-                    <div className="text-center mr-4">
-                      <div className="w-12 h-12 bg-slate-100 rounded-full mx-auto mb-1 flex items-center justify-center border border-slate-200">
-                        <Building2 className="w-6 h-6 text-slate-400" />
+              
+              <div className="p-8 max-h-[75vh] overflow-y-auto bg-slate-50/30">
+                <div 
+                  ref={invoiceRef} 
+                  className="bg-white p-10 rounded-[2rem] shadow-xl border border-slate-100 print:shadow-none print:border-none print:p-0 print:m-0 text-slate-900 font-sans"
+                >
+                  {/* Premium Header */}
+                  <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12 border-b border-slate-100 pb-12">
+                    <div className="space-y-4 max-w-md">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                          <Building2 className="w-6 h-6" />
+                        </div>
+                        <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">
+                          {branding?.name || (isTr ? "MAĞAZA ADI" : "STORE NAME")}
+                        </h1>
                       </div>
-                      <span className="font-bold text-base uppercase tracking-widest">{isTr ? 'e-FATURA' : 'e-INVOICE'}</span>
+                      <div className="space-y-1 text-sm text-slate-500 font-medium leading-relaxed">
+                        <p className="flex items-start gap-2">
+                          <span className="text-indigo-500 mt-1">•</span>
+                          {branding?.address || (isTr ? "Adres bilgisi girilmemiş" : "Address not provided")}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <span className="text-indigo-500">•</span>
+                          {branding?.phone || (isTr ? "Telefon girilmemiş" : "Phone not provided")}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <span className="text-indigo-500">•</span>
+                          {branding?.email || (isTr ? "E-posta girilmemiş" : "Email not provided")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right space-y-4">
+                      <div className="inline-block px-6 py-2 bg-indigo-50 rounded-full">
+                        <span className="text-indigo-700 font-black text-sm uppercase tracking-widest">
+                          {isTr ? 'e-FATURA' : 'e-INVOICE'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'FATURA NO' : 'INVOICE NO'}</span>
+                          <span className="text-xl font-black text-slate-900">#{selectedInvoice.invoice_number}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'TARİH' : 'DATE'}</span>
+                          <span className="text-sm font-bold text-slate-600">{new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Middle Border */}
-                <div className="border-t-2 border-slate-900 mb-3"></div>
+                  {/* Customer Info Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
+                    <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <UserIcon className="w-16 h-16 text-indigo-600" />
+                      </div>
+                      <h3 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
+                        {isTr ? 'MÜŞTERİ BİLGİLERİ' : 'CUSTOMER INFORMATION'}
+                      </h3>
+                      <div className="space-y-4 relative z-10">
+                        <div>
+                          <p className="text-lg font-black text-slate-900 leading-tight">
+                            {selectedInvoice.customer_name || selectedInvoice.company_title || selectedInvoice.sale_customer_name || '-'}
+                          </p>
+                        </div>
+                        <div className="space-y-2 text-sm text-slate-500 font-medium leading-relaxed">
+                          <p>{selectedInvoice.customer_address || selectedInvoice.company_address || '-'}</p>
+                          <p>{selectedInvoice.customer_phone || selectedInvoice.company_phone || '-'}</p>
+                          <div className="pt-4 mt-4 border-t border-slate-200 grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'VERGİ DAİRESİ' : 'TAX OFFICE'}</p>
+                              <p className="text-slate-700 font-bold">{selectedInvoice.tax_office || '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'VKN / TCKN' : 'TAX NUMBER'}</p>
+                              <p className="text-slate-700 font-bold">{selectedInvoice.tax_number || '-'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                {/* Customer & Invoice Info */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-1/2 space-y-0.5 pr-4">
-                    <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'SAYIN' : 'TO'}</p>
-                    <p className="font-bold text-[11px]">{selectedInvoice.customer_name || selectedInvoice.company_title || selectedInvoice.sale_customer_name || '-'}</p>
-                    <p className="leading-tight">{selectedInvoice.customer_address || selectedInvoice.company_address || '-'}</p>
-                    <p>Tel: {selectedInvoice.customer_phone || selectedInvoice.company_phone || '-'}</p>
-                    <p>Vergi Dairesi: {selectedInvoice.tax_office || '-'}</p>
-                    <p>VKN/TCKN: {selectedInvoice.tax_number || '-'}</p>
+                    <div className="bg-indigo-600 p-8 rounded-[2rem] text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
+                      <div className="absolute -right-4 -bottom-4 opacity-10">
+                        <FileText className="w-32 h-32" />
+                      </div>
+                      <h3 className="text-[10px] font-black text-indigo-200 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-indigo-200 rounded-full"></div>
+                        {isTr ? 'BELGE DETAYLARI' : 'DOCUMENT DETAILS'}
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center border-b border-indigo-500/50 pb-3">
+                          <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">{isTr ? 'Senaryo' : 'Scenario'}</span>
+                          <span className="font-black">TICARIFATURA</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-indigo-500/50 pb-3">
+                          <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">{isTr ? 'Fatura Tipi' : 'Invoice Type'}</span>
+                          <span className="font-black">{isTr ? 'SATIŞ' : 'SALES'}</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-indigo-500/50 pb-3">
+                          <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">{isTr ? 'Ödeme Yöntemi' : 'Payment Method'}</span>
+                          <span className="font-black uppercase">{selectedInvoice.payment_method || '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">ETTN</span>
+                          <span className="text-[10px] font-mono opacity-80">{selectedInvoice.id}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-1/2 pl-4">
-                    <table className="w-full border-collapse border border-slate-900 text-[9px]">
-                      <tbody>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold w-1/3">{isTr ? 'Özelleştirme No:' : 'Customization No:'}</td>
-                          <td className="border border-slate-900 p-0.5">TR1.2</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Senaryo:' : 'Scenario:'}</td>
-                          <td className="border border-slate-900 p-0.5">TICARIFATURA</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Fatura Tipi:' : 'Invoice Type:'}</td>
-                          <td className="border border-slate-900 p-0.5">SATIŞ</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Fatura No:' : 'Invoice No:'}</td>
-                          <td className="border border-slate-900 p-0.5 font-bold">{selectedInvoice.invoice_number}</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Fatura Tarihi:' : 'Invoice Date:'}</td>
-                          <td className="border border-slate-900 p-0.5">{new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</td>
-                        </tr>
-                        {selectedInvoice.currency !== (branding?.default_currency || 'TRY') && (
-                          <tr>
-                            <td className="border border-slate-900 p-0.5 font-bold">{isTr ? 'Döviz Kuru:' : 'Exchange Rate:'}</td>
-                            <td className="border border-slate-900 p-0.5">{Number(selectedInvoice.exchange_rate).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</td>
+
+                  {/* Items Table */}
+                  <div className="mb-12">
+                    <div className="overflow-hidden rounded-[2rem] border border-slate-100 shadow-sm">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-900 text-white">
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest w-16 text-center">#</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest">{isTr ? 'MAL / HİZMET' : 'PRODUCT / SERVICE'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center w-24">{isTr ? 'MİKTAR' : 'QTY'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-right w-32">{isTr ? 'BİRİM FİYAT' : 'UNIT PRICE'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center w-24">{isTr ? 'KDV %' : 'VAT %'}</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-right w-40">{isTr ? 'TOPLAM' : 'TOTAL'}</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(selectedInvoice.items || []).map((item: any, idx: number) => {
+                            const unitPrice = Number(item.unit_price) || 0;
+                            const qty = Number(item.quantity) || 0;
+                            const taxRate = Number(item.tax_rate) || 0;
+                            const lineTotal = unitPrice * qty;
+                            const taxAmount = lineTotal * (taxRate / 100);
+                            const totalWithTax = lineTotal + taxAmount;
+
+                            return (
+                              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-6 py-5 text-xs font-black text-slate-400 text-center">{idx + 1}</td>
+                                <td className="px-6 py-5">
+                                  <div className="text-sm font-black text-slate-900">{item.product_name}</div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{item.barcode}</div>
+                                </td>
+                                <td className="px-6 py-5 text-sm font-bold text-slate-600 text-center">{qty}</td>
+                                <td className="px-6 py-5 text-sm font-bold text-slate-600 text-right">
+                                  {unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                                </td>
+                                <td className="px-6 py-5 text-center">
+                                  <span className="px-2 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500">%{taxRate}</span>
+                                </td>
+                                <td className="px-6 py-5 text-sm font-black text-slate-900 text-right">
+                                  {totalWithTax.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
 
-                {/* ETTN */}
-                <div className="mb-4 text-[10px]">
-                  <span className="font-bold">ETTN:</span> {selectedInvoice.id}
-                </div>
+                  {/* Summary & Notes */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-8">
+                      <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
+                          {isTr ? 'NOTLAR' : 'NOTES'}
+                        </h4>
+                        <div className="space-y-3 text-xs font-medium text-slate-500 leading-relaxed italic">
+                          <p>• {isTr ? 'İrsaliye yerine geçer.' : 'Serves as a waybill.'}</p>
+                          <p>• {isTr ? 'e-Arşiv izni kapsamında elektronik ortamda iletilmiştir.' : 'Transmitted electronically under e-Archive permission.'}</p>
+                          {selectedInvoice.notes && (
+                            <div className="pt-4 mt-4 border-t border-slate-200 not-italic text-slate-700 font-bold">
+                              {selectedInvoice.notes}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="px-8">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] text-center">
+                          {isTr ? 'BU BELGE ELEKTRONİK OLARAK OLUŞTURULMUŞTUR' : 'THIS DOCUMENT WAS GENERATED ELECTRONICALLY'}
+                        </p>
+                      </div>
+                    </div>
 
-                {/* Items Table */}
-                <table className="w-full border-collapse border border-slate-900 text-xs mb-4">
-                  <thead>
-                    <tr className="bg-slate-100 print:bg-slate-100">
-                      <th className="border border-slate-900 p-2 text-center w-12">{isTr ? 'Sıra No' : 'No'}</th>
-                      <th className="border border-slate-900 p-2 text-left">{isTr ? 'Mal Hizmet' : 'Product/Service'}</th>
-                      <th className="border border-slate-900 p-2 text-center w-20">{isTr ? 'Miktar' : 'Qty'}</th>
-                      <th className="border border-slate-900 p-2 text-right w-24">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
-                      <th className="border border-slate-900 p-2 text-center w-20">{isTr ? 'KDV Oranı' : 'VAT %'}</th>
-                      <th className="border border-slate-900 p-2 text-right w-24">{isTr ? 'KDV Tutarı' : 'VAT Amount'}</th>
-                      <th className="border border-slate-900 p-2 text-right w-28">{isTr ? 'Mal Hizmet Tutarı' : 'Total'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(selectedInvoice.items || []).map((item: any, idx: number) => {
-                      const unitPrice = Number(item.unit_price) || 0;
-                      const qty = Number(item.quantity) || 0;
-                      const taxRate = Number(item.tax_rate) || 0;
-                      const lineTotal = unitPrice * qty;
-                      const taxAmount = lineTotal * (taxRate / 100);
-
-                      return (
-                        <tr key={idx}>
-                          <td className="border border-slate-900 p-2 text-center">{idx + 1}</td>
-                          <td className="border border-slate-900 p-2">{item.product_name}</td>
-                          <td className="border border-slate-900 p-2 text-center">{qty}</td>
-                          <td className="border border-slate-900 p-2 text-right">{unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
-                          <td className="border border-slate-900 p-2 text-center">%{taxRate}</td>
-                          <td className="border border-slate-900 p-2 text-right">{taxAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
-                          <td className="border border-slate-900 p-2 text-right">{lineTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {/* Totals */}
-                <div className="flex justify-end mb-4">
-                  <table className="w-1/2 border-collapse border border-slate-900 text-[9px]">
-                    <tbody>
-                      <tr>
-                        <td className="border border-slate-900 p-1 font-bold text-right">{isTr ? 'Mal Hizmet Toplam Tutarı' : 'Subtotal'}</td>
-                        <td className="border border-slate-900 p-1 text-right w-32">{Number(selectedInvoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-slate-900 p-1 font-bold text-right">{isTr ? 'Hesaplanan KDV' : 'Calculated VAT'}</td>
-                        <td className="border border-slate-900 p-1 text-right">{Number(selectedInvoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-slate-900 p-1 font-bold text-right">{isTr ? 'Vergiler Dahil Toplam Tutar' : 'Total with Taxes'}</td>
-                        <td className="border border-slate-900 p-1 text-right">{Number(selectedInvoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
-                      </tr>
-                      <tr className="bg-slate-50">
-                        <td className="border border-slate-900 p-1 font-bold text-right text-[10px]">{isTr ? 'Ödenecek Tutar' : 'Payable Amount'}</td>
-                        <td className="border border-slate-900 p-1 text-right font-bold text-[10px]">{Number(selectedInvoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Notes */}
-                <div className="border border-slate-900 p-4 text-xs">
-                  <p>{isTr ? 'İrsaliye yerine geçer.' : 'Serves as a waybill.'}</p>
-                  <p>{isTr ? 'e-Arşiv izni kapsamında elektronik ortamda iletilmiştir.' : 'Transmitted electronically under e-Archive permission.'}</p>
-                  {selectedInvoice.payment_method && (
-                    <p className="mt-2 font-bold">{isTr ? 'Ödeme Koşulu:' : 'Payment Terms:'} <span className="uppercase">{selectedInvoice.payment_method}</span></p>
-                  )}
-                  {selectedInvoice.notes && (
-                    <p className="mt-2">{selectedInvoice.notes}</p>
-                  )}
+                    <div className="space-y-4">
+                      <div className="bg-white rounded-[2rem] border-2 border-slate-100 p-8 space-y-4 shadow-sm">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'ARA TOPLAM' : 'SUBTOTAL'}</span>
+                          <span className="font-black text-slate-700">
+                            {Number(selectedInvoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'TOPLAM KDV' : 'TOTAL VAT'}</span>
+                          <span className="font-black text-slate-700">
+                            {Number(selectedInvoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                          </span>
+                        </div>
+                        <div className="pt-6 mt-6 border-t-2 border-slate-100 flex justify-between items-center">
+                          <div>
+                            <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">{isTr ? 'ÖDENECEK TOPLAM' : 'TOTAL PAYABLE'}</span>
+                            <span className="text-3xl font-black text-slate-900 tracking-tight">
+                              {Number(selectedInvoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedInvoice.currency}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100">
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">{isTr ? 'YALNIZ' : 'ONLY'}</p>
+                        <p className="text-sm font-black text-indigo-700 uppercase tracking-tight">
+                          {numberToTurkishWords(Number(selectedInvoice.grand_total), selectedInvoice.currency)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
