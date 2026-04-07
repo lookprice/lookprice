@@ -130,6 +130,186 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
     }
   };
 
+  const handleDownloadServicePDF = async (record: ServiceRecord) => {
+    try {
+      const fullRecord = await api.getServiceRecord(record.id, storeId);
+      const doc = new jsPDF();
+      
+      const fixTr = (text: string) => {
+        if (!text) return "";
+        return text
+          .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+          .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+          .replace(/ş/g, 's').replace(/Ş/g, 'S')
+          .replace(/ı/g, 'i').replace(/İ/g, 'I')
+          .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+          .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+      };
+
+      const getBase64Image = (url: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.setAttribute('crossOrigin', 'anonymous');
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+          };
+          img.onerror = (e) => reject(e);
+          img.src = url;
+        });
+      };
+
+      let logoBase64 = "";
+      if (storeInfo?.logo_url) {
+        try {
+          logoBase64 = await getBase64Image(storeInfo.logo_url);
+        } catch (e) {
+          console.error("Logo loading error for PDF:", e);
+        }
+      }
+
+      const addHeader = (doc: jsPDF) => {
+        if (logoBase64) {
+          try {
+            doc.addImage(logoBase64, 'PNG', 14, 8, 15, 15);
+          } catch (e) {
+            console.error("Logo addImage error:", e);
+          }
+        }
+
+        doc.setTextColor(0, 0, 0);
+        
+        // Title - Top Center
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(fixTr(isTr ? "TEKNİK SERVİS FORMU" : "SERVICE FORM"), 105, 12, { align: 'center' });
+        
+        // Store Name - Below Title
+        doc.setFontSize(10);
+        const storeName = fixTr(storeInfo?.name || "LookPrice");
+        const splitStoreName = doc.splitTextToSize(storeName, 100);
+        doc.text(splitStoreName, 105, 18, { align: 'center' });
+        
+        // Record Info - Top Right
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100);
+        doc.text(fixTr(`${isTr ? "Kayıt No" : "Record No"}: #${fullRecord.id}`), 196, 12, { align: 'right' });
+        doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(fullRecord.created_at).toLocaleDateString('tr-TR')}`), 196, 17, { align: 'right' });
+
+        // Contact Info - Small below store name
+        doc.setFontSize(7);
+        const contactInfo = [
+          storeInfo?.address,
+          storeInfo?.phone,
+          storeInfo?.email
+        ].filter(Boolean).map(fixTr).join(" | ");
+        if (contactInfo) {
+          doc.text(contactInfo, 105, 25, { align: 'center' });
+        }
+        
+        // Separator Line
+        doc.setDrawColor(230);
+        doc.line(14, 28, 196, 28);
+      };
+
+      addHeader(doc);
+      let yPos = 35;
+
+      // Customer Info Box
+      doc.setFillColor(249, 250, 251);
+      doc.roundedRect(14, yPos, 90, 25, 1, 1, 'F');
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 6);
+      
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(50);
+      doc.text(fixTr(fullRecord.customer_name || '-'), 18, yPos + 12);
+      doc.text(fixTr(`Tel: ${fullRecord.customer_phone || '-'}`), 18, yPos + 17);
+
+      // Device Info Box
+      doc.setFillColor(249, 250, 251);
+      doc.roundedRect(106, yPos, 90, 25, 1, 1, 'F');
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(fixTr(isTr ? "Cihaz Bilgileri" : "Device Information"), 110, yPos + 6);
+      
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(50);
+      doc.text(fixTr(`${isTr ? "Model" : "Model"}: ${fullRecord.device_model}`), 110, yPos + 12);
+      doc.text(fixTr(`${isTr ? "Seri No" : "Serial No"}: ${fullRecord.device_serial || '-'}`), 110, yPos + 17);
+
+      yPos += 32;
+
+      // Issue Description
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(fixTr(isTr ? "Arıza Açıklaması" : "Issue Description"), 14, yPos);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(50);
+      doc.setFontSize(8);
+      const splitIssue = doc.splitTextToSize(fixTr(fullRecord.issue_description || '-'), 182);
+      doc.text(splitIssue, 14, yPos + 6);
+      
+      yPos += 10 + (splitIssue.length * 4);
+
+      const tableData = (fullRecord.items || []).map((item: any, idx: number) => [
+        idx + 1,
+        fixTr(item.item_name),
+        item.type === 'part' ? (isTr ? 'Parça' : 'Part') : (isTr ? 'İşçilik' : 'Labor'),
+        item.quantity,
+        `${Number(item.unit_price).toLocaleString('tr-TR')} ${fullRecord.currency}`,
+        `${Number(item.total_price).toLocaleString('tr-TR')} ${fullRecord.currency}`
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [[
+          fixTr(isTr ? "No" : "No"), 
+          fixTr(isTr ? "Açıklama" : "Description"), 
+          fixTr(isTr ? "Tip" : "Type"), 
+          fixTr(isTr ? "Miktar" : "Qty"), 
+          fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
+          fixTr(isTr ? "Toplam" : "Total")
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+        styles: { fontSize: 7, cellPadding: 2, font: "helvetica" },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          3: { halign: 'center', cellWidth: 15 },
+          4: { halign: 'right', cellWidth: 25 },
+          5: { halign: 'right', cellWidth: 25 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      let finalY = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Totals
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
+      doc.text(`${Number(fullRecord.total_amount).toLocaleString('tr-TR')} ${fullRecord.currency}`, 196, finalY, { align: 'right' });
+
+      doc.save(`Servis_Kaydi_${fullRecord.id}.pdf`);
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+    }
+  };
+
   const handleSaveRecord = async () => {
     if (!editingRecord?.customer_name || !editingRecord?.device_model) {
       alert(t.service_tab.fillRequiredFields);
@@ -476,19 +656,16 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => {
-                            handleViewDetails(record);
-                            setTimeout(() => handlePrint(), 100);
-                          }}
-                          className="p-2 text-gray-400 hover:text-slate-600 transition-colors"
-                          title={t.print}
+                          onClick={() => handleDownloadServicePDF(record)}
+                          className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                          title={t.downloadPDF}
                         >
-                          <Printer className="w-4 h-4" />
+                          <Download className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleViewDetails(record)}
                           className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
-                          title={t.service_tab.details}
+                          title={t.details}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -833,11 +1010,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     </div>
                   )}
                   <button
-                    onClick={handlePrint}
+                    onClick={() => handleDownloadServicePDF(selectedRecord)}
                     className="p-2 hover:bg-slate-100 rounded-full transition-colors text-indigo-600"
-                    title={t.print}
+                    title={t.downloadPDF}
                   >
-                    <Printer className="h-6 w-6" />
+                    <Download className="h-6 w-6" />
                   </button>
                   <button onClick={() => setShowDetailsModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                     <XCircle className="h-6 w-6 text-slate-400" />
@@ -956,8 +1133,8 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 </div>
               </div>
               <div className="p-6 bg-slate-50 flex justify-end gap-3">
-                <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
-                  <Printer className="w-4 h-4" /> {t.print}
+                <button onClick={() => handleDownloadServicePDF(selectedRecord)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">
+                  <Download className="w-4 h-4" /> {t.downloadPDF}
                 </button>
                 {!selectedRecord.is_converted_to_sale && (
                   <button
