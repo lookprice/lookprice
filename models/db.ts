@@ -133,13 +133,23 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         customer_name TEXT NOT NULL,
         customer_title TEXT,
+        tax_number TEXT,
+        tax_office TEXT,
         total_amount DECIMAL(12,2) DEFAULT 0,
         currency TEXT DEFAULT 'TRY',
         status TEXT DEFAULT 'pending',
         notes TEXT,
         service_id INTEGER,
+        company_id INTEGER,
+        customer_id INTEGER,
+        expiry_date DATE,
+        due_date DATE,
+        payment_method TEXT,
+        is_sale BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
       );
 
       ALTER TABLE quotations ADD COLUMN IF NOT EXISTS service_id INTEGER;
@@ -350,6 +360,9 @@ export async function initDb() {
         company_id INTEGER NOT NULL,
         invoice_number TEXT NOT NULL,
         waybill_number TEXT,
+        tax_number TEXT,
+        tax_office TEXT,
+        address TEXT,
         invoice_date DATE NOT NULL,
         total_amount DECIMAL(12,2) NOT NULL,
         tax_amount DECIMAL(12,2) NOT NULL,
@@ -384,6 +397,9 @@ export async function initDb() {
         customer_id INTEGER,
         invoice_number TEXT NOT NULL,
         waybill_number TEXT,
+        tax_number TEXT,
+        tax_office TEXT,
+        address TEXT,
         invoice_date DATE NOT NULL,
         total_amount DECIMAL(12,2) NOT NULL,
         tax_amount DECIMAL(12,2) NOT NULL,
@@ -602,6 +618,33 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='expiry_date') THEN
           ALTER TABLE quotations ADD COLUMN expiry_date DATE;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='tax_number') THEN
+          ALTER TABLE quotations ADD COLUMN tax_number TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='tax_office') THEN
+          ALTER TABLE quotations ADD COLUMN tax_office TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='address') THEN
+          ALTER TABLE quotations ADD COLUMN address TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales_invoices' AND column_name='tax_number') THEN
+          ALTER TABLE sales_invoices ADD COLUMN tax_number TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales_invoices' AND column_name='tax_office') THEN
+          ALTER TABLE sales_invoices ADD COLUMN tax_office TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales_invoices' AND column_name='address') THEN
+          ALTER TABLE sales_invoices ADD COLUMN address TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='tax_number') THEN
+          ALTER TABLE purchase_invoices ADD COLUMN tax_number TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='tax_office') THEN
+          ALTER TABLE purchase_invoices ADD COLUMN tax_office TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='address') THEN
+          ALTER TABLE purchase_invoices ADD COLUMN address TEXT;
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_transfers' AND column_name='prepared_by') THEN
           ALTER TABLE stock_transfers ADD COLUMN prepared_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
         END IF;
@@ -797,15 +840,6 @@ export async function initDb() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='currency') THEN
           ALTER TABLE purchase_invoices ADD COLUMN currency TEXT DEFAULT 'TRY';
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='exchange_rate') THEN
-          ALTER TABLE purchase_invoices ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales_invoices' AND column_name='exchange_rate') THEN
-          ALTER TABLE sales_invoices ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='currency') THEN
-          ALTER TABLE current_account_transactions ADD COLUMN currency TEXT DEFAULT 'TRY';
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='payment_method') THEN
           ALTER TABLE purchase_invoices ADD COLUMN payment_method TEXT;
