@@ -465,9 +465,51 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
   const totals = calculateTotals();
 
+  const totalCalculatedTax = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalSalesAmount = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalGrandTotal = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
+
   return (
     <>
       <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div className="p-3 bg-indigo-50 rounded-xl">
+            <Percent className="h-6 w-6 text-indigo-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">{isTr ? "Hesaplanan Vergi" : "Calculated Tax"}</p>
+            <p className="text-2xl font-black text-slate-900">
+              {totalCalculatedTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div className="p-3 bg-emerald-50 rounded-xl">
+            <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Satış Matrahı" : "Total Sales Subtotal"}</p>
+            <p className="text-2xl font-black text-slate-900">
+              {totalSalesAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div className="p-3 bg-amber-50 rounded-xl">
+            <CreditCard className="h-6 w-6 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Genel Toplam" : "Total Grand Total"}</p>
+            <p className="text-2xl font-black text-slate-900">
+              {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            </p>
+          </div>
+        </div>
+      </div>
+
         {/* Header & Filters */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex-1 flex flex-wrap items-center gap-3 w-full">
