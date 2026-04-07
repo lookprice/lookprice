@@ -17,7 +17,6 @@ import {
 import { motion } from "motion/react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
-import { api } from "../../services/api";
 import ProductMovementModal from "../../components/ProductMovementModal";
 
 interface ProductsTabProps {
@@ -30,10 +29,10 @@ interface ProductsTabProps {
   onExportReport: () => void;
   onApplyTaxRule?: (category: string, taxRate: number) => void;
   onBulkPriceUpdate?: () => void;
+  onBulkRecalculatePrice2?: () => void;
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
-  currentStoreId?: number;
 }
 
 const ProductsTab = ({ 
@@ -46,10 +45,10 @@ const ProductsTab = ({
   onExportReport,
   onApplyTaxRule,
   onBulkPriceUpdate,
+  onBulkRecalculatePrice2,
   onShowQr,
   branding,
-  showStoreName,
-  currentStoreId
+  showStoreName
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -157,23 +156,15 @@ const ProductsTab = ({
                   <Percent className="h-4 w-4 mr-2 text-emerald-500" /> {t.bulkPrice}
                 </button>
               )}
-              <button 
-                onClick={() => {
-                  if (window.confirm(lang === 'tr' ? 'Tüm ürünlerin 2. Satış Fiyatları (KDV Hariç) güncellensin mi?' : 'Update 2nd Sales Prices (Excl. Tax) for all products?')) {
-                    const updatedProducts = products.map(p => ({
-                      ...p,
-                      price_2: (Number(p.price) / (1 + Number(p.tax_rate) / 100)).toFixed(2)
-                    }));
-                    Promise.all(updatedProducts.map(p => api.updateProduct(p.id, { ...p, price_2: p.price_2 }, currentStoreId))).then(() => {
-                      alert(lang === 'tr' ? 'Tüm ürünler güncellendi.' : 'All products updated.');
-                      window.location.reload();
-                    });
-                  }
-                }}
-                className="flex-1 md:flex-none flex items-center justify-center bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-all"
-              >
-                {lang === 'tr' ? 'Tüm Fiyatları Hesapla' : 'Calculate All Prices'}
-              </button>
+              {onBulkRecalculatePrice2 && (
+                <button 
+                  onClick={onBulkRecalculatePrice2}
+                  className="flex-1 md:flex-none flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-amber-100 hover:border-amber-300 transition-all"
+                  title={lang === 'tr' ? 'Tüm 2. Fiyatları (KDV Hariç) Yeniden Hesapla' : 'Recalculate All 2nd Prices (Excl. VAT)'}
+                >
+                  <History className="h-4 w-4 mr-2 text-amber-500" /> {lang === 'tr' ? '2. Fiyatları Hesapla' : 'Recalc 2nd Prices'}
+                </button>
+              )}
               <button 
                 onClick={onDeleteAll}
                 className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all border border-transparent hover:border-red-100"

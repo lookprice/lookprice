@@ -23,12 +23,12 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
   const [newTransactionDate, setNewTransactionDate] = useState(new Date().toISOString().split('T')[0]);
   const [newTransactionPaymentMethod, setNewTransactionPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
   const [newTransactionCurrency, setNewTransactionCurrency] = useState(branding?.default_currency || 'TRY');
+  const [newTransactionExchangeRate, setNewTransactionExchangeRate] = useState('1');
 
   const fetchCompanies = useCallback(async () => {
     if (!currentStoreId) return;
     try {
       const res = await api.getCompanies(includeZeroBalance, currentStoreId);
-      console.log("Companies API response:", res);
       setCompanies(Array.isArray(res) ? res : []);
     } catch (error) {
       console.error("Fetch companies error:", error);
@@ -137,108 +137,93 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
 
     let yPos = 20;
 
-    // 1. Store Info (Left)
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(fixTr(branding.name || branding.store_name || "LookPrice"), 14, yPos);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 50);
-    doc.text(addressLines, 14, yPos + 5);
-    let storeY = yPos + 5 + (addressLines.length * 4);
-    doc.text(`${fixTr(t.phone || 'Tel:')} ${branding.phone || ""}`, 14, storeY);
-    doc.text(`${fixTr(t.email || 'Email:')} ${branding.email || ""}`, 14, storeY + 4);
-
-    // 2. Logo (Center)
     if (branding.logo_url) {
       try {
         const logoBase64 = await getBase64Image(branding.logo_url);
-        // Square logo, centered
-        doc.addImage(logoBase64, 'PNG', 90, 10, 30, 30);
+        doc.addImage(logoBase64, 'PNG', 14, 10, 40, 15);
+        yPos = 30;
       } catch (e) {
         console.error("Logo addImage error:", e);
       }
     }
 
-    // 3. Customer Info (Right)
+    const storeTitle = branding.name || branding.store_name || "LookPrice";
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(16);
     doc.setTextColor(0);
-    doc.text(fixTr(t.company || 'Company'), 150, yPos);
-    doc.text(fixTr(selectedCompany.title), 150, yPos + 5);
+    doc.text(fixTr(storeTitle), 14, yPos);
+    
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(100);
-    doc.text(`${fixTr(t.dateRange || 'Date Range')}:`, 150, yPos + 10);
-    doc.text(`${transactionStartDate} - ${transactionEndDate}`, 150, yPos + 14);
+    yPos += 5;
+    
+    const addressLines = doc.splitTextToSize(fixTr(branding.address || ""), 80);
+    doc.text(addressLines, 14, yPos);
+    yPos += (addressLines.length * 4);
+    
+    doc.text(`${fixTr(t.phone || 'Tel:')} ${branding.phone || ""}`, 14, yPos);
+    yPos += 4;
+    doc.text(`${fixTr(t.email || 'Email:')} ${branding.email || ""}`, 14, yPos);
+    yPos += 10;
 
-    yPos = 50; // Move below the top section
+    doc.setDrawColor(200);
+    doc.line(14, yPos, 196, yPos);
+    yPos += 10;
 
-    // 4. Title (Centered)
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0);
-    doc.text(fixTr(t.statements.customerStatement.toUpperCase()), 105, yPos, { align: 'center' });
-    yPos += 15;
+    doc.text(fixTr(t.statements.customerStatement.toUpperCase()), 14, yPos);
+    yPos += 8;
 
-    const currencies = Array.from(new Set(companyTransactions.map(t => t.currency || branding.default_currency || 'TRY')));
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${fixTr(t.company || 'Company')}: ${fixTr(selectedCompany.title)}`, 14, yPos);
+    yPos += 6;
+    doc.text(`${fixTr(t.dateRange || 'Date Range')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
+    yPos += 10;
 
-    for (const curr of currencies) {
-      if (currencies.indexOf(curr) > 0) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(`${fixTr(t.statements.customerStatement)} - ${curr}`, 14, yPos);
-      yPos += 10;
-
-      let runningBalance = 0;
-      const filteredTransactions = companyTransactions.filter(t_item => (t_item.currency || branding.default_currency || 'TRY') === curr);
+    let runningBalance = 0;
+    const tableData = companyTransactions.map(t_item => {
+      const amount = Number(t_item.amount);
+      const amountInBase = amount * (Number(t_item.exchange_rate) || 1);
+      if (t_item.type === 'debt') runningBalance += amountInBase;
+      else runningBalance -= amountInBase;
       
-      const tableData = filteredTransactions.map(t_item => {
-        const amount = Number(t_item.amount);
-        if (t_item.type === 'debt') runningBalance += amount;
-        else runningBalance -= amount;
-        
-        return [
-          t_item.transaction_date.split('T')[0],
-          fixTr(t_item.description || ""),
-          t_item.type === 'debt' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
-          t_item.type === 'credit' ? amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US') : "-",
-          runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
-        ];
-      });
+      return [
+        t_item.transaction_date.split('T')[0],
+        fixTr(t_item.description || ""),
+        t_item.type === 'debt' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${t_item.currency?.slice(0, 3)}` : "-",
+        t_item.type === 'credit' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${t_item.currency?.slice(0, 3)}` : "-",
+        runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
+      ];
+    });
 
-      autoTable(doc, {
-        startY: yPos,
-        head: [[
-          fixTr(t.statements.date),
-          fixTr(t.statements.description),
-          fixTr(t.statements.debt),
-          fixTr(t.statements.credit),
-          fixTr(t.statements.balance)
-        ]],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9, fontStyle: 'bold' },
-        bodyStyles: { fontSize: 8 },
-        columnStyles: {
-          2: { halign: 'right' },
-          3: { halign: 'right' },
-          4: { halign: 'right' }
-        }
-      });
+    autoTable(doc, {
+      startY: yPos,
+      head: [[
+        fixTr(t.statements.date),
+        fixTr(t.statements.description),
+        fixTr(t.statements.debt),
+        fixTr(t.statements.credit),
+        fixTr(t.statements.balance)
+      ]],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: {
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' }
+      }
+    });
 
-      yPos = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text(`${fixTr(t.statements.balance)}: ${runningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${curr}`, 196, yPos, { align: 'right' });
-      yPos += 15;
-    }
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${fixTr(t.statements.balance)}: ${Number(selectedCompany.balance).toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
 
     doc.save(`${fixTr(t.statements.customerStatement.toLowerCase().replace(/\s+/g, '_'))}_${fixTr(selectedCompany.title)}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
@@ -255,12 +240,15 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
         description: newTransactionDescription,
         transaction_date: newTransactionDate,
         payment_method: newTransactionPaymentMethod,
-        currency: newTransactionCurrency
+        currency: newTransactionCurrency,
+        exchange_rate: Number(String(newTransactionExchangeRate).replace(',', '.')) || 1
       }, targetStoreId);
       
       setShowAddTransactionModal(false);
       setNewTransactionAmount('');
       setNewTransactionDescription('');
+      setNewTransactionCurrency(branding?.default_currency || 'TRY');
+      setNewTransactionExchangeRate('1');
       handleFetchTransactions(selectedCompany.id);
       fetchCompanies();
     } catch (error) {
@@ -287,6 +275,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     newTransactionDate, setNewTransactionDate,
     newTransactionPaymentMethod, setNewTransactionPaymentMethod,
     newTransactionCurrency, setNewTransactionCurrency,
+    newTransactionExchangeRate, setNewTransactionExchangeRate,
     fetchCompanies,
     handleAddCompany,
     handleDeleteCompany,

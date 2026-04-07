@@ -572,7 +572,7 @@ router.put("/products/bulk-update-price", async (req: any, res) => {
   }
 
   try {
-    let query = `UPDATE products SET price = ${priceCalc}, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1`;
+    let query = `UPDATE products SET price = ${priceCalc}, price_2 = ${priceCalc} / (1 + COALESCE(tax_rate, 20) / 100.0), price_2_currency = currency, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1`;
     const params: any[] = [storeId];
 
     if (target === 'category' && category) {
@@ -638,6 +638,36 @@ router.put("/products/bulk-update-tax", async (req: any, res) => {
     res.json({ success: true, count: result.rowCount });
   } catch (e: any) {
     console.error("Bulk tax update error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// StoreAdmin: Bulk Recalculate Price 2 (KDV Hariç)
+router.put("/products/bulk-recalculate-price2", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    const result = await pool.query(
+      "UPDATE products SET price_2 = price / (1 + COALESCE(tax_rate, 20) / 100.0), price_2_currency = currency, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1",
+      [storeId]
+    );
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "bulk_price2_recalculate", 
+      "product", 
+      null, 
+      `Tüm ürünlerin 2. fiyatları (KDV Hariç) KDV oranlarına göre yeniden hesaplandı.`,
+      { affectedRows: result.rowCount },
+      { count: result.rowCount }
+    );
+
+    res.json({ success: true, count: result.rowCount });
+  } catch (e: any) {
+    console.error("Bulk price2 recalculate error:", e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -1369,8 +1399,20 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
         }
       }
 
-      // Transactions are now handled exclusively by invoices to prevent duplicates
-      
+      if (quotation.company_id) {
+        await client.query(
+          "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+          [storeId, quotation.company_id, quotation.id, saleId, 'debt', quotation.total_amount, `Satışa Dönüşen Teklif #${quotation.id} (${paymentMethod})`, paymentMethod]
+        );
+
+        if (paymentMethod !== 'term') {
+          await client.query(
+            "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            [storeId, quotation.company_id, quotation.id, saleId, 'credit', quotation.total_amount, `Teklif #${quotation.id} Ödemesi (${paymentMethod})`, paymentMethod]
+          );
+        }
+      }
+
       if (paymentMethod !== 'term') {
         await client.query(
           "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
@@ -1534,7 +1576,7 @@ router.get("/companies", async (req: any, res) => {
     const result = await pool.query(
       `SELECT 
         c.*,
-        COALESCE(SUM(CASE WHEN t.type = 'debt' THEN t.amount ELSE -t.amount END), 0) as balance
+        COALESCE(SUM(CASE WHEN t.type = 'debt' THEN t.amount * t.exchange_rate ELSE -(t.amount * t.exchange_rate) END), 0) as balance
       FROM companies c
       LEFT JOIN current_account_transactions t ON c.id = t.company_id
       WHERE c.store_id = $1
@@ -2240,18 +2282,18 @@ router.post("/sales-invoices", async (req: any, res) => {
     if (company_id) {
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, sales_invoice_id, type, amount, description, currency) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [storeId, company_id, invoiceId, 'debt', grand_total, `Satış Faturası: ${invoice_number}`, currency || 'TRY']
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [storeId, company_id, invoiceId, 'debt', grand_total, currency || 'TRY', exchange_rate || 1, `Satış Faturası: ${invoice_number}`]
       );
 
       // If payment method is provided, add a credit transaction to offset the debt
       if (payment_method && payment_method !== 'term') {
         await client.query(
           `INSERT INTO current_account_transactions 
-            (store_id, company_id, sales_invoice_id, type, amount, description, payment_method, currency) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [storeId, company_id, invoiceId, 'credit', grand_total, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method, currency || 'TRY']
+            (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [storeId, company_id, invoiceId, 'credit', grand_total, currency || 'TRY', exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method]
         );
       }
     }
@@ -2272,7 +2314,7 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate, invoice_type, status } = req.body;
+    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, invoice_type, status } = req.body;
 
     // 1. Get old invoice and items to revert stock
     const oldInvoiceResult = await client.query(
@@ -2329,9 +2371,9 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     // 5. Update invoice
     await client.query(
       `UPDATE sales_invoices 
-       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14
-       WHERE id = $15 AND store_id = $16`,
-      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, req.params.id, storeId]
+       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, notes = $10, payment_method = $11, invoice_type = $12, status = $13
+       WHERE id = $14 AND store_id = $15`,
+      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method, invoice_type, status, req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock
@@ -2359,17 +2401,17 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     if (company_id) {
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, sales_invoice_id, type, amount, description, currency) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [storeId, company_id, req.params.id, 'debt', grand_total, `Satış Faturası Revizyonu: ${invoice_number}`, currency || 'TRY']
+          (store_id, company_id, sales_invoice_id, type, amount, description) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [storeId, company_id, req.params.id, 'debt', grand_total, `Satış Faturası Revizyonu: ${invoice_number}`]
       );
 
       if (payment_method && payment_method !== 'term') {
         await client.query(
           `INSERT INTO current_account_transactions 
-            (store_id, company_id, sales_invoice_id, type, amount, description, payment_method, currency) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [storeId, company_id, req.params.id, 'credit', grand_total, `Satış Faturası Tahsilatı Revizyonu: ${invoice_number} (${payment_method})`, payment_method, currency || 'TRY']
+            (store_id, company_id, sales_invoice_id, type, amount, description, payment_method) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [storeId, company_id, req.params.id, 'credit', grand_total, `Satış Faturası Tahsilatı Revizyonu: ${invoice_number} (${payment_method})`, payment_method]
         );
       }
     }
@@ -2443,9 +2485,9 @@ router.post("/sales/:id/create-invoice", async (req: any, res) => {
 
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', sale.exchange_rate || 1, `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'cash']
+        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, notes, invoice_type, status, payment_method) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'cash']
     );
 
     const invoiceId = invoiceResult.rows[0].id;
@@ -2598,18 +2640,18 @@ router.post("/purchase-invoices", async (req: any, res) => {
     // Add transaction to current account (Supplier credit)
     await client.query(
       `INSERT INTO current_account_transactions 
-        (store_id, company_id, purchase_invoice_id, type, amount, description, currency) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [storeId, company_id, invoiceId, 'credit', grand_total, `Alış Faturası: ${invoice_number}`, currency || 'TRY']
+        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [storeId, company_id, invoiceId, 'credit', grand_total, currency || 'TRY', exchange_rate || 1, `Alış Faturası: ${invoice_number}`]
     );
 
     // If payment method is provided, add a debt transaction to offset the credit
     if (payment_method && payment_method !== 'term') {
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, purchase_invoice_id, type, amount, description, payment_method, currency) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [storeId, company_id, invoiceId, 'debt', grand_total, `Alış Faturası Ödemesi: ${invoice_number} (${payment_method})`, payment_method, currency || 'TRY']
+          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, company_id, invoiceId, 'debt', grand_total, currency || 'TRY', exchange_rate || 1, `Alış Faturası Ödemesi: ${invoice_number} (${payment_method})`, payment_method]
       );
     }
     
@@ -2629,7 +2671,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate } = req.body;
+    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency } = req.body;
 
     // 1. Get old invoice and items to revert stock
     const oldInvoiceResult = await client.query(
@@ -2685,9 +2727,9 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     // 5. Update invoice
     await client.query(
       `UPDATE purchase_invoices 
-       SET company_id = $1, invoice_number = $2, waybill_number = $3, invoice_date = $4, total_amount = $5, tax_amount = $6, grand_total = $7, currency = $8, exchange_rate = $9, notes = $10, payment_method = $11
-       WHERE id = $12 AND store_id = $13`,
-      [company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, req.params.id, storeId]
+       SET company_id = $1, invoice_number = $2, waybill_number = $3, invoice_date = $4, total_amount = $5, tax_amount = $6, grand_total = $7, currency = $8, notes = $9, payment_method = $10
+       WHERE id = $11 AND store_id = $12`,
+      [company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', notes, payment_method, req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock
@@ -2716,17 +2758,17 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     // 7. Add new transactions
     await client.query(
       `INSERT INTO current_account_transactions 
-        (store_id, company_id, purchase_invoice_id, type, amount, description, currency) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [storeId, company_id, req.params.id, 'credit', grand_total, `Alış Faturası Revizyonu: ${invoice_number}`, currency || 'TRY']
+        (store_id, company_id, purchase_invoice_id, type, amount, description) 
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [storeId, company_id, req.params.id, 'credit', grand_total, `Alış Faturası Revizyonu: ${invoice_number}`]
     );
 
     if (payment_method && payment_method !== 'term') {
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, purchase_invoice_id, type, amount, description, payment_method, currency) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [storeId, company_id, req.params.id, 'debt', grand_total, `Alış Faturası Ödemesi Revizyonu: ${invoice_number} (${payment_method})`, payment_method, currency || 'TRY']
+          (store_id, company_id, purchase_invoice_id, type, amount, description, payment_method) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [storeId, company_id, req.params.id, 'debt', grand_total, `Alış Faturası Ödemesi Revizyonu: ${invoice_number} (${payment_method})`, payment_method]
       );
     }
 

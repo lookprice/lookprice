@@ -102,11 +102,14 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
       product_type: rawData.product_type || 'product'
     };
-    ['price', 'cost_price', 'stock_quantity', 'min_stock_level', 'tax_rate'].forEach(field => {
+    ['price', 'price_2', 'cost_price', 'stock_quantity', 'min_stock_level', 'tax_rate'].forEach(field => {
       if (data[field]) {
         data[field] = Number(String(data[field]).replace(',', '.'));
       }
     });
+
+    // Ensure price_2_currency matches currency
+    data.price_2_currency = data.currency;
 
     const catName = String(data.category).trim().toLocaleLowerCase('tr-TR');
     const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === catName);
@@ -232,6 +235,22 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     }
   };
 
+  const handleBulkRecalculatePrice2 = async () => {
+    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    if (window.confirm(lang === 'tr' ? "Tüm ürünlerin 2. satış fiyatları (KDV Hariç), mevcut satış fiyatları ve KDV oranlarına göre yeniden hesaplanacak. Emin misiniz?" : "All 2nd sale prices (Excl. VAT) will be recalculated based on current sales prices and VAT rates. Are you sure?")) {
+      try {
+        setLoading(true);
+        const res = await api.bulkRecalculatePrice2(targetStoreId);
+        alert(lang === 'tr' ? `${res.count} ürünün 2. fiyatı başarıyla güncellendi.` : `2nd prices of ${res.count} products updated successfully.`);
+        fetchData(true);
+      } catch (error: any) {
+        alert(error.response?.data?.error || "Hata oluştu");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -334,6 +353,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     handleDeleteAllProducts,
     handleApplyTaxRule,
     handleBulkPriceSubmit,
+    handleBulkRecalculatePrice2,
     handleFileSelect,
     handleImport,
     handleExportProducts,

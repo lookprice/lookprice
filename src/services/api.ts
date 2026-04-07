@@ -98,6 +98,7 @@ export const api = {
   updateProduct: (id: number, data: any, storeId?: number) => api.put(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   bulkUpdateTax: (category: string, taxRate: number, storeId?: number, includeBranches?: boolean) => api.put(`/api/store/products/bulk-update-tax${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { category, taxRate, includeBranches }),
   bulkUpdatePrice: (data: any, storeId?: number) => api.put(`/api/store/products/bulk-update-price${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  bulkRecalculatePrice2: (storeId?: number) => api.put(`/api/store/products/bulk-recalculate-price2${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   updateProductStock: (id: number, quantityChange: number, storeId?: number) => api.post(`/api/store/products/${id}/stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { quantityChange }),
   deleteProduct: (id: number, storeId?: number) => api.delete(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

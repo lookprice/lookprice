@@ -209,6 +209,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleFileSelect,
     handleImport,
     handleExportProducts,
+    handleBulkRecalculatePrice2,
     fetchData: fetchProductsData,
     currentStoreId
   } = useProducts(user, slug, includeBranches, branding, planLimits, lang);
@@ -282,6 +283,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     newTransactionDescription, setNewTransactionDescription,
     newTransactionDate, setNewTransactionDate,
     newTransactionPaymentMethod, setNewTransactionPaymentMethod,
+    newTransactionCurrency, setNewTransactionCurrency,
+    newTransactionExchangeRate, setNewTransactionExchangeRate,
     fetchCompanies,
     handleAddCompany,
     handleDeleteCompany,
@@ -992,6 +995,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onExportReport={handleExportProducts}
                         onApplyTaxRule={handleApplyTaxRule}
                         onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
+                        onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
                         onShowQr={() => setShowQrModal(true)}
                         branding={branding}
                         showStoreName={includeBranches}
@@ -1627,146 +1631,76 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         )}
 
         {showQuotationDetailsModal && selectedQuotationDetails && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-            <style>
-              {`
-                @media print {
-                  @page { margin: 15mm; size: auto; }
-                  body { margin: 0; background: white; }
-                  .no-print { display: none !important; }
-                  .print-only { display: block !important; }
-                  .print-shadow-none { box-shadow: none !important; }
-                  .print-rounded-none { border-radius: 0 !important; }
-                  .print-bg-white { background-color: white !important; }
-                  .print-p-0 { padding: 0 !important; }
-                  .print-m-0 { margin: 0 !important; }
-                }
-              `}
-            </style>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden my-8 no-print"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
             >
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-                    <FileText className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.quotationDetails || "Teklif Detayları"}</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">#{selectedQuotationDetails.id} • {new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 className="text-xl font-bold text-slate-900">{t.quotationDetails || "Teklif Detayları"}</h3>
+                <div className="flex gap-2">
                   <button 
-                    onClick={() => setShowQuotationDetailsModal(false)}
-                    className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+                    onClick={() => handleDownloadQuotationPDF(selectedQuotationDetails)} 
+                    className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold"
                   >
-                    <X className="h-5 w-5" />
+                    <Download className="h-4 w-4" />
+                    {isTr ? 'İndir' : 'Download'}
+                  </button>
+                  <button 
+                    onClick={() => setShowQuotationDetailsModal(false)} 
+                    className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
+                  >
+                    <X className="h-5 w-5 text-slate-400" />
                   </button>
                 </div>
               </div>
-
-              <div ref={quotationPrintRef} className="p-8 md:p-12 space-y-10 overflow-y-auto max-h-[75vh] print-bg-white print-rounded-none print:max-h-none print:overflow-visible">
-                {/* Header Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start gap-8">
-                  <div className="flex items-center space-x-6">
-                    {branding?.logo_url && (
-                      <div className="w-24 h-24 bg-white rounded-3xl p-4 flex items-center justify-center border border-slate-100 shadow-sm">
-                        <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
-                      </div>
-                    )}
-                    <div>
-                      <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{branding?.store_name || branding?.name || "LookPrice"}</h1>
-                      <div className="mt-4 space-y-1.5">
-                        <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-indigo-500" /> {branding?.address}
-                        </p>
-                        <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
-                          <Smartphone className="h-3.5 w-3.5 text-indigo-500" /> {branding?.phone}
-                        </p>
-                      </div>
-                    </div>
+              
+              <div className="p-6 max-h-[75vh] overflow-y-auto" ref={quotationPrintRef}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t.customer || "Müşteri"}</p>
+                    <p className="text-lg font-bold text-slate-900">{selectedQuotationDetails.customer_name}</p>
+                    {selectedQuotationDetails.customer_title && <p className="text-sm text-slate-500">{selectedQuotationDetails.customer_title}</p>}
                   </div>
-                  <div className="text-right space-y-3">
-                    <div className="inline-block px-5 py-2 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100">
-                      {isTr ? "TEKLİF FORMU" : "QUOTATION FORM"}
-                    </div>
-                    <div className="pt-2">
-                      <p className="text-lg font-black text-slate-900 leading-none">#{selectedQuotationDetails.id}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Customer Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                      <UserIcon className="h-24 w-24" />
-                    </div>
-                    <div className="flex items-center space-x-3 mb-6">
-                      <div className="p-2.5 bg-white rounded-2xl text-indigo-600 shadow-sm border border-slate-100">
-                        <UserIcon className="h-5 w-5" />
-                      </div>
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.customer || "Müşteri"}</h4>
-                    </div>
-                    <p className="text-xl font-black text-slate-900 tracking-tight">{selectedQuotationDetails.customer_name}</p>
-                    {selectedQuotationDetails.customer_title && (
-                      <p className="text-sm text-slate-500 font-bold mt-2 flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-slate-300" /> {selectedQuotationDetails.customer_title}
-                      </p>
-                    )}
-                  </div>
-                  <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                      <Clock className="h-24 w-24" />
-                    </div>
-                    <div className="flex items-center space-x-3 mb-6">
-                      <div className="p-2.5 bg-white rounded-2xl text-indigo-600 shadow-sm border border-slate-100">
-                        <Clock className="h-5 w-5" />
-                      </div>
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.validUntil || "Geçerlilik Tarihi"}</h4>
-                    </div>
-                    <p className="text-xl font-black text-slate-900 tracking-tight">
-                      {selectedQuotationDetails.expiry_date 
-                        ? new Date(selectedQuotationDetails.expiry_date).toLocaleDateString('tr-TR')
-                        : new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')
+                  <div className="space-y-2 text-right">
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Teklif Bilgileri' : 'Quotation Info'}</p>
+                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Teklif No:' : 'Quote No:'}</span> #{selectedQuotationDetails.id}</p>
+                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
+                    <p className="text-sm text-slate-600">
+                      <span className="font-bold">{t.validUntil || "Geçerlilik"}:</span> {
+                        selectedQuotationDetails.expiry_date 
+                          ? new Date(selectedQuotationDetails.expiry_date).toLocaleDateString('tr-TR')
+                          : new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')
                       }
                     </p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">{t.sevenDaysValid || "7 Gün Geçerlidir"}</p>
+                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {selectedQuotationDetails.currency}</p>
                   </div>
                 </div>
 
-                {/* Items Table */}
-                <div className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-slate-900 text-white">
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em]">{t.product || "Ürün"}</th>
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">{t.quantity || "Miktar"}</th>
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">{t.unitPrice || "Birim Fiyat"}</th>
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">{t.total || "Toplam"}</th>
+                <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{t.product || "Ürün"}</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{t.quantity || "Miktar"}</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.unitPrice || "Birim Fiyat"}</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.total || "Toplam"}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-100">
                       {(selectedQuotationDetails.items || []).map((item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-10 py-7">
-                            <p className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{item.product_name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1.5">#{item.product_id}</p>
+                        <tr key={idx}>
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-medium text-slate-900">{item.product_name}</div>
+                            <div className="text-xs text-slate-400">#{item.product_id}</div>
                           </td>
-                          <td className="px-10 py-7 text-center">
-                            <span className="inline-flex items-center justify-center w-10 h-10 bg-slate-50 rounded-xl font-black text-slate-600 text-sm">
-                              {item.quantity}
-                            </span>
-                          </td>
-                          <td className="px-10 py-7 text-right font-bold text-slate-600">
+                          <td className="px-4 py-3 text-sm text-slate-600 text-center">{item.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600 text-right">
                             {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
                           </td>
-                          <td className="px-10 py-7 text-right font-black text-slate-900 text-lg">
+                          <td className="px-4 py-3 text-sm font-bold text-slate-900 text-right">
                             {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
                           </td>
                         </tr>
@@ -1775,54 +1709,29 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </table>
                 </div>
 
-                {/* Summary Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start gap-12 pt-4">
-                  <div className="flex-1 max-w-md space-y-6">
+                <div className="flex flex-col md:flex-row justify-between gap-8">
+                  <div className="flex-1">
                     {selectedQuotationDetails.notes && (
-                      <div className="p-8 bg-indigo-50/30 rounded-[2rem] border border-indigo-100/50 relative overflow-hidden">
-                        <div className="absolute -top-4 -left-4 opacity-5">
-                          <FileText className="h-24 w-24 text-indigo-600" />
-                        </div>
-                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-3">{t.notes || "Notlar"}</p>
-                        <p className="text-sm text-slate-700 font-medium leading-relaxed italic relative z-10">"{selectedQuotationDetails.notes}"</p>
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-2">{t.notes || "Notlar"}</p>
+                        <p className="text-sm text-slate-700">{selectedQuotationDetails.notes}</p>
                       </div>
                     )}
-                    <div className="px-4">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{isTr ? "YALNIZ" : "TOTAL IN WORDS"}</p>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                        # {numberToTurkishWords(Number(selectedQuotationDetails.total_amount), selectedQuotationDetails.currency)} #
-                      </p>
+                    <div className="text-xs text-slate-400 font-bold italic">
+                      {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number(selectedQuotationDetails.total_amount), selectedQuotationDetails.currency)}
                     </div>
                   </div>
-                  <div className="w-full md:w-96 space-y-6">
-                    <div className="flex justify-between items-center px-8">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.subtotal || "Ara Toplam"}</span>
-                      <span className="text-lg font-bold text-slate-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
+                  <div className="w-full md:w-64 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">{t.subtotal || "Ara Toplam"}</span>
+                      <span className="font-medium">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
                     </div>
-                    <div className="bg-slate-900 p-10 text-white flex justify-between items-center rounded-[2.5rem] shadow-2xl shadow-slate-200 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                      <span className="text-xs font-black uppercase tracking-[0.3em] opacity-60">{t.grandTotal || "Genel Toplam"}</span>
-                      <span className="text-3xl font-black tracking-tight relative z-10">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
+                    <div className="flex justify-between text-lg font-bold border-t border-slate-200 pt-2">
+                      <span>{t.grandTotal || "Genel Toplam"}</span>
+                      <span className="text-indigo-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
                     </div>
                   </div>
                 </div>
-              </div>
-
-
-              <div className="p-8 border-t border-slate-100 bg-slate-50/30 flex gap-4 no-print">
-                <button 
-                  onClick={() => setShowQuotationDetailsModal(false)}
-                  className="flex-1 px-6 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all duration-200"
-                >
-                  {t.close || 'Kapat'}
-                </button>
-                <button 
-                  onClick={() => handleDownloadQuotationPDF(selectedQuotationDetails)}
-                  className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all duration-200 shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  {lang === 'tr' ? 'PDF İndir' : 'Download PDF'}
-                </button>
               </div>
             </motion.div>
           </div>
@@ -2041,8 +1950,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             let runningBalance = 0;
                             return companyTransactions.map((tx: any) => {
                               const amount = Number(tx.amount);
-                              if (tx.type === 'debt') runningBalance += amount;
-                              else runningBalance -= amount;
+                              const amountInBase = amount * (Number(tx.exchange_rate) || 1);
+                              if (tx.type === 'debt') runningBalance += amountInBase;
+                              else runningBalance -= amountInBase;
 
                               return (
                                 <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
@@ -2080,12 +1990,30 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                   </td>
                                   <td className="py-4 px-4 text-right">
                                     {tx.type === 'debt' ? (
-                                      <span className="text-xs font-black text-red-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+                                      <div className="flex flex-col items-end">
+                                        <span className="text-xs font-black text-red-600">
+                                          {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {tx.currency?.slice(0, 3)}
+                                        </span>
+                                        {tx.currency !== (branding.default_currency || 'TRY') && tx.exchange_rate && (
+                                          <span className="text-[9px] text-slate-400 font-bold">
+                                            {(amount * tx.exchange_rate).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
+                                          </span>
+                                        )}
+                                      </div>
                                     ) : '-'}
                                   </td>
                                   <td className="py-4 px-4 text-right">
                                     {tx.type === 'credit' ? (
-                                      <span className="text-xs font-black text-green-600">{amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+                                      <div className="flex flex-col items-end">
+                                        <span className="text-xs font-black text-green-600">
+                                          {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {tx.currency?.slice(0, 3)}
+                                        </span>
+                                        {tx.currency !== (branding.default_currency || 'TRY') && tx.exchange_rate && (
+                                          <span className="text-[9px] text-slate-400 font-bold">
+                                            {(amount * tx.exchange_rate).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
+                                          </span>
+                                        )}
+                                      </div>
                                     ) : '-'}
                                   </td>
                                   <td className="py-4 px-4 text-right">
@@ -2168,15 +2096,46 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={newTransactionAmount}
-                    onChange={(e) => setNewTransactionAmount(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                    placeholder="0.00"
-                  />
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      required 
+                      value={newTransactionAmount}
+                      onChange={(e) => setNewTransactionAmount(e.target.value)}
+                      className="flex-1 px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                      placeholder="0.00"
+                    />
+                    <select
+                      value={newTransactionCurrency}
+                      onChange={(e) => {
+                        setNewTransactionCurrency(e.target.value);
+                        if (e.target.value === (branding?.default_currency || 'TRY')) {
+                          setNewTransactionExchangeRate('1');
+                        }
+                      }}
+                      className="w-24 px-2 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-xs font-bold"
+                    >
+                      <option value="TRY">TRY</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
                 </div>
+
+                {newTransactionCurrency !== (branding?.default_currency || 'TRY') && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Döviz Kuru' : 'Exchange Rate'}</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={newTransactionExchangeRate}
+                      onChange={(e) => setNewTransactionExchangeRate(e.target.value.replace(',', '.'))}
+                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
+                      placeholder="1.00"
+                    />
+                  </div>
+                )}
 
                 {newTransactionType === 'credit' && (
                   <div className="space-y-2">
@@ -2590,6 +2549,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           required 
                           defaultValue={editingProduct?.price} 
                           onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const form = e.target.closest('form');
+                            if (!form) return;
+                            const taxRate = (form.querySelector('input[name="tax_rate"]') as HTMLInputElement)?.value || '20';
+                            const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
+                            if (price2Input) {
+                              const p = Number(e.target.value.replace(',', '.'));
+                              const t = Number(taxRate);
+                              if (!isNaN(p) && !isNaN(t)) {
+                                price2Input.value = (p / (1 + t / 100)).toFixed(2);
+                              }
+                            }
+                          }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600 text-lg" 
                         />
                       </div>
@@ -2598,6 +2570,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <select 
                           name="currency" 
                           defaultValue={editingProduct?.currency || branding.default_currency} 
+                          onChange={(e) => {
+                            const form = e.target.closest('form');
+                            if (!form) return;
+                            const price2CurrencySelect = form.querySelector('select[name="price_2_currency"]') as HTMLSelectElement;
+                            if (price2CurrencySelect) {
+                              price2CurrencySelect.value = e.target.value;
+                            }
+                          }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
                         >
                           <option value="TRY">TRY</option>
@@ -2706,6 +2686,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onInput={(e) => {
                             const target = e.target as HTMLInputElement;
                             target.value = target.value.replace(/[^0-9]/g, '').substring(0, 2);
+                            
+                            const form = target.closest('form');
+                            if (!form) return;
+                            const price = (form.querySelector('input[name="price"]') as HTMLInputElement)?.value || '0';
+                            const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
+                            if (price2Input) {
+                              const p = Number(price.replace(',', '.'));
+                              const t = Number(target.value);
+                              if (!isNaN(p) && !isNaN(t)) {
+                                price2Input.value = (p / (1 + t / 100)).toFixed(2);
+                              }
+                            }
                           }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />

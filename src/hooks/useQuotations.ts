@@ -20,7 +20,6 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
     if (!currentStoreId) return;
     try {
       const data = await api.getQuotations(quotationSearch, quotationStatusFilter, currentStoreId);
-      console.log("Fetched quotations:", data);
       setQuotationList(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching quotations:', error);
@@ -30,8 +29,17 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
   const handleQuickAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const price = Number(quickProductForm.price);
+      const taxRate = Number(quickProductForm.tax_rate) || 20;
+      const currency = branding?.default_currency || 'TRY';
+      const price_2 = price / (1 + taxRate / 100);
+
       const newProduct = await api.addProduct({
         ...quickProductForm,
+        price,
+        price_2,
+        currency,
+        price_2_currency: currency,
         category: 'Hızlı Ekleme',
         stock_quantity: 0,
         min_stock_level: 0
@@ -68,6 +76,8 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       notes: data.notes,
       items: quotationItems,
       company_id: data.company_id ? parseInt(String(data.company_id)) : null,
+      tax_number: data.tax_number,
+      tax_office: data.tax_office,
       expiry_date: data.expiry_date,
       payment_method: data.payment_method,
       due_date: data.due_date
@@ -77,16 +87,13 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
       if (editingQuotation) {
         await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);
       } else {
-        console.log("Sending quotation data:", quotationData);
-        const response = await api.addQuotation(quotationData, currentStoreId || undefined);
-        console.log("Add quotation response:", response);
+        await api.addQuotation(quotationData, currentStoreId || undefined);
       }
       setShowQuotationModal(false);
       setEditingQuotation(null);
       setQuotationItems([]);
       fetchQuotations();
     } catch (error) {
-      console.error("Error adding quotation:", error);
       alert("Hata oluştu");
     }
   };

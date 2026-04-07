@@ -209,6 +209,8 @@ export async function initDb() {
         quotation_id INTEGER,
         type TEXT CHECK(type IN ('debt', 'credit')) NOT NULL,
         amount DECIMAL(12,2) NOT NULL,
+        currency TEXT DEFAULT 'TRY',
+        exchange_rate DECIMAL(12,4) DEFAULT 1,
         description TEXT,
         payment_method TEXT,
         transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -216,6 +218,16 @@ export async function initDb() {
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
         FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE SET NULL
       );
+
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='currency') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN currency TEXT DEFAULT 'TRY';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='current_account_transactions' AND column_name='exchange_rate') THEN
+          ALTER TABLE current_account_transactions ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS stock_movements (
         id SERIAL PRIMARY KEY,
@@ -368,11 +380,19 @@ export async function initDb() {
         tax_amount DECIMAL(12,2) NOT NULL,
         grand_total DECIMAL(12,2) NOT NULL,
         currency TEXT DEFAULT 'TRY',
+        exchange_rate DECIMAL(12,4) DEFAULT 1,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
       );
+
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoices' AND column_name='exchange_rate') THEN
+          ALTER TABLE purchase_invoices ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS purchase_invoice_items (
         id SERIAL PRIMARY KEY,
@@ -405,6 +425,7 @@ export async function initDb() {
         tax_amount DECIMAL(12,2) NOT NULL,
         grand_total DECIMAL(12,2) NOT NULL,
         currency TEXT DEFAULT 'TRY',
+        exchange_rate DECIMAL(12,4) DEFAULT 1,
         notes TEXT,
         payment_method TEXT,
         invoice_type TEXT DEFAULT 'manual',
@@ -416,6 +437,13 @@ export async function initDb() {
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL,
         FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
       );
+
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales_invoices' AND column_name='exchange_rate') THEN
+          ALTER TABLE sales_invoices ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
+        END IF;
+      END $$;
 
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS quotation_id INTEGER;
 
