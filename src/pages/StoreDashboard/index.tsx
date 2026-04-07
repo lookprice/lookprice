@@ -600,12 +600,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ]],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      styles: { fontSize: 7, cellPadding: 2, font: "helvetica" },
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
       columnStyles: {
-        1: { halign: 'center', cellWidth: 15 },
-        2: { halign: 'right', cellWidth: 30 },
-        3: { halign: 'right', cellWidth: 30 }
+        1: { halign: 'center', cellWidth: 12 },
+        2: { halign: 'right', cellWidth: 25 },
+        3: { halign: 'right', cellWidth: 25 }
       },
       margin: { left: 14, right: 14, top: 30, bottom: 15 },
       didDrawPage: (data) => {
@@ -618,7 +618,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     let finalY = (doc as any).lastAutoTable.finalY + 5;
     
     // Check if summary fits on page
-    if (finalY > 270) {
+    if (finalY > 260) {
       doc.addPage();
       addHeader(doc);
       finalY = 35;
@@ -627,20 +627,40 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     // Summary Section
     doc.setDrawColor(230);
     doc.line(130, finalY, 196, finalY);
-    finalY += 6;
+    finalY += 5;
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
     doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
     doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
     
-    finalY += 6;
-    doc.setFontSize(10);
+    finalY += 5;
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
     doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
     doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+
+    // Notes Section
+    if (quotation.notes) {
+      finalY += 10;
+      if (finalY > 270) {
+        doc.addPage();
+        addHeader(doc);
+        finalY = 35;
+      }
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(50);
+      doc.text(fixTr(isTr ? "Notlar / Açıklamalar:" : "Notes / Descriptions:"), 14, finalY);
+      finalY += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(100);
+      const splitNotes = doc.splitTextToSize(fixTr(quotation.notes), 182);
+      doc.text(splitNotes, 14, finalY);
+    }
 
     // Add page numbers to all pages
     const totalPages = (doc as any).internal.getNumberOfPages();
@@ -1654,85 +1674,99 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <div className="flex flex-col md:flex-row justify-between items-start gap-8">
                   <div className="flex items-center space-x-6">
                     {branding?.logo_url && (
-                      <div className="w-20 h-20 bg-slate-50 rounded-3xl p-3 flex items-center justify-center border border-slate-100 shadow-inner">
+                      <div className="w-24 h-24 bg-white rounded-3xl p-4 flex items-center justify-center border border-slate-100 shadow-sm">
                         <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
                       </div>
                     )}
                     <div>
-                      <h1 className="text-2xl font-black text-slate-900 tracking-tight">{branding?.store_name || branding?.name || "LookPrice"}</h1>
-                      <div className="mt-2 space-y-1">
-                        <p className="text-xs text-slate-500 font-medium flex items-center gap-2">
-                          <MapPin className="h-3 w-3" /> {branding?.address}
+                      <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{branding?.store_name || branding?.name || "LookPrice"}</h1>
+                      <div className="mt-4 space-y-1.5">
+                        <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-indigo-500" /> {branding?.address}
                         </p>
-                        <p className="text-xs text-slate-500 font-medium flex items-center gap-2">
-                          <Smartphone className="h-3 w-3" /> {branding?.phone}
+                        <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
+                          <Smartphone className="h-3.5 w-3.5 text-indigo-500" /> {branding?.phone}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right space-y-2">
-                    <div className="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">
+                  <div className="text-right space-y-3">
+                    <div className="inline-block px-5 py-2 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100">
                       {isTr ? "TEKLİF FORMU" : "QUOTATION FORM"}
                     </div>
-                    <p className="text-sm font-black text-slate-900">#{selectedQuotationDetails.id}</p>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
+                    <div className="pt-2">
+                      <p className="text-lg font-black text-slate-900 leading-none">#{selectedQuotationDetails.id}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Customer Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-inner">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="p-2 bg-white rounded-xl text-indigo-600 shadow-sm">
-                        <UserIcon className="h-4 w-4" />
-                      </div>
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.customer || "Müşteri"}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <UserIcon className="h-24 w-24" />
                     </div>
-                    <p className="text-lg font-black text-slate-900">{selectedQuotationDetails.customer_name}</p>
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-2.5 bg-white rounded-2xl text-indigo-600 shadow-sm border border-slate-100">
+                        <UserIcon className="h-5 w-5" />
+                      </div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.customer || "Müşteri"}</h4>
+                    </div>
+                    <p className="text-xl font-black text-slate-900 tracking-tight">{selectedQuotationDetails.customer_name}</p>
                     {selectedQuotationDetails.customer_title && (
-                      <p className="text-sm text-slate-500 font-bold mt-1">{selectedQuotationDetails.customer_title}</p>
+                      <p className="text-sm text-slate-500 font-bold mt-2 flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-slate-300" /> {selectedQuotationDetails.customer_title}
+                      </p>
                     )}
                   </div>
-                  <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-inner">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="p-2 bg-white rounded-xl text-indigo-600 shadow-sm">
-                        <Clock className="h-4 w-4" />
-                      </div>
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.validUntil || "Geçerlilik Tarihi"}</h4>
+                  <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <Clock className="h-24 w-24" />
                     </div>
-                    <p className="text-lg font-black text-slate-900">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-2.5 bg-white rounded-2xl text-indigo-600 shadow-sm border border-slate-100">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.validUntil || "Geçerlilik Tarihi"}</h4>
+                    </div>
+                    <p className="text-xl font-black text-slate-900 tracking-tight">
                       {selectedQuotationDetails.expiry_date 
                         ? new Date(selectedQuotationDetails.expiry_date).toLocaleDateString('tr-TR')
                         : new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')
                       }
                     </p>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{t.sevenDaysValid || "7 Gün Geçerlidir"}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">{t.sevenDaysValid || "7 Gün Geçerlidir"}</p>
                   </div>
                 </div>
 
                 {/* Items Table */}
-                <div className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                <div className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-slate-900 text-white">
-                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">{t.product || "Ürün"}</th>
-                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t.quantity || "Miktar"}</th>
-                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right">{t.unitPrice || "Birim Fiyat"}</th>
-                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right">{t.total || "Toplam"}</th>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em]">{t.product || "Ürün"}</th>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">{t.quantity || "Miktar"}</th>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">{t.unitPrice || "Birim Fiyat"}</th>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">{t.total || "Toplam"}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {(selectedQuotationDetails.items || []).map((item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-8 py-6">
-                            <p className="font-black text-slate-900">{item.product_name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">#{item.product_id}</p>
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-10 py-7">
+                            <p className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{item.product_name}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1.5">#{item.product_id}</p>
                           </td>
-                          <td className="px-8 py-6 text-center font-bold text-slate-600">{item.quantity}</td>
-                          <td className="px-8 py-6 text-right font-bold text-slate-600">
+                          <td className="px-10 py-7 text-center">
+                            <span className="inline-flex items-center justify-center w-10 h-10 bg-slate-50 rounded-xl font-black text-slate-600 text-sm">
+                              {item.quantity}
+                            </span>
+                          </td>
+                          <td className="px-10 py-7 text-right font-bold text-slate-600">
                             {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
                           </td>
-                          <td className="px-8 py-6 text-right font-black text-slate-900">
+                          <td className="px-10 py-7 text-right font-black text-slate-900 text-lg">
                             {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
                           </td>
                         </tr>
@@ -1742,33 +1776,38 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
 
                 {/* Summary Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start gap-8 pt-6">
-                  <div className="flex-1 max-w-md">
+                <div className="flex flex-col md:flex-row justify-between items-start gap-12 pt-4">
+                  <div className="flex-1 max-w-md space-y-6">
                     {selectedQuotationDetails.notes && (
-                      <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.notes || "Notlar"}</p>
-                        <p className="text-sm text-slate-600 font-medium leading-relaxed italic">"{selectedQuotationDetails.notes}"</p>
+                      <div className="p-8 bg-indigo-50/30 rounded-[2rem] border border-indigo-100/50 relative overflow-hidden">
+                        <div className="absolute -top-4 -left-4 opacity-5">
+                          <FileText className="h-24 w-24 text-indigo-600" />
+                        </div>
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-3">{t.notes || "Notlar"}</p>
+                        <p className="text-sm text-slate-700 font-medium leading-relaxed italic relative z-10">"{selectedQuotationDetails.notes}"</p>
                       </div>
                     )}
-                    <div className="mt-4 p-4">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isTr ? "YALNIZ" : "TOTAL IN WORDS"}</p>
-                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    <div className="px-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{isTr ? "YALNIZ" : "TOTAL IN WORDS"}</p>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
                         # {numberToTurkishWords(Number(selectedQuotationDetails.total_amount), selectedQuotationDetails.currency)} #
                       </p>
                     </div>
                   </div>
-                  <div className="w-full md:w-80 space-y-4">
-                    <div className="flex justify-between items-center px-4">
-                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.subtotal || "Ara Toplam"}</span>
-                      <span className="font-bold text-slate-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
+                  <div className="w-full md:w-96 space-y-6">
+                    <div className="flex justify-between items-center px-8">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.subtotal || "Ara Toplam"}</span>
+                      <span className="text-lg font-bold text-slate-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
                     </div>
-                    <div className="bg-white p-8 text-slate-900 border-2 border-slate-900 flex justify-between items-center rounded-2xl shadow-sm">
-                      <span className="text-sm font-black uppercase tracking-[0.2em]">{t.grandTotal || "Genel Toplam"}</span>
-                      <span className="text-2xl font-black tracking-tight">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
+                    <div className="bg-slate-900 p-10 text-white flex justify-between items-center rounded-[2.5rem] shadow-2xl shadow-slate-200 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                      <span className="text-xs font-black uppercase tracking-[0.3em] opacity-60">{t.grandTotal || "Genel Toplam"}</span>
+                      <span className="text-3xl font-black tracking-tight relative z-10">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
                     </div>
                   </div>
                 </div>
               </div>
+
 
               <div className="p-8 border-t border-slate-100 bg-slate-50/30 flex gap-4 no-print">
                 <button 
@@ -1778,11 +1817,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   {t.close || 'Kapat'}
                 </button>
                 <button 
-                  onClick={handlePrintQuotation}
-                  className="flex-[1.5] px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all duration-200 shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+                  onClick={() => handleDownloadQuotationPDF(selectedQuotationDetails)}
+                  className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all duration-200 shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
                 >
-                  <Printer className="h-4 w-4" />
-                  {lang === 'tr' ? 'Yazdır / PDF İndir' : 'Print / Download PDF'}
+                  <Download className="h-4 w-4" />
+                  {lang === 'tr' ? 'PDF İndir' : 'Download PDF'}
                 </button>
               </div>
             </motion.div>

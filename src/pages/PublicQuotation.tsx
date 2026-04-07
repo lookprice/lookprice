@@ -107,18 +107,25 @@ const PublicQuotation = () => {
 
   const fetchQuotation = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const data = await api.getPublicQuotation(id!);
+      if (!data || data.error) {
+        throw new Error(data?.error || "Quotation not found");
+      }
       setQuotation(data);
       if (data.payment_method) setPaymentMethod(data.payment_method);
       if (data.due_date) setDueDate(new Date(data.due_date).toISOString().split('T')[0]);
-      // Simple heuristic for language
-      if (data.store_name?.toLowerCase().includes('market') || data.store_name?.toLowerCase().includes('ticaret')) {
+      
+      // Default to TR if store name suggests it, or if no clear indicator
+      if (data.store_name?.toLowerCase().includes('market') || 
+          data.store_name?.toLowerCase().includes('ticaret') ||
+          data.currency === 'TRY') {
         setLang('tr');
-      } else {
-        setLang('en');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Quotation not found");
+      console.error("Fetch Quotation Error:", err);
+      setError(err.message || "Quotation not found or link is invalid");
     } finally {
       setLoading(false);
     }
@@ -275,12 +282,12 @@ const PublicQuotation = () => {
       ]],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      styles: { fontSize: 7, cellPadding: 2, font: "helvetica" },
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
       columnStyles: {
-        1: { halign: 'center', cellWidth: 15 },
-        2: { halign: 'right', cellWidth: 30 },
-        3: { halign: 'right', cellWidth: 30 }
+        1: { halign: 'center', cellWidth: 12 },
+        2: { halign: 'right', cellWidth: 25 },
+        3: { halign: 'right', cellWidth: 25 }
       },
       margin: { left: 14, right: 14, top: 30, bottom: 15 },
       didDrawPage: (data) => {
@@ -293,7 +300,7 @@ const PublicQuotation = () => {
     let finalY = (doc as any).lastAutoTable.finalY + 5;
     
     // Check if summary fits on page
-    if (finalY > 270) {
+    if (finalY > 260) {
       doc.addPage();
       addHeader(doc);
       finalY = 35;
@@ -302,20 +309,40 @@ const PublicQuotation = () => {
     // Summary Section
     doc.setDrawColor(230);
     doc.line(130, finalY, 196, finalY);
-    finalY += 6;
+    finalY += 5;
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
     doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
     doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
     
-    finalY += 6;
-    doc.setFontSize(10);
+    finalY += 5;
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
     doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
     doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+
+    // Notes Section
+    if (quotation.notes) {
+      finalY += 10;
+      if (finalY > 270) {
+        doc.addPage();
+        addHeader(doc);
+        finalY = 35;
+      }
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(50);
+      doc.text(fixTr(isTr ? "Notlar / Açıklamalar:" : "Notes / Descriptions:"), 14, finalY);
+      finalY += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(100);
+      const splitNotes = doc.splitTextToSize(fixTr(quotation.notes), 182);
+      doc.text(splitNotes, 14, finalY);
+    }
 
     // Add page numbers to all pages
     const totalPages = (doc as any).internal.getNumberOfPages();
@@ -337,15 +364,28 @@ const PublicQuotation = () => {
 
   if (error || !quotation) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{lang === 'tr' ? 'Hata' : 'Error'}</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <a href="/" className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all">
-            {lang === 'tr' ? 'Ana Sayfaya Dön' : 'Go to Homepage'}
-          </a>
-        </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white p-12 rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 max-w-md w-full text-center space-y-6"
+        >
+          <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-red-500 mx-auto shadow-lg shadow-red-100">
+            <AlertCircle className="h-10 w-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? "Teklif Bulunamadı" : "Quotation Not Found"}</h2>
+            <p className="text-slate-500 font-medium leading-relaxed">
+              {error || (lang === 'tr' ? "Üzgünüz, aradığınız teklif bulunamadı veya link artık geçerli değil." : "Sorry, the quotation you are looking for was not found or the link is no longer valid.")}
+            </p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+          >
+            {lang === 'tr' ? "Tekrar Dene" : "Try Again"}
+          </button>
+        </motion.div>
       </div>
     );
   }

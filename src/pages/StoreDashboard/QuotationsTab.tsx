@@ -12,7 +12,8 @@ import {
   Link,
   QrCode,
   CreditCard,
-  Wrench
+  Wrench,
+  ExternalLink
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -195,8 +196,17 @@ const QuotationsTab = ({
                           <button 
                             onClick={() => {
                               const url = `${window.location.origin}/quotation/${q.id}`;
+                              window.open(url, '_blank');
+                            }}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100"
+                            title={lang === 'tr' ? 'Linki Aç' : 'Open Link'}
+                          >
+                            <ExternalLink className="h-5 w-5" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const url = `${window.location.origin}/quotation/${q.id}`;
                               navigator.clipboard.writeText(url);
-                              // Using a custom toast would be better, but keeping logic for now
                               alert(t.quotationLinkCopied);
                             }}
                             className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"
