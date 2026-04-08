@@ -72,10 +72,6 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     }
   }, [includeBranches, user.role, user.store_id, slug]);
 
-  useState(() => {
-    fetchData();
-  });
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);

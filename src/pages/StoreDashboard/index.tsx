@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue } from "react";
+import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue, Suspense } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useParams } from "react-router-dom";
@@ -75,18 +75,18 @@ import ErrorBoundary from "../../components/ErrorBoundary";
 import { useReactToPrint } from 'react-to-print';
 
 // Import Tabs
-import ProductsTab from "./ProductsTab";
-import AnalyticsTab from "./AnalyticsTab";
-import QuotationsTab from "./QuotationsTab";
-import CompaniesTab from "./CompaniesTab";
-import PosTab from "./PosTab";
-import FastPosTab from "../../components/FastPosTab";
-import AuditLogTab from "../../components/AuditLogTab";
-import SettingsTab from "./SettingsTab";
-import { ProcurementTab } from "./ProcurementTab";
-import { ServiceTab } from "./ServiceTab";
-import StockTransferTab from "./StockTransferTab";
-import FleetTab from "./FleetTab";
+const ProductsTab = React.lazy(() => import("./ProductsTab"));
+const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
+const QuotationsTab = React.lazy(() => import("./QuotationsTab"));
+const CompaniesTab = React.lazy(() => import("./CompaniesTab"));
+const PosTab = React.lazy(() => import("./PosTab"));
+const FastPosTab = React.lazy(() => import("../../components/FastPosTab"));
+const AuditLogTab = React.lazy(() => import("../../components/AuditLogTab"));
+const SettingsTab = React.lazy(() => import("./SettingsTab"));
+const ProcurementTab = React.lazy(() => import("./ProcurementTab").then(m => ({ default: m.ProcurementTab })));
+const ServiceTab = React.lazy(() => import("./ServiceTab").then(m => ({ default: m.ServiceTab })));
+const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
+const FleetTab = React.lazy(() => import("./FleetTab"));
 import ShippingSlip from "../../components/ShippingSlip";
 
 interface StoreDashboardProps {
@@ -987,72 +987,82 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 ) : (
                   <>
                     {activeTab === "products" && (
-                      <ProductsTab 
-                        products={products}
-                        loading={loading}
-                        isViewer={isViewer}
-                        onDeleteAll={handleDeleteAllProducts}
-                        onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
-                        onDelete={handleDeleteProduct}
-                        onExportReport={handleExportProducts}
-                        onApplyTaxRule={handleApplyTaxRule}
-                        onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
-                        onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
-                        onShowQr={() => setShowQrModal(true)}
-                        branding={branding}
-                        showStoreName={includeBranches}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <ProductsTab 
+                          products={products}
+                          loading={loading}
+                          isViewer={isViewer}
+                          onDeleteAll={handleDeleteAllProducts}
+                          onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
+                          onDelete={handleDeleteProduct}
+                          onExportReport={handleExportProducts}
+                          onApplyTaxRule={handleApplyTaxRule}
+                          onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
+                          onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
+                          onShowQr={() => setShowQrModal(true)}
+                          branding={branding}
+                          showStoreName={includeBranches}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "analytics" && (
-                      <AnalyticsTab analytics={analytics} branding={branding} />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <AnalyticsTab analytics={analytics} branding={branding} />
+                      </Suspense>
                     )}
                     {activeTab === "quotations" && (
-                      <QuotationsTab 
-                        quotations={quotationList}
-                        isViewer={isViewer}
-                        onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
-                        onGeneratePDF={(q) => handleDownloadQuotationPDF(q)}
-                        onApprove={handleApproveQuotation}
-                        onCancel={handleCancelQuotation}
-                        onConvertToSale={handleConvertToSale}
-                        onEdit={(q) => { 
-                          setEditingQuotation(q); 
-                          setQuotationItems((q.items || []).map((item: any) => ({
-                            ...item,
-                            quantity: Math.floor(Number(item.quantity) || 0),
-                            unit_price: Number(item.unit_price),
-                            total_price: Number(item.total_price),
-                            tax_rate: Math.round(Number(item.tax_rate) || 0)
-                          }))); 
-                          setShowQuotationModal(true); 
-                        }}
-                        onDelete={handleDeleteQuotation}
-                        onSearchChange={setQuotationSearch}
-                        onStatusFilterChange={setQuotationStatusFilter}
-                        onExportReport={handleExportQuotations}
-                        statusFilter={quotationStatusFilter}
-                        onShowQr={() => setShowQrModal(true)}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <QuotationsTab 
+                          quotations={quotationList}
+                          isViewer={isViewer}
+                          onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
+                          onGeneratePDF={(q) => handleDownloadQuotationPDF(q)}
+                          onApprove={handleApproveQuotation}
+                          onCancel={handleCancelQuotation}
+                          onConvertToSale={handleConvertToSale}
+                          onEdit={(q) => { 
+                            setEditingQuotation(q); 
+                            setQuotationItems((q.items || []).map((item: any) => ({
+                              ...item,
+                              quantity: Math.floor(Number(item.quantity) || 0),
+                              unit_price: Number(item.unit_price),
+                              total_price: Number(item.total_price),
+                              tax_rate: Math.round(Number(item.tax_rate) || 0)
+                            }))); 
+                            setShowQuotationModal(true); 
+                          }}
+                          onDelete={handleDeleteQuotation}
+                          onSearchChange={setQuotationSearch}
+                          onStatusFilterChange={setQuotationStatusFilter}
+                          onExportReport={handleExportQuotations}
+                          statusFilter={quotationStatusFilter}
+                          onShowQr={() => setShowQrModal(true)}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "purchase_invoices" && (
-                      <PurchaseInvoices 
-                        storeId={currentStoreId} 
-                        role={user?.role} 
-                        lang={lang} 
-                        api={api} 
-                        branding={branding}
-                        onSave={fetchData}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <PurchaseInvoices 
+                          storeId={currentStoreId} 
+                          role={user?.role} 
+                          lang={lang} 
+                          api={api} 
+                          branding={branding}
+                          onSave={fetchData}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "sales_invoices" && (
-                      <SalesInvoices 
-                        storeId={currentStoreId} 
-                        role={user?.role} 
-                        lang={lang} 
-                        api={api} 
-                        branding={branding}
-                        onSave={fetchData}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <SalesInvoices 
+                          storeId={currentStoreId} 
+                          role={user?.role} 
+                          lang={lang} 
+                          api={api} 
+                          branding={branding}
+                          onSave={fetchData}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "procurements" && (
                       <ProcurementTab 

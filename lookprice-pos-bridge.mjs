@@ -7,12 +7,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = 1616;
+const PORT = 6400;
 
 app.post('/pos/sale', (req, res) => {
   const { amount, ip, port, brand } = req.body;
   console.log(`[POS] ${brand} (${ip}:${port}) üzerinden ${amount} tutarında işlem başlatılıyor...`);
-  
+
   // Burada gerçek TCP iletişimi kurulur
   // Örnek Verifone/Ingenico TCP soket bağlantısı:
   /*
@@ -37,4 +37,3 @@ app.listen(PORT, () => {
   console.log(`LookPrice POS Bridge ${PORT} portunda çalışıyor...`);
   console.log(`Lütfen bu pencereyi kapatmayın.`);
 });
-                            
