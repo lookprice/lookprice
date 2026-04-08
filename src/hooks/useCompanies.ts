@@ -13,6 +13,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [includeZeroBalance, setIncludeZeroBalance] = useState(false);
   const [companyTransactions, setCompanyTransactions] = useState<any[]>([]);
+  const [openingBalances, setOpeningBalances] = useState<Record<string, number>>({});
   const [transactionLoading, setTransactionLoading] = useState(false);
   const [transactionStartDate, setTransactionStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
   const [transactionEndDate, setTransactionEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -24,6 +25,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
   const [newTransactionPaymentMethod, setNewTransactionPaymentMethod] = useState<'cash' | 'credit_card' | 'bank' | 'term'>('cash');
   const [newTransactionCurrency, setNewTransactionCurrency] = useState(branding?.default_currency || 'TRY');
   const [newTransactionExchangeRate, setNewTransactionExchangeRate] = useState('1');
+  const [selectedCurrency, setSelectedCurrency] = useState(branding?.default_currency || 'TRY');
 
   const fetchCompanies = useCallback(async () => {
     if (!currentStoreId) return;
@@ -70,16 +72,23 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
   const handleExportCompanies = () => {
     const isTr = lang === 'tr';
     const t = translations[lang].dashboard;
-    const data = companies.map(c => ({
-      [t.companyName]: c.title,
-      [t.contactPerson]: c.contact_person || c.representative || '-',
-      [t.taxOffice || 'Tax Office']: c.tax_office || '-',
-      [t.taxNumber || 'Tax Number']: c.tax_number || '-',
-      [t.phone || 'Phone']: c.phone || '-',
-      [t.email || 'Email']: c.email || '-',
-      [t.statements.balance]: c.balance,
-      [t.address || 'Address']: c.address || '-'
-    }));
+    const data = companies.map(c => {
+      const balancesStr = Object.entries(c.balances || {})
+        .filter(([_, bal]) => Number(bal) !== 0)
+        .map(([curr, bal]) => `${Number(bal).toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${curr}`)
+        .join(', ') || '0 TRY';
+
+      return {
+        [t.companyName]: c.title,
+        [t.contactPerson]: c.contact_person || c.representative || '-',
+        [t.taxOffice || 'Tax Office']: c.tax_office || '-',
+        [t.taxNumber || 'Tax Number']: c.tax_number || '-',
+        [t.phone || 'Phone']: c.phone || '-',
+        [t.email || 'Email']: c.email || '-',
+        [t.statements.balance]: balancesStr,
+        [t.address || 'Address']: c.address || '-'
+      };
+    });
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -92,7 +101,13 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     try {
       setTransactionLoading(true);
       const res = await api.getCompanyTransactions(companyId, transactionStartDate, transactionEndDate, targetStoreId);
-      setCompanyTransactions(res);
+      if (res.transactions) {
+        setCompanyTransactions(res.transactions);
+        setOpeningBalances(res.opening_balances || {});
+      } else {
+        setCompanyTransactions(res);
+        setOpeningBalances({});
+      }
     } catch (error) {
       console.error("Fetch transactions error:", error);
     } finally {
@@ -184,20 +199,34 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     doc.text(`${fixTr(t.dateRange || 'Date Range')}: ${transactionStartDate} - ${transactionEndDate}`, 14, yPos);
     yPos += 10;
 
-    let runningBalance = 0;
-    const tableData = companyTransactions.map(t_item => {
+    let runningBalance = openingBalances[selectedCurrency] || 0;
+    const filteredTransactions = companyTransactions.filter(tx => (tx.currency || 'TRY') === selectedCurrency);
+    const currentBalance = Number(selectedCompany.balances?.[selectedCurrency] || 0);
+
+    const tableData: any[] = [];
+    
+    if (runningBalance !== 0) {
+      tableData.push([
+        transactionStartDate,
+        fixTr(isTr ? 'Devreden Bakiye' : 'Opening Balance'),
+        runningBalance > 0 ? `${runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
+        runningBalance < 0 ? `${Math.abs(runningBalance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
+        runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
+      ]);
+    }
+
+    filteredTransactions.forEach(t_item => {
       const amount = Number(t_item.amount);
-      const amountInBase = amount * (Number(t_item.exchange_rate) || 1);
-      if (t_item.type === 'debt') runningBalance += amountInBase;
-      else runningBalance -= amountInBase;
+      if (t_item.type === 'debt') runningBalance += amount;
+      else runningBalance -= amount;
       
-      return [
+      tableData.push([
         t_item.transaction_date.split('T')[0],
         fixTr(t_item.description || ""),
-        t_item.type === 'debt' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${t_item.currency?.slice(0, 3)}` : "-",
-        t_item.type === 'credit' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${t_item.currency?.slice(0, 3)}` : "-",
+        t_item.type === 'debt' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
+        t_item.type === 'credit' ? `${amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} ${selectedCurrency.slice(0, 3)}` : "-",
         runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')
-      ];
+      ]);
     });
 
     autoTable(doc, {
@@ -223,9 +252,9 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`${fixTr(t.statements.balance)}: ${Number(selectedCompany.balance).toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${branding.default_currency || 'TL'}`, 196, finalY, { align: 'right' });
+    doc.text(`${fixTr(t.statements.balance)}: ${currentBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${selectedCurrency}`, 196, finalY, { align: 'right' });
 
-    doc.save(`${fixTr(t.statements.customerStatement.toLowerCase().replace(/\s+/g, '_'))}_${fixTr(selectedCompany.title)}_${transactionStartDate}_${transactionEndDate}.pdf`);
+    doc.save(`${fixTr(t.statements.customerStatement.toLowerCase().replace(/\s+/g, '_'))}_${fixTr(selectedCompany.title)}_${selectedCurrency}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {
@@ -265,6 +294,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     showTransactionModal, setShowTransactionModal,
     includeZeroBalance, setIncludeZeroBalance,
     companyTransactions, setCompanyTransactions,
+    openingBalances, setOpeningBalances,
     transactionLoading, setTransactionLoading,
     transactionStartDate, setTransactionStartDate,
     transactionEndDate, setTransactionEndDate,
@@ -276,6 +306,7 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     newTransactionPaymentMethod, setNewTransactionPaymentMethod,
     newTransactionCurrency, setNewTransactionCurrency,
     newTransactionExchangeRate, setNewTransactionExchangeRate,
+    selectedCurrency, setSelectedCurrency,
     fetchCompanies,
     handleAddCompany,
     handleDeleteCompany,

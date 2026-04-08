@@ -131,22 +131,28 @@ const CompaniesTab = ({
                       <div className="text-xs text-slate-500">{c.email || '-'}</div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {c.balances && Array.isArray(c.balances) ? (
-                        c.balances.map((b: any, idx: number) => (
-                          <div key={idx} className={`text-sm font-bold tabular-nums ${Number(b.balance) > 0 ? 'text-rose-600' : Number(b.balance) < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                            {Math.abs(Number(b.balance)).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] font-medium ml-0.5">{(b.currency || 'TRY').substring(0, 3)}</span>
+                      <div className="flex flex-col items-end space-y-1">
+                        {Object.entries(c.balances || {}).length > 0 ? (
+                          Object.entries(c.balances || {}).map(([currency, bal]) => {
+                            const numBal = Number(bal);
+                            if (numBal === 0) return null;
+                            return (
+                              <div key={currency} className="flex flex-col items-end">
+                                <div className={`text-sm font-bold tabular-nums ${numBal > 0 ? 'text-rose-600' : numBal < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                  {Math.abs(numBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] font-medium ml-0.5">{currency.substring(0, 3)}</span>
+                                </div>
+                                <div className="text-[9px] font-bold uppercase tracking-tighter opacity-60">
+                                  {numBal > 0 ? t.statements.debt : numBal < 0 ? t.statements.credit : t.balanced}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-sm font-bold tabular-nums text-slate-900">
+                            0 <span className="text-[10px] font-medium ml-0.5">TRY</span>
                           </div>
-                        ))
-                      ) : (
-                        <>
-                          <div className={`text-sm font-bold tabular-nums ${Number(c.balance) > 0 ? 'text-rose-600' : Number(c.balance) < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                            {Math.abs(Number(c.balance)).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] font-medium ml-0.5">{(c.currency || 'TRY').substring(0, 3)}</span>
-                          </div>
-                          <div className="text-[10px] font-bold uppercase tracking-tighter opacity-60">
-                            {Number(c.balance) > 0 ? t.statements.debt : Number(c.balance) < 0 ? t.statements.credit : t.balanced}
-                          </div>
-                        </>
-                      )}
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">

@@ -362,12 +362,12 @@ router.get("/analytics", async (req: any, res) => {
 
     const topCompanies = await pool.query(`
       SELECT c.id, c.title, 
-             COALESCE(SUM(CASE WHEN t.type = 'debt' THEN t.amount ELSE -t.amount END), 0)::FLOAT as balance
+             COALESCE(SUM(CASE WHEN t.type = 'debt' THEN t.amount * COALESCE(t.exchange_rate, 1) ELSE -t.amount * COALESCE(t.exchange_rate, 1) END), 0)::FLOAT as balance
       FROM companies c
       LEFT JOIN current_account_transactions t ON c.id = t.company_id
       WHERE c.store_id = $1
       GROUP BY c.id, c.title
-      HAVING COALESCE(SUM(CASE WHEN t.type = 'debt' THEN t.amount ELSE -t.amount END), 0) > 0
+      HAVING COALESCE(SUM(CASE WHEN t.type = 'debt' THEN t.amount * COALESCE(t.exchange_rate, 1) ELSE -t.amount * COALESCE(t.exchange_rate, 1) END), 0) > 0
       ORDER BY balance DESC
       LIMIT 5
     `, [storeId]);
@@ -1576,11 +1576,20 @@ router.get("/companies", async (req: any, res) => {
     const result = await pool.query(
       `SELECT 
         c.*,
-        COALESCE(SUM(CASE WHEN t.type = 'debt' THEN t.amount * t.exchange_rate ELSE -(t.amount * t.exchange_rate) END), 0) as balance
+        COALESCE(
+          (
+            SELECT json_object_agg(currency, bal)
+            FROM (
+              SELECT COALESCE(currency, 'TRY') as currency, SUM(CASE WHEN type = 'debt' THEN amount ELSE -amount END) as bal
+              FROM current_account_transactions
+              WHERE company_id = c.id
+              GROUP BY COALESCE(currency, 'TRY')
+            ) sub
+          ), 
+          '{}'::json
+        ) as balances
       FROM companies c
-      LEFT JOIN current_account_transactions t ON c.id = t.company_id
       WHERE c.store_id = $1
-      GROUP BY c.id
       ORDER BY c.title ASC`,
       [storeId]
     );
@@ -1646,6 +1655,20 @@ router.get("/companies/:id/transactions", async (req: any, res) => {
   const { startDate, endDate } = req.query;
   
   try {
+    let openingBalances: Record<string, number> = {};
+    if (startDate) {
+      const obQuery = `
+        SELECT currency, COALESCE(SUM(CASE WHEN type = 'debt' THEN amount ELSE -amount END), 0)::FLOAT as balance
+        FROM current_account_transactions
+        WHERE company_id = $1 AND store_id = $2 AND transaction_date < $3
+        GROUP BY currency
+      `;
+      const obResult = await pool.query(obQuery, [req.params.id, storeId, startDate]);
+      obResult.rows.forEach(row => {
+        openingBalances[row.currency || 'TRY'] = row.balance;
+      });
+    }
+
     let query = `
       SELECT 
         c.*, 
@@ -1674,7 +1697,10 @@ router.get("/companies/:id/transactions", async (req: any, res) => {
     query += " ORDER BY c.transaction_date ASC, c.id ASC";
     
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    res.json({
+      transactions: result.rows,
+      opening_balances: openingBalances
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -274,6 +274,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     showTransactionModal, setShowTransactionModal,
     includeZeroBalance, setIncludeZeroBalance,
     companyTransactions, setCompanyTransactions,
+    openingBalances, setOpeningBalances,
     transactionLoading, setTransactionLoading,
     transactionStartDate, setTransactionStartDate,
     transactionEndDate, setTransactionEndDate,
@@ -285,6 +286,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     newTransactionPaymentMethod, setNewTransactionPaymentMethod,
     newTransactionCurrency, setNewTransactionCurrency,
     newTransactionExchangeRate, setNewTransactionExchangeRate,
+    selectedCurrency, setSelectedCurrency,
     fetchCompanies,
     handleAddCompany,
     handleDeleteCompany,
@@ -1867,6 +1869,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
               <div className="p-4 bg-white border-b border-gray-100 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
+                  <select
+                    value={selectedCurrency}
+                    onChange={(e) => setSelectedCurrency(e.target.value)}
+                    className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {Object.keys(selectedCompany.balances || {}).length > 0 ? (
+                      Object.keys(selectedCompany.balances).map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))
+                    ) : (
+                      <option value={branding.default_currency || 'TRY'}>{branding.default_currency || 'TRY'}</option>
+                    )}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.start}</label>
                   <input 
                     type="date" 
@@ -1901,135 +1919,168 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
-                    <p className="text-2xl font-black">
-                      {Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
-                    <p className="text-2xl font-black text-red-600">
-                      {companyTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
-                    <p className="text-2xl font-black text-green-600">
-                      {companyTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  const filteredTransactions = companyTransactions.filter(tx => (tx.currency || 'TRY') === selectedCurrency);
+                  const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
+                  return (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
+                          <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
+                          <p className="text-2xl font-black">
+                            {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                          </p>
+                        </div>
+                        <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
+                          <p className="text-2xl font-black text-red-600">
+                            {filteredTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                          </p>
+                        </div>
+                        <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
+                          <p className="text-2xl font-black text-green-600">
+                            {filteredTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                          </p>
+                        </div>
+                      </div>
 
-                <div className="space-y-3">
-                  {transactionLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
-                      <p className="text-gray-500 font-medium">{t.loading}</p>
-                    </div>
-                  ) : companyTransactions.length === 0 ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                      <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : (lang === 'de' ? 'Keine Transaktionen in ausgewählten Daten' : 'No transactions in selected dates')}</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-gray-100">
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
-                            <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                            let runningBalance = 0;
-                            return companyTransactions.map((tx: any) => {
-                              const amount = Number(tx.amount);
-                              const amountInBase = amount * (Number(tx.exchange_rate) || 1);
-                              if (tx.type === 'debt') runningBalance += amountInBase;
-                              else runningBalance -= amountInBase;
-
-                              return (
-                                <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
-                                  <td className="py-4 px-4">
-                                    <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                                    {tx.due_date && (
-                                      <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
-                                        {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <p className="text-xs font-bold text-gray-700">{tx.description}</p>
-                                    <div className="flex gap-2 mt-1">
-                                      {tx.sale_id && (
-                                        <button 
-                                          onClick={() => {
-                                            setSelectedSale({ id: tx.sale_id });
-                                            setShowSaleDetailsModal(true);
-                                          }}
-                                          className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
-                                        >
-                                          #{tx.sale_id} {t.sources.pos}
-                                        </button>
-                                      )}
-                                      {tx.purchase_invoice_id && (
-                                        <button 
-                                          onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
-                                          className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
-                                        >
-                                          #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    {tx.type === 'debt' ? (
-                                      <div className="flex flex-col items-end">
-                                        <span className="text-xs font-black text-red-600">
-                                          {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {tx.currency?.slice(0, 3)}
-                                        </span>
-                                        {tx.currency !== (branding.default_currency || 'TRY') && tx.exchange_rate && (
-                                          <span className="text-[9px] text-slate-400 font-bold">
-                                            {(amount * tx.exchange_rate).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                                          </span>
-                                        )}
-                                      </div>
-                                    ) : '-'}
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    {tx.type === 'credit' ? (
-                                      <div className="flex flex-col items-end">
-                                        <span className="text-xs font-black text-green-600">
-                                          {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {tx.currency?.slice(0, 3)}
-                                        </span>
-                                        {tx.currency !== (branding.default_currency || 'TRY') && tx.exchange_rate && (
-                                          <span className="text-[9px] text-slate-400 font-bold">
-                                            {(amount * tx.exchange_rate).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {branding.default_currency?.slice(0, 3)}
-                                          </span>
-                                        )}
-                                      </div>
-                                    ) : '-'}
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                                      {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                                    </span>
-                                  </td>
+                      <div className="space-y-3">
+                        {transactionLoading ? (
+                          <div className="flex flex-col items-center justify-center py-12">
+                            <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
+                            <p className="text-gray-500 font-medium">{t.loading}</p>
+                          </div>
+                        ) : filteredTransactions.length === 0 ? (
+                          <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                            <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : (lang === 'de' ? 'Keine Transaktionen in ausgewählten Daten' : 'No transactions in selected dates')}</p>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="border-b border-gray-100">
+                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
+                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
+                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
+                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
+                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
                                 </tr>
-                              );
-                            });
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
+                              </thead>
+                              <tbody>
+                                {(() => {
+                                  let runningBalance = openingBalances[selectedCurrency] || 0;
+                                  return (
+                                    <>
+                                      {runningBalance !== 0 && (
+                                        <tr className="border-b border-gray-100 bg-slate-50/50">
+                                          <td className="py-4 px-4">
+                                            <p className="text-xs font-bold text-slate-500">{new Date(transactionStartDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
+                                          </td>
+                                          <td className="py-4 px-4">
+                                            <div className="flex items-center gap-2">
+                                              <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                                              <p className="text-xs font-bold text-slate-600">{lang === 'tr' ? 'Devreden Bakiye' : 'Opening Balance'}</p>
+                                            </div>
+                                          </td>
+                                          <td className="py-4 px-4 text-right">
+                                            {runningBalance > 0 ? (
+                                              <span className="text-xs font-black text-rose-600">
+                                                {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                              </span>
+                                            ) : '-'}
+                                          </td>
+                                          <td className="py-4 px-4 text-right">
+                                            {runningBalance < 0 ? (
+                                              <span className="text-xs font-black text-emerald-600">
+                                                {Math.abs(runningBalance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                              </span>
+                                            ) : '-'}
+                                          </td>
+                                          <td className="py-4 px-4 text-right">
+                                            <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-slate-900' : 'text-emerald-600'}`}>
+                                              {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      )}
+                                      {filteredTransactions.map((tx: any) => {
+                                        const amount = Number(tx.amount);
+                                        if (tx.type === 'debt') runningBalance += amount;
+                                        else runningBalance -= amount;
+
+                                        return (
+                                          <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
+                                            <td className="py-4 px-4">
+                                              <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
+                                              {tx.due_date && (
+                                                <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
+                                                  {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                                </span>
+                                              )}
+                                            </td>
+                                        <td className="py-4 px-4">
+                                          <p className="text-xs font-bold text-gray-700">{tx.description}</p>
+                                          <div className="flex gap-2 mt-1">
+                                            {tx.sale_id && (
+                                              <button 
+                                                onClick={() => {
+                                                  setSelectedSale({ id: tx.sale_id });
+                                                  setShowSaleDetailsModal(true);
+                                                }}
+                                                className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
+                                              >
+                                                #{tx.sale_id} {t.sources.pos}
+                                              </button>
+                                            )}
+                                            {tx.purchase_invoice_id && (
+                                              <button 
+                                                onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
+                                                className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
+                                              >
+                                                #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
+                                              </button>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="py-4 px-4 text-right">
+                                          {tx.type === 'debt' ? (
+                                            <div className="flex flex-col items-end">
+                                              <span className="text-xs font-black text-red-600">
+                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                              </span>
+                                            </div>
+                                          ) : '-'}
+                                        </td>
+                                        <td className="py-4 px-4 text-right">
+                                          {tx.type === 'credit' ? (
+                                            <div className="flex flex-col items-end">
+                                              <span className="text-xs font-black text-green-600">
+                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                              </span>
+                                            </div>
+                                          ) : '-'}
+                                        </td>
+                                        <td className="py-4 px-4 text-right">
+                                          <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                                            {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                    </>
+                                  );
+                                })()}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
               <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
                 <button 
@@ -2063,9 +2114,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <form onSubmit={handleAddTransaction} className="p-6 space-y-4">
                 <div className="p-4 bg-gray-50 rounded-2xl flex justify-between items-center">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Mevcut Bakiye' : 'Current Balance'}</span>
-                  <span className={`font-black ${Number(selectedCompany.balance) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {Math.abs(Number(selectedCompany.balance)).toLocaleString('tr-TR')} {branding.default_currency?.slice(0, 3)}
-                    {Number(selectedCompany.balance) < 0 ? (lang === 'tr' ? ' (Borçlu)' : ' (Debt)') : (lang === 'tr' ? ' (Alacaklı)' : ' (Credit)')}
+                  <span className={`font-black ${Number(selectedCompany.balances?.[newTransactionCurrency] || 0) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {Math.abs(Number(selectedCompany.balances?.[newTransactionCurrency] || 0)).toLocaleString('tr-TR')} {newTransactionCurrency.slice(0, 3)}
+                    {Number(selectedCompany.balances?.[newTransactionCurrency] || 0) < 0 ? (lang === 'tr' ? ' (Borçlu)' : ' (Debt)') : (lang === 'tr' ? ' (Alacaklı)' : ' (Credit)')}
                   </span>
                 </div>
 
