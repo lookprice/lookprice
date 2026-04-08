@@ -37,7 +37,7 @@ const ShippingSlip = React.forwardRef<HTMLDivElement, ShippingSlipProps>(({ sale
           {sale.items?.map((item: any, index: number) => (
             <tr key={index}>
               <td className="border border-black p-2">{item.product_name}</td>
-              <td className="border border-black p-2 text-center">{item.quantity}</td>
+              <td className="border border-black p-2 text-center">{Math.floor(Number(item.quantity))}</td>
             </tr>
           ))}
         </tbody>

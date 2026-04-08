@@ -125,7 +125,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
   const updateQuantity = (productId: number, delta: number) => {
     setCart(prev => prev.map(item => {
       if (item.id === productId) {
-        const newQty = Math.max(0.1, item.quantity + delta);
+        const newQty = Math.max(1, Math.floor(item.quantity + delta));
         return { ...item, quantity: newQty };
       }
       return item;

@@ -280,7 +280,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                         </div>
                         <div className="flex items-center space-x-3">
                           <span className={`text-xs font-bold ${item.stock_quantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                            {item.stock_quantity} {item.unit || (lang === 'tr' ? 'Adet' : 'Units')}
+                            {Math.floor(Number(item.stock_quantity))} {item.unit || (lang === 'tr' ? 'Adet' : 'Units')}
                           </span>
                           {item.stock_quantity > 0 && !isViewer && (
                             <button
@@ -359,7 +359,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                             <div className="flex flex-col gap-0.5">
                               {transfer.items?.slice(0, 2).map((item: any, idx: number) => (
                                 <span key={idx} className="text-[10px] text-gray-600 truncate max-w-[150px]">
-                                  {item.quantity}x {item.product_name}
+                                  {Math.floor(Number(item.quantity))}x {item.product_name}
                                 </span>
                               ))}
                               {transfer.items?.length > 2 && (
@@ -556,7 +556,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                       <tr key={idx}>
                         <td className="px-3 py-2 text-[10px] font-mono text-gray-500">{item.barcode}</td>
                         <td className="px-3 py-2 text-[10px] font-bold text-gray-900">{item.product_name}</td>
-                        <td className="px-3 py-2 text-[10px] font-bold text-gray-900 text-right">{item.quantity} {t.units || (lang === 'tr' ? 'Adet' : 'Units')}</td>
+                        <td className="px-3 py-2 text-[10px] font-bold text-gray-900 text-right">{Math.floor(Number(item.quantity))} {t.units || (lang === 'tr' ? 'Adet' : 'Units')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -709,12 +709,16 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                                 <input
                                   type="number"
                                   min="1"
+                                  step="1"
                                   max={item.stock_quantity}
                                   className="w-full p-1.5 bg-white border border-gray-200 rounded text-xs text-center"
                                   value={item.quantity}
+                                  onKeyDown={(e) => {
+                                    if (e.key === '.' || e.key === ',') e.preventDefault();
+                                  }}
                                   onChange={e => {
                                     const newItems = [...transferItems];
-                                    newItems[idx].quantity = Math.min(Number(e.target.value), item.stock_quantity);
+                                    newItems[idx].quantity = Math.min(Math.floor(Number(e.target.value)), Math.floor(Number(item.stock_quantity)));
                                     setTransferItems(newItems);
                                   }}
                                 />

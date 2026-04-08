@@ -1698,7 +1698,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <div className="text-sm font-medium text-slate-900">{item.product_name}</div>
                             <div className="text-xs text-slate-400">#{item.product_id}</div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 text-center">{item.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
                           <td className="px-4 py-3 text-sm text-slate-600 text-right">
                             {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
                           </td>
@@ -2700,8 +2700,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <input 
                           name="stock_quantity" 
                           type="text" 
+                          inputMode="numeric"
                           defaultValue={editingProduct?.stock_quantity || 0} 
                           onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => {
+                            if (e.key === '.' || e.key === ',') e.preventDefault();
+                          }}
+                          onInput={(e: any) => {
+                            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                          }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />
                       </div>
@@ -2710,8 +2717,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <input 
                           name="min_stock_level" 
                           type="text" 
+                          inputMode="numeric"
                           defaultValue={editingProduct?.min_stock_level ?? 5} 
                           onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => {
+                            if (e.key === '.' || e.key === ',') e.preventDefault();
+                          }}
+                          onInput={(e: any) => {
+                            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                          }}
                           className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
                         />
                       </div>
@@ -3310,9 +3324,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <input 
                               type="number" 
                               min="1"
+                              step="1"
                               value={item.quantity === 0 ? '' : item.quantity}
+                              onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                               onChange={(e) => {
-                                const qty = parseInt(e.target.value) || 0;
+                                const qty = Math.floor(Number(e.target.value)) || 0;
                                 const newItems = [...quotationItems];
                                 newItems[idx] = { ...newItems[idx], quantity: qty, total_price: qty * Number(item.unit_price) };
                                 setQuotationItems(newItems);

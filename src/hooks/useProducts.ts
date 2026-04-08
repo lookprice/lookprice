@@ -102,9 +102,14 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
       product_type: rawData.product_type || 'product'
     };
-    ['price', 'price_2', 'cost_price', 'stock_quantity', 'min_stock_level', 'tax_rate'].forEach(field => {
+    ['price', 'price_2', 'cost_price', 'tax_rate'].forEach(field => {
       if (data[field]) {
         data[field] = Number(String(data[field]).replace(',', '.'));
+      }
+    });
+    ['stock_quantity', 'min_stock_level'].forEach(field => {
+      if (data[field]) {
+        data[field] = Math.floor(Number(String(data[field]).replace(',', '.')));
       }
     });
 

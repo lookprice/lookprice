@@ -312,7 +312,7 @@ const ProductsTab = ({
                       ) : (
                         <div className="flex items-center space-x-2">
                           <span className={`text-sm font-bold ${Number(p.stock_quantity) <= Number(p.min_stock_level) ? 'text-rose-600' : 'text-slate-700'}`}>
-                            {p.stock_quantity}
+                            {Math.floor(Number(p.stock_quantity))}
                           </span>
                           {Number(p.stock_quantity) <= Number(p.min_stock_level) && (
                             <div className="flex items-center px-1.5 py-0.5 bg-rose-50 rounded text-[10px] font-bold text-rose-600 border border-rose-100 uppercase tracking-tighter">

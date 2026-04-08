@@ -284,11 +284,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         ]],
         body: tableData,
         theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-        styles: { fontSize: 7, cellPadding: 2, font: "helvetica" },
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+        styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
-          3: { halign: 'center', cellWidth: 15 },
+          3: { halign: 'center', cellWidth: 12 },
           4: { halign: 'right', cellWidth: 25 },
           5: { halign: 'right', cellWidth: 25 }
         },
@@ -426,7 +426,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       }
     }
 
-    const qty = Number(String(item.quantity).replace(',', '.')) || 0;
+    const qty = Math.floor(Number(String(item.quantity).replace(',', '.')) || 0);
     const price = Number(String(item.unit_price).replace(',', '.')) || 0;
     const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
 
@@ -898,8 +898,15 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.service_tab.quantity}</label>
                           <input
                             type="text"
+                            inputMode="numeric"
                             value={item.quantity}
-                            onChange={(e) => updateItem(index, { quantity: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === '.' || e.key === ',') e.preventDefault();
+                            }}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9]/g, '');
+                              updateItem(index, { quantity: val });
+                            }}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
                           />
                         </div>
@@ -1111,7 +1118,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                             <div className="font-bold">{item.item_name}</div>
                             <div className="text-[10px] text-slate-500 uppercase">{item.type === 'part' ? (isTr ? 'Yedek Parça' : 'Spare Part') : (isTr ? 'İşçilik' : 'Labor')}</div>
                           </td>
-                          <td className="border border-slate-900 p-2 text-center">{qty}</td>
+                          <td className="border border-slate-900 p-2 text-center">{Math.floor(qty)}</td>
                           <td className="border border-slate-900 p-2 text-right">{unitPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {selectedRecord.currency}</td>
                           <td className="border border-slate-900 p-2 text-right">{lineTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {selectedRecord.currency}</td>
                         </tr>

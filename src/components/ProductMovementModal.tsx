@@ -113,7 +113,7 @@ const ProductMovementModal = ({ product, onClose, branding }: ProductMovementMod
                     </div>
                   </div>
                   <div className={`font-bold ${m.type === 'in' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {m.type === 'in' ? '+' : '-'}{m.quantity}
+                    {m.type === 'in' ? '+' : '-'}{Math.floor(Number(m.quantity))}
                   </div>
                 </div>
               ))}
