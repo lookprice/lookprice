@@ -111,12 +111,15 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     // Ensure price_2_currency matches currency
     data.price_2_currency = data.currency;
 
-    const catName = String(data.category).trim().toLocaleLowerCase('tr-TR');
-    const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === catName);
-    if (matchedRule) {
-      data.tax_rate = String(matchedRule.taxRate);
-    } else if (catName === 'kitap') {
-      data.tax_rate = '0';
+    // Apply category-specific tax rules only for new products if not provided
+    if (!editingProduct && !data.tax_rate) {
+      const catName = String(data.category || '').trim().toLocaleLowerCase('tr-TR');
+      const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === catName);
+      if (matchedRule) {
+        data.tax_rate = String(matchedRule.taxRate);
+      } else if (catName === 'kitap') {
+        data.tax_rate = '0';
+      }
     }
 
     const barcode = String(data.barcode || '').trim();

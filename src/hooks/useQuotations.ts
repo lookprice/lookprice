@@ -8,7 +8,7 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
   const [showNotes, setShowNotes] = useState(false);
   const [quotationProductSearch, setQuotationProductSearch] = useState("");
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', barcode: '', tax_rate: '20' });
+  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', barcode: '', tax_rate: String(branding?.default_tax_rate ?? 20) });
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [quotationSearch, setQuotationSearch] = useState("");
@@ -30,7 +30,7 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
     e.preventDefault();
     try {
       const price = Number(quickProductForm.price);
-      const taxRate = Number(quickProductForm.tax_rate) || 20;
+      const taxRate = Number(quickProductForm.tax_rate) || Number(branding?.default_tax_rate ?? 20);
       const currency = branding?.default_currency || 'TRY';
       const price_2 = price / (1 + taxRate / 100);
 
@@ -51,12 +51,12 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
         barcode: newProduct.barcode,
         quantity: 1,
         unit_price: Number(newProduct.price),
-        tax_rate: Number(newProduct.tax_rate) || 20,
+        tax_rate: Number(newProduct.tax_rate) || Number(branding?.default_tax_rate ?? 20),
         total_price: Number(newProduct.price)
       }]);
       
       setShowQuickProductModal(false);
-      setQuickProductForm({ name: '', price: '', barcode: '', tax_rate: '20' });
+      setQuickProductForm({ name: '', price: '', barcode: '', tax_rate: String(branding?.default_tax_rate ?? 20) });
       fetchProductsData();
     } catch (error) {
       alert("Hata oluştu");

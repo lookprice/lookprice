@@ -217,7 +217,7 @@ router.post("/branding", async (req: any, res) => {
       fiscal_active, JSON.stringify(currency_rates || {"USD": 1, "EUR": 1, "GBP": 1}), 
       plan || 'free', country || 'TR', phone, address,
       hero_title, hero_subtitle, hero_image_url, instagram_url, 
-      facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate || 20,
+    facebook_url, twitter_url, whatsapp_number, about_text, (default_tax_rate === undefined || default_tax_rate === null) ? 20 : default_tax_rate,
       JSON.stringify(category_tax_rules || []),
       JSON.stringify(faq || []),
       JSON.stringify(blog_posts || []),
@@ -502,7 +502,7 @@ router.post("/products", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency } = req.body;
+  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate } = req.body;
   if (!barcode || !name || !price) return res.status(400).json({ error: "Missing fields" });
   
   try {
@@ -519,8 +519,8 @@ router.post("/products", async (req: any, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, updated_at) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP)
+      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, updated_at) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, String(barcode), name, parseFloat(price), currency || 'TRY', 
@@ -531,7 +531,8 @@ router.post("/products", async (req: any, res) => {
       is_web_sale !== undefined ? is_web_sale : true,
       product_type || 'product',
       parseFloat(price_2) || 0,
-      price_2_currency || 'TRY'
+      price_2_currency || 'TRY',
+      parseFloat(tax_rate) || 0
     ]);
     res.json(result.rows[0]);
   } catch (e: any) {
@@ -572,7 +573,14 @@ router.put("/products/bulk-update-price", async (req: any, res) => {
   }
 
   try {
-    let query = `UPDATE products SET price = ${priceCalc}, price_2 = ${priceCalc} / (1 + COALESCE(tax_rate, 20) / 100.0), price_2_currency = currency, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1`;
+    let query = `
+      UPDATE products p 
+      SET price = ${priceCalc}, 
+          price_2 = ${priceCalc} / (1 + COALESCE(p.tax_rate, s.default_tax_rate, 20) / 100.0), 
+          price_2_currency = p.currency, 
+          updated_at = CURRENT_TIMESTAMP 
+      FROM stores s 
+      WHERE p.store_id = s.id AND p.store_id = $1`;
     const params: any[] = [storeId];
 
     if (target === 'category' && category) {
@@ -649,7 +657,12 @@ router.put("/products/bulk-recalculate-price2", async (req: any, res) => {
 
   try {
     const result = await pool.query(
-      "UPDATE products SET price_2 = price / (1 + COALESCE(tax_rate, 20) / 100.0), price_2_currency = currency, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1",
+      `UPDATE products p 
+       SET price_2 = p.price / (1 + COALESCE(p.tax_rate, s.default_tax_rate, 20) / 100.0), 
+           price_2_currency = p.currency, 
+           updated_at = CURRENT_TIMESTAMP 
+       FROM stores s 
+       WHERE p.store_id = s.id AND p.store_id = $1`,
       [storeId]
     );
 
@@ -677,7 +690,7 @@ router.put("/products/:id", async (req: any, res) => {
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
   const { id } = req.params;
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency } = req.body;
+  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate } = req.body;
   try {
     await pool.query(`
       UPDATE products SET 
@@ -686,8 +699,8 @@ router.put("/products/:id", async (req: any, res) => {
         stock_quantity = $8, min_stock_level = $9, unit = $10, 
         category = $11, sub_category = $12, brand = $13, author = $14, 
         labels = $15, image_url = $16, is_web_sale = $17, product_type = $18,
-        price_2 = $19, price_2_currency = $20, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $21 AND store_id = $22
+        price_2 = $19, price_2_currency = $20, tax_rate = $21, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $22 AND store_id = $23
     `, [
       String(barcode), name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
@@ -698,6 +711,7 @@ router.put("/products/:id", async (req: any, res) => {
       product_type || 'product',
       parseFloat(price_2) || 0,
       price_2_currency || 'TRY',
+      parseFloat(tax_rate) || 0,
       id, storeId
     ]);
     
@@ -922,14 +936,29 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
         const categoryRaw = item[mapping.category];
         const hasCategoryUpdate = categoryRaw !== undefined && categoryRaw !== null && String(categoryRaw).trim() !== "";
         const category = hasCategoryUpdate ? String(categoryRaw).trim() : '';
+        
+        const taxRateRaw = item[mapping.tax_rate];
+        const hasTaxRateUpdate = taxRateRaw !== undefined && taxRateRaw !== null && String(taxRateRaw).trim() !== "";
+        const taxRate = hasTaxRateUpdate ? parseFloat(String(taxRateRaw)) : null;
 
         if (existing.rows.length > 0) {
           // Update existing product
           const existingId = existing.rows[0].id;
           
-          let updateQuery = "UPDATE products SET updated_at = CURRENT_TIMESTAMP, price = $2";
-          let updateParams: any[] = [existingId, price];
-          let paramIdx = 3;
+          // Get current tax rate for price_2 calculation if not provided in import
+          let effectiveTaxRate = 20;
+          if (hasTaxRateUpdate) {
+            effectiveTaxRate = taxRate!;
+          } else {
+            const currentTaxRes = await client.query("SELECT COALESCE(p.tax_rate, s.default_tax_rate, 20) as tax_rate FROM products p JOIN stores s ON p.store_id = s.id WHERE p.id = $1", [existingId]);
+            effectiveTaxRate = currentTaxRes.rows[0].tax_rate;
+          }
+
+          const price_2 = price / (1 + effectiveTaxRate / 100.0);
+
+          let updateQuery = "UPDATE products SET updated_at = CURRENT_TIMESTAMP, price = $2, price_2 = $3";
+          let updateParams: any[] = [existingId, price, price_2];
+          let paramIdx = 4;
 
           if (name) {
             updateQuery += `, name = $${paramIdx}`;
@@ -991,14 +1020,26 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
+          if (hasTaxRateUpdate) {
+            updateQuery += `, tax_rate = $${paramIdx}`;
+            updateParams.push(taxRate);
+            paramIdx++;
+          }
+
           updateQuery += ` WHERE id = $1`;
           await client.query(updateQuery, updateParams);
           successCount++;
         } else {
           // Insert new product
+          // Get store default tax rate for price_2 calculation
+          const storeRes = await client.query("SELECT default_tax_rate FROM stores WHERE id = $1", [storeId]);
+          const storeDefaultTax = storeRes.rows[0]?.default_tax_rate ?? 20;
+          const effectiveTaxRate = hasTaxRateUpdate ? taxRate! : storeDefaultTax;
+          const price_2 = price / (1 + effectiveTaxRate / 100.0);
+
           await client.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, updated_at) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, name, price, currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, tax_rate, price_2, price_2_currency, updated_at) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP)
           `, [
             storeId,
             barcode,
@@ -1012,7 +1053,10 @@ router.post("/import", upload.single("file"), async (req: any, res) => {
             category,
             item[mapping.sub_category] || '',
             item[mapping.brand] || '',
-            item[mapping.author] || ''
+            item[mapping.author] || '',
+            hasTaxRateUpdate ? taxRate : null,
+            price_2,
+            currency
           ]);
           successCount++;
         }

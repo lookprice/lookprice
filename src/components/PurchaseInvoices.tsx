@@ -399,7 +399,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
       let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
       
-      let taxRate = branding?.default_tax_rate || 20;
+      let taxRate = branding?.default_tax_rate ?? 20;
       let category = '';
 
       if (matchedRule) {

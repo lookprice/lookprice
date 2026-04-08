@@ -2603,7 +2603,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onChange={(e) => {
                             const form = e.target.closest('form');
                             if (!form) return;
-                            const taxRate = (form.querySelector('input[name="tax_rate"]') as HTMLInputElement)?.value || '20';
+                            const taxRate = (form.querySelector('input[name="tax_rate"]') as HTMLInputElement)?.value || String(branding.default_tax_rate ?? 20);
                             const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
                             if (price2Input) {
                               const p = Number(e.target.value.replace(',', '.'));

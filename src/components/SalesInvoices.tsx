@@ -72,6 +72,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [editTaxOffice, setEditTaxOffice] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [showQuickProductModal, setShowQuickProductModal] = useState(false);
+  const [quickProductForm, setQuickProductForm] = useState({ name: "", price: "", barcode: "" });
 
   const isTr = lang === 'tr';
 
@@ -198,7 +200,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
           : item
       ));
     } else {
-      const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20");
+      const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : String(20));
       const taxRate = Number(taxRateStr);
       
       let unitPrice: number;
@@ -409,6 +411,48 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setShowModal(true);
     } catch (error: any) {
       alert(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+    }
+  };
+
+  const handleQuickProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
+      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
+      
+      let taxRate = branding?.default_tax_rate ?? 20;
+      let category = '';
+
+      if (matchedRule) {
+        taxRate = matchedRule.taxRate;
+        category = matchedRule.category;
+      } else if (productNameLower.includes('kitap')) {
+        taxRate = 0;
+        category = 'Kitap';
+      }
+
+      const price = Number(quickProductForm.price);
+      const currency = branding?.default_currency || 'TRY';
+      const price_2 = price / (1 + taxRate / 100);
+
+      const newProduct = await api.addProduct({
+        ...quickProductForm,
+        price,
+        price_2,
+        currency,
+        price_2_currency: currency,
+        tax_rate: taxRate,
+        stock_quantity: 0,
+        status: 'active',
+        category: category
+      }, role === 'superadmin' ? storeId : undefined);
+      
+      setProducts([...products, newProduct] as any);
+      handleAddProduct(newProduct);
+      setShowQuickProductModal(false);
+      setQuickProductForm({ name: "", price: "", barcode: "" });
+    } catch (error) {
+      alert(isTr ? "Hata oluştu" : "An error occurred");
     }
   };
 
@@ -998,8 +1042,20 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                                 </button>
                               ))}
                               {filteredProducts.length === 0 && (
-                                <div className="p-4 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                  {isTr ? "Ürün bulunamadı" : "No products found"}
+                                <div className="p-4 text-center">
+                                  <p className="text-sm text-slate-500 mb-2">{isTr ? "Ürün bulunamadı" : "Product not found"}</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setQuickProductForm(prev => ({ ...prev, name: productSearch }));
+                                      setShowQuickProductModal(true);
+                                      setShowProductDropdown(false);
+                                    }}
+                                    className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center gap-1 w-full"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -1299,6 +1355,88 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Quick Add Product Modal */}
+      <AnimatePresence>
+        {showQuickProductModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+              onClick={() => setShowQuickProductModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Package className="h-5 w-5 text-indigo-600" />
+                  {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
+                </h3>
+                <button
+                  onClick={() => setShowQuickProductModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleQuickProductSubmit} className="p-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Ürün Adı" : "Product Name"} *</label>
+                  <input
+                    type="text"
+                    required
+                    value={quickProductForm.name}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Barkod" : "Barcode"}</label>
+                  <input
+                    type="text"
+                    value={quickProductForm.barcode}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
+                    maxLength={13}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Satış Fiyatı" : "Selling Price"} *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={quickProductForm.price}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickProductModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  >
+                    {isTr ? "İptal" : "Cancel"}
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors"
+                  >
+                    {isTr ? "Kaydet" : "Save"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
