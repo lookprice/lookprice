@@ -298,7 +298,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   );
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
-  const totalDeductibleTax = filteredInvoices.reduce((sum: number, inv: any) => sum + Number(inv.tax_amount || 0), 0);
+  const totalDeductibleTax = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalPurchaseAmount = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalGrandTotal = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
   const filteredProducts = products.filter((p: any) => 
     (p.name || "").toLowerCase().includes(deferredProductSearch.toLowerCase()) ||
@@ -492,6 +494,30 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             <p className="text-sm font-medium text-slate-500">{isTr ? "Toplanan İndirilecek Vergi" : "Total Deductible Tax"}</p>
             <p className="text-2xl font-black text-slate-900">
               {totalDeductibleTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div className="p-3 bg-emerald-50 rounded-xl">
+            <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Alış Matrahı" : "Total Purchase Subtotal"}</p>
+            <p className="text-2xl font-black text-slate-900">
+              {totalPurchaseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div className="p-3 bg-amber-50 rounded-xl">
+            <CreditCard className="h-6 w-6 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Genel Toplam" : "Total Grand Total"}</p>
+            <p className="text-2xl font-black text-slate-900">
+              {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
             </p>
           </div>
         </div>
