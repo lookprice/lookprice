@@ -1019,6 +1019,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           setEditingQuotation(q); 
                           setQuotationItems((q.items || []).map((item: any) => ({
                             ...item,
+                            quantity: Math.floor(Number(item.quantity) || 0),
                             unit_price: Number(item.unit_price),
                             total_price: Number(item.total_price),
                             tax_rate: Math.round(Number(item.tax_rate) || 0)

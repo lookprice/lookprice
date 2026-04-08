@@ -82,7 +82,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     if (existingItem) {
       setItems(items.map(item => 
         item.product_id === product.id 
-          ? { ...item, quantity: Number(item.quantity) + 1 }
+          ? { ...item, quantity: String(Math.floor(Number(item.quantity) + 1)) }
           : item
       ));
     } else {
@@ -272,7 +272,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         product_id: item.product_id,
         product_name: item.product_name,
         barcode: item.barcode,
-        quantity: String(item.quantity),
+        quantity: String(Math.floor(Number(item.quantity) || 0)),
         unit_price: String(item.unit_price),
         tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
       })));

@@ -361,7 +361,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       setEditingRecord(fullRecord);
       setServiceItems((fullRecord.items || []).map((item: any) => ({
         ...item,
-        quantity: Number(item.quantity),
+        quantity: Math.floor(Number(item.quantity) || 0),
         unit_price: Number(item.unit_price),
         tax_rate: Math.floor(Number(item.tax_rate) || 0),
         total_price: Number(item.total_price)
@@ -379,7 +379,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
         ...fullRecord,
         items: (fullRecord.items || []).map((item: any) => ({
           ...item,
-          quantity: Number(item.quantity),
+          quantity: Math.floor(Number(item.quantity) || 0),
           unit_price: Number(item.unit_price),
           tax_rate: Number(item.tax_rate),
           total_price: Number(item.total_price)
