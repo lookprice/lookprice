@@ -501,7 +501,7 @@ const StoreShowcase: React.FC = () => {
 
   const [customerInfo, setCustomerInfo] = useState({ 
     name: "", surname: "", phone: "", address: "", email: "", password: "", passwordConfirm: "",
-    country: "", city: "", tc_id: "", is_corporate: false, marketing_email: false, marketing_sms: false, accept_terms: false
+    country: "", city: "", tc_id: "", is_corporate: false, marketing_email: false, marketing_sms: false, accept_terms: false, createAccount: false
   });
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
@@ -513,7 +513,7 @@ const StoreShowcase: React.FC = () => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
-  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal'>('credit_card');
+  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal' | 'iyzico'>('credit_card');
   const [customer, setCustomer] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -822,6 +822,12 @@ const StoreShowcase: React.FC = () => {
     e.preventDefault();
     if (!store || basket.length === 0) return;
 
+    // Iyzico zorunluluğu kontrolü
+    if (store.payment_settings?.iyzico_enabled && paymentMethod !== 'iyzico') {
+      setError(lang === 'tr' ? 'Lütfen ödeme yöntemi olarak iyzico seçin.' : 'Please select iyzico as payment method.');
+      return;
+    }
+
     setCheckoutStatus('loading');
     try {
       // Calculate converted prices for items
@@ -845,10 +851,12 @@ const StoreShowcase: React.FC = () => {
         items: itemsWithConvertedPrices,
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
+        customerEmail: customerInfo.email,
         customerAddress: customerInfo.address,
         total: basketTotal,
         currency: store.currency,
-        paymentMethod: paymentMethod
+        paymentMethod: paymentMethod,
+        createAccount: customerInfo.createAccount
       });
 
       if (res.error) throw new Error(res.error);
@@ -1481,14 +1489,22 @@ const StoreShowcase: React.FC = () => {
             <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-3xl font-black text-gray-900">{lang === 'tr' ? 'Profilim' : 'My Profile'}</h2>
-                {customerProfile && !isEditingProfile && (
+                <div className="flex gap-2">
+                  {customerProfile && !isEditingProfile && (
+                    <button 
+                      onClick={() => setIsEditingProfile(true)}
+                      className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-bold transition-colors"
+                    >
+                      {lang === 'tr' ? 'Düzenle' : 'Edit'}
+                    </button>
+                  )}
                   <button 
-                    onClick={() => setIsEditingProfile(true)}
-                    className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-bold transition-colors"
+                    onClick={() => navigate(`/s/${slug}/orders`)}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors"
                   >
-                    {lang === 'tr' ? 'Düzenle' : 'Edit'}
+                    {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
                   </button>
-                )}
+                </div>
               </div>
               
               {customerProfile ? (
@@ -2373,6 +2389,7 @@ const StoreShowcase: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setShowAuthModal(false);
+                        setIsCheckoutModalOpen(true);
                       }}
                       className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold transition-all"
                     >
@@ -2467,6 +2484,18 @@ const StoreShowcase: React.FC = () => {
                             placeholder="05xx xxx xx xx"
                           />
                         </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'E-POSTA' : 'EMAIL'}</label>
+                          <input 
+                            required
+                            type="email"
+                            value={customerInfo.email}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
+                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                            placeholder="email@example.com"
+                          />
+                        </div>
                       </div>
 
                       <div className="space-y-2">
@@ -2482,10 +2511,23 @@ const StoreShowcase: React.FC = () => {
                         />
                       </div>
 
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={customerInfo.createAccount}
+                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, createAccount: e.target.checked }))}
+                            className="w-4 h-4 rounded text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Hesap oluştur' : 'Create an account'}</span>
+                        </label>
+                      </div>
+                      
                       <div className="space-y-4">
                         <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</label>
                         <div className="grid grid-cols-1 gap-3">
-                          {(!store?.payment_settings?.payoneer_enabled && !store?.payment_settings?.paypal_enabled && !store?.payment_settings?.iyzico_enabled) && (
+                          {/* Default Credit Card - Only show if iyzico is NOT enabled */}
+                          {!store?.payment_settings?.iyzico_enabled && (
                             <button
                               type="button"
                               onClick={() => setPaymentMethod('credit_card')}
@@ -2530,13 +2572,13 @@ const StoreShowcase: React.FC = () => {
                           {store?.payment_settings?.iyzico_enabled && (
                             <button
                               type="button"
-                              onClick={() => setPaymentMethod('credit_card')}
-                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
-                              style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
+                              onClick={() => setPaymentMethod('iyzico')}
+                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'iyzico' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              style={{ borderColor: paymentMethod === 'iyzico' ? primaryColor : undefined }}
                             >
                               <div className="flex items-center gap-3">
-                                <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
-                                <span className={`font-bold text-sm ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'iyzico ile Öde' : 'Pay with iyzico'}</span>
+                                <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'iyzico' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'iyzico' ? primaryColor : undefined }} />
+                                <span className={`font-bold text-sm ${paymentMethod === 'iyzico' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'iyzico ile Öde' : 'Pay with iyzico'}</span>
                               </div>
                             </button>
                           )}

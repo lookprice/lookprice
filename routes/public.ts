@@ -6,14 +6,22 @@ const router = express.Router();
 
 // Helper for Iyzico Signature
 function generateIyzicoSignature(apiKey: string, secretKey: string, randomString: string, payload: any) {
-  // This is a simplified version of Iyzico's PKI string generation
-  // In a real production app, you'd use their official SDK or a more robust PKI builder
-  let pkiString = `[apiKey=${apiKey}],[randomString=${randomString}],[secretKey=${secretKey}]`;
-  if (payload && Object.keys(payload).length > 0) {
-    // Simplified: just append some payload info if needed
-    // Real Iyzico PKI requires a specific nested structure concatenation
+  // For Checkout Form Initialize, the PKI string is a concatenation of specific fields
+  let pkiString = `[apiKey=${apiKey}],[randomString=${randomString}]`;
+  
+  if (payload) {
+    if (payload.locale) pkiString += `,[locale=${payload.locale}]`;
+    if (payload.conversationId) pkiString += `,[conversationId=${payload.conversationId}]`;
+    if (payload.price) pkiString += `,[price=${payload.price}]`;
+    if (payload.paidPrice) pkiString += `,[paidPrice=${payload.paidPrice}]`;
+    if (payload.currency) pkiString += `,[currency=${payload.currency}]`;
+    if (payload.basketId) pkiString += `,[basketId=${payload.basketId}]`;
+    if (payload.paymentGroup) pkiString += `,[paymentGroup=${payload.paymentGroup}]`;
+    if (payload.callbackUrl) pkiString += `,[callbackUrl=${payload.callbackUrl}]`;
   }
-  return crypto.createHash('sha1').update(pkiString).digest('base64');
+
+  const hash = crypto.createHash('sha1').update(apiKey + randomString + secretKey + pkiString).digest('hex');
+  return hash;
 }
 
 // Helper for PayPal Access Token
@@ -462,13 +470,36 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
 
 // Update Public Sales to handle customer_id
 router.post("/sales", async (req, res) => {
-  const { storeId, items, total, currency, customerName, customerPhone, customerAddress, notes, paymentMethod, customerId } = req.body;
+  const { storeId, items, total, currency, customerName, customerPhone, customerAddress, customerEmail, notes, paymentMethod, customerId, createAccount } = req.body;
+  
+  if (!paymentMethod) {
+    return res.status(400).json({ error: "Lütfen bir ödeme yöntemi seçin." });
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    
+    let finalCustomerId = customerId;
+
+    if (createAccount && customerEmail) {
+      // Check if customer exists
+      const existingCustomer = await client.query("SELECT id FROM customers WHERE email = $1 AND store_id = $2", [customerEmail, storeId]);
+      if (existingCustomer.rows.length > 0) {
+        finalCustomerId = existingCustomer.rows[0].id;
+      } else {
+        // Create new customer
+        const newCustomer = await client.query(
+          "INSERT INTO customers (store_id, name, surname, email, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+          [storeId, customerName?.split(' ')[0] || '', customerName?.split(' ')[1] || '', customerEmail, customerPhone, customerAddress]
+        );
+        finalCustomerId = newCustomer.rows[0].id;
+      }
+    }
+
     const saleRes = await client.query(
       "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', notes || '', paymentMethod || 'credit_card', customerId || null]
+      [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', notes || '', paymentMethod, finalCustomerId || null]
     );
     const saleId = saleRes.rows[0].id;
 
@@ -544,13 +575,17 @@ router.post("/sales", async (req, res) => {
     }
 
     // 2. Iyzico Integration
-    if (paymentMethod === 'credit_card' && paymentSettings.iyzico_enabled) {
+    if (paymentMethod === 'iyzico' && paymentSettings.iyzico_enabled) {
       const { iyzico_api_key, iyzico_secret_key, iyzico_sandbox } = paymentSettings;
       if (iyzico_api_key && iyzico_secret_key) {
         const baseUrl = iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com';
         const randomString = Date.now().toString();
         const signature = generateIyzicoSignature(iyzico_api_key, iyzico_secret_key, randomString, {});
         
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.headers.host;
+        const callbackUrl = `${protocol}://${host}/api/public/webhooks/iyzico?saleId=${saleId}`;
+
         const iyzicoRequest = {
           locale: "tr",
           conversationId: saleId.toString(),
@@ -559,13 +594,13 @@ router.post("/sales", async (req, res) => {
           currency: currency || storeData.default_currency || 'TRY',
           basketId: `B-${saleId}`,
           paymentGroup: "PRODUCT",
-          callbackUrl: `${req.headers.origin}/api/public/webhooks/iyzico?saleId=${saleId}`,
+          callbackUrl: callbackUrl,
           enabledInstallments: [1, 2, 3, 6, 9],
           buyer: {
             id: customerId?.toString() || "GUEST",
             name: customerName?.split(' ')[0] || "Müşteri",
             surname: customerName?.split(' ').slice(1).join(' ') || "Soyad",
-            email: "customer@example.com", // Placeholder if not provided
+            email: customerEmail || "customer@example.com",
             identityNumber: "11111111111",
             registrationAddress: customerAddress || "Adres",
             ip: req.ip,
@@ -911,13 +946,17 @@ router.post("/webhooks/iyzico", async (req, res) => {
 
     const result = await response.json();
     
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const host = req.headers.host;
+    const baseUrlForRedirect = `${protocol}://${host}`;
+
     if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
       await pool.query("UPDATE sales SET status = 'processing' WHERE id = $1", [saleId]);
       // Redirect back to success page
-      res.redirect(`${req.headers.origin}/checkout/success?saleId=${saleId}`);
+      res.redirect(`${baseUrlForRedirect}/checkout/success?saleId=${saleId}`);
     } else {
       await pool.query("UPDATE sales SET status = 'cancelled' WHERE id = $1", [saleId]);
-      res.redirect(`${req.headers.origin}/checkout/cancel?saleId=${saleId}`);
+      res.redirect(`${baseUrlForRedirect}/checkout/cancel?saleId=${saleId}`);
     }
   } catch (e: any) {
     console.error("Iyzico Callback Error:", e.message);

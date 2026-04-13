@@ -196,7 +196,8 @@ export default function CustomerScanPage() {
         items: basket,
         totalAmount,
         currency: store.default_currency || 'TRY',
-        customerName: 'Mobil Müşteri'
+        customerName: 'Mobil Müşteri',
+        paymentMethod: 'cash'
       });
       if (!res.error) {
         // POS Integration Simulation
