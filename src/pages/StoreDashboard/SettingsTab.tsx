@@ -28,11 +28,12 @@ import {
   Download,
   AlertTriangle
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { DEVELOPED_COUNTRIES } from "../../constants";
 import { api } from "../../services/api";
-import { motion } from "motion/react";
+import { PageBuilder } from "../../components/PageBuilder.tsx";
 
 interface SettingsTabProps {
   branding: any;
@@ -46,6 +47,7 @@ interface SettingsTabProps {
   users: any[];
   currentUser: any;
   currentStoreId?: number;
+  onRefresh?: () => void;
 }
 
 const SettingsTab = ({ 
@@ -59,7 +61,8 @@ const SettingsTab = ({
   onDeleteUser,
   users,
   currentUser,
-  currentStoreId
+  currentStoreId,
+  onRefresh
 }: SettingsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
@@ -86,8 +89,24 @@ const SettingsTab = ({
   const [pzSyncing, setPzSyncing] = React.useState(false);
   const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
   const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
+  const [verifyingDomain, setVerifyingDomain] = React.useState(false);
+  const [verificationResult, setVerificationResult] = React.useState<{ a: boolean, cname: boolean, ip: string | null, target: string | null } | null>(null);
+  const [cfStatus, setCfStatus] = React.useState<any>(null);
+  const [loadingCf, setLoadingCf] = React.useState(false);
 
-  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos'>('web');
+  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos' | 'domain' | 'menu' | 'layout'>(() => {
+    return (localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) as any) || 'web';
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem(`settingsSubTab_${currentStoreId || 'admin'}`, activeSubTab);
+  }, [activeSubTab, currentStoreId]);
+
+  React.useEffect(() => {
+    if (branding.custom_domain) {
+      fetchCfStatus();
+    }
+  }, [branding.custom_domain]);
 
   if (!branding) return null;
 
@@ -125,7 +144,7 @@ const SettingsTab = ({
         storeId: currentStoreId 
       });
       alert(t.saveSuccess);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -137,7 +156,7 @@ const SettingsTab = ({
       const res = await api.syncAmazonOrders(currentStoreId);
       alert(`${t.amazonSyncSuccess}: ${res.count} ${t.sales}`);
       // Refresh branding to get new last_sync
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.amazonSyncError);
     } finally {
@@ -150,7 +169,7 @@ const SettingsTab = ({
     try {
       await api.disconnectAmazon(currentStoreId);
       alert(t.amazonDisconnected);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -160,7 +179,7 @@ const SettingsTab = ({
     try {
       await api.saveN11Settings({ appKey: n11AppKey, appSecret: n11AppSecret, storeId: currentStoreId });
       alert(t.saveSuccess);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -171,7 +190,7 @@ const SettingsTab = ({
     try {
       const res = await api.syncN11Orders(currentStoreId);
       alert(`${t.n11SyncSuccess}: ${res.count} ${t.sales}`);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.n11SyncError);
     } finally {
@@ -184,7 +203,7 @@ const SettingsTab = ({
     try {
       await api.disconnectN11(currentStoreId);
       alert(t.n11Disconnected);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -194,7 +213,7 @@ const SettingsTab = ({
     try {
       await api.saveHepsiburadaSettings({ apiKey: hbApiKey, apiSecret: hbApiSecret, merchantId: hbMerchantId, storeId: currentStoreId });
       alert(t.saveSuccess);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -205,7 +224,7 @@ const SettingsTab = ({
     try {
       const res = await api.syncHepsiburadaOrders(currentStoreId);
       alert(`${t.hepsiburadaSyncSuccess}: ${res.count} ${t.sales}`);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.hepsiburadaSyncError);
     } finally {
@@ -218,7 +237,7 @@ const SettingsTab = ({
     try {
       await api.disconnectHepsiburada(currentStoreId);
       alert(t.hepsiburadaDisconnected);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -228,7 +247,7 @@ const SettingsTab = ({
     try {
       await api.saveTrendyolSettings({ apiKey: tyApiKey, apiSecret: tyApiSecret, merchantId: tyMerchantId, storeId: currentStoreId });
       alert(t.saveSuccess);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -239,7 +258,7 @@ const SettingsTab = ({
     try {
       const res = await api.syncTrendyolOrders(currentStoreId);
       alert(`${t.trendyolSyncSuccess}: ${res.count} ${t.sales}`);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.trendyolSyncError);
     } finally {
@@ -252,7 +271,7 @@ const SettingsTab = ({
     try {
       await api.disconnectTrendyol(currentStoreId);
       alert(t.trendyolDisconnected);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -262,7 +281,7 @@ const SettingsTab = ({
     try {
       await api.savePazaramaSettings({ apiKey: pzApiKey, apiSecret: pzApiSecret, storeId: currentStoreId });
       alert(t.saveSuccess);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -273,7 +292,7 @@ const SettingsTab = ({
     try {
       const res = await api.syncPazaramaOrders(currentStoreId);
       alert(`${t.pazaramaSyncSuccess}: ${res.count} ${t.sales}`);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.pazaramaSyncError);
     } finally {
@@ -286,11 +305,68 @@ const SettingsTab = ({
     try {
       await api.disconnectPazarama(currentStoreId);
       alert(t.pazaramaDisconnected);
-      window.location.reload();
+      if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
   };
+
+  const handleVerifyDomain = async () => {
+    if (!branding.custom_domain) {
+      alert(lang === 'tr' ? 'Lütfen bir domain girin' : 'Please enter a domain');
+      return;
+    }
+    setVerifyingDomain(true);
+    setVerificationResult(null);
+    try {
+      const res = await api.verifyDomain(branding.custom_domain);
+      setVerificationResult(res);
+      if (res.a && res.cname) {
+        // Automatically save if verified
+        onSaveBranding();
+      }
+    } catch (error) {
+      alert(lang === 'tr' ? 'Doğrulama sırasında bir hata oluştu' : 'An error occurred during verification');
+    } finally {
+      setVerifyingDomain(false);
+    }
+  };
+
+  const handleConnectCloudflare = async () => {
+    if (!branding.custom_domain) {
+      alert(lang === 'tr' ? 'Lütfen bir domain girin' : 'Please enter a domain');
+      return;
+    }
+    setLoadingCf(true);
+    try {
+      const res = await api.addCustomDomain(branding.custom_domain);
+      alert(lang === 'tr' ? 'Domain Cloudflare sistemine eklendi. Lütfen doğrulama kayıtlarını bekleyin.' : 'Domain added to Cloudflare. Please wait for verification records.');
+      fetchCfStatus();
+    } catch (error: any) {
+      alert(error.message || (lang === 'tr' ? 'Hata oluştu' : 'Error occurred'));
+    } finally {
+      setLoadingCf(false);
+    }
+  };
+
+  const fetchCfStatus = async () => {
+    try {
+      const res = await api.getCustomDomainStatus();
+      if (res.success) {
+        setCfStatus(res.status);
+      }
+    } catch (error) {
+      console.error("CF Status fetch error:", error);
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeSubTab === 'web' && branding.custom_domain) {
+      fetchCfStatus();
+      const interval = setInterval(fetchCfStatus, 30000); // Poll every 30s
+      return () => clearInterval(interval);
+    }
+  }, [activeSubTab, branding.custom_domain]);
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-24">
@@ -302,6 +378,13 @@ const SettingsTab = ({
         >
           <Palette className="h-4 w-4" />
           <span>{t.settingsCategories?.webSettings}</span>
+        </button>
+        <button 
+          onClick={() => setActiveSubTab('layout')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'layout' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <Settings className="h-4 w-4" />
+          <span>{t.settingsCategories?.layoutSettings || 'Sayfa Düzeni'}</span>
         </button>
         <button 
           onClick={() => setActiveSubTab('e-stores')}
@@ -330,6 +413,20 @@ const SettingsTab = ({
         >
           <CreditCard className="h-4 w-4" />
           <span>{t.settingsCategories?.posSettings}</span>
+        </button>
+        <button 
+          onClick={() => setActiveSubTab('domain')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'domain' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <Globe className="h-4 w-4" />
+          <span>{t.settingsCategories?.domainSettings}</span>
+        </button>
+        <button 
+          onClick={() => setActiveSubTab('menu')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'menu' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <Settings className="h-4 w-4" />
+          <span>{lang === 'tr' ? 'Menü Yönetimi' : 'Menu Management'}</span>
         </button>
       </div>
 
@@ -431,6 +528,126 @@ const SettingsTab = ({
         </motion.div>
       )}
 
+      {activeSubTab === 'layout' && (
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 mb-6">Sayfa Düzeni</h3>
+            <PageBuilder 
+              layout={branding.page_layout || []} 
+              onUpdateLayout={(newLayout) => onBrandingChange('page_layout', newLayout)} 
+            />
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'menu' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 mb-6">{lang === 'tr' ? 'Menü Yönetimi' : 'Menu Management'}</h3>
+            <div className="space-y-4">
+              {(branding.menu_links || []).map((link: any, index: number) => (
+                <div key={index} className="flex gap-4 items-center">
+                  <input 
+                    type="text" 
+                    placeholder={lang === 'tr' ? 'Menü Adı' : 'Menu Name'}
+                    className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold"
+                    value={link.label}
+                    onChange={(e) => {
+                      const newLinks = [...(branding.menu_links || [])];
+                      newLinks[index].label = e.target.value;
+                      onBrandingChange('menu_links', newLinks);
+                    }}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder={lang === 'tr' ? 'Link (örn: /about)' : 'Link (e.g., /about)'}
+                    className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold"
+                    value={link.url}
+                    onChange={(e) => {
+                      const newLinks = [...(branding.menu_links || [])];
+                      newLinks[index].url = e.target.value;
+                      onBrandingChange('menu_links', newLinks);
+                    }}
+                  />
+                  <button 
+                    onClick={() => {
+                      const newLinks = (branding.menu_links || []).filter((_: any, i: number) => i !== index);
+                      onBrandingChange('menu_links', newLinks);
+                    }}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl"
+                  >
+                    <XCircle className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+              <button 
+                onClick={() => {
+                  const newLinks = [...(branding.menu_links || []), { label: '', url: '' }];
+                  onBrandingChange('menu_links', newLinks);
+                }}
+                className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200"
+              >
+                {lang === 'tr' ? 'Yeni Link Ekle' : 'Add New Link'}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mt-8">
+            <h3 className="text-lg font-bold text-slate-900 mb-6">{lang === 'tr' ? 'Alt Menü (Yasal Sayfalar)' : 'Footer Menu (Legal Pages)'}</h3>
+            <div className="space-y-4">
+              {(branding.footer_links || []).map((link: any, index: number) => (
+                <div key={index} className="flex gap-4 items-center">
+                  <input 
+                    type="text" 
+                    placeholder={lang === 'tr' ? 'Sayfa Adı (örn: Gizlilik Politikası)' : 'Page Name (e.g., Privacy Policy)'}
+                    className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold"
+                    value={link.label}
+                    onChange={(e) => {
+                      const newLinks = [...(branding.footer_links || [])];
+                      newLinks[index].label = e.target.value;
+                      onBrandingChange('footer_links', newLinks);
+                    }}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder={lang === 'tr' ? 'Link (örn: /privacy)' : 'Link (e.g., /privacy)'}
+                    className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold"
+                    value={link.url}
+                    onChange={(e) => {
+                      const newLinks = [...(branding.footer_links || [])];
+                      newLinks[index].url = e.target.value;
+                      onBrandingChange('footer_links', newLinks);
+                    }}
+                  />
+                  <button 
+                    onClick={() => {
+                      const newLinks = (branding.footer_links || []).filter((_: any, i: number) => i !== index);
+                      onBrandingChange('footer_links', newLinks);
+                    }}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl"
+                  >
+                    <XCircle className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+              <button 
+                onClick={() => {
+                  const newLinks = [...(branding.footer_links || []), { label: '', url: '' }];
+                  onBrandingChange('footer_links', newLinks);
+                }}
+                className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200"
+              >
+                {lang === 'tr' ? 'Yeni Sayfa Ekle' : 'Add New Page'}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {activeSubTab === 'currency' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -508,177 +725,57 @@ const SettingsTab = ({
         </motion.div>
       )}
 
-      {activeSubTab === 'pos' && (
+      {activeSubTab === 'domain' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-4xl mx-auto"
         >
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="md:col-span-2">
-                <div className="flex items-center space-x-4 mb-8">
-                  <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
-                    <CreditCard className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{t.fiscalSettings}</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">{t.fiscalSettingsDesc || 'Mali onaylı cihaz ayarlarını yönetin'}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 md:p-8 rounded-[2rem] border border-slate-200/60 shadow-inner">
-                  <div className="flex items-center justify-between md:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-                    <div>
-                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{t.fiscalIntegrationActive}</p>
-                      <p className="text-xs text-slate-500 font-medium mt-1">{t.fiscalIntegrationActiveDesc || 'Satışlarda mali fiş simülasyonu ve yazdırma aktif edilir.'}</p>
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={() => onBrandingChange('fiscal_active', !branding.fiscal_active)}
-                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 focus:outline-none ${branding.fiscal_active ? 'bg-indigo-600 shadow-lg shadow-indigo-200' : 'bg-slate-200'}`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-300 ${branding.fiscal_active ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-
-                  {branding.fiscal_active && (
-                    <>
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.deviceBrand || 'Cihaz Markası'}</label>
-                        <div className="relative group">
-                          <select 
-                            className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 appearance-none cursor-pointer group-hover:border-slate-300"
-                            value={branding.fiscal_brand || ""}
-                            onChange={(e) => onBrandingChange('fiscal_brand', e.target.value)}
-                          >
-                            <option value="">{t.selectBrand}</option>
-                            <option value="beko">Beko</option>
-                            <option value="ingenico">Ingenico</option>
-                            <option value="verifone">Verifone</option>
-                            <option value="hugin">Hugin</option>
-                            <option value="profilo">Profilo</option>
-                            <option value="paypad">Paypad</option>
-                          </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <ArrowRight className="h-4 w-4 rotate-90" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.terminalIdSerial || 'Terminal ID / Seri No'}</label>
-                        <input 
-                          type="text" 
-                          className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
-                          placeholder="Örn: BEK00123456"
-                          value={branding.fiscal_terminal_id || ""}
-                          onChange={(e) => onBrandingChange('fiscal_terminal_id', e.target.value)}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.deviceIpAddress || 'Cihaz IP Adresi'}</label>
-                          <input 
-                            type="text" 
-                            className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
-                            placeholder="Örn: 192.168.1.49"
-                            value={branding.fiscal_ip || ""}
-                            onChange={(e) => onBrandingChange('fiscal_ip', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{t.devicePort || 'Cihaz Portu'}</label>
-                          <input 
-                            type="text" 
-                            className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900 group-hover:border-slate-300"
-                            placeholder="Örn: 1616"
-                            value={branding.fiscal_port || ""}
-                            onChange={(e) => onBrandingChange('fiscal_port', e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-200">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
-                            <Smartphone className="h-4 w-4" />
-                          </div>
-                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">
-                            {t.posBridgeTitle || 'POS Bağlantı Köprüsü (Bridge)'}
-                          </h4>
-                        </div>
-                        
-                        <p className="text-[11px] text-slate-500 font-bold leading-relaxed mb-6">
-                          {t.posBridgeDesc || 'Web tarayıcınızın yerel ağdaki POS cihazına erişebilmesi için bilgisayarınızda bir köprü yazılımı çalışmalıdır. Aşağıdaki butona tıklayarak Node.js tabanlı köprü dosyasını indirebilirsiniz.'}
-                        </p>
-
-                        <button 
-                          onClick={() => {
-                            const script = `
-import express from 'express';
-import cors from 'cors';
-import net from 'net';
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-const PORT = 1616;
-
-app.post('/pos/sale', (req, res) => {
-  const { amount, ip, port, brand } = req.body;
-  console.log(\`[POS] \${brand} (\${ip}:\${port}) üzerinden \${amount} tutarında işlem başlatılıyor...\`);
-  
-  // Burada gerçek TCP iletişimi kurulur
-  // Örnek Verifone/Ingenico TCP soket bağlantısı:
-  /*
-  const client = new net.Socket();
-  client.connect(port, ip, () => {
-    // Protokole uygun mesajı gönder
-    client.write('SALE_COMMAND_HERE');
-  });
-  client.on('data', (data) => {
-    res.json({ status: 'approved', message: 'İşlem Başarılı' });
-    client.destroy();
-  });
-  */
-
-  // Simülasyon (Gerçek cihaz bağlıysa yukarıdaki blok aktif edilmelidir)
-  setTimeout(() => {
-    res.json({ status: 'approved', message: 'İşlem Başarılı' });
-  }, 5000);
-});
-
-app.listen(PORT, () => {
-  console.log(\`LookPrice POS Bridge \${PORT} portunda çalışıyor...\`);
-  console.log(\`Lütfen bu pencereyi kapatmayın.\`);
-});
-                            `;
-                            const blob = new Blob([script], { type: 'text/javascript' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = 'lookprice-pos-bridge.mjs';
-                            a.click();
-                          }}
-                          className="w-full py-4 bg-white border-2 border-slate-200 rounded-2xl text-xs font-black text-slate-900 uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center justify-center group"
-                        >
-                          <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
-                          {t.downloadBridgeFile || 'Köprü Dosyasını İndir (.mjs)'}
-                        </button>
-                        
-                        <div className="mt-4 flex items-start space-x-2">
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                          <div className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                            <p>{t.posBridgeNote || 'Çalıştırmak için bilgisayarınızda Node.js kurulu olmalıdır. Terminalde şu komutları çalıştırın:'}</p>
-                            <code className="block bg-slate-100 p-2 rounded mt-1 text-slate-600">npm install express cors<br/>node lookprice-pos-bridge.mjs</code>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.settingsCategories?.domainSettings}</h3>
               </div>
             </div>
+            
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.customDomain || 'Özel Domain'}</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                    placeholder="orn: magaza.com"
+                    value={branding.custom_domain || ""}
+                    onChange={(e) => onBrandingChange('custom_domain', e.target.value)}
+                  />
+                  <button 
+                    onClick={handleConnectCloudflare}
+                    disabled={loadingCf}
+                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all disabled:opacity-50"
+                  >
+                    {loadingCf ? t.loading : (t.connectDomain || 'Domain Bağla')}
+                  </button>
+                </div>
+              </div>
+
+              {cfStatus && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-600">{t.domainStatus || 'Durum'}:</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${cfStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {cfStatus}
+                    </span>
+                  </div>
+                  
+                  {/* DNS Records would be displayed here if fetched from API */}
+                </div>
+              )}
+            </div>
+          </div>
         </motion.div>
       )}
 
@@ -1221,6 +1318,244 @@ app.listen(PORT, () => {
         </motion.div>
       )}
 
+      {activeSubTab === 'domain' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto space-y-8"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">{lang === 'tr' ? 'Özel Alan Adı (Domain) Ayarları' : 'Custom Domain Settings'}</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">{lang === 'tr' ? 'Mağazanızı kendi alan adınız üzerinden yayınlayın' : 'Publish your store on your own domain'}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="mt-0.5 p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
+                    <Info className="h-4 w-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'DNS Yapılandırma Seçenekleri' : 'DNS Configuration Options'}</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      {lang === 'tr' 
+                        ? 'Domaininizi bağlamak için aşağıdaki iki yöntemden birini seçebilirsiniz. Cloudflare kullanıyorsanız 2. yöntemi öneririz.' 
+                        : 'You can choose one of the following two methods to connect your domain. We recommend method 2 if you use Cloudflare.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  {/* Method 1: A Record */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600">1</div>
+                      <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Standart (A Kaydı)' : 'Standard (A Record)'}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-500">Host:</span>
+                        <span className="font-mono font-bold">@</span>
+                      </div>
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-500">IP:</span>
+                        <code className="font-mono font-bold text-indigo-600 select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText('216.24.57.1'); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>216.24.57.1</code>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Method 2: Cloudflare / NS */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600">2</div>
+                      <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Cloudflare / Name Server' : 'Cloudflare / Name Server'}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-500">Host:</span>
+                        <span className="font-mono font-bold">www</span>
+                      </div>
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-500">Target:</span>
+                        <code className="font-mono font-bold text-indigo-600 select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText('lookprice.net'); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>lookprice.net</code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 flex items-start space-x-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-amber-700 leading-relaxed">
+                    {lang === 'tr' 
+                      ? 'A kaydı girilemeyen domainler için Cloudflare kullanarak NS yönlendirmesi yapabilir ve CNAME kaydı ile root domaininizi (enrakipsiz.com gibi) sistemimize bağlayabilirsiniz.' 
+                      : 'For domains where A records cannot be entered, you can use Cloudflare for NS redirection and connect your root domain (like enrakipsiz.com) to our system via CNAME record.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Alan Adınız' : 'Your Domain Name'}</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="text" 
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all font-bold text-sm text-slate-900"
+                      value={branding.custom_domain || ""}
+                      onChange={(e) => {
+                        onBrandingChange('custom_domain', e.target.value);
+                        setVerificationResult(null);
+                      }}
+                      placeholder="Örn: shop.magazam.com"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleVerifyDomain}
+                    disabled={verifyingDomain}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 whitespace-nowrap disabled:opacity-50"
+                  >
+                    {verifyingDomain ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    <span>{lang === 'tr' ? 'Doğrula ve Kaydet' : 'Verify and Save'}</span>
+                  </button>
+                </div>
+
+                {verificationResult && (
+                  <div className={`p-4 rounded-xl border ${verificationResult.a && verificationResult.cname ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'} space-y-3`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Doğrulama Sonuçları:' : 'Verification Results:'}</span>
+                      {verificationResult.a && verificationResult.cname ? (
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          {lang === 'tr' ? 'BAŞARILI' : 'SUCCESSFUL'}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          {lang === 'tr' ? 'EKSİK' : 'INCOMPLETE'}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex items-center justify-between bg-white/50 p-2 rounded-lg">
+                        <span className="text-[10px] font-bold text-slate-500">A Kaydı:</span>
+                        {verificationResult.a ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <div className="flex items-center space-x-1">
+                            <span className="text-[10px] font-mono text-rose-500">{verificationResult.ip || 'Bulunamadı'}</span>
+                            <XCircle className="h-4 w-4 text-rose-500" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between bg-white/50 p-2 rounded-lg">
+                        <span className="text-[10px] font-bold text-slate-500">CNAME:</span>
+                        {verificationResult.cname ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <div className="flex items-center space-x-1">
+                            <span className="text-[10px] font-mono text-rose-500 truncate max-w-[80px]">{verificationResult.target || 'Bulunamadı'}</span>
+                            <XCircle className="h-4 w-4 text-rose-500" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {(!verificationResult.a || !verificationResult.cname) && (
+                      <p className="text-[10px] text-rose-600 font-medium">
+                        {lang === 'tr' 
+                          ? 'DNS kayıtlarınız henüz güncellenmemiş olabilir. Lütfen ayarlarınızı kontrol edin ve bir süre sonra tekrar deneyin.' 
+                          : 'Your DNS records may not have updated yet. Please check your settings and try again later.'}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-[10px] text-slate-400 italic ml-1">
+                  {lang === 'tr' 
+                    ? '* DNS değişikliklerinin aktif olması 1-24 saat sürebilir. SSL sertifikanız otomatik olarak oluşturulacaktır.' 
+                    : '* DNS changes may take 1-24 hours to propagate. Your SSL certificate will be created automatically.'}
+                </p>
+
+                {/* Cloudflare SaaS Section */}
+                <div className="mt-8 pt-8 border-t border-slate-100">
+                  <div className="flex items-center space-x-3 mb-6">
+                    <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100">
+                      <Globe className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 leading-tight">
+                        {lang === 'tr' ? 'Cloudflare SaaS Otomatik SSL & Domain Bağlantısı' : 'Cloudflare SaaS Auto SSL & Domain Connection'}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                        {lang === 'tr' ? 'Sıfır manuel işlem ile domaininizi bağlayın' : 'Connect your domain with zero manual effort'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {!cfStatus ? (
+                    <button 
+                      onClick={handleConnectCloudflare}
+                      disabled={loadingCf || !branding.custom_domain}
+                      className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      {loadingCf ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+                      <span>{lang === 'tr' ? 'Cloudflare ile Otomatik Bağla' : 'Auto Connect with Cloudflare'}</span>
+                    </button>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Durum:' : 'Status:'}</span>
+                        <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest ${cfStatus.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                          {cfStatus.status}
+                        </span>
+                      </div>
+
+                      {cfStatus.ownership_verification && cfStatus.status !== 'active' && (
+                        <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 space-y-3">
+                          <p className="text-xs font-bold text-indigo-900">{lang === 'tr' ? '1. Domain Sahipliğini Doğrulayın (TXT Kaydı)' : '1. Verify Domain Ownership (TXT Record)'}</p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-indigo-600/60">Type:</span>
+                              <span className="font-mono font-bold">TXT</span>
+                            </div>
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-indigo-600/60">Name:</span>
+                              <code className="font-mono font-bold select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText(cfStatus.ownership_verification.name); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>{cfStatus.ownership_verification.name}</code>
+                            </div>
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-indigo-600/60">Value:</span>
+                              <code className="font-mono font-bold select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText(cfStatus.ownership_verification.value); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>{cfStatus.ownership_verification.value}</code>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {cfStatus.ssl && cfStatus.ssl.status !== 'active' && (
+                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 space-y-3">
+                          <p className="text-xs font-bold text-amber-900">{lang === 'tr' ? '2. SSL Sertifikası Doğrulanıyor' : '2. SSL Certificate Verifying'}</p>
+                          <p className="text-[10px] text-amber-700">{lang === 'tr' ? 'SSL sertifikası oluşturuluyor, bu işlem birkaç dakika sürebilir.' : 'SSL certificate is being created, this may take a few minutes.'}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {activeSubTab === 'web' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -1244,8 +1579,8 @@ app.listen(PORT, () => {
                 <input 
                   type="text" 
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                  value={branding.store_name || ""}
-                  onChange={(e) => onBrandingChange('store_name', e.target.value)}
+                  value={branding.name || ""}
+                  onChange={(e) => onBrandingChange('name', e.target.value)}
                   placeholder={lang === 'tr' ? 'Mağaza Ünvanı' : 'Store Name'}
                 />
               </div>
@@ -1340,9 +1675,17 @@ app.listen(PORT, () => {
                 </button>
               </div>
               {branding.payment_settings?.iyzico_enabled && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 p-4 bg-white rounded-xl border border-indigo-100">
-                  <div className="flex items-center justify-between md:col-span-2 mb-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Iyzico Test (Sandbox) Modu' : 'Iyzico Test (Sandbox) Mode'}</span>
+                <div className="mt-6 p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-6 animate-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-xl ${branding.payment_settings?.iyzico_sandbox ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+                        <Info className={`h-4 w-4 ${branding.payment_settings?.iyzico_sandbox ? 'text-amber-600' : 'text-emerald-600'}`} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">{lang === 'tr' ? 'Sandbox Modu' : 'Sandbox Mode'}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{lang === 'tr' ? 'Test işlemleri için aktif edin' : 'Enable for test transactions'}</p>
+                      </div>
+                    </div>
                     <button 
                       type="button"
                       onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_sandbox: !branding.payment_settings?.iyzico_sandbox })}
@@ -1351,24 +1694,34 @@ app.listen(PORT, () => {
                       <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.payment_settings?.iyzico_sandbox ? 'translate-x-5' : 'translate-x-1'}`} />
                     </button>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Iyzico API Key</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.payment_settings?.iyzico_api_key || ""}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_api_key: e.target.value })}
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">API KEY</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all text-sm font-mono"
+                        placeholder="api_key_..."
+                        value={branding.payment_settings?.iyzico_api_key || ""}
+                        onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_api_key: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">SECRET KEY</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all text-sm font-mono"
+                        placeholder="secret_key_..."
+                        value={branding.payment_settings?.iyzico_secret_key || ""}
+                        onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_secret_key: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Iyzico Secret Key</label>
-                    <input 
-                      type="password" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.payment_settings?.iyzico_secret_key || ""}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_secret_key: e.target.value })}
-                    />
-                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium italic px-1">
+                    {lang === 'tr' 
+                      ? "* iyzico panelinizden aldığınız API anahtarlarını buraya giriniz. Kaydettikten sonra ödeme sistemi aktif olacaktır."
+                      : "* Enter the API keys you received from your iyzico panel. The payment system will be active after saving."}
+                  </p>
                 </div>
               )}
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
