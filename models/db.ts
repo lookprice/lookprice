@@ -7,17 +7,22 @@ dotenv.config();
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  max: 25,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 10000,
 });
 
 // Initialize Database
 export async function initDb() {
   console.log("Initializing database...");
-  const client = await pool.connect();
-  console.log("Database connected.");
   try {
-    console.log("Running schema queries...");
-    await client.query(`
+    const client = await pool.connect();
+    console.log("Database connected successfully.");
+    try {
+      console.log("Running schema queries...");
+      await client.query(`
       -- Update existing columns to REAL if they are INTEGER
       DO $$ 
       BEGIN 
@@ -63,6 +68,11 @@ export async function initDb() {
 
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS default_tax_rate INTEGER DEFAULT 20;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS category_tax_rules JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS custom_domain_status VARCHAR(50) DEFAULT 'pending';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS custom_domain_verification_code VARCHAR(255);
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_hostname_id VARCHAR(255);
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS page_layout JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS menu_links JSONB DEFAULT '[]';
 
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -646,6 +656,12 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='expiry_date') THEN
           ALTER TABLE quotations ADD COLUMN expiry_date DATE;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='currency') THEN
+          ALTER TABLE quotations ADD COLUMN currency TEXT DEFAULT 'TRY';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='exchange_rate') THEN
+          ALTER TABLE quotations ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='tax_number') THEN
           ALTER TABLE quotations ADD COLUMN tax_number TEXT;
         END IF;
@@ -931,6 +947,9 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='legal_pages') THEN
           ALTER TABLE stores ADD COLUMN legal_pages JSONB DEFAULT '{}';
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='custom_domain') THEN
+          ALTER TABLE stores ADD COLUMN custom_domain TEXT UNIQUE;
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stores' AND column_name='social_links') THEN
           ALTER TABLE stores ADD COLUMN social_links JSONB DEFAULT '{}';
         END IF;
@@ -953,6 +972,9 @@ export async function initDb() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='currency') THEN
           ALTER TABLE sales ADD COLUMN currency TEXT DEFAULT 'TRY';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='exchange_rate') THEN
+          ALTER TABLE sales ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='customer_phone') THEN
           ALTER TABLE sales ADD COLUMN customer_phone TEXT;
@@ -1148,9 +1170,13 @@ export async function initDb() {
       await client.query("INSERT INTO users (email, password, role) VALUES ($1, $2, $3)", [adminEmail, hashedPassword, "superadmin"]);
     }
     console.log("Super admin seeded.");
-  } finally {
-    client.release();
-    console.log("Database initialization finished.");
+    } finally {
+      client.release();
+      console.log("Database initialization finished.");
+    }
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+    throw error;
   }
 }
 

@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import { pool } from "../models/db.ts";
-import { authenticate } from "../middleware/auth.ts";
+import { pool } from "../models/db";
+import { authenticate } from "../middleware/auth";
 
 const router = express.Router();
 
@@ -173,6 +173,39 @@ router.get("/registration-requests", async (req: any, res) => {
   try {
     const requests = await pool.query("SELECT * FROM registration_requests ORDER BY created_at DESC");
     res.json(requests.rows);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/stores/:id/custom-domain", async (req: any, res) => {
+  const { id } = req.params;
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: "Domain required" });
+
+  try {
+    const { cloudflareService } = await import("../src/services/cloudflareService");
+    const cfResult = await cloudflareService.addCustomHostname(domain);
+    
+    await pool.query("UPDATE stores SET custom_domain = $1 WHERE id = $2", [domain, id]);
+    
+    res.json({ success: true, cfResult });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get("/stores/:id/custom-domain/status", async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT custom_domain FROM stores WHERE id = $1", [id]);
+    const domain = storeRes.rows[0]?.custom_domain;
+    if (!domain) return res.status(404).json({ error: "No custom domain set for this store" });
+
+    const { cloudflareService } = await import("../src/services/cloudflareService");
+    const status = await cloudflareService.getCustomHostnameStatus(domain);
+    
+    res.json({ success: true, domain, status });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
   }

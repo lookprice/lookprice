@@ -1,8 +1,8 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { pool } from "../models/db.ts";
-import { authenticate } from "../middleware/auth.ts";
+import { pool } from "../models/db";
+import { authenticate } from "../middleware/auth";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key";

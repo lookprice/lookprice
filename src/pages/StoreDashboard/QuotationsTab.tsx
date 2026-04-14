@@ -24,7 +24,7 @@ interface QuotationsTabProps {
   isViewer: boolean;
   onViewDetails: (quotation: any) => void;
   onGeneratePDF: (quotation: any) => void;
-  onApprove: (id: number) => void;
+  onApprove: (quotation: any) => void;
   onCancel: (id: number) => void;
   onConvertToSale: (quotation: any) => void;
   onEdit: (quotation: any) => void;

@@ -48,6 +48,7 @@ export interface Store {
   address: string;
   phone: string;
   email: string;
+  custom_domain?: string;
   plan: 'free' | 'basic' | 'pro' | 'enterprise';
   hero_title?: string;
   hero_subtitle?: string;
@@ -80,6 +81,8 @@ export interface Quotation {
   company_id?: number;
   tax_number?: string;
   tax_office?: string;
+  payment_method?: string;
+  due_date?: string;
 }
 
 export interface QuotationItem {

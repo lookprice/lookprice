@@ -210,7 +210,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
         total,
         paymentMethod,
         customerName: 'Hızlı Satış',
-        notes: 'Hızlı POS Modu'
+        notes: 'Hızlı POS Modu',
+        currency: branding?.default_currency || 'TRY',
+        exchangeRate: 1
       }, storeId);
 
       if (res.success) {

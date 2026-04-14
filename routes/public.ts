@@ -1,26 +1,63 @@
 import express from "express";
-import { pool } from "../models/db.ts";
+import { pool } from "../models/db";
 import crypto from "crypto";
 
 const router = express.Router();
 
 // Helper for Iyzico Signature
 function generateIyzicoSignature(apiKey: string, secretKey: string, randomString: string, payload: any) {
-  // For Checkout Form Initialize, the PKI string is a concatenation of specific fields
-  let pkiString = `[apiKey=${apiKey}],[randomString=${randomString}]`;
+  let pkiString = `[apiKey=${apiKey}][randomString=${randomString}]`;
   
-  if (payload) {
-    if (payload.locale) pkiString += `,[locale=${payload.locale}]`;
-    if (payload.conversationId) pkiString += `,[conversationId=${payload.conversationId}]`;
-    if (payload.price) pkiString += `,[price=${payload.price}]`;
-    if (payload.paidPrice) pkiString += `,[paidPrice=${payload.paidPrice}]`;
-    if (payload.currency) pkiString += `,[currency=${payload.currency}]`;
-    if (payload.basketId) pkiString += `,[basketId=${payload.basketId}]`;
-    if (payload.paymentGroup) pkiString += `,[paymentGroup=${payload.paymentGroup}]`;
-    if (payload.callbackUrl) pkiString += `,[callbackUrl=${payload.callbackUrl}]`;
+  const fields = [
+    'locale', 'conversationId', 'price', 'paidPrice', 'currency', 
+    'basketId', 'paymentGroup', 'buyer', 'shippingAddress', 'billingAddress', 
+    'basketItems', 'callbackUrl', 'posOrderId', 'enabledInstallments', 'token'
+  ];
+
+  const nestedFields: any = {
+    buyer: ['id', 'name', 'surname', 'identityNumber', 'email', 'registrationAddress', 'city', 'country', 'ip'],
+    shippingAddress: ['contactName', 'city', 'country', 'address'],
+    billingAddress: ['contactName', 'city', 'country', 'address'],
+    basketItems: ['id', 'name', 'itemType', 'category1', 'category2', 'price']
+  };
+
+  for (const field of fields) {
+    const value = payload[field];
+    if (value !== undefined && value !== null) {
+      if (Array.isArray(value)) {
+        let str = `[${field}=[`;
+        if (value.length > 0 && typeof value[0] === 'object') {
+          str += value.map(item => {
+            let itemStr = "[";
+            const subFields = nestedFields[field] || Object.keys(item);
+            itemStr += subFields
+              .filter((f: string) => item[f] !== undefined && item[f] !== null)
+              .map((f: string) => `[${f}=${item[f]}]`)
+              .join("");
+            itemStr += "]";
+            return itemStr;
+          }).join("");
+        } else {
+          str += value.join(", ");
+        }
+        str += "]]";
+        pkiString += str;
+      } else if (typeof value === 'object') {
+        let str = `[${field}=[`;
+        const subFields = nestedFields[field] || Object.keys(value);
+        str += subFields
+          .filter((f: string) => value[f] !== undefined && value[f] !== null)
+          .map((f: string) => `[${f}=${value[f]}]`)
+          .join("");
+        str += "]]";
+        pkiString += str;
+      } else {
+        pkiString += `[${field}=${value}]`;
+      }
+    }
   }
 
-  const hash = crypto.createHash('sha1').update(apiKey + randomString + secretKey + pkiString).digest('hex');
+  const hash = crypto.createHash('sha1').update(apiKey + randomString + secretKey + pkiString).digest('base64');
   return hash;
 }
 
@@ -166,11 +203,31 @@ router.get("/store/:slug", async (req, res) => {
       id, name, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, parent_id
+      address, phone, parent_id, payment_settings
     FROM stores 
     WHERE slug = $1
   `, [slug]);
   let store = storeRes.rows[0];
+
+  if (store) {
+    // Sanitize payment_settings to only expose enabled flags and sandbox mode
+    let ps = store.payment_settings || {};
+    if (typeof ps === 'string') {
+      try {
+        ps = JSON.parse(ps);
+      } catch (e) {
+        ps = {};
+      }
+    }
+    store.payment_settings = {
+      iyzico_enabled: !!ps.iyzico_enabled,
+      iyzico_sandbox: !!ps.iyzico_sandbox,
+      paypal_enabled: !!ps.paypal_enabled,
+      paypal_sandbox: !!ps.paypal_sandbox,
+      payoneer_enabled: !!ps.payoneer_enabled,
+      payoneer_sandbox: !!ps.payoneer_sandbox
+    };
+  }
 
   if (store && store.parent_id) {
     // This is a branch. Redirect to parent store's website.
@@ -470,9 +527,15 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
 
 // Update Public Sales to handle customer_id
 router.post("/sales", async (req, res) => {
-  const { storeId, items, total, currency, customerName, customerPhone, customerAddress, customerEmail, notes, paymentMethod, customerId, createAccount } = req.body;
+  console.log("POST /api/public/sales request body:", JSON.stringify(req.body, null, 2));
+  const { 
+    storeId, items, total, currency, customerName, customerPhone, 
+    customerAddress, customerCity, customerCountry, customerEmail, 
+    customerTcId, notes, paymentMethod, customerId, createAccount 
+  } = req.body;
   
   if (!paymentMethod) {
+    console.warn("POST /api/public/sales: Missing paymentMethod");
     return res.status(400).json({ error: "Lütfen bir ödeme yöntemi seçin." });
   }
 
@@ -482,16 +545,15 @@ router.post("/sales", async (req, res) => {
     
     let finalCustomerId = customerId;
 
-    if (createAccount && customerEmail) {
-      // Check if customer exists
+    if (customerEmail) {
       const existingCustomer = await client.query("SELECT id FROM customers WHERE email = $1 AND store_id = $2", [customerEmail, storeId]);
       if (existingCustomer.rows.length > 0) {
         finalCustomerId = existingCustomer.rows[0].id;
-      } else {
+      } else if (createAccount) {
         // Create new customer
         const newCustomer = await client.query(
-          "INSERT INTO customers (store_id, name, surname, email, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-          [storeId, customerName?.split(' ')[0] || '', customerName?.split(' ')[1] || '', customerEmail, customerPhone, customerAddress]
+          "INSERT INTO customers (store_id, name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+          [storeId, customerName?.split(' ')[0] || '', customerName?.split(' ').slice(1).join(' ') || '', customerEmail, customerPhone, customerAddress, customerTcId, customerTcId]
         );
         finalCustomerId = newCustomer.rows[0].id;
       }
@@ -576,83 +638,13 @@ router.post("/sales", async (req, res) => {
 
     // 2. Iyzico Integration
     if (paymentMethod === 'iyzico' && paymentSettings.iyzico_enabled) {
-      const { iyzico_api_key, iyzico_secret_key, iyzico_sandbox } = paymentSettings;
-      if (iyzico_api_key && iyzico_secret_key) {
-        const baseUrl = iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com';
-        const randomString = Date.now().toString();
-        const signature = generateIyzicoSignature(iyzico_api_key, iyzico_secret_key, randomString, {});
-        
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const host = req.headers.host;
-        const callbackUrl = `${protocol}://${host}/api/public/webhooks/iyzico?saleId=${saleId}`;
-
-        const iyzicoRequest = {
-          locale: "tr",
-          conversationId: saleId.toString(),
-          price: total.toString(),
-          paidPrice: total.toString(),
-          currency: currency || storeData.default_currency || 'TRY',
-          basketId: `B-${saleId}`,
-          paymentGroup: "PRODUCT",
-          callbackUrl: callbackUrl,
-          enabledInstallments: [1, 2, 3, 6, 9],
-          buyer: {
-            id: customerId?.toString() || "GUEST",
-            name: customerName?.split(' ')[0] || "Müşteri",
-            surname: customerName?.split(' ').slice(1).join(' ') || "Soyad",
-            email: customerEmail || "customer@example.com",
-            identityNumber: "11111111111",
-            registrationAddress: customerAddress || "Adres",
-            ip: req.ip,
-            city: "Istanbul",
-            country: "Turkey"
-          },
-          shippingAddress: {
-            contactName: customerName || "Müşteri",
-            city: "Istanbul",
-            country: "Turkey",
-            address: customerAddress || "Adres"
-          },
-          billingAddress: {
-            contactName: customerName || "Müşteri",
-            city: "Istanbul",
-            country: "Turkey",
-            address: customerAddress || "Adres"
-          },
-          basketItems: items.map(item => ({
-            id: (item.productId || item.id).toString(),
-            name: item.name || 'Ürün',
-            category1: "Genel",
-            itemType: "PHYSICAL",
-            price: item.price.toString()
-          }))
-        };
-
-        try {
-          const response = await fetch(`${baseUrl}/payment/iyzipay/checkoutform/initialize/auth`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `IYZIPAY ${Buffer.from(`${iyzico_api_key}:${signature}`).toString('base64')}`,
-              'x-iyzipay-rnd': randomString,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(iyzicoRequest)
-          });
-
-          const result = await response.json();
-          if (result.status === 'success' && result.paymentPageUrl) {
-            await client.query("COMMIT");
-            return res.json({ 
-              success: true, 
-              saleId, 
-              redirectUrl: result.paymentPageUrl,
-              paymentProvider: 'iyzico'
-            });
-          }
-        } catch (iyzicoErr) {
-          console.error("Iyzico Fetch Error:", iyzicoErr);
-        }
-      }
+      await client.query("COMMIT");
+      return res.json({ 
+        success: true, 
+        saleId, 
+        paymentProvider: 'iyzico',
+        initializeUrl: '/api/payment/iyzico/initialize'
+      });
     }
 
     // 3. PayPal Integration
@@ -709,7 +701,8 @@ router.post("/sales", async (req, res) => {
     res.json({ success: true, saleId });
   } catch (e: any) {
     await client.query("ROLLBACK");
-    res.status(400).json({ error: e.message });
+    console.error("POST /api/public/sales error:", e);
+    res.status(400).json({ error: e.message, stack: e.stack });
   } finally {
     client.release();
   }
@@ -928,11 +921,20 @@ router.post("/webhooks/iyzico", async (req, res) => {
     
     const storeId = saleRes.rows[0].store_id;
     const storeRes = await pool.query("SELECT payment_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0].payment_settings;
+    let settings = storeRes.rows[0].payment_settings;
+    if (typeof settings === 'string') {
+      try {
+        settings = JSON.parse(settings);
+      } catch (e) {
+        settings = {};
+      }
+    }
 
     const baseUrl = settings.iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com';
     const randomString = Date.now().toString();
-    const signature = generateIyzicoSignature(settings.iyzico_api_key, settings.iyzico_secret_key, randomString, {});
+    
+    const retrieveRequest = { locale: "tr", conversationId: saleId.toString(), token };
+    const signature = generateIyzicoSignature(settings.iyzico_api_key, settings.iyzico_secret_key, randomString, retrieveRequest);
 
     const response = await fetch(`${baseUrl}/payment/iyzipay/checkoutform/auth/retrieve`, {
       method: 'POST',
@@ -941,7 +943,7 @@ router.post("/webhooks/iyzico", async (req, res) => {
         'x-iyzipay-rnd': randomString,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ locale: "tr", conversationId: saleId.toString(), token })
+      body: JSON.stringify(retrieveRequest)
     });
 
     const result = await response.json();

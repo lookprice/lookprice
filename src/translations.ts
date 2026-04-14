@@ -649,7 +649,8 @@ export const translations: Record<string, any> = {
         currencyExchange: "Para-Döviz",
         taxUnits: "Vergi Birimleri",
         posSettings: "POS Ayarları",
-        webSettings: "Web Ayarları"
+        webSettings: "Web Ayarları",
+        domainSettings: "Domain Ayarları"
       },
       saveSettings: "Ayarları Kaydet",
       integrations: "Entegrasyonlar",
@@ -1744,7 +1745,8 @@ export const translations: Record<string, any> = {
         currencyExchange: "Currency-Exchange",
         taxUnits: "Tax Units",
         posSettings: "POS Settings",
-        webSettings: "Web Settings"
+        webSettings: "Web Settings",
+        domainSettings: "Domain Settings"
       },
       saveSettings: "Save Settings",
       integrations: "Integrations",

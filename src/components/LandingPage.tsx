@@ -258,7 +258,7 @@ export const LandingPage = () => {
   };
 
   const references = [
-    { name: "Güneş Plaza", logo: "https://scontent.fecn3-1.fna.fbcdn.net/v/t39.30808-1/365310681_122103211940009695_6924289774686929491_n.jpg?stp=dst-jpg_s200x200_tt6&_nc_cat=111&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=vftvhw0ffugQ7kNvwEDx-BU&_nc_oc=Adly1F1pAvus0pzX2ttYGoz26b6Ndgzq3EzkPEI-Li6DxqTC0p0dpV7LgbrKtqIfqWI&_nc_zt=24&_nc_ht=scontent.fecn3-1.fna&_nc_gid=PxaDxdSAZhjcGfNJgwwOlg&_nc_ss=8&oh=00_Afve0fadiLFZMroBxnZqoJysdB0NKs33yhrWa7YTaTlX4A&oe=69A9D210" },
+    { name: "Güneş Plaza", logo: "https://picsum.photos/seed/gunes/200/200" },
     { name: "Cyprus Outdoor Shop", logo: "https://cyprusoutdoorshop.com/wp-content/uploads/2025/10/cropped-COS-logo-yatay-1.png" },
     { name: "GAP", logo: "https://11d46382.cdn.akinoncloud.com/static_omnishop/gapzero164/img/gap_black.svg" },
     { name: "BAMIX", logo: "https://bamixhome.com/wp-content/uploads/2025/07/cropped-logo-scaled-1-1024x292.png" },

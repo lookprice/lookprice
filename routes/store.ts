@@ -7,12 +7,66 @@ import bcrypt from "bcryptjs";
 import { pool, logAction } from "../models/db.ts";
 import { authenticate } from "../middleware/auth.ts";
 
-const router = express.Router();
+import { promises as dnsPromises } from "dns";
+
+export const router = express.Router();
 const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
 router.use(authenticate);
 
-// --- HELPER FUNCTIONS ---
+router.use((req, res, next) => {
+  console.log(`Store route accessed: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+import { cloudflareService } from "../src/services/cloudflare";
+
+// --- DOMAIN MANAGEMENT ---
+router.post("/domain", async (req: any, res) => {
+  const { domain } = req.body;
+  const storeId = req.user.store_id;
+
+  try {
+    const cfResult = await cloudflareService.addCustomHostname(domain);
+    
+    await pool.query(
+      "UPDATE stores SET custom_domain = $1, custom_domain_status = 'pending', cf_hostname_id = $2 WHERE id = $3",
+      [domain, cfResult.id, storeId]
+    );
+    
+    res.json({ success: true, validation_records: cfResult.validation_records });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get("/domain", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  
+  try {
+    const storeRes = await pool.query("SELECT custom_domain, custom_domain_status, cf_hostname_id FROM stores WHERE id = $1", [storeId]);
+    const store = storeRes.rows[0];
+    
+    if (!store.custom_domain || !store.cf_hostname_id) {
+      return res.json({ status: 'none' });
+    }
+    
+    const cfStatus = await cloudflareService.getHostnameStatus(store.cf_hostname_id);
+    
+    if (cfStatus.ssl.status !== store.custom_domain_status) {
+      await pool.query("UPDATE stores SET custom_domain_status = $1 WHERE id = $2", [cfStatus.ssl.status, storeId]);
+      store.custom_domain_status = cfStatus.ssl.status;
+    }
+    
+    res.json({ 
+      domain: store.custom_domain, 
+      status: store.custom_domain_status,
+      validation_records: cfStatus.validation_records 
+    });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
 const PLAN_LIMITS: Record<string, number> = {
   'free': 50,
   'basic': 100,
@@ -166,15 +220,18 @@ router.get("/info", async (req: any, res) => {
   const store = storeRes.rows[0];
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  if (typeof store.currency_rates === 'string') {
-    try {
-      store.currency_rates = JSON.parse(store.currency_rates);
-    } catch (e) {
-      store.currency_rates = { "USD": 1, "EUR": 1, "GBP": 1 };
+  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings'];
+  jsonFields.forEach(field => {
+    if (typeof store[field] === 'string') {
+      try {
+        store[field] = JSON.parse(store[field]);
+      } catch (e) {
+        store[field] = field === 'currency_rates' ? { "USD": 1, "EUR": 1, "GBP": 1 } : (field === 'legal_pages' || field === 'social_links' || field.endsWith('_settings') ? {} : []);
+      }
+    } else if (!store[field]) {
+      store[field] = field === 'currency_rates' ? { "USD": 1, "EUR": 1, "GBP": 1 } : (field === 'legal_pages' || field === 'social_links' || field.endsWith('_settings') ? {} : []);
     }
-  } else if (!store.currency_rates) {
-    store.currency_rates = { "USD": 1, "EUR": 1, "GBP": 1 };
-  }
+  });
 
   if (store.parent_id) {
     const parentRes = await pool.query("SELECT name, slug FROM stores WHERE id = $1", [store.parent_id]);
@@ -188,48 +245,175 @@ router.get("/info", async (req: any, res) => {
 });
 
 router.post("/branding", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.body.id) : req.user.store_id;
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
-  const { 
-    name, logo_url, favicon_url, primary_color, default_currency, 
-    background_image_url, language, fiscal_brand, fiscal_terminal_id, 
-    fiscal_active, currency_rates, plan, country, phone, address,
-    hero_title, hero_subtitle, hero_image_url, instagram_url, 
-    facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
-    category_tax_rules, faq, blog_posts, legal_pages, social_links
-  } = req.body;
-  await pool.query(
-    `UPDATE stores SET 
-      name = $1, logo_url = $2, favicon_url = $3, primary_color = $4, 
-      default_currency = $5, background_image_url = $6, language = $7, 
-      fiscal_brand = $8, fiscal_terminal_id = $9, fiscal_active = $10, 
-      currency_rates = $11, plan = $12, country = $13, phone = $14, 
-      address = $15, hero_title = $16, hero_subtitle = $17, 
-      hero_image_url = $18, instagram_url = $19, facebook_url = $20, 
-      twitter_url = $21, whatsapp_number = $22, about_text = $23, default_tax_rate = $24,
-      category_tax_rules = $25, faq = $26, blog_posts = $27, legal_pages = $28,
-      social_links = $29
-    WHERE id = $30`, 
-    [
-      name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
-      background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
-      fiscal_active, JSON.stringify(currency_rates || {"USD": 1, "EUR": 1, "GBP": 1}), 
-      plan || 'free', country || 'TR', phone, address,
+  try {
+    const { 
+      name, logo_url, favicon_url, primary_color, default_currency, 
+      background_image_url, language, fiscal_brand, fiscal_terminal_id, 
+      fiscal_active, currency_rates, plan, country, phone, address,
       hero_title, hero_subtitle, hero_image_url, instagram_url, 
-    facebook_url, twitter_url, whatsapp_number, about_text, (default_tax_rate === undefined || default_tax_rate === null) ? 20 : default_tax_rate,
-      JSON.stringify(category_tax_rules || []),
-      JSON.stringify(faq || []),
-      JSON.stringify(blog_posts || []),
-      JSON.stringify(legal_pages || {}),
-      JSON.stringify(social_links || {}),
-      storeId
-    ]
-  );
-  res.json({ success: true });
+      facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
+      category_tax_rules, faq, blog_posts, legal_pages, social_links, custom_domain, payment_settings,
+      amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings
+    } = req.body;
+
+    await pool.query(
+      `UPDATE stores SET 
+        name = $1, logo_url = $2, favicon_url = $3, primary_color = $4, 
+        default_currency = $5, background_image_url = $6, language = $7, 
+        fiscal_brand = $8, fiscal_terminal_id = $9, fiscal_active = $10, 
+        currency_rates = $11, plan = $12, country = $13, phone = $14, 
+        address = $15, hero_title = $16, hero_subtitle = $17, 
+        hero_image_url = $18, instagram_url = $19, facebook_url = $20, 
+        twitter_url = $21, whatsapp_number = $22, about_text = $23, default_tax_rate = $24,
+        category_tax_rules = $25, faq = $26, blog_posts = $27, legal_pages = $28,
+        social_links = $29, custom_domain = $30, payment_settings = $31,
+        amazon_settings = $32, n11_settings = $33, hepsiburada_settings = $34,
+        trendyol_settings = $35, pazarama_settings = $36
+      WHERE id = $37`, 
+      [
+        name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
+        background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
+        fiscal_active, JSON.stringify(currency_rates || {"USD": 1, "EUR": 1, "GBP": 1}), 
+        plan || 'free', country || 'TR', phone, address,
+        hero_title, hero_subtitle, hero_image_url, instagram_url, 
+        facebook_url, twitter_url, whatsapp_number, about_text, (default_tax_rate === undefined || default_tax_rate === null) ? 20 : default_tax_rate,
+        JSON.stringify(category_tax_rules || []),
+        JSON.stringify(faq || []),
+        JSON.stringify(blog_posts || []),
+        JSON.stringify(legal_pages || {}),
+        JSON.stringify(social_links || {}),
+        custom_domain || null,
+        JSON.stringify(payment_settings || {}),
+        JSON.stringify(amazon_settings || {}),
+        JSON.stringify(n11_settings || {}),
+        JSON.stringify(hepsiburada_settings || {}),
+        JSON.stringify(trendyol_settings || {}),
+        JSON.stringify(pazarama_settings || {}),
+        storeId
+      ]
+    );
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Branding update error:", error);
+    if (error.code === '23505') {
+      return res.status(400).json({ error: "Bu domain zaten başka bir mağaza tarafından kullanılıyor." });
+    }
+    res.status(500).json({ error: "Ayarlar kaydedilirken bir hata oluştu." });
+  }
 });
 
-// StoreAdmin: Reports & Analytics
+router.post("/verify-domain", async (req: any, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: "Domain required" });
+
+  try {
+    const results = {
+      a: false,
+      cname: false,
+      ip: null as string | null,
+      target: null as string | null
+    };
+
+    // Check A record
+    try {
+      const aRecords = await dnsPromises.resolve4(domain);
+      results.ip = aRecords[0];
+      
+      // Check if it's our direct IP
+      if (aRecords.includes('216.24.57.1')) {
+        results.a = true;
+      } 
+      // Check if it's Cloudflare (common Cloudflare IP ranges start with 104.x, 172.x, etc.)
+      // Or just check if it resolves at all and we trust the user's setup if they use NS
+      else if (aRecords.length > 0) {
+        // If it resolves but not to our IP, it might be Cloudflare proxy
+        // We'll mark it as true if we can verify the CNAME or if it's a known CF range
+        const isCloudflare = aRecords.some(ip => 
+          ip.startsWith('104.') || ip.startsWith('172.') || ip.startsWith('188.') || ip.startsWith('103.')
+        );
+        if (isCloudflare) {
+          results.a = true; // Consider verified if proxied via Cloudflare
+        }
+      }
+    } catch (e) {}
+
+    // Check CNAME for www
+    try {
+      const wwwDomain = domain.startsWith('www.') ? domain : `www.${domain}`;
+      const cnameRecords = await dnsPromises.resolveCname(wwwDomain);
+      results.target = cnameRecords[0];
+      if (cnameRecords.some(r => r.includes('lookprice.net'))) {
+        results.cname = true;
+      }
+    } catch (e) {}
+
+    res.json(results);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/custom-domain", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: "Domain required" });
+
+  try {
+    const { cloudflareService } = await import("../src/services/cloudflareService");
+    const cfResult = await cloudflareService.addCustomHostname(domain);
+    
+    await pool.query("UPDATE stores SET custom_domain = $1 WHERE id = $2", [domain, storeId]);
+    
+    res.json({ success: true, cfResult });
+  } catch (e: any) {
+    console.error("POST /api/store/custom-domain error:", e);
+    res.status(400).json({ error: e.message, stack: e.stack });
+  }
+});
+
+router.get("/custom-domain/status", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT custom_domain FROM stores WHERE id = $1", [storeId]);
+    const domain = storeRes.rows[0]?.custom_domain;
+    if (!domain) return res.json({ success: true, domain: null, status: null });
+
+    const { cloudflareService } = await import("../src/services/cloudflareService");
+    const status = await cloudflareService.getCustomHostnameStatus(domain);
+    
+    res.json({ success: true, domain, status });
+  } catch (e: any) {
+    console.error("GET /api/store/custom-domain/status error:", e);
+    res.status(400).json({ error: e.message, stack: e.stack });
+  }
+});
+
+router.delete("/transactions/:id", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  try {
+    await pool.query("DELETE FROM current_account_transactions WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.put("/transactions/:id", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { amount, description, type } = req.body;
+  try {
+    await pool.query(
+      "UPDATE current_account_transactions SET amount = $1, description = $2, type = $3 WHERE id = $4 AND store_id = $5",
+      [amount, description, type, req.params.id, storeId]
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
 router.get("/reports/daily-sales", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
@@ -1395,8 +1579,8 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       }
 
       const saleRes = await client.query(
-        "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, due_date, quotation_id, notes, company_id, customer_id) VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, $8, $9, $10) RETURNING id",
-        [storeId, quotation.total_amount, quotation.currency, quotation.customer_name, paymentMethod, dueDate, quotation.id, notes || quotation.notes, quotation.company_id, quotation.customer_id]
+        "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, due_date, quotation_id, notes, company_id, customer_id) VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+        [storeId, quotation.total_amount, quotation.currency || 'TRY', quotation.exchange_rate || 1, quotation.customer_name, paymentMethod, dueDate, quotation.id, notes || quotation.notes, quotation.company_id, quotation.customer_id]
       );
       const saleId = saleRes.rows[0].id;
 
@@ -1445,14 +1629,14 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
 
       if (quotation.company_id) {
         await client.query(
-          "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-          [storeId, quotation.company_id, quotation.id, saleId, 'debt', quotation.total_amount, `Satışa Dönüşen Teklif #${quotation.id} (${paymentMethod})`, paymentMethod]
+          "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+          [storeId, quotation.company_id, quotation.id, saleId, 'debt', quotation.total_amount, `Satışa Dönüşen Teklif #${quotation.id} (${paymentMethod})`, paymentMethod, quotation.currency || 'TRY', quotation.exchange_rate || 1]
         );
 
         if (paymentMethod !== 'term') {
           await client.query(
-            "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            [storeId, quotation.company_id, quotation.id, saleId, 'credit', quotation.total_amount, `Teklif #${quotation.id} Ödemesi (${paymentMethod})`, paymentMethod]
+            "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+            [storeId, quotation.company_id, quotation.id, saleId, 'credit', quotation.total_amount, `Teklif #${quotation.id} Ödemesi (${paymentMethod})`, paymentMethod, quotation.currency || 'TRY', quotation.exchange_rate || 1]
           );
         }
       }
@@ -1751,7 +1935,7 @@ router.get("/companies/:id/transactions", async (req: any, res) => {
 });
 
 router.post("/companies/:id/transactions", async (req: any, res) => {
-  const { type, amount, description, transaction_date, payment_method } = req.body;
+  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate } = req.body;
   let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   
@@ -1769,8 +1953,8 @@ router.post("/companies/:id/transactions", async (req: any, res) => {
     }
 
     const result = await pool.query(
-      "INSERT INTO current_account_transactions (store_id, company_id, type, amount, description, transaction_date, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-      [storeId, req.params.id, type, amount, description, finalDate, payment_method]
+      "INSERT INTO current_account_transactions (store_id, company_id, type, amount, description, transaction_date, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+      [storeId, req.params.id, type, amount, description, finalDate, payment_method, currency || 'TRY', exchange_rate || 1]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
@@ -1835,15 +2019,15 @@ router.get("/sales", async (req: any, res) => {
 // StoreAdmin: Fast POS Sale
 router.post("/pos/sale", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { items, total, paymentMethod, customerName, notes } = req.body;
+  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate } = req.body;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     
     // 1. Create Sale
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, notes) VALUES ($1, $2, 'TRY', 'completed', $3, $4, $5) RETURNING id",
-      [storeId, total || 0, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı']
+      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı']
     );
     const saleId = saleRes.rows[0].id;
 
@@ -1992,8 +2176,8 @@ router.post("/sales/:id/complete", async (req: any, res) => {
         if (finalCompanyId) {
           // Record as credit in current account for each payment
           await client.query(
-            "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, 'credit', $4, $5, $6)",
-            [storeId, finalCompanyId, id, p.amount, `Satış #${id} Ödemesi (${p.method})`, p.method]
+            "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'credit', $4, $5, $6, $7, $8)",
+            [storeId, finalCompanyId, id, p.amount, `Satış #${id} Ödemesi (${p.method})`, p.method, sale.currency || 'TRY', sale.exchange_rate || 1]
           );
         }
       }
@@ -2009,15 +2193,15 @@ router.post("/sales/:id/complete", async (req: any, res) => {
       if (finalCompanyId) {
         // Record debt
         await client.query(
-          "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, 'debt', $4, $5, $6)",
-          [storeId, finalCompanyId, id, total, `Satış #${id} (${paymentMethod || 'cash'})`, paymentMethod || 'cash']
+          "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'debt', $4, $5, $6, $7, $8)",
+          [storeId, finalCompanyId, id, total, `Satış #${id} (${paymentMethod || 'cash'})`, paymentMethod || 'cash', sale.currency || 'TRY', sale.exchange_rate || 1]
         );
         
         if (paymentMethod !== 'term') {
           // Record credit if not term
           await client.query(
-            "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, 'credit', $4, $5, $6)",
-            [storeId, finalCompanyId, id, total, `Satış #${id} Ödemesi (${paymentMethod || 'cash'})`, paymentMethod || 'cash']
+            "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'credit', $4, $5, $6, $7, $8)",
+            [storeId, finalCompanyId, id, total, `Satış #${id} Ödemesi (${paymentMethod || 'cash'})`, paymentMethod || 'cash', sale.currency || 'TRY', sale.exchange_rate || 1]
           );
         }
       }
@@ -3665,5 +3849,3 @@ router.get("/public/store/:slug/products/:barcode/stock", async (req, res) => {
     res.status(500).json({ error: "Stok bilgisi alınamadı" });
   }
 });
-
-export default router;

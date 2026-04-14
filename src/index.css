@@ -1,139 +1,47 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Inter", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --font-serif: "Cormorant Garamond", serif;
 }
 
 @layer base {
   body {
-    @apply font-sans antialiased bg-slate-50 text-slate-900;
+    @apply font-sans text-gray-900 antialiased bg-[#F8F9FA];
   }
   
-  h1, h2, h3, h4 {
-    @apply tracking-tight font-bold;
-  }
-}
-
-@layer components {
-  .tech-grid {
-    @apply border border-slate-200 bg-white shadow-sm rounded-2xl;
-  }
-  
-  .tech-label {
-    @apply text-[11px] uppercase tracking-wider text-slate-500 font-semibold;
-  }
-  
-  .tech-value {
-    @apply font-medium text-slate-900;
-  }
-  
-  .tech-button {
-    @apply px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 transition-all duration-200 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md active:scale-[0.98];
-  }
-  
-  .tech-card {
-    @apply border border-slate-200 bg-white p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
   }
 }
 
 @layer utilities {
-  .glass-panel {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+  .glass {
+    @apply bg-white/80 backdrop-blur-xl border border-white/20;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
   }
   
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+  
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
-  }
-  
-  .grid-pattern {
-    background-image: radial-gradient(circle at 2px 2px, #e2e8f0 1px, transparent 0);
-    background-size: 32px 32px;
-  }
-
-  .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-slate-50 rounded-full;
+    @apply bg-gray-50 rounded-full;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
-  }
-
-  .barcode-pattern {
-    background-image: repeating-linear-gradient(
-      90deg,
-      rgba(0,0,0,0.03) 0px,
-      rgba(0,0,0,0.03) 1px,
-      transparent 1px,
-      transparent 4px,
-      rgba(0,0,0,0.03) 4px,
-      rgba(0,0,0,0.03) 6px,
-      transparent 6px,
-      transparent 12px
-    );
-  }
-
-  .currency-bg {
-    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='10' y='30' font-family='Arial' font-size='12' fill='rgba(79, 70, 229, 0.05)'%3E$%3C/text%3E%3Ctext x='60' y='20' font-family='Arial' font-size='10' fill='rgba(79, 70, 229, 0.05)'%3E€%3C/text%3E%3Ctext x='40' y='70' font-family='Arial' font-size='14' fill='rgba(79, 70, 229, 0.05)'%3E£%3C/text%3E%3Ctext x='80' y='80' font-family='Arial' font-size='12' fill='rgba(79, 70, 229, 0.05)'%3E₺%3C/text%3E%3C/svg%3E");
-    background-size: 150px 150px;
-  }
-
-  .zebra-border {
-    border-image: repeating-linear-gradient(
-      45deg,
-      #000 0,
-      #000 2px,
-      #fff 2px,
-      #fff 4px
-    ) 1;
-  }
-
-  .zebra-border-bold {
-    border: 6px solid;
-    border-image: repeating-linear-gradient(
-      -45deg,
-      #1e293b 0,
-      #1e293b 10px,
-      #f8fafc 10px,
-      #f8fafc 20px
-    ) 10;
-  }
-
-  .barcode-card {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .barcode-card::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    background-image: repeating-linear-gradient(
-      90deg,
-      #000 0,
-      #000 2px,
-      transparent 2px,
-      transparent 4px,
-      #000 4px,
-      #000 5px,
-      transparent 5px,
-      transparent 8px
-    );
-    opacity: 0.1;
+    @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
   }
 }

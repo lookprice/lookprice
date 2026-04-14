@@ -167,6 +167,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem(`storeDashboardTab_${user.store_id || 'admin'}`) || "products";
   });
+
+  useEffect(() => {
+    localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
+  }, [activeTab, user.store_id]);
+
   const [isPending, startTransition] = useTransition();
 
   const [includeBranches, setIncludeBranches] = useState(false);
@@ -177,7 +182,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     logo_url: "",
     favicon_url: "",
     default_currency: "TRY",
-    default_language: "tr"
+    default_language: "tr",
+    payment_settings: {},
+    amazon_settings: {},
+    n11_settings: {},
+    hepsiburada_settings: {},
+    trendyol_settings: {},
+    pazarama_settings: {},
+    custom_domain: ""
   });
 
   const planLimits: Record<string, number> = {
@@ -292,6 +304,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleDeleteCompany,
     handleExportCompanies,
     handleFetchTransactions,
+    handleDeleteTransaction,
+    handleEditTransaction,
     handleExportTransactionsPDF,
     handleAddTransaction
   } = useCompanies(user, currentStoreId, lang, branding);
@@ -1017,7 +1031,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           isViewer={isViewer}
                           onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
                           onGeneratePDF={(q) => handleDownloadQuotationPDF(q)}
-                          onApprove={handleApproveQuotation}
+                          onApprove={(q) => handleApproveQuotation(q)}
                           onCancel={handleCancelQuotation}
                           onConvertToSale={handleConvertToSale}
                           onEdit={(q) => { 
@@ -1145,6 +1159,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         users={users}
                         currentUser={user}
                         currentStoreId={currentStoreId}
+                        onRefresh={fetchData}
                       />
                     )}
                   </>
@@ -1852,7 +1867,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         )}
 
         {showTransactionModal && selectedCompany && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1977,6 +1992,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                   <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
                                   <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
                                   <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
+                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'İşlem' : 'Action'}</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2077,6 +2093,28 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                           <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                                             {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                                           </span>
+                                        </td>
+                                        <td className="py-4 px-4 text-right">
+                                          <div className="flex justify-end gap-2">
+                                            <button 
+                                              onClick={() => {
+                                                const newDesc = prompt(lang === 'tr' ? 'Yeni açıklama:' : 'New description:', tx.description);
+                                                const newAmount = prompt(lang === 'tr' ? 'Yeni tutar:' : 'New amount:', tx.amount);
+                                                if (newDesc !== null && newAmount !== null) {
+                                                  handleEditTransaction(tx.id, { description: newDesc, amount: Number(newAmount), type: tx.type });
+                                                }
+                                              }}
+                                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                            >
+                                              <Edit2 className="h-4 w-4" />
+                                            </button>
+                                            <button 
+                                              onClick={() => handleDeleteTransaction(tx.id)}
+                                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </button>
+                                          </div>
                                         </td>
                                       </tr>
                                     );

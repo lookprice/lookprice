@@ -115,6 +115,28 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     }
   };
 
+  const handleDeleteTransaction = async (id: number) => {
+    if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
+      try {
+        await api.deleteTransaction(id);
+        handleFetchTransactions(selectedCompany.id);
+        fetchCompanies();
+      } catch (error) {
+        alert("Hata oluştu");
+      }
+    }
+  };
+
+  const handleEditTransaction = async (id: number, data: any) => {
+    try {
+      await api.updateTransaction(id, data);
+      handleFetchTransactions(selectedCompany.id);
+      fetchCompanies();
+    } catch (error) {
+      alert("Hata oluştu");
+    }
+  };
+
   const handleExportTransactionsPDF = async () => {
     if (!selectedCompany) return;
     const doc = new jsPDF();
@@ -312,6 +334,8 @@ export const useCompanies = (user: any, currentStoreId: number | undefined, lang
     handleDeleteCompany,
     handleExportCompanies,
     handleFetchTransactions,
+    handleDeleteTransaction,
+    handleEditTransaction,
     handleExportTransactionsPDF,
     handleAddTransaction
   };

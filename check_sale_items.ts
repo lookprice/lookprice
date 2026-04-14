@@ -1,4 +1,4 @@
-import { pool } from './models/db.js';
+import { pool } from './models/db.ts';
 
 async function check() {
   try {

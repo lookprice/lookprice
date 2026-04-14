@@ -1,9 +1,62 @@
 import express from "express";
-import { pool } from "../models/db.ts";
+import { pool } from "../models/db";
 import axios from "axios";
-import { authenticate } from "../middleware/auth.ts";
+import { authenticate } from "../middleware/auth";
 
 const router = express.Router();
+
+// Helper function to process marketplace order lines
+async function processMarketplaceOrderLines(client: any, storeId: number, saleId: number, salesInvoiceId: number, lines: any[], marketplaceName: string, orderId: string) {
+  for (const line of lines) {
+    let productId = null;
+    let currentStock = 0;
+    
+    if (line.barcode) {
+      const prodRes = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, line.barcode]);
+      if (prodRes.rows.length > 0) {
+        productId = prodRes.rows[0].id;
+        currentStock = prodRes.rows[0].stock_quantity;
+      }
+    }
+    
+    if (!productId && line.sku) {
+      const prodRes = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND sku = $2", [storeId, line.sku]);
+      if (prodRes.rows.length > 0) {
+        productId = prodRes.rows[0].id;
+        currentStock = prodRes.rows[0].stock_quantity;
+      }
+    }
+
+    const quantity = line.quantity || 1;
+    const price = line.price || 0;
+    const taxRate = line.taxRate || 20;
+    const total = price * quantity;
+    const taxAmount = total * (taxRate / 100);
+    const name = line.name || `${marketplaceName} Ürünü`;
+    
+    await client.query(
+      "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [saleId, productId, name, line.barcode || '', quantity, price, total]
+    );
+
+    await client.query(
+      "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [salesInvoiceId, name, quantity, price, taxRate, taxAmount, total]
+    );
+
+    if (productId) {
+      await client.query(
+        "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+        [quantity, productId]
+      );
+
+      await client.query(
+        "INSERT INTO stock_movements (store_id, product_id, type, quantity, notes, previous_stock, new_stock) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [storeId, productId, 'out', quantity, `${marketplaceName} Satışı: ${orderId}`, currentStock, currentStock - quantity]
+      );
+    }
+  }
+}
 
 // Amazon SP-API Constants for Turkey
 const AMAZON_TR_MARKETPLACE_ID = "A33AVAJ2PDY3WV";
@@ -165,7 +218,7 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           // Create a sale record (legacy compatibility)
           const saleRes = await client.query(
             "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, order.OrderTotal?.Amount || 0, order.OrderTotal?.CurrencyCode || 'TRY', 'completed', buyerName, customerId, 'amazon', `Amazon Siparişi: ${order.AmazonOrderId}`]
+            [storeId, order.OrderTotal?.Amount || 0, order.OrderTotal?.CurrencyCode || 'TRY', 'completed', buyerName, customerId, 'Amazon Satış', `Amazon Siparişi: ${order.AmazonOrderId}`]
           );
           const saleId = saleRes.rows[0].id;
 
@@ -178,15 +231,36 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(order.PurchaseDate || Date.now()), subtotal, taxAmount, grandTotal, order.OrderTotal?.CurrencyCode || 'TRY', 'amazon', `Amazon Siparişi: ${order.AmazonOrderId}`, 'marketplace', 'completed']
+            [storeId, saleId, customerId, invoiceNumber, new Date(order.PurchaseDate || Date.now()), subtotal, taxAmount, grandTotal, order.OrderTotal?.CurrencyCode || 'TRY', 'Amazon Satış', `Amazon Siparişi: ${order.AmazonOrderId}`, 'marketplace', 'completed']
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          // Create Invoice Item
-          await client.query(
-            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            [salesInvoiceId, `Amazon Sipariş Kalemi (${order.AmazonOrderId})`, 1, subtotal, 20, taxAmount, grandTotal]
-          );
+          // Note: Amazon SP-API requires a separate call to get order items. 
+          // For now, we'll use a generic item unless order.items is populated.
+          const lines = order.items || [];
+          const mappedLines = lines.map((l: any) => ({
+            name: l.Title || `Amazon Sipariş Kalemi (${order.AmazonOrderId})`,
+            quantity: l.QuantityOrdered || 1,
+            price: l.ItemPrice?.Amount ? parseFloat(l.ItemPrice.Amount) / (l.QuantityOrdered || 1) : subtotal,
+            barcode: l.SellerSKU, // Using SKU as barcode fallback
+            sku: l.SellerSKU,
+            taxRate: 20
+          }));
+
+          if (mappedLines.length > 0) {
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Amazon', order.AmazonOrderId);
+          } else {
+            await client.query(
+              "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+              [salesInvoiceId, `Amazon Sipariş Kalemi (${order.AmazonOrderId})`, 1, subtotal, 20, taxAmount, grandTotal]
+            );
+            
+            // Also insert a generic sale_item for consistency
+            await client.query(
+              "INSERT INTO sale_items (sale_id, product_name, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5)",
+              [saleId, `Amazon Sipariş Kalemi (${order.AmazonOrderId})`, 1, subtotal, grandTotal]
+            );
+          }
 
           // Save to amazon_orders tracking
           await client.query(
@@ -333,7 +407,7 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
 
           const saleRes = await client.query(
             "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'n11', `N11 Siparişi: ${order.id}`]
+            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'N11 Satış', `N11 Siparişi: ${order.id}`]
           );
           const saleId = saleRes.rows[0].id;
 
@@ -346,14 +420,29 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'n11', `N11 Siparişi: ${order.id}`, 'marketplace', 'completed']
+            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', `N11 Siparişi: ${order.id}`, 'marketplace', 'completed']
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          await client.query(
-            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            [salesInvoiceId, `N11 Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
-          );
+          // Process order lines
+          const lines = order.itemList?.item || [];
+          const mappedLines = (Array.isArray(lines) ? lines : [lines]).map((l: any) => ({
+            name: l.productName || `N11 Sipariş Kalemi (${order.id})`,
+            quantity: l.quantity || 1,
+            price: l.price || subtotal,
+            barcode: l.sellerStockCode, // Using sellerStockCode as barcode fallback
+            sku: l.sellerStockCode,
+            taxRate: 20
+          }));
+
+          if (mappedLines.length > 0) {
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', order.id);
+          } else {
+            await client.query(
+              "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+              [salesInvoiceId, `N11 Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+            );
+          }
 
           await client.query(
             "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
@@ -467,7 +556,7 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
 
           const saleRes = await client.query(
             "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'hepsiburada', `Hepsiburada Siparişi: ${order.id}`]
+            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'Hepsiburada Satış', `Hepsiburada Siparişi: ${order.id}`]
           );
           const saleId = saleRes.rows[0].id;
 
@@ -480,14 +569,29 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'hepsiburada', `Hepsiburada Siparişi: ${order.id}`, 'marketplace', 'completed']
+            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'Hepsiburada Satış', `Hepsiburada Siparişi: ${order.id}`, 'marketplace', 'completed']
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          await client.query(
-            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            [salesInvoiceId, `Hepsiburada Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
-          );
+          // Process order lines
+          const lines = order.items || [];
+          const mappedLines = lines.map((l: any) => ({
+            name: l.productName || `Hepsiburada Sipariş Kalemi (${order.id})`,
+            quantity: l.quantity || 1,
+            price: l.price || subtotal,
+            barcode: l.merchantSku, // Using merchantSku as barcode fallback
+            sku: l.merchantSku,
+            taxRate: 20
+          }));
+
+          if (mappedLines.length > 0) {
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Hepsiburada', order.id);
+          } else {
+            await client.query(
+              "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+              [salesInvoiceId, `Hepsiburada Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+            );
+          }
 
           await client.query(
             "INSERT INTO hepsiburada_orders (store_id, hepsiburada_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
@@ -600,7 +704,7 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
 
           const saleRes = await client.query(
             "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'trendyol', `Trendyol Siparişi: ${order.id}`]
+            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`]
           );
           const saleId = saleRes.rows[0].id;
 
@@ -612,14 +716,30 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'trendyol', `Trendyol Siparişi: ${order.id}`, 'marketplace', 'completed']
+            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'Trendyol Satış', `Trendyol Siparişi: ${order.id}`, 'marketplace', 'completed']
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          await client.query(
-            "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            [salesInvoiceId, `Trendyol Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
-          );
+          // Process order lines
+          const lines = order.lines || [];
+          const mappedLines = lines.map((l: any) => ({
+            name: l.productName,
+            quantity: l.quantity,
+            price: l.price,
+            barcode: l.barcode,
+            sku: l.merchantSku,
+            taxRate: 20 // Default or extract from line if available
+          }));
+
+          if (mappedLines.length > 0) {
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Trendyol', order.id);
+          } else {
+             // Fallback if no lines
+             await client.query(
+              "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+              [salesInvoiceId, `Trendyol Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+            );
+          }
 
           await client.query(
             "INSERT INTO trendyol_orders (store_id, trendyol_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",

@@ -128,7 +128,11 @@ export default function App() {
             ) : <Navigate to="/login" />
           } />
           <Route path="/s/:slug/return" element={<StoreShowcase />} />
-          <Route path="/guest-checkout" element={<GuestCheckoutPage />} />
+          <Route path="/guest-checkout" element={
+            token ? (
+              <GuestCheckoutPage />
+            ) : <Navigate to="/login" />
+          } />
 
           {/* Protected Routes */}
           <Route path="/dashboard/:slug?" element={

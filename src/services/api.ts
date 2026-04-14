@@ -111,6 +111,9 @@ export const api = {
   getAuditLogs: (storeId?: number) => api.get(`/api/store/audit-logs${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getBranding: (storeId?: number, slug?: string) => api.get(`/api/store/info${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : (slug ? `?slug=${slug}` : "")}`),
   updateBranding: (data: any, storeId?: number) => api.post(`/api/store/branding${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  verifyDomain: (domain: string) => api.post("/api/store/verify-domain", { domain }),
+  addCustomDomain: (domain: string) => api.post("/api/store/domain", { domain }),
+  getCustomDomainStatus: () => api.get("/api/store/domain"),
   
   getQuotations: (search = "", status = "all", storeId?: number) => api.get(`/api/store/quotations?search=${search}&status=${status}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   addQuotation: (data: any, storeId?: number) => api.post(`/api/store/quotations${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
@@ -201,6 +204,7 @@ export const api = {
   customerRegister: (data: any) => api.post("/api/public/customers/register", data),
   getCustomerProfile: () => api.get("/api/public/customers/profile"),
   updateCustomerProfile: (data: any) => api.put("/api/public/customers/profile", data),
+  getCustomerOrders: () => api.get("/api/public/customers/orders"),
   login: (data: any) => api.post("/api/auth/login", data),
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),
@@ -290,4 +294,8 @@ export const api = {
   savePazaramaSettings: (data: { apiKey: string, apiSecret: string, storeId?: number }) => api.post("/api/integrations/pazarama/settings", data),
   syncPazaramaOrders: (storeId?: number) => api.post("/api/integrations/pazarama/sync", { storeId }),
   disconnectPazarama: (storeId?: number) => api.post("/api/integrations/pazarama/disconnect", { storeId }),
+
+  // Transactions
+  deleteTransaction: (id: number) => api.delete(`/api/store/transactions/${id}`),
+  updateTransaction: (id: number, data: any) => api.put(`/api/store/transactions/${id}`, data),
 };

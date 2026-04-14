@@ -10,10 +10,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
-          <LanguageProvider>
-            <App />
-          </LanguageProvider>
-        </BrowserRouter>
-      </ErrorBoundary>
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 );

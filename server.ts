@@ -3,15 +3,17 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
-import { initDb } from "./models/db.ts";
-import authRoutes from "./routes/auth.ts";
-import publicRoutes from "./routes/public.ts";
-import adminRoutes from "./routes/admin.ts";
-import storeRoutes from "./routes/store.ts";
-import fleetRoutes from "./routes/fleet.ts";
-import integrationRoutes from "./routes/integrations.ts";
-import { authenticate } from "./middleware/auth.ts";
-import { pool } from "./models/db.ts";
+import { initDb } from "./models/db";
+import authRoutes from "./routes/auth";
+import publicRoutes from "./routes/public";
+import adminRoutes from "./routes/admin";
+import { router as storeRoutes } from "./routes/store";
+import fleetRoutes from "./routes/fleet";
+import paymentRoutes from "./routes/payment";
+import integrationRoutes from "./routes/integrations";
+import { authenticate } from "./middleware/auth";
+import { domainMiddleware } from "./middleware/domain";
+import { pool } from "./models/db";
 import multer from "multer";
 import fs from "fs";
 
@@ -33,7 +35,30 @@ async function startServer() {
 
   app.set("trust proxy", true);
 
-  // Initialize Database
+  // 1. Serve Static Files FIRST (Highest Priority)
+  if (process.env.NODE_ENV === "production") {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath, { 
+      index: false,
+      maxAge: '1d',
+      etag: true
+    }));
+  }
+  app.use("/uploads", express.static(uploadsDir));
+
+  // 2. Request Logger
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      if (duration > 2000 || res.statusCode >= 500) {
+        console.log(`[SLOW/ERR] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
+      }
+    });
+    next();
+  });
+
+  // 3. Initialize Database
   console.log("Calling initDb...");
   await initDb();
   console.log("initDb finished.");
@@ -41,7 +66,7 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  app.use("/uploads", express.static(uploadsDir));
+  app.use(domainMiddleware);
 
   // File Upload Route (Supabase Storage)
   const upload = multer({ storage: multer.memoryStorage() });
@@ -97,11 +122,11 @@ async function startServer() {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "img-src 'self' data: blob: https:; " +
+      "img-src 'self' data: blob: https: https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' wss://*.run.app:* https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com;"
+      "connect-src 'self' wss://*.run.app:* https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://gc.kis.v2.scr.kaspersky-labs.com wss://gc.kis.v2.scr.kaspersky-labs.com;"
     );
     next();
   });
@@ -143,6 +168,7 @@ async function startServer() {
   app.use("/api/admin", authenticate, adminRoutes);
   app.use("/api/store", authenticate, storeRoutes);
   app.use("/api/fleet", authenticate, fleetRoutes);
+  app.use("/api/payment", paymentRoutes);
   app.use("/api/integrations", integrationRoutes);
 
   // CRM: Tickets (Special case, mounted at /api/tickets)
@@ -173,6 +199,7 @@ async function startServer() {
 
   // Vite Integration for Development
   if (process.env.NODE_ENV !== "production") {
+    console.log("Running in DEVELOPMENT mode");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "custom",
@@ -199,13 +226,13 @@ async function startServer() {
             GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.API_KEY || "",
             API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
             VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
-            VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""
+            VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",
+            NODE_ENV: process.env.NODE_ENV || "development"
           };
 
           console.log("Injecting API Keys into HTML (Dev):", {
-            hasGemini: !!envVars.GEMINI_API_KEY,
-            hasApiKey: !!envVars.API_KEY,
-            allKeys: Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GEMINI"))
+            keys: Object.keys(envVars),
+            hasValues: Object.values(envVars).map(v => !!v)
           });
 
           const injection = `<script>
@@ -214,9 +241,7 @@ async function startServer() {
               globalThis.process.env = globalThis.process.env || {};
               const env = ${JSON.stringify(envVars)};
               Object.keys(env).forEach(key => {
-                if (env[key]) {
-                  globalThis.process.env[key] = globalThis.process.env[key] || env[key];
-                }
+                globalThis.process.env[key] = globalThis.process.env[key] || env[key];
               });
               console.log("Runtime env injection complete. Keys:", Object.keys(globalThis.process.env));
             })();
@@ -235,11 +260,8 @@ async function startServer() {
 
     app.use(vite.middlewares);
   } else {
-    // Serve Static Files in Production
+    console.log("Running in PRODUCTION mode (HTML Handler)");
     const distPath = path.join(process.cwd(), "dist");
-    
-    // Serve static assets (js, css, images) directly
-    app.use(express.static(distPath, { index: false }));
     
     // For all other routes, serve index.html with injected process.env
     app.get("*", async (req, res, next) => {
@@ -247,7 +269,12 @@ async function startServer() {
       
       try {
         const fs = await import("fs");
+        console.log(`Serving index.html for path: ${req.originalUrl}`);
         const indexPath = path.join(distPath, "index.html");
+        if (!fs.existsSync(indexPath)) {
+          console.error(`CRITICAL ERROR: index.html not found at ${indexPath}`);
+          return res.status(404).send("index.html not found");
+        }
         let template = fs.readFileSync(indexPath, "utf-8");
         
         // Inject process.env into the head
@@ -255,13 +282,13 @@ async function startServer() {
           GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.API_KEY || "",
           API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
           VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
-          VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""
+          VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",
+          NODE_ENV: process.env.NODE_ENV || "production"
         };
 
         console.log("Injecting API Keys into HTML (Prod):", {
-          hasGemini: !!envVars.GEMINI_API_KEY,
-          hasApiKey: !!envVars.API_KEY,
-          allKeys: Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GEMINI"))
+          keys: Object.keys(envVars),
+          hasValues: Object.values(envVars).map(v => !!v)
         });
 
         const injection = `<script>
@@ -270,9 +297,7 @@ async function startServer() {
             globalThis.process.env = globalThis.process.env || {};
             const env = ${JSON.stringify(envVars)};
             Object.keys(env).forEach(key => {
-              if (env[key]) {
-                globalThis.process.env[key] = globalThis.process.env[key] || env[key];
-              }
+              globalThis.process.env[key] = globalThis.process.env[key] || env[key];
             });
           })();
         </script>`;
@@ -284,6 +309,12 @@ async function startServer() {
       }
     });
   }
+
+  // Error Handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Global Error Handler:", err);
+    res.status(500).json({ error: "Internal Server Error", message: err.message });
+  });
 
   console.log("Starting server listener...");
   app.listen(PORT, "0.0.0.0", () => {

@@ -98,15 +98,34 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
     }
   };
 
-  const handleApproveQuotation = async (id: number) => {
+  const handleApproveQuotation = async (quotation: any) => {
     try {
-      await api.approveQuotation(id, {}, currentStoreId || undefined);
+      await api.approveQuotation(quotation.id, {}, currentStoreId || undefined);
+      
+      // Teklif onaylandıktan sonra fatura oluştur
+      const invoiceData = {
+        customer_name: quotation.customer_name,
+        customer_title: quotation.customer_title,
+        total_amount: quotation.total_amount,
+        currency: quotation.currency,
+        items: quotation.items,
+        company_id: quotation.company_id,
+        tax_number: quotation.tax_number,
+        tax_office: quotation.tax_office,
+        payment_method: quotation.payment_method,
+        due_date: quotation.due_date,
+        quotation_id: quotation.id
+      };
+      
+      await api.addSalesInvoice(invoiceData, currentStoreId || undefined);
+      
       fetchQuotations();
-      if (selectedQuotationDetails?.id === id) {
+      if (selectedQuotationDetails?.id === quotation.id) {
         setSelectedQuotationDetails(prev => prev ? { ...prev, status: 'approved' as any } : null);
       }
     } catch (error) {
-      alert("Hata oluştu");
+      console.error('Error approving quotation or creating invoice:', error);
+      alert("Hata oluştu: Teklif onaylanamadı veya fatura oluşturulamadı.");
     }
   };
 
