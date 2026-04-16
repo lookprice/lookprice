@@ -21,6 +21,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import { useLanguage } from "./contexts/LanguageContext";
 import { translations } from "./translations";
 import { useParams } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 
 // --- Types ---
 // User interface is imported from ./types
@@ -32,7 +33,42 @@ const NavigateWithParams = () => {
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { lang } = useLanguage();
+  const [detectedSlug, setDetectedSlug] = useState<string | null>(null);
+  const [isCheckingDomain, setIsCheckingDomain] = useState(true);
+
+  useEffect(() => {
+    const checkDomain = async () => {
+      const hostname = window.location.hostname;
+      const mainDomains = [
+        "lookprice.net",
+        "www.lookprice.net",
+        "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
+        "ais-pre-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
+        "localhost",
+        "0.0.0.0",
+        "onrender.com"
+      ];
+
+      const isMainDomain = mainDomains.some(d => hostname.includes(d));
+      
+      if (!isMainDomain && hostname !== "") {
+        try {
+          const res = await fetch(`/api/public/stores/by-domain?domain=${hostname}`);
+          if (res.ok) {
+            const data = await res.json();
+            setDetectedSlug(data.slug);
+          }
+        } catch (e) {
+          console.error("Domain detection failed", e);
+        }
+      }
+      setIsCheckingDomain(false);
+    };
+
+    checkDomain();
+  }, []);
 
   useEffect(() => {
     document.title = translations[lang].meta.title;
@@ -79,6 +115,36 @@ export default function App() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
   };
+
+  if (isCheckingDomain) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <RefreshCw className="h-8 w-8 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  // If we are on a custom domain, we treat the root and other paths as store paths
+  if (detectedSlug && !location.pathname.startsWith('/api') && !location.pathname.startsWith('/admin')) {
+    return (
+      <div className="min-h-screen bg-gray-50 font-sans">
+        <Routes>
+          {/* Scan Routes */}
+          <Route path="/scan/:slug?" element={<CustomerScanPage customSlug={detectedSlug || undefined} />} />
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/profile" element={<StoreShowcase customSlug={detectedSlug} />} />
+          <Route path="/orders" element={<StoreShowcase customSlug={detectedSlug} />} />
+          <Route path="/return" element={<StoreShowcase customSlug={detectedSlug} />} />
+          <Route path="/checkout/success" element={<CheckoutStatus />} />
+          <Route path="/checkout/cancel" element={<CheckoutStatus />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+          <Route path="*" element={<StoreShowcase customSlug={detectedSlug} />} />
+        </Routes>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">

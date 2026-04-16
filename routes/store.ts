@@ -19,52 +19,200 @@ router.use((req, res, next) => {
   next();
 });
 
-import { cloudflareService } from "../src/services/cloudflare";
-
 // --- DOMAIN MANAGEMENT ---
 router.post("/domain", async (req: any, res) => {
-  const { domain } = req.body;
-  const storeId = req.user.store_id;
+  const { domain, manualToken, manualAccount } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+
+  console.log(`POST /api/store/domain: storeId=${storeId}, domain=${domain}, manual=${!!manualToken}`);
+
+  if (!storeId) {
+    return res.status(400).json({ error: "Store ID required" });
+  }
 
   try {
-    const cfResult = await cloudflareService.addCustomHostname(domain);
+    const { cloudflareService } = await import("../src/services/cloudflareService");
     
-    await pool.query(
-      "UPDATE stores SET custom_domain = $1, custom_domain_status = 'pending', cf_hostname_id = $2 WHERE id = $3",
-      [domain, cfResult.id, storeId]
+    // 1. Create Zone
+    console.log(`Step 1: Creating Zone for ${domain}`);
+    const zoneResult = await cloudflareService.createZone(domain, manualToken, manualAccount);
+    const zoneId = zoneResult.id;
+    const nameServers = zoneResult.name_servers;
+    console.log(`Zone created: ${zoneId}, NS: ${JSON.stringify(nameServers)}`);
+
+    // 2. Add DNS Records (A record to Render, CNAME for www) - Set proxied to FALSE to avoid Error 1000 with Render
+    console.log(`Step 2: Ensuring DNS records are correct (Grey Cloud)`);
+    await cloudflareService.ensureDnsRecord(zoneId, "A", "@", "216.24.57.1", false, manualToken, manualAccount);
+    await cloudflareService.ensureDnsRecord(zoneId, "CNAME", "www", "lookprice-2bpv.onrender.com", false, manualToken, manualAccount);
+
+    // 3. Setup Origin Rules to handle Host header override for Render
+    // (Note: Origin Rules require proxying, but Error 1000 happens when proxying to another CF customer)
+    // If we disable proxying, Origin Rules won't work, but Render handles Host headers if domain is added to their dashboard.
+    // console.log(`Step 3: Setting up Origin Rules`);
+    // await cloudflareService.setupOriginRules(zoneId, "lookprice-2bpv.onrender.com", manualToken, manualAccount);
+
+    // 4. Ensure SSL mode is set to "flexible" or "full"
+    console.log(`Step 4: Setting SSL mode to flexible`);
+    await cloudflareService.setZoneSslMode(zoneId, "flexible", manualToken, manualAccount);
+
+    // 5. Register domain on Render (CRITICAL for Grey Cloud to work)
+    console.log(`Step 5: Registering domain on Render dashboard`);
+    try {
+      const { renderService } = await import("../src/services/renderService");
+      await renderService.addCustomDomain(domain);
+      // Also add www version if it's an apex
+      if (!domain.startsWith('www.')) {
+        await renderService.addCustomDomain(`www.${domain}`);
+      }
+    } catch (renderErr: any) {
+      console.warn("Render registration warning (non-fatal):", renderErr.message);
+    }
+
+    // 6. Save to database
+    console.log(`Step 6: Saving to database`);
+    const dbUpdate = await pool.query(
+      "UPDATE stores SET custom_domain = $1, custom_domain_status = $2, cf_zone_id = $3, cf_name_servers = $4, cf_api_token = $5, cf_account_id = $6 WHERE id = $7",
+      [domain, zoneResult.status || 'pending', zoneId, JSON.stringify(nameServers), manualToken || null, manualAccount || null, storeId]
     );
+    console.log(`Database update result: ${dbUpdate.rowCount} rows affected`);
     
-    res.json({ success: true, validation_records: cfResult.validation_records });
+    res.json({ success: true, name_servers: nameServers, status: zoneResult.status });
   } catch (e: any) {
+    console.error("POST /api/store/domain error:", e);
     res.status(400).json({ error: e.message });
   }
 });
 
 router.get("/domain", async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   
+  console.log(`GET /api/store/domain: storeId=${storeId}`);
+
+  if (!storeId) {
+    return res.json({ success: true, status: 'none', message: 'No store ID' });
+  }
+
   try {
-    const storeRes = await pool.query("SELECT custom_domain, custom_domain_status, cf_hostname_id FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT custom_domain, custom_domain_status, cf_zone_id, cf_name_servers, cf_api_token, cf_account_id FROM stores WHERE id = $1", [storeId]);
     const store = storeRes.rows[0];
     
-    if (!store.custom_domain || !store.cf_hostname_id) {
-      return res.json({ status: 'none' });
+    if (!store) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    const isConfigured = !!(
+      (process.env.CLOUDFLARE_API_TOKEN || process.env.VITE_CLOUDFLARE_API_TOKEN || store.cf_api_token) && 
+      (process.env.CLOUDFLARE_ACCOUNT_ID || process.env.VITE_CLOUDFLARE_ACCOUNT_ID || store.cf_account_id)
+    );
+
+    if (!store.custom_domain || !store.cf_zone_id) {
+      if (store.custom_domain_status === 'manual') {
+        return res.json({ success: true, domain: store.custom_domain, status: 'manual', isConfigured });
+      }
+      return res.json({ success: true, domain: store.custom_domain || null, status: 'none', isConfigured });
     }
     
-    const cfStatus = await cloudflareService.getHostnameStatus(store.cf_hostname_id);
+    const { cloudflareService } = await import("../src/services/cloudflareService");
     
-    if (cfStatus.ssl.status !== store.custom_domain_status) {
-      await pool.query("UPDATE stores SET custom_domain_status = $1 WHERE id = $2", [cfStatus.ssl.status, storeId]);
-      store.custom_domain_status = cfStatus.ssl.status;
+    let zoneStatus;
+    try {
+      zoneStatus = await cloudflareService.getZoneStatus(store.cf_zone_id, store.cf_api_token, store.cf_account_id);
+    } catch (cfError: any) {
+      console.error("Cloudflare status fetch failed:", cfError.message);
+      // If it's a config error, just return what we have in DB without crashing
+      return res.json({ 
+        success: true,
+        domain: store.custom_domain, 
+        status: store.custom_domain_status,
+        name_servers: store.cf_name_servers,
+        isConfigured,
+        cfError: cfError.message
+      });
+    }
+    
+    if (zoneStatus.status !== store.custom_domain_status) {
+      await pool.query("UPDATE stores SET custom_domain_status = $1 WHERE id = $2", [zoneStatus.status, storeId]);
+      store.custom_domain_status = zoneStatus.status;
     }
     
     res.json({ 
+      success: true,
       domain: store.custom_domain, 
       status: store.custom_domain_status,
-      validation_records: cfStatus.validation_records 
+      name_servers: store.cf_name_servers,
+      isConfigured
     });
   } catch (e: any) {
+    console.error("GET /api/store/domain error:", e);
     res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/domain/fix", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    const storeRes = await pool.query("SELECT custom_domain, cf_zone_id, cf_api_token, cf_account_id FROM stores WHERE id = $1", [storeId]);
+    const store = storeRes.rows[0];
+    
+    if (!store || !store.cf_zone_id) {
+      return res.status(400).json({ error: "No Cloudflare zone found for this store" });
+    }
+
+    const { cloudflareService } = await import("../src/services/cloudflareService");
+    
+    console.log(`Fixing DNS for ${store.custom_domain} (Zone: ${store.cf_zone_id})`);
+    
+    // Force update records to Grey Cloud and correct IP
+    await cloudflareService.ensureDnsRecord(store.cf_zone_id, "A", "@", "216.24.57.1", false, store.cf_api_token, store.cf_account_id);
+    await cloudflareService.ensureDnsRecord(store.cf_zone_id, "CNAME", "www", "lookprice-2bpv.onrender.com", false, store.cf_api_token, store.cf_account_id);
+    
+    // Also ensure SSL is flexible
+    await cloudflareService.setZoneSslMode(store.cf_zone_id, "flexible", store.cf_api_token, store.cf_account_id);
+
+    // CRITICAL: Also register on Render
+    let renderMessage = "";
+    try {
+      const { renderService } = await import("../src/services/renderService");
+      await renderService.addCustomDomain(store.custom_domain);
+      if (!store.custom_domain.startsWith('www.')) {
+        await renderService.addCustomDomain(`www.${store.custom_domain}`);
+      }
+      renderMessage = " Registered on Render.";
+    } catch (renderErr: any) {
+      console.warn("Render fix registration warning:", renderErr.message);
+      if (renderErr.message.includes("Hobby Tier is limited")) {
+        renderMessage = " (WARNING: Render Hobby Tier limit reached! Please upgrade Render plan or remove old domains.)";
+      } else {
+        renderMessage = ` (Render Error: ${renderErr.message})`;
+      }
+    }
+
+    res.json({ success: true, message: `DNS records fixed and set to Grey Cloud.${renderMessage}` });
+  } catch (e: any) {
+    console.error("POST /api/store/domain/fix error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/domain/manual", async (req: any, res) => {
+  const { domain } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+
+  if (!domain) return res.status(400).json({ error: "Domain required" });
+  if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    await pool.query(
+      "UPDATE stores SET custom_domain = $1, custom_domain_status = $2 WHERE id = $3",
+      [domain, 'manual', storeId]
+    );
+    res.json({ success: true, message: "Domain saved manually" });
+  } catch (e: any) {
+    console.error("POST /api/store/domain/manual error:", e);
+    res.status(500).json({ error: e.message });
   }
 });
 const PLAN_LIMITS: Record<string, number> = {
@@ -220,7 +368,7 @@ router.get("/info", async (req: any, res) => {
   const store = storeRes.rows[0];
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings'];
+  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings', 'page_layout', 'menu_links', 'shipping_profiles'];
   jsonFields.forEach(field => {
     if (typeof store[field] === 'string') {
       try {
@@ -256,7 +404,8 @@ router.post("/branding", async (req: any, res) => {
       hero_title, hero_subtitle, hero_image_url, instagram_url, 
       facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
       category_tax_rules, faq, blog_posts, legal_pages, social_links, custom_domain, payment_settings,
-      amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings
+      amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings,
+      page_layout, menu_links, shipping_profiles
     } = req.body;
 
     await pool.query(
@@ -271,8 +420,8 @@ router.post("/branding", async (req: any, res) => {
         category_tax_rules = $25, faq = $26, blog_posts = $27, legal_pages = $28,
         social_links = $29, custom_domain = $30, payment_settings = $31,
         amazon_settings = $32, n11_settings = $33, hepsiburada_settings = $34,
-        trendyol_settings = $35, pazarama_settings = $36
-      WHERE id = $37`, 
+        trendyol_settings = $35, pazarama_settings = $36, page_layout = $37, menu_links = $38, shipping_profiles = $39
+      WHERE id = $40`, 
       [
         name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
         background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -292,6 +441,9 @@ router.post("/branding", async (req: any, res) => {
         JSON.stringify(hepsiburada_settings || {}),
         JSON.stringify(trendyol_settings || {}),
         JSON.stringify(pazarama_settings || {}),
+        JSON.stringify(page_layout || []),
+        JSON.stringify(menu_links || []),
+        JSON.stringify(shipping_profiles || []),
         storeId
       ]
     );
@@ -345,7 +497,7 @@ router.post("/verify-domain", async (req: any, res) => {
       const wwwDomain = domain.startsWith('www.') ? domain : `www.${domain}`;
       const cnameRecords = await dnsPromises.resolveCname(wwwDomain);
       results.target = cnameRecords[0];
-      if (cnameRecords.some(r => r.includes('lookprice.net'))) {
+      if (cnameRecords.some(r => r.includes('lookprice.net') || r.includes('onrender.com'))) {
         results.cname = true;
       }
     } catch (e) {}
@@ -356,40 +508,7 @@ router.post("/verify-domain", async (req: any, res) => {
   }
 });
 
-router.post("/custom-domain", async (req: any, res) => {
-  const storeId = req.user.store_id;
-  const { domain } = req.body;
-  if (!domain) return res.status(400).json({ error: "Domain required" });
 
-  try {
-    const { cloudflareService } = await import("../src/services/cloudflareService");
-    const cfResult = await cloudflareService.addCustomHostname(domain);
-    
-    await pool.query("UPDATE stores SET custom_domain = $1 WHERE id = $2", [domain, storeId]);
-    
-    res.json({ success: true, cfResult });
-  } catch (e: any) {
-    console.error("POST /api/store/custom-domain error:", e);
-    res.status(400).json({ error: e.message, stack: e.stack });
-  }
-});
-
-router.get("/custom-domain/status", async (req: any, res) => {
-  const storeId = req.user.store_id;
-  try {
-    const storeRes = await pool.query("SELECT custom_domain FROM stores WHERE id = $1", [storeId]);
-    const domain = storeRes.rows[0]?.custom_domain;
-    if (!domain) return res.json({ success: true, domain: null, status: null });
-
-    const { cloudflareService } = await import("../src/services/cloudflareService");
-    const status = await cloudflareService.getCustomHostnameStatus(domain);
-    
-    res.json({ success: true, domain, status });
-  } catch (e: any) {
-    console.error("GET /api/store/custom-domain/status error:", e);
-    res.status(400).json({ error: e.message, stack: e.stack });
-  }
-});
 
 router.delete("/transactions/:id", async (req: any, res) => {
   const storeId = req.user.store_id;
@@ -703,8 +822,8 @@ router.post("/products", async (req: any, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, updated_at) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, CURRENT_TIMESTAMP)
+      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, updated_at) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, String(barcode), name, parseFloat(price), currency || 'TRY', 
@@ -716,7 +835,8 @@ router.post("/products", async (req: any, res) => {
       product_type || 'product',
       parseFloat(price_2) || 0,
       price_2_currency || 'TRY',
-      parseFloat(tax_rate) || 0
+      parseFloat(tax_rate) || 0,
+      req.body.shipping_profile_id || null
     ]);
     res.json(result.rows[0]);
   } catch (e: any) {
@@ -874,7 +994,7 @@ router.put("/products/:id", async (req: any, res) => {
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
   const { id } = req.params;
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate } = req.body;
+  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id } = req.body;
   try {
     await pool.query(`
       UPDATE products SET 
@@ -883,8 +1003,8 @@ router.put("/products/:id", async (req: any, res) => {
         stock_quantity = $8, min_stock_level = $9, unit = $10, 
         category = $11, sub_category = $12, brand = $13, author = $14, 
         labels = $15, image_url = $16, is_web_sale = $17, product_type = $18,
-        price_2 = $19, price_2_currency = $20, tax_rate = $21, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $22 AND store_id = $23
+        price_2 = $19, price_2_currency = $20, tax_rate = $21, shipping_profile_id = $22, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $23 AND store_id = $24
     `, [
       String(barcode), name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
@@ -896,6 +1016,7 @@ router.put("/products/:id", async (req: any, res) => {
       parseFloat(price_2) || 0,
       price_2_currency || 'TRY',
       parseFloat(tax_rate) || 0,
+      shipping_profile_id || null,
       id, storeId
     ]);
     

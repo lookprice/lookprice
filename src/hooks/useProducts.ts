@@ -229,6 +229,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
         setLoading(true);
         const res = await api.bulkUpdatePrice(bulkPriceForm, targetStoreId);
         alert(lang === 'tr' ? `${res.data.count} ürünün fiyatı başarıyla güncellendi.` : `Prices of ${res.data.count} products updated successfully.`);
+        setBulkPriceForm({ target: 'all', category: '', type: 'percentage', direction: 'increase', value: '', rounding: 'none' });
         setShowBulkPriceModal(false);
         fetchData(true);
       } catch (error: any) {

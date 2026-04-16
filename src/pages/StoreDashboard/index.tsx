@@ -2833,20 +2833,38 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <option value="service">{lang === 'tr' ? 'Hizmet / Servis' : 'Service / Fee'}</option>
                         </select>
                       </div>
-                      <div className="flex items-center space-x-3 pt-6">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            name="is_web_sale" 
-                            defaultChecked={editingProduct?.is_web_sale !== false} 
-                            className="sr-only peer" 
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                          <span className="ml-3 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            {lang === 'tr' ? 'WEB SATIŞI' : 'WEB SALE'}
-                          </span>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          <Truck className="h-2.5 w-2.5" /> {lang === 'tr' ? 'KARGO PROFİLİ' : 'SHIPPING PROFILE'}
                         </label>
+                        <select 
+                          name="shipping_profile_id" 
+                          defaultValue={editingProduct?.shipping_profile_id || ''} 
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                        >
+                          <option value="">{lang === 'tr' ? 'Seçiniz...' : 'Select...'}</option>
+                          {(branding?.shipping_profiles || []).map((profile: any) => (
+                            <option key={profile.id} value={profile.id}>
+                              {profile.name} ({profile.cost} {profile.currency})
+                            </option>
+                          ))}
+                        </select>
                       </div>
+                    </div>
+
+                    <div className="flex items-center space-x-3 pt-4 border-t border-gray-50">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          name="is_web_sale" 
+                          defaultChecked={editingProduct?.is_web_sale !== false} 
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <span className="ml-3 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          {lang === 'tr' ? 'WEB SATIŞI' : 'WEB SALE'}
+                        </span>
+                      </label>
                     </div>
                   </div>
                 </div>

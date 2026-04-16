@@ -26,14 +26,18 @@ import {
   CheckCircle2,
   XCircle,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Truck,
+  Plus,
+  Trash2,
+  Wrench
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { DEVELOPED_COUNTRIES } from "../../constants";
 import { api } from "../../services/api";
-import { PageBuilder } from "../../components/PageBuilder.tsx";
+import { PageBuilder } from "../../components/PageBuilder";
 
 interface SettingsTabProps {
   branding: any;
@@ -92,10 +96,17 @@ const SettingsTab = ({
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
   const [verificationResult, setVerificationResult] = React.useState<{ a: boolean, cname: boolean, ip: string | null, target: string | null } | null>(null);
   const [cfStatus, setCfStatus] = React.useState<any>(null);
+  const [cfNameServers, setCfNameServers] = React.useState<string[]>([]);
+  const [cfConfigured, setCfConfigured] = React.useState(false);
+  const [showManualCf, setShowManualCf] = React.useState(false);
+  const [manualCfToken, setManualCfToken] = React.useState("");
+  const [manualCfAccount, setManualCfAccount] = React.useState("");
   const [loadingCf, setLoadingCf] = React.useState(false);
 
-  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos' | 'domain' | 'menu' | 'layout'>(() => {
-    return (localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) as any) || 'web';
+  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos' | 'domain' | 'menu' | 'layout' | 'shipping'>(() => {
+    const stored = localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) as any;
+    if (stored === 'layout' || stored === 'menu') return 'web';
+    return stored || 'web';
   });
 
   React.useEffect(() => {
@@ -320,13 +331,16 @@ const SettingsTab = ({
     setVerificationResult(null);
     try {
       const res = await api.verifyDomain(branding.custom_domain);
+      if (res.error) {
+        throw new Error(res.error);
+      }
       setVerificationResult(res);
       if (res.a && res.cname) {
         // Automatically save if verified
         onSaveBranding();
       }
-    } catch (error) {
-      alert(lang === 'tr' ? 'Doğrulama sırasında bir hata oluştu' : 'An error occurred during verification');
+    } catch (error: any) {
+      alert(error.message || (lang === 'tr' ? 'Doğrulama sırasında bir hata oluştu' : 'An error occurred during verification'));
     } finally {
       setVerifyingDomain(false);
     }
@@ -339,8 +353,40 @@ const SettingsTab = ({
     }
     setLoadingCf(true);
     try {
-      const res = await api.addCustomDomain(branding.custom_domain);
+      const res = await api.addCustomDomain(branding.custom_domain, currentStoreId, {
+        manualToken: manualCfToken || undefined,
+        manualAccount: manualCfAccount || undefined
+      });
+      if (res.error) {
+        if (res.error.toLowerCase().includes("configuration missing")) {
+          setShowManualCf(true);
+        }
+        throw new Error(res.error);
+      }
       alert(lang === 'tr' ? 'Domain Cloudflare sistemine eklendi. Lütfen doğrulama kayıtlarını bekleyin.' : 'Domain added to Cloudflare. Please wait for verification records.');
+      if (manualCfToken && manualCfAccount) {
+        setCfConfigured(true);
+      }
+      setManualCfToken("");
+      setManualCfAccount("");
+      fetchCfStatus();
+    } catch (error: any) {
+      alert(error.message || (lang === 'tr' ? 'Hata oluştu' : 'Error occurred'));
+    } finally {
+      setLoadingCf(false);
+    }
+  };
+
+  const handleManualSave = async () => {
+    if (!branding.custom_domain) {
+      alert(lang === 'tr' ? 'Lütfen bir domain girin' : 'Please enter a domain');
+      return;
+    }
+    setLoadingCf(true);
+    try {
+      const res = await api.saveCustomDomainManual(branding.custom_domain, currentStoreId);
+      if (res.error) throw new Error(res.error);
+      alert(lang === 'tr' ? 'Domain başarıyla kaydedildi. Şimdi DNS kayıtlarınızı (A Kaydı) yönlendirebilirsiniz.' : 'Domain saved successfully. You can now point your DNS records (A Record).');
       fetchCfStatus();
     } catch (error: any) {
       alert(error.message || (lang === 'tr' ? 'Hata oluştu' : 'Error occurred'));
@@ -351,14 +397,36 @@ const SettingsTab = ({
 
   const fetchCfStatus = async () => {
     try {
-      const res = await api.getCustomDomainStatus();
-      if (res.success) {
-        setCfStatus(res.status);
+      const res = await api.getCustomDomainStatus(currentStoreId);
+      if (res.domain) {
+        setCfStatus({ status: res.status, domain: res.domain });
+        if (res.status === 'manual') {
+          setCfNameServers([]);
+        } else {
+          setCfNameServers(res.name_servers || []);
+        }
+      } else {
+        setCfStatus(null);
+        setCfNameServers([]);
       }
+      // Set configured state from backend flag
+      setCfConfigured(!!res.isConfigured);
     } catch (error) {
       console.error("CF Status fetch error:", error);
     }
   };
+
+  React.useEffect(() => {
+    const checkConfig = async () => {
+      try {
+        const res = await api.getCustomDomainStatus(currentStoreId);
+        setCfConfigured(!!res.isConfigured);
+      } catch (e) {
+        console.error("Config check error:", e);
+      }
+    };
+    checkConfig();
+  }, [currentStoreId]);
 
   React.useEffect(() => {
     if (activeSubTab === 'web' && branding.custom_domain) {
@@ -378,13 +446,6 @@ const SettingsTab = ({
         >
           <Palette className="h-4 w-4" />
           <span>{t.settingsCategories?.webSettings}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('layout')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'layout' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <Settings className="h-4 w-4" />
-          <span>{t.settingsCategories?.layoutSettings || 'Sayfa Düzeni'}</span>
         </button>
         <button 
           onClick={() => setActiveSubTab('e-stores')}
@@ -422,11 +483,11 @@ const SettingsTab = ({
           <span>{t.settingsCategories?.domainSettings}</span>
         </button>
         <button 
-          onClick={() => setActiveSubTab('menu')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'menu' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          onClick={() => setActiveSubTab('shipping')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'shipping' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
         >
-          <Settings className="h-4 w-4" />
-          <span>{lang === 'tr' ? 'Menü Yönetimi' : 'Menu Management'}</span>
+          <Truck className="h-4 w-4" />
+          <span>{lang === 'tr' ? 'Kargo Ayarları' : 'Shipping'}</span>
         </button>
       </div>
 
@@ -540,6 +601,106 @@ const SettingsTab = ({
         </div>
       )}
 
+      {activeSubTab === 'shipping' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{lang === 'tr' ? 'Kargo Ücretleri' : 'Shipping Profiles'}</h3>
+                <p className="text-sm text-slate-500">
+                  {lang === 'tr' 
+                    ? 'Farklı desi, ağırlık veya bölgeler için kargo ücretleri tanımlayın. Bu ücretleri ürün eklerken seçebilirsiniz.' 
+                    : 'Define shipping costs for different weights, volumes, or regions. You can select these when adding products.'}
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
+                  onBrandingChange('shipping_profiles', newProfiles);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shrink-0"
+              >
+                <Plus className="h-4 w-4" />
+                {lang === 'tr' ? 'Yeni Kargo Profili' : 'New Profile'}
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {(branding.shipping_profiles || []).map((profile: any, index: number) => (
+                <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex-1 w-full">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">{lang === 'tr' ? 'Profil Adı (örn: 0-1 Desi)' : 'Profile Name'}</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
+                      value={profile.name}
+                      onChange={(e) => {
+                        const newProfiles = [...branding.shipping_profiles];
+                        newProfiles[index].name = e.target.value;
+                        onBrandingChange('shipping_profiles', newProfiles);
+                      }}
+                      placeholder={lang === 'tr' ? 'Örn: 0-1 Desi Aras Kargo' : 'e.g. 0-1 Kg Standard'}
+                    />
+                  </div>
+                  <div className="w-full sm:w-32 shrink-0">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">{lang === 'tr' ? 'Ücret' : 'Cost'}</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
+                      value={profile.cost}
+                      onChange={(e) => {
+                        const newProfiles = [...branding.shipping_profiles];
+                        newProfiles[index].cost = parseFloat(e.target.value) || 0;
+                        onBrandingChange('shipping_profiles', newProfiles);
+                      }}
+                    />
+                  </div>
+                  <div className="w-full sm:w-24 shrink-0">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
+                    <select
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
+                      value={profile.currency}
+                      onChange={(e) => {
+                        const newProfiles = [...branding.shipping_profiles];
+                        newProfiles[index].currency = e.target.value;
+                        onBrandingChange('shipping_profiles', newProfiles);
+                      }}
+                    >
+                      <option value="TRY">TRY</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const newProfiles = branding.shipping_profiles.filter((_: any, i: number) => i !== index);
+                      onBrandingChange('shipping_profiles', newProfiles);
+                    }}
+                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-6 sm:mt-5"
+                    title={lang === 'tr' ? 'Sil' : 'Delete'}
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+              {(!branding.shipping_profiles || branding.shipping_profiles.length === 0) && (
+                <div className="text-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                  <Truck className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm font-medium">{lang === 'tr' ? 'Henüz kargo profili eklemediniz.' : 'No shipping profiles added yet.'}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {activeSubTab === 'menu' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -547,7 +708,14 @@ const SettingsTab = ({
           className="max-w-4xl mx-auto"
         >
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-6">{lang === 'tr' ? 'Menü Yönetimi' : 'Menu Management'}</h3>
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">{lang === 'tr' ? 'Menü Yönetimi' : 'Menu Management'}</h3>
+              <p className="text-sm text-slate-500">
+                {lang === 'tr' 
+                  ? 'Buradan mağazanızın üst menüsünde görünecek bağlantıları yönetebilirsiniz. Yeni bir sayfa oluşturmaz, sadece mevcut bölümlere (örn: /#about) veya dış bağlantılara (örn: https://google.com) yönlendirme yapar.' 
+                  : 'Manage the links that will appear in your store\'s top menu. This does not create new pages, it only links to existing sections (e.g., /#about) or external URLs.'}
+              </p>
+            </div>
             <div className="space-y-4">
               {(branding.menu_links || []).map((link: any, index: number) => (
                 <div key={index} className="flex gap-4 items-center">
@@ -725,59 +893,7 @@ const SettingsTab = ({
         </motion.div>
       )}
 
-      {activeSubTab === 'domain' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <Globe className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.settingsCategories?.domainSettings}</h3>
-              </div>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.customDomain || 'Özel Domain'}</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    placeholder="orn: magaza.com"
-                    value={branding.custom_domain || ""}
-                    onChange={(e) => onBrandingChange('custom_domain', e.target.value)}
-                  />
-                  <button 
-                    onClick={handleConnectCloudflare}
-                    disabled={loadingCf}
-                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all disabled:opacity-50"
-                  >
-                    {loadingCf ? t.loading : (t.connectDomain || 'Domain Bağla')}
-                  </button>
-                </div>
-              </div>
 
-              {cfStatus && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-600">{t.domainStatus || 'Durum'}:</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${cfStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {cfStatus}
-                    </span>
-                  </div>
-                  
-                  {/* DNS Records would be displayed here if fetched from API */}
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {activeSubTab === 'e-stores' && (
         <motion.div 
@@ -1336,69 +1452,6 @@ const SettingsTab = ({
             </div>
             
             <div className="space-y-6">
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="mt-0.5 p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
-                    <Info className="h-4 w-4" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'DNS Yapılandırma Seçenekleri' : 'DNS Configuration Options'}</p>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      {lang === 'tr' 
-                        ? 'Domaininizi bağlamak için aşağıdaki iki yöntemden birini seçebilirsiniz. Cloudflare kullanıyorsanız 2. yöntemi öneririz.' 
-                        : 'You can choose one of the following two methods to connect your domain. We recommend method 2 if you use Cloudflare.'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  {/* Method 1: A Record */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600">1</div>
-                      <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Standart (A Kaydı)' : 'Standard (A Record)'}</span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-500">Host:</span>
-                        <span className="font-mono font-bold">@</span>
-                      </div>
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-500">IP:</span>
-                        <code className="font-mono font-bold text-indigo-600 select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText('216.24.57.1'); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>216.24.57.1</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Method 2: Cloudflare / NS */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600">2</div>
-                      <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Cloudflare / Name Server' : 'Cloudflare / Name Server'}</span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-500">Host:</span>
-                        <span className="font-mono font-bold">www</span>
-                      </div>
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-500">Target:</span>
-                        <code className="font-mono font-bold text-indigo-600 select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText('lookprice.net'); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>lookprice.net</code>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 flex items-start space-x-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-[10px] text-amber-700 leading-relaxed">
-                    {lang === 'tr' 
-                      ? 'A kaydı girilemeyen domainler için Cloudflare kullanarak NS yönlendirmesi yapabilir ve CNAME kaydı ile root domaininizi (enrakipsiz.com gibi) sistemimize bağlayabilirsiniz.' 
-                      : 'For domains where A records cannot be entered, you can use Cloudflare for NS redirection and connect your root domain (like enrakipsiz.com) to our system via CNAME record.'}
-                  </p>
-                </div>
-              </div>
-
               <div className="space-y-3">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Alan Adınız' : 'Your Domain Name'}</label>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -1410,81 +1463,16 @@ const SettingsTab = ({
                       value={branding.custom_domain || ""}
                       onChange={(e) => {
                         onBrandingChange('custom_domain', e.target.value);
-                        setVerificationResult(null);
                       }}
                       placeholder="Örn: shop.magazam.com"
                     />
                   </div>
-                  <button 
-                    onClick={handleVerifyDomain}
-                    disabled={verifyingDomain}
-                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 whitespace-nowrap disabled:opacity-50"
-                  >
-                    {verifyingDomain ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    <span>{lang === 'tr' ? 'Doğrula ve Kaydet' : 'Verify and Save'}</span>
-                  </button>
                 </div>
-
-                {verificationResult && (
-                  <div className={`p-4 rounded-xl border ${verificationResult.a && verificationResult.cname ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'} space-y-3`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Doğrulama Sonuçları:' : 'Verification Results:'}</span>
-                      {verificationResult.a && verificationResult.cname ? (
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          {lang === 'tr' ? 'BAŞARILI' : 'SUCCESSFUL'}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          {lang === 'tr' ? 'EKSİK' : 'INCOMPLETE'}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="flex items-center justify-between bg-white/50 p-2 rounded-lg">
-                        <span className="text-[10px] font-bold text-slate-500">A Kaydı:</span>
-                        {verificationResult.a ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <div className="flex items-center space-x-1">
-                            <span className="text-[10px] font-mono text-rose-500">{verificationResult.ip || 'Bulunamadı'}</span>
-                            <XCircle className="h-4 w-4 text-rose-500" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between bg-white/50 p-2 rounded-lg">
-                        <span className="text-[10px] font-bold text-slate-500">CNAME:</span>
-                        {verificationResult.cname ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <div className="flex items-center space-x-1">
-                            <span className="text-[10px] font-mono text-rose-500 truncate max-w-[80px]">{verificationResult.target || 'Bulunamadı'}</span>
-                            <XCircle className="h-4 w-4 text-rose-500" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {(!verificationResult.a || !verificationResult.cname) && (
-                      <p className="text-[10px] text-rose-600 font-medium">
-                        {lang === 'tr' 
-                          ? 'DNS kayıtlarınız henüz güncellenmemiş olabilir. Lütfen ayarlarınızı kontrol edin ve bir süre sonra tekrar deneyin.' 
-                          : 'Your DNS records may not have updated yet. Please check your settings and try again later.'}
-                      </p>
-                    )}
-                  </div>
-                )}
 
                 <p className="text-[10px] text-slate-400 italic ml-1">
                   {lang === 'tr' 
-                    ? '* DNS değişikliklerinin aktif olması 1-24 saat sürebilir. SSL sertifikanız otomatik olarak oluşturulacaktır.' 
-                    : '* DNS changes may take 1-24 hours to propagate. Your SSL certificate will be created automatically.'}
+                    ? '* Domaininizi bağlamak için aşağıdaki otomatik sistemi kullanın. SSL sertifikanız otomatik olarak oluşturulacaktır.' 
+                    : '* Use the automated system below to connect your domain. Your SSL certificate will be created automatically.'}
                 </p>
 
                 {/* Cloudflare SaaS Section */}
@@ -1504,47 +1492,173 @@ const SettingsTab = ({
                   </div>
 
                   {!cfStatus ? (
-                    <button 
-                      onClick={handleConnectCloudflare}
-                      disabled={loadingCf || !branding.custom_domain}
-                      className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center justify-center space-x-2 disabled:opacity-50"
-                    >
-                      {loadingCf ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-                      <span>{lang === 'tr' ? 'Cloudflare ile Otomatik Bağla' : 'Auto Connect with Cloudflare'}</span>
-                    </button>
+                    <div className="space-y-4">
+                      {cfConfigured && !showManualCf ? (
+                        <div className="p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-100 rounded-lg">
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-green-900">
+                                {lang === 'tr' ? 'Cloudflare Sistemi Hazır' : 'Cloudflare System Ready'}
+                              </p>
+                              <p className="text-[10px] text-green-700">
+                                {lang === 'tr' ? 'Sistem anahtarları aktif. Mağaza için özel anahtar gerekmez.' : 'System keys are active. No store-specific keys needed.'}
+                              </p>
+                            </div>
+                          </div>
+                          {currentUser?.role === 'superadmin' && (
+                            <button 
+                              onClick={() => setShowManualCf(true)}
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 underline"
+                            >
+                              {lang === 'tr' ? 'Manuel Gir' : 'Manual Entry'}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        (currentUser?.role === 'superadmin' || !cfConfigured) && (
+                          <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-bold text-indigo-900 flex items-center gap-2">
+                                <Settings className="h-4 w-4" />
+                                {lang === 'tr' ? 'Cloudflare API Bilgileri' : 'Cloudflare API Credentials'}
+                              </p>
+                              {cfConfigured && (
+                                <button 
+                                  onClick={() => setShowManualCf(false)}
+                                  className="text-[10px] font-bold text-indigo-600"
+                                >
+                                  {lang === 'tr' ? 'Vazgeç' : 'Cancel'}
+                                </button>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-medium text-indigo-700 ml-1">Cloudflare API Token</label>
+                                <input 
+                                  type="password"
+                                  placeholder="Örn: 1234567890abcdef..."
+                                  value={manualCfToken}
+                                  onChange={(e) => setManualCfToken(e.target.value)}
+                                  className="w-full p-2.5 text-[11px] border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-medium text-indigo-700 ml-1">Cloudflare Account ID</label>
+                                <input 
+                                  type="text"
+                                  placeholder="Örn: a1b2c3d4e5f6..."
+                                  value={manualCfAccount}
+                                  onChange={(e) => setManualCfAccount(e.target.value)}
+                                  className="w-full p-2.5 text-[11px] border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      )}
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <button 
+                          onClick={handleConnectCloudflare}
+                          disabled={loadingCf || !branding.custom_domain}
+                          className="py-4 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center space-x-2 disabled:opacity-50"
+                        >
+                          {loadingCf ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+                          <span>{lang === 'tr' ? 'Cloudflare ile Otomatik Bağla' : 'Auto Connect with Cloudflare'}</span>
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                        <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Durum:' : 'Status:'}</span>
-                        <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest ${cfStatus.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                          {cfStatus.status}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Durum:' : 'Status:'}</span>
+                          <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest ${cfStatus.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {cfStatus.status}
+                          </span>
+                        </div>
+                        <button 
+                          onClick={async () => {
+                            if (!confirm(lang === 'tr' ? 'DNS kayıtları onarılsın mı? (Error 1000 hatasını çözer)' : 'Repair DNS records? (Fixes Error 1000)')) return;
+                            setLoadingCf(true);
+                            try {
+                              await api.post(`/api/store/domain/fix?storeId=${currentStoreId}`, {});
+                              alert(lang === 'tr' ? 'DNS kayıtları onarıldı ve Gri Bulut moduna alındı.' : 'DNS records repaired and set to Grey Cloud.');
+                              fetchCfStatus();
+                            } catch (e: any) {
+                              alert(e.message);
+                            } finally {
+                              setLoadingCf(false);
+                            }
+                          }}
+                          disabled={loadingCf}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                        >
+                          <Wrench className="h-3 w-3" />
+                          {lang === 'tr' ? 'DNS Onar' : 'Fix DNS'}
+                        </button>
                       </div>
 
-                      {cfStatus.ownership_verification && cfStatus.status !== 'active' && (
+                      {cfNameServers && cfNameServers.length > 0 && cfStatus.status !== 'active' && (
                         <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 space-y-3">
-                          <p className="text-xs font-bold text-indigo-900">{lang === 'tr' ? '1. Domain Sahipliğini Doğrulayın (TXT Kaydı)' : '1. Verify Domain Ownership (TXT Record)'}</p>
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-[10px]">
-                              <span className="text-indigo-600/60">Type:</span>
-                              <span className="font-mono font-bold">TXT</span>
-                            </div>
-                            <div className="flex justify-between text-[10px]">
-                              <span className="text-indigo-600/60">Name:</span>
-                              <code className="font-mono font-bold select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText(cfStatus.ownership_verification.name); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>{cfStatus.ownership_verification.name}</code>
-                            </div>
-                            <div className="flex justify-between text-[10px]">
-                              <span className="text-indigo-600/60">Value:</span>
-                              <code className="font-mono font-bold select-all cursor-pointer" onClick={() => { navigator.clipboard.writeText(cfStatus.ownership_verification.value); alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); }}>{cfStatus.ownership_verification.value}</code>
-                            </div>
+                          <p className="text-xs font-bold text-indigo-900">
+                            {lang === 'tr' ? 'Domaininizi Bağlamak İçin Name Serverları Güncelleyin' : 'Update Name Servers to Connect Your Domain'}
+                          </p>
+                          <p className="text-[10px] text-indigo-600 leading-relaxed">
+                            {lang === 'tr' 
+                              ? 'Domaininizi aldığınız panelden aşağıdaki Name Server (NS) adreslerini tanımlayın. Bu işlemden sonra domaininiz otomatik olarak aktif olacaktır.' 
+                              : 'Set the following Name Server (NS) addresses in your domain registrar panel. Your domain will be activated automatically after this.'}
+                          </p>
+                          <div className="space-y-2 pt-2">
+                            {cfNameServers.map((ns, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-indigo-100">
+                                <span className="text-[10px] font-bold text-slate-500">NS {idx + 1}:</span>
+                                <code 
+                                  className="font-mono font-bold text-indigo-600 select-all cursor-pointer" 
+                                  onClick={() => { 
+                                    navigator.clipboard.writeText(ns); 
+                                    alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!'); 
+                                  }}
+                                >
+                                  {ns}
+                                </code>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
 
-                      {cfStatus.ssl && cfStatus.ssl.status !== 'active' && (
-                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 space-y-3">
-                          <p className="text-xs font-bold text-amber-900">{lang === 'tr' ? '2. SSL Sertifikası Doğrulanıyor' : '2. SSL Certificate Verifying'}</p>
-                          <p className="text-[10px] text-amber-700">{lang === 'tr' ? 'SSL sertifikası oluşturuluyor, bu işlem birkaç dakika sürebilir.' : 'SSL certificate is being created, this may take a few minutes.'}</p>
+                      {cfStatus.status === 'active' && (
+                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center space-x-3">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                          <p className="text-xs font-bold text-emerald-900">
+                            {lang === 'tr' ? 'Domaininiz başarıyla bağlandı ve aktif!' : 'Your domain is successfully connected and active!'}
+                          </p>
+                        </div>
+                      )}
+
+                      {cfStatus.status === 'manual' && (
+                        <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 space-y-3">
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle2 className="h-5 w-5 text-indigo-600" />
+                            <p className="text-xs font-bold text-indigo-900">
+                              {lang === 'tr' ? 'Domain Kaydedildi' : 'Domain Saved'}
+                            </p>
+                          </div>
+                          <p className="text-[10px] text-indigo-600 leading-relaxed">
+                            {lang === 'tr' 
+                              ? 'Domaininiz sisteme kaydedildi. Şimdi domain panelinizden A kaydını 216.24.57.1 IP adresine yönlendirdiğinizden emin olun.' 
+                              : 'Your domain has been saved. Please ensure you have pointed the A record to 216.24.57.1 in your domain panel.'}
+                          </p>
+                          <button 
+                            onClick={() => setCfStatus(null)}
+                            className="text-[10px] font-bold text-indigo-600 underline"
+                          >
+                            {lang === 'tr' ? 'Ayarları Sıfırla' : 'Reset Settings'}
+                          </button>
                         </div>
                       )}
                     </div>

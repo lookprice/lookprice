@@ -185,12 +185,31 @@ router.post("/stores/:id/custom-domain", async (req: any, res) => {
 
   try {
     const { cloudflareService } = await import("../src/services/cloudflareService");
-    const cfResult = await cloudflareService.addCustomHostname(domain);
     
-    await pool.query("UPDATE stores SET custom_domain = $1 WHERE id = $2", [domain, id]);
+    // 1. Create Zone
+    const zoneResult = await cloudflareService.createZone(domain);
+    const zoneId = zoneResult.id;
+    const nameServers = zoneResult.name_servers;
+
+    // 2. Add DNS Records (A record to Render, CNAME for www) - PROXIED for Origin Rules
+    await cloudflareService.addDnsRecord(zoneId, "A", "@", "216.24.57.1", false);
+    await cloudflareService.addDnsRecord(zoneId, "CNAME", "www", "lookprice-2bpv.onrender.com", true);
+
+    // 3. Setup Origin Rules to handle Host header override for Render
+    await cloudflareService.setupOriginRules(zoneId, "lookprice-2bpv.onrender.com");
+
+    // 4. Ensure SSL mode is set to "full" to prevent 502/redirect loops
+    await cloudflareService.setZoneSslMode(zoneId, "full");
+
+    // 5. Save to database
+    await pool.query(
+      "UPDATE stores SET custom_domain = $1, custom_domain_status = $2, cf_zone_id = $3, cf_name_servers = $4 WHERE id = $5",
+      [domain, zoneResult.status || 'pending', zoneId, JSON.stringify(nameServers), id]
+    );
     
-    res.json({ success: true, cfResult });
+    res.json({ success: true, name_servers: nameServers, status: zoneResult.status });
   } catch (e: any) {
+    console.error(`POST /api/admin/stores/${id}/custom-domain error:`, e);
     res.status(400).json({ error: e.message });
   }
 });
@@ -198,16 +217,46 @@ router.post("/stores/:id/custom-domain", async (req: any, res) => {
 router.get("/stores/:id/custom-domain/status", async (req: any, res) => {
   const { id } = req.params;
   try {
-    const storeRes = await pool.query("SELECT custom_domain FROM stores WHERE id = $1", [id]);
-    const domain = storeRes.rows[0]?.custom_domain;
-    if (!domain) return res.status(404).json({ error: "No custom domain set for this store" });
+    const storeRes = await pool.query("SELECT custom_domain, cf_zone_id, custom_domain_status, cf_name_servers FROM stores WHERE id = $1", [id]);
+    const store = storeRes.rows[0];
+    if (!store?.custom_domain || !store?.cf_zone_id) {
+      return res.json({ success: true, domain: store?.custom_domain || null, status: 'none' });
+    }
 
     const { cloudflareService } = await import("../src/services/cloudflareService");
-    const status = await cloudflareService.getCustomHostnameStatus(domain);
+    const zoneStatus = await cloudflareService.getZoneStatus(store.cf_zone_id);
     
-    res.json({ success: true, domain, status });
+    if (zoneStatus.status !== store.custom_domain_status) {
+      await pool.query("UPDATE stores SET custom_domain_status = $1 WHERE id = $2", [zoneStatus.status, id]);
+      store.custom_domain_status = zoneStatus.status;
+    }
+    
+    res.json({ 
+      success: true, 
+      domain: store.custom_domain, 
+      status: store.custom_domain_status,
+      name_servers: store.cf_name_servers 
+    });
   } catch (e: any) {
+    console.error(`GET /api/admin/stores/${id}/custom-domain/status error:`, e);
     res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/stores/:id/custom-domain/manual", async (req: any, res) => {
+  const { id } = req.params;
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: "Domain required" });
+
+  try {
+    await pool.query(
+      "UPDATE stores SET custom_domain = $1, custom_domain_status = $2 WHERE id = $3",
+      [domain, 'manual', id]
+    );
+    res.json({ success: true, message: "Domain saved manually" });
+  } catch (e: any) {
+    console.error(`POST /api/admin/stores/${id}/custom-domain/manual error:`, e);
+    res.status(500).json({ error: e.message });
   }
 });
 

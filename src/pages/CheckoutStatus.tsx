@@ -14,6 +14,12 @@ const CheckoutStatus: React.FC = () => {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    // If we are in an iframe (e.g. Iyzico 3D secure or embedded form), redirect the parent window
+    if (window !== window.top) {
+      window.top.location.href = window.location.href;
+      return;
+    }
+
     const processPayment = async () => {
       if (!saleId) {
         setStatus('error');

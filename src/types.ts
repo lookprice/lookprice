@@ -34,6 +34,7 @@ export interface Product {
   product_type?: 'product' | 'service';
   price_2?: number;
   price_2_currency?: string;
+  shipping_profile_id?: string;
   created_at: string;
   updated_at: string;
 }

@@ -30,6 +30,12 @@ if (!fs.existsSync(uploadsDir)) {
 
 async function startServer() {
   console.log("Starting server process...");
+  console.log("Environment Variables Check:", {
+    allKeys: Object.keys(process.env),
+    nodeEnv: process.env.NODE_ENV,
+    hasCloudflareToken: !!process.env.CLOUDFLARE_API_TOKEN,
+    hasCloudflareAccount: !!process.env.CLOUDFLARE_ACCOUNT_ID
+  });
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
@@ -122,11 +128,12 @@ async function startServer() {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "img-src 'self' data: blob: https: https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net; " +
+      "img-src 'self' data: blob: https: https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' wss://*.run.app:* https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://gc.kis.v2.scr.kaspersky-labs.com wss://gc.kis.v2.scr.kaspersky-labs.com;"
+      "connect-src 'self' wss://*.run.app:* https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr; " +
+      "frame-src 'self' https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr;"
     );
     next();
   });

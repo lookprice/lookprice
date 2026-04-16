@@ -12,7 +12,8 @@ import {
   Package,
   Tag,
   Percent,
-  History
+  History,
+  Truck
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -251,6 +252,11 @@ const ProductsTab = ({
                             {p.is_web_sale === false && (
                               <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1 py-0.5 rounded border border-slate-200 uppercase">
                                 {lang === 'tr' ? 'Web Kapalı' : 'Web Off'}
+                              </span>
+                            )}
+                            {p.shipping_profile_id && (
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-100 uppercase flex items-center gap-0.5">
+                                <Truck className="h-2 w-2" /> {lang === 'tr' ? 'Kargo' : 'Shipping'}
                               </span>
                             )}
                             {p.labels && Array.isArray(p.labels) && p.labels.map((label: string, idx: number) => (

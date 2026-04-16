@@ -71,8 +71,11 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS custom_domain_status VARCHAR(50) DEFAULT 'pending';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS custom_domain_verification_code VARCHAR(255);
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_hostname_id VARCHAR(255);
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_zone_id VARCHAR(255);
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_name_servers JSONB;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS page_layout JSONB DEFAULT '[]';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS menu_links JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS shipping_profiles JSONB DEFAULT '[]';
 
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -87,6 +90,7 @@ export async function initDb() {
         description TEXT,
         stock_quantity REAL DEFAULT 0,
         min_stock_level REAL DEFAULT 5,
+        shipping_profile_id TEXT,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id),
         UNIQUE(store_id, barcode)
@@ -95,6 +99,7 @@ export async function initDb() {
       ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price REAL DEFAULT 0;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_currency TEXT DEFAULT 'TRY';
       ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate REAL DEFAULT 20;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_profile_id TEXT;
 
       CREATE TABLE IF NOT EXISTS scan_logs (
         id SERIAL PRIMARY KEY,

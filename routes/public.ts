@@ -196,6 +196,27 @@ router.post("/demo-request", async (req, res) => {
   }
 });
 
+router.get("/stores/by-domain", async (req, res) => {
+  const { domain } = req.query;
+  if (!domain) return res.status(400).json({ error: "Domain required" });
+
+  try {
+    const normalizedDomain = (domain as string).startsWith("www.") ? (domain as string).substring(4) : domain;
+    const result = await pool.query(
+      "SELECT slug FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1",
+      [domain, normalizedDomain]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({ slug: result.rows[0].slug });
+    } else {
+      res.status(404).json({ error: "Store not found" });
+    }
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get("/store/:slug", async (req, res) => {
   const { slug } = req.params;
   const storeRes = await pool.query(`
@@ -203,13 +224,21 @@ router.get("/store/:slug", async (req, res) => {
       id, name, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, parent_id, payment_settings
+      address, phone, parent_id, payment_settings, shipping_profiles
     FROM stores 
     WHERE slug = $1
   `, [slug]);
   let store = storeRes.rows[0];
 
   if (store) {
+    if (typeof store.shipping_profiles === 'string') {
+      try {
+        store.shipping_profiles = JSON.parse(store.shipping_profiles);
+      } catch (e) {
+        store.shipping_profiles = [];
+      }
+    }
+
     // Sanitize payment_settings to only expose enabled flags and sandbox mode
     let ps = store.payment_settings || {};
     if (typeof ps === 'string') {
@@ -572,7 +601,7 @@ router.post("/sales", async (req, res) => {
     for (const item of items) {
       await client.query(
         "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-        [saleId, item.productId || item.id, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, (item.price || 0) * (item.quantity || 1), currency || 'TRY']
+        [saleId, item.productId || item.id || null, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, (item.price || 0) * (item.quantity || 1), currency || 'TRY']
       );
     }
 
@@ -643,7 +672,7 @@ router.post("/sales", async (req, res) => {
         success: true, 
         saleId, 
         paymentProvider: 'iyzico',
-        initializeUrl: '/api/payment/iyzico/initialize'
+        initializeUrl: '/api/payment/initialize'
       });
     }
 

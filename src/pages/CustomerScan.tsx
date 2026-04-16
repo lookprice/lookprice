@@ -21,8 +21,9 @@ import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
 
-export default function CustomerScanPage() {
-  const { slug } = useParams();
+export default function CustomerScanPage({ customSlug }: { customSlug?: string }) {
+  const { slug: urlSlug } = useParams();
+  const slug = customSlug || urlSlug;
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [product, setProduct] = useState<any>(null);

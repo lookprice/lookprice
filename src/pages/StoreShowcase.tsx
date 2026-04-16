@@ -40,7 +40,7 @@ import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
 import ErrorBoundary from "../components/ErrorBoundary";
-import { PageBuilder } from "../components/PageBuilder.tsx";
+import { PageBuilder } from "../components/PageBuilder";
 
 interface Product {
   id: number;
@@ -62,6 +62,7 @@ interface Product {
   labels?: string[];
   is_web_sale?: boolean;
   image_url?: string;
+  shipping_profile_id?: string;
   updated_at: string;
 }
 
@@ -121,6 +122,7 @@ interface StoreInfo {
   page_layout?: any[];
   menu_links?: any[];
   footer_links?: any[];
+  shipping_profiles?: any[];
 }
 
 interface BasketItem extends Product {
@@ -418,13 +420,22 @@ const ProductDetailModal: React.FC<{
   );
 };
 
-const StoreShowcase: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
+  const { slug: urlSlug } = useParams<{ slug: string }>();
+  const slug = customSlug || urlSlug;
   const navigate = useNavigate();
   const location = useLocation();
   const { lang } = useLanguage();
   const t = translations[lang];
   
+  const getStorePath = (path: string = "") => {
+    if (customSlug) {
+      return path.startsWith("/") ? path : `/${path}`;
+    }
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return `/s/${slug}${cleanPath === "/" ? "" : cleanPath}`;
+  };
+
   const isProfileView = location.pathname.endsWith('/profile');
   const isOrdersView = location.pathname.endsWith('/orders');
   const isReturnView = location.pathname.endsWith('/return');
@@ -506,6 +517,7 @@ const StoreShowcase: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
   const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal' | 'iyzico'>('credit_card');
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (store?.payment_settings) {
@@ -850,6 +862,8 @@ const StoreShowcase: React.FC = () => {
   };
 
   const [basketTotal, setBasketTotal] = useState(0);
+  const [basketSubtotal, setBasketSubtotal] = useState(0);
+  const [basketShippingTotal, setBasketShippingTotal] = useState(0);
   const basketCount = basket.reduce((sum, item) => sum + item.quantity, 0);
 
   const [basketItemPrices, setBasketItemPrices] = useState<Record<number, number>>({});
@@ -857,25 +871,49 @@ const StoreShowcase: React.FC = () => {
   useEffect(() => {
     const calculateTotal = async () => {
       if (!store?.currency) return;
-      let total = 0;
+      let subtotal = 0;
+      let maxShippingCost = 0;
       const newPrices: Record<number, number> = {};
+      
       for (const item of basket) {
         const itemPrice = Number(item.price) || 0;
+        let shippingCost = 0;
+        
+        if (item.shipping_profile_id && store.shipping_profiles) {
+          const profile = store.shipping_profiles.find((p: any) => String(p.id) === String(item.shipping_profile_id));
+          if (profile) {
+            let profileCost = Number(profile.cost) || 0;
+            if (profile.currency && profile.currency !== store.currency) {
+              const sRate = await getExchangeRate(profile.currency, store.currency);
+              profileCost = profileCost * sRate;
+            }
+            shippingCost = profileCost;
+          }
+        }
+
+        if (shippingCost > maxShippingCost) {
+          maxShippingCost = shippingCost;
+        }
+
+        let convertedItemPrice = itemPrice;
         if (item.currency && item.currency !== store.currency) {
           const rate = await getExchangeRate(item.currency, store.currency);
-          const converted = itemPrice * rate;
-          newPrices[item.id] = converted;
-          total += converted * item.quantity;
-        } else {
-          newPrices[item.id] = itemPrice;
-          total += itemPrice * item.quantity;
+          convertedItemPrice = itemPrice * rate;
         }
+
+        const finalPrice = convertedItemPrice;
+        newPrices[item.id] = finalPrice;
+        
+        subtotal += convertedItemPrice * item.quantity;
       }
+      
       setBasketItemPrices(newPrices);
-      setBasketTotal(total);
+      setBasketSubtotal(subtotal);
+      setBasketShippingTotal(maxShippingCost);
+      setBasketTotal(subtotal + maxShippingCost);
     };
     calculateTotal();
-  }, [basket, store?.currency]);
+  }, [basket, store?.currency, store?.shipping_profiles]);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -891,19 +929,31 @@ const StoreShowcase: React.FC = () => {
     try {
       // Calculate converted prices for items
       const itemsWithConvertedPrices = await Promise.all(basket.map(async (item) => {
-        let convertedPrice = item.price;
+        let itemPrice = Number(item.price) || 0;
+
+        let finalPrice = itemPrice;
         if (item.currency && item.currency !== store.currency) {
           const rate = await getExchangeRate(item.currency, store.currency);
-          convertedPrice = item.price * rate;
+          finalPrice = itemPrice * rate;
         }
         return {
           productId: item.id,
           name: item.name,
           barcode: item.barcode,
           quantity: item.quantity,
-          price: convertedPrice
+          price: finalPrice
         };
       }));
+
+      if (basketShippingTotal > 0) {
+        itemsWithConvertedPrices.push({
+          productId: null as any,
+          name: lang === 'tr' ? 'Kargo Ücreti' : 'Shipping Fee',
+          barcode: 'SHIPPING',
+          quantity: 1,
+          price: basketShippingTotal
+        });
+      }
 
       const res = await api.createPublicSale({
         storeId: store.id,
@@ -932,7 +982,8 @@ const StoreShowcase: React.FC = () => {
         });
         const initData = await initRes.json();
         if (initData.paymentPageUrl) {
-          window.location.href = initData.paymentPageUrl;
+          setIyzicoPaymentUrl(initData.paymentPageUrl + "&iframe=true");
+          setCheckoutStatus('idle');
           return;
         } else {
           throw new Error(initData.error || "Ödeme başlatılamadı.");
@@ -975,7 +1026,7 @@ const StoreShowcase: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.dashboard.errorOccurred}</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button 
-            onClick={() => navigate("/")}
+            onClick={() => navigate(getStorePath("/"))}
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
             {t.dashboard.backToHome}
@@ -993,7 +1044,7 @@ const StoreShowcase: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.dashboard.errorOccurred}</h2>
           <p className="text-gray-600 mb-6">{t.dashboard.storeNotFound}</p>
           <button 
-            onClick={() => navigate("/")}
+            onClick={() => navigate(getStorePath("/"))}
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
             {t.dashboard.backToHome}
@@ -1009,7 +1060,7 @@ const StoreShowcase: React.FC = () => {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[60] transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between gap-8">
-          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate(`/s/${slug}`)}>
+          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate(getStorePath("/"))}>
             {store?.logo_url ? (
               <img src={store.logo_url} alt={store.name} className="h-10 w-auto object-contain group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
             ) : (
@@ -1065,10 +1116,10 @@ const StoreShowcase: React.FC = () => {
                       exit={{ opacity: 0, y: 10 }}
                       className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50"
                     >
-                      <button onClick={() => { navigate(`/s/${slug}/profile`); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
+                      <button onClick={() => { navigate(getStorePath("/profile")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
                         <User className="w-4 h-4" /> {lang === 'tr' ? 'Profilim' : 'My Profile'}
                       </button>
-                      <button onClick={() => { navigate(`/s/${slug}/orders`); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
+                      <button onClick={() => { navigate(getStorePath("/orders")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
                         <Package className="w-4 h-4" /> {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
                       </button>
                       <button onClick={handleLogout} className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2">
@@ -1329,38 +1380,49 @@ const StoreShowcase: React.FC = () => {
                     {lang === 'tr' ? 'MARKALAR' : 'BRANDS'}
                   </h3>
 
-                  {/* Removed brand search bar */}
-
-                  <div className="flex flex-wrap gap-2">
-                    {brands
-                      .slice(0, showAllBrands ? undefined : 5)
-                      .map(brand => (
-                      <button
-                        key={brand}
-                        onClick={() => {
-                          setSelectedBrand(brand === selectedBrand ? null : brand);
-                          setSearchQuery("");
-                          document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
-                          selectedBrand === brand 
-                            ? "bg-gray-900 text-white border-gray-900 shadow-xl" 
-                            : "bg-white text-gray-500 border-gray-100 hover:border-gray-300"
-                        }`}
-                      >
-                        {brand}
-                      </button>
-                    ))}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-3 border-b border-gray-50 bg-gray-50/50">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder={lang === 'tr' ? 'Marka Ara...' : 'Search Brands...'}
+                          value={brandSearch}
+                          onChange={(e) => setBrandSearch(e.target.value)}
+                          className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="p-3 max-h-64 overflow-y-auto custom-scrollbar">
+                      <div className="flex flex-wrap gap-2">
+                        {brands
+                          .filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase()))
+                          .map(brand => (
+                          <button
+                            key={brand}
+                            onClick={() => {
+                              setSelectedBrand(brand === selectedBrand ? null : brand);
+                              setSearchQuery("");
+                              document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                              selectedBrand === brand 
+                                ? "bg-gray-900 text-white border-gray-900 shadow-md" 
+                                : "bg-white text-gray-600 border-gray-100 hover:border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            {brand}
+                          </button>
+                        ))}
+                        {brands.filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
+                          <div className="w-full text-center py-4 text-gray-400 text-sm">
+                            {lang === 'tr' ? 'Marka bulunamadı.' : 'No brands found.'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  
-                  {brands.length > 5 && (
-                    <button 
-                      onClick={() => setShowAllBrands(!showAllBrands)}
-                      className="w-full text-center py-4 text-[10px] font-black text-primary uppercase tracking-widest hover:bg-primary/5 rounded-lg transition-all mt-2"
-                    >
-                      {showAllBrands ? (lang === 'tr' ? 'Daha Az' : 'Show Less') : (lang === 'tr' ? 'Tümünü Gör' : 'Show All')}
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -1928,68 +1990,61 @@ const StoreShowcase: React.FC = () => {
       )}
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-24 rounded-t-[4rem]">
+      <footer className="bg-white border-t border-gray-100 py-12 mt-12">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-3 mb-8">
+              <div className="flex items-center gap-3 mb-4">
                 {store?.logo_url ? (
-                  <img src={store.logo_url} alt={store.name} className="h-10 w-auto" />
+                  <img src={store.logo_url} alt={store.name} className="h-8 w-auto" />
                 ) : (
-                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                    <ShoppingBag className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+                    <ShoppingBag className="w-4 h-4" />
                   </div>
                 )}
-                <span className="text-2xl font-display font-black tracking-tighter">{store?.name}</span>
+                <span className="text-xl font-display font-black tracking-tighter text-gray-900">{store?.name}</span>
               </div>
-              <p className="text-gray-400 font-medium max-w-md leading-relaxed mb-8">
+              <p className="text-gray-500 text-sm font-medium max-w-md leading-relaxed">
                 {store?.description || 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.'}
               </p>
-              <div className="flex items-center gap-4">
-                {['facebook', 'instagram', 'twitter'].map(social => (
-                  <a key={social} href="#" className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center hover:bg-primary transition-all group">
-                    <div className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                  </a>
-                ))}
-              </div>
             </div>
 
             <div>
-              <h4 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 mb-8">{lang === 'tr' ? 'Hızlı Menü' : 'Quick Menu'}</h4>
-              <ul className="space-y-4">
+              <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 mb-4">{lang === 'tr' ? 'Hızlı Menü' : 'Quick Menu'}</h4>
+              <ul className="space-y-2">
                 {(store?.menu_links || []).map((link: any, index: number) => (
                   <li key={index}>
-                    <a href={link.url} className="text-gray-400 hover:text-white font-bold transition-colors">{link.label}</a>
+                    <a href={link.url} className="text-gray-500 hover:text-gray-900 text-sm font-medium transition-colors" style={{ '--tw-text-opacity': 1, ':hover': { color: primaryColor } } as any}>{link.label}</a>
                   </li>
                 ))}
                 {(!store?.menu_links || store.menu_links.length === 0) && (
-                  <li><span className="text-gray-600 text-sm">{lang === 'tr' ? 'Menü bulunamadı.' : 'No menu links.'}</span></li>
+                  <li><span className="text-gray-400 text-sm">{lang === 'tr' ? 'Menü bulunamadı.' : 'No menu links.'}</span></li>
                 )}
               </ul>
             </div>
 
             <div>
-              <h4 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 mb-8">İletişim</h4>
-              <ul className="space-y-4">
-                <li className="flex items-center gap-3 text-gray-400 font-bold">
-                  <Mail className="w-5 h-5 text-primary" />
+              <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 mb-4">İletişim</h4>
+              <ul className="space-y-2">
+                <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+                  <Mail className="w-4 h-4 text-gray-400" />
                   {store?.email || 'destek@lookprice.net'}
                 </li>
-                <li className="flex items-center gap-3 text-gray-400 font-bold">
-                  <Phone className="w-5 h-5 text-primary" />
+                <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+                  <Phone className="w-4 h-4 text-gray-400" />
                   {store?.phone || '+90 212 000 00 00'}
                 </li>
               </ul>
             </div>
           </div>
 
-          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
-            <p className="text-gray-500 font-bold text-sm">
-              © 2024 {store?.name}. Tüm hakları saklıdır.
+          <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-gray-400 font-medium text-xs">
+              © {new Date().getFullYear()} {store?.name}. Tüm hakları saklıdır.
             </p>
-            <div className="flex items-center gap-8">
+            <div className="flex flex-wrap items-center gap-4 md:gap-6">
               {(store?.footer_links || []).map((page: any, index: number) => (
-                <a key={index} href={page.url} className="text-gray-500 hover:text-white text-sm font-bold transition-colors">{page.label}</a>
+                <a key={index} href={page.url} className="text-gray-400 hover:text-gray-900 text-xs font-medium transition-colors">{page.label}</a>
               ))}
             </div>
           </div>
@@ -2124,11 +2179,16 @@ const StoreShowcase: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-gray-500 text-sm font-bold uppercase tracking-widest">
                       <span>{t.dashboard.subtotal}</span>
-                      <span>{basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}</span>
+                      <span>{basketSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}</span>
                     </div>
                     <div className="flex items-center justify-between text-green-600 text-sm font-bold uppercase tracking-widest">
                       <span>{t.dashboard.shipping}</span>
-                      <span>{t.dashboard.freeShipping}</span>
+                      <span>
+                        {basketShippingTotal > 0 
+                          ? `${basketShippingTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${store?.currency || "TL"}`
+                          : t.dashboard.freeShipping
+                        }
+                      </span>
                     </div>
                     <div className="h-px bg-gray-200 my-4"></div>
                     <div className="flex items-center justify-between">
@@ -2591,7 +2651,27 @@ const StoreShowcase: React.FC = () => {
               className="bg-white w-full max-w-md rounded-[32px] shadow-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-6 md:p-8 overflow-y-auto no-scrollbar">
-                {checkoutStatus === 'success' ? (
+                {iyzicoPaymentUrl ? (
+                  <div className="w-full flex flex-col h-[70vh] min-h-[500px]">
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider">{lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}</h2>
+                      <button 
+                        onClick={() => {
+                          setIyzicoPaymentUrl(null);
+                          setIsCheckoutModalOpen(false);
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      >
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+                    <iframe 
+                      src={iyzicoPaymentUrl} 
+                      className="w-full flex-1 border-0 rounded-2xl"
+                      title="Iyzico Payment"
+                    />
+                  </div>
+                ) : checkoutStatus === 'success' ? (
                   <div className="text-center py-10">
                     <div className="w-24 h-24 bg-green-100 text-green-600 rounded-[40px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-100">
                       <CheckCircle2 className="w-12 h-12" />
@@ -2733,21 +2813,19 @@ const StoreShowcase: React.FC = () => {
                         </label>
                       </div>
                       
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</label>
-                        <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {/* 1. Iyzico (Primary Credit Card if enabled) */}
                           {store?.payment_settings?.iyzico_enabled && (
                             <button
                               type="button"
                               onClick={() => setPaymentMethod('iyzico')}
-                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'iyzico' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'iyzico' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'iyzico' ? primaryColor : undefined }}
                             >
-                              <div className="flex items-center gap-3">
-                                <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'iyzico' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'iyzico' ? primaryColor : undefined }} />
-                                <span className={`font-bold text-sm ${paymentMethod === 'iyzico' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi / Banka Kartı (iyzico)' : 'Credit / Debit Card (iyzico)'}</span>
-                              </div>
+                              <ShieldCheck className={`w-6 h-6 mb-2 ${paymentMethod === 'iyzico' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'iyzico' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xs text-center ${paymentMethod === 'iyzico' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
                             </button>
                           )}
 
@@ -2756,13 +2834,11 @@ const StoreShowcase: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPaymentMethod('credit_card')}
-                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
                             >
-                              <div className="flex items-center gap-3">
-                                <ShieldCheck className={`w-5 h-5 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
-                                <span className={`font-bold text-sm ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi / Banka Kartı' : 'Credit / Debit Card'}</span>
-                              </div>
+                              <ShieldCheck className={`w-6 h-6 mb-2 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xs text-center ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
                             </button>
                           )}
 
@@ -2771,13 +2847,11 @@ const StoreShowcase: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPaymentMethod('payoneer')}
-                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'payoneer' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'payoneer' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'payoneer' ? primaryColor : undefined }}
                             >
-                              <div className="flex items-center gap-3">
-                                <CreditCard className={`w-5 h-5 ${paymentMethod === 'payoneer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'payoneer' ? primaryColor : undefined }} />
-                                <span className={`font-bold text-sm ${paymentMethod === 'payoneer' ? 'text-gray-900' : 'text-gray-500'}`}>Payoneer</span>
-                              </div>
+                              <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'payoneer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'payoneer' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xs text-center ${paymentMethod === 'payoneer' ? 'text-gray-900' : 'text-gray-500'}`}>Payoneer</span>
                             </button>
                           )}
 
@@ -2786,37 +2860,31 @@ const StoreShowcase: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPaymentMethod('paypal')}
-                              className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'paypal' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'paypal' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'paypal' ? primaryColor : undefined }}
                             >
-                              <div className="flex items-center gap-3">
-                                <CreditCard className={`w-5 h-5 ${paymentMethod === 'paypal' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'paypal' ? primaryColor : undefined }} />
-                                <span className={`font-bold text-sm ${paymentMethod === 'paypal' ? 'text-gray-900' : 'text-gray-500'}`}>PayPal</span>
-                              </div>
+                              <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'paypal' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'paypal' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xs text-center ${paymentMethod === 'paypal' ? 'text-gray-900' : 'text-gray-500'}`}>PayPal</span>
                             </button>
                           )}
 
                           <button
                             type="button"
                             onClick={() => setPaymentMethod('bank_transfer')}
-                            className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                             style={{ borderColor: paymentMethod === 'bank_transfer' ? primaryColor : undefined }}
                           >
-                            <div className="flex items-center gap-3">
-                              <RotateCcw className={`w-5 h-5 ${paymentMethod === 'bank_transfer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-sm ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
-                            </div>
+                            <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
+                            <span className={`font-bold text-xs text-center ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setPaymentMethod('cash_on_delivery')}
-                            className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                             style={{ borderColor: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }}
                           >
-                            <div className="flex items-center gap-3">
-                              <Truck className={`w-5 h-5 ${paymentMethod === 'cash_on_delivery' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-sm ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
-                            </div>
+                            <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
+                            <span className={`font-bold text-xs text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
                           </button>
                         </div>
                       </div>

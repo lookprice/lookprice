@@ -112,8 +112,9 @@ export const api = {
   getBranding: (storeId?: number, slug?: string) => api.get(`/api/store/info${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : (slug ? `?slug=${slug}` : "")}`),
   updateBranding: (data: any, storeId?: number) => api.post(`/api/store/branding${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   verifyDomain: (domain: string) => api.post("/api/store/verify-domain", { domain }),
-  addCustomDomain: (domain: string) => api.post("/api/store/domain", { domain }),
-  getCustomDomainStatus: () => api.get("/api/store/domain"),
+  addCustomDomain: (domain: string, storeId?: number, config?: any) => api.post(`/api/store/domain${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { domain, ...config }),
+  saveCustomDomainManual: (domain: string, storeId?: number) => api.post(`/api/store/domain/manual${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { domain }),
+  getCustomDomainStatus: (storeId?: number) => api.get(`/api/store/domain${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   
   getQuotations: (search = "", status = "all", storeId?: number) => api.get(`/api/store/quotations?search=${search}&status=${status}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   addQuotation: (data: any, storeId?: number) => api.post(`/api/store/quotations${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
