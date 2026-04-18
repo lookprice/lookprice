@@ -1,5 +1,5 @@
 import express from "express";
-import { pool } from "../models/db";
+import { pool, processSaleAutomation } from "../models/db";
 import crypto from "crypto";
 
 const router = express.Router();
@@ -599,9 +599,13 @@ router.post("/sales", async (req, res) => {
     }
 
     for (const item of items) {
+      const taxRate = Number(item.tax_rate || 20);
+      const itemTotal = (item.price || 0) * (item.quantity || 1);
+      const taxAmount = itemTotal - (itemTotal / (1 + taxRate / 100));
+
       await client.query(
-        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-        [saleId, item.productId || item.id || null, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, (item.price || 0) * (item.quantity || 1), currency || 'TRY']
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        [saleId, item.productId || item.id || null, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, taxRate, taxAmount, itemTotal, currency || 'TRY']
       );
     }
 
@@ -944,8 +948,9 @@ router.post("/webhooks/iyzico", async (req, res) => {
   }
 
   try {
+    const numericSaleId = Number(saleId);
     // We need to retrieve the store's iyzico settings to verify the token
-    const saleRes = await pool.query("SELECT store_id FROM sales WHERE id = $1", [saleId]);
+    const saleRes = await pool.query("SELECT store_id FROM sales WHERE id = $1", [numericSaleId]);
     if (saleRes.rows.length === 0) return res.status(404).send("Sale not found");
     
     const storeId = saleRes.rows[0].store_id;
@@ -962,7 +967,7 @@ router.post("/webhooks/iyzico", async (req, res) => {
     const baseUrl = settings.iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com';
     const randomString = Date.now().toString();
     
-    const retrieveRequest = { locale: "tr", conversationId: saleId.toString(), token };
+    const retrieveRequest = { locale: "tr", conversationId: numericSaleId.toString(), token };
     const signature = generateIyzicoSignature(settings.iyzico_api_key, settings.iyzico_secret_key, randomString, retrieveRequest);
 
     const response = await fetch(`${baseUrl}/payment/iyzipay/checkoutform/auth/retrieve`, {
@@ -982,12 +987,32 @@ router.post("/webhooks/iyzico", async (req, res) => {
     const baseUrlForRedirect = `${protocol}://${host}`;
 
     if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
-      await pool.query("UPDATE sales SET status = 'processing' WHERE id = $1", [saleId]);
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("UPDATE sales SET status = 'processing', payment_method = 'iyzico' WHERE id = $1", [numericSaleId]);
+        
+        // --- AUTOMATION: Stock Deduction and Invoice Creation ---
+        await processSaleAutomation(client, numericSaleId, storeId);
+        
+        await client.query("COMMIT");
+      } catch (automationError) {
+        await client.query("ROLLBACK");
+        console.error("Iyzico Webhook Automation Error:", automationError);
+        // We still redirect to success because payment WAS successful, but we log the error
+      } finally {
+        client.release();
+      }
+
       // Redirect back to success page
-      res.redirect(`${baseUrlForRedirect}/checkout/success?saleId=${saleId}`);
+      res.redirect(`${baseUrlForRedirect}/checkout/success?saleId=${numericSaleId}`);
     } else {
-      await pool.query("UPDATE sales SET status = 'cancelled' WHERE id = $1", [saleId]);
-      res.redirect(`${baseUrlForRedirect}/checkout/cancel?saleId=${saleId}`);
+      const errorMsg = result.errorMessage || "Unknown payment error";
+      await pool.query(
+        "UPDATE sales SET status = 'cancelled', notes = COALESCE(notes, '') || '\n[Iyzico Error]: ' || $1 WHERE id = $2",
+        [errorMsg, numericSaleId]
+      );
+      res.redirect(`${baseUrlForRedirect}/checkout/cancel?saleId=${numericSaleId}`);
     }
   } catch (e: any) {
     console.error("Iyzico Callback Error:", e.message);

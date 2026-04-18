@@ -107,6 +107,8 @@ export interface Sale {
   due_date?: string;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'returned';
   tracking_number?: string;
+  shipping_carrier?: string;
+  exchange_rate?: number;
   return_request_status?: 'none' | 'requested' | 'approved' | 'rejected' | 'completed';
   created_at: string;
   items?: any[];

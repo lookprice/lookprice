@@ -40,17 +40,18 @@ export default function GuestCheckoutPage() {
       });
 
       if (res.success) {
-        if (res.redirectUrl) {
-          window.location.href = res.redirectUrl;
-          return;
+        if (res.paymentPageUrl) {
+           // Modal içinde kalmamak için PaymentGatewayPage sayfasına yönlendiriyoruz
+           navigate('/payment-gateway', { state: { paymentPageUrl: res.paymentPageUrl } });
+        } else {
+          navigate('/checkout/success');
         }
-        navigate('/checkout/success');
       } else {
-        setError(res.error || (lang === 'tr' ? 'Sipariş başarısız' : 'Order failed'));
+        setError(res.error || "Ödeme başlatılamadı");
       }
+      setLoading(false);
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };

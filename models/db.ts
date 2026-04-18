@@ -275,7 +275,7 @@ export async function initDb() {
         store_id INTEGER NOT NULL,
         total_amount DECIMAL(12,2) NOT NULL,
         currency TEXT DEFAULT 'TRY',
-        status TEXT CHECK(status IN ('pending', 'completed', 'cancelled')) DEFAULT 'pending',
+        status TEXT CHECK(status IN ('pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned')) DEFAULT 'pending',
         customer_name TEXT,
         customer_phone TEXT,
         customer_address TEXT,
@@ -294,12 +294,18 @@ export async function initDb() {
         product_id INTEGER,
         product_name TEXT NOT NULL,
         barcode TEXT,
-        quantity INTEGER DEFAULT 1,
+        quantity REAL DEFAULT 1,
         unit_price DECIMAL(12,2) NOT NULL,
+        tax_rate DECIMAL(5,2) DEFAULT 20,
+        tax_amount DECIMAL(12,2) DEFAULT 0,
         total_price DECIMAL(12,2) NOT NULL,
         currency TEXT DEFAULT 'TRY',
         FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
       );
+
+      ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) DEFAULT 20;
+      ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(12,2) DEFAULT 0;
+      ALTER TABLE sale_items ALTER COLUMN quantity TYPE REAL;
 
       CREATE TABLE IF NOT EXISTS sale_payments (
         id SERIAL PRIMARY KEY,
@@ -365,6 +371,13 @@ export async function initDb() {
       BEGIN 
         ALTER TABLE service_records DROP CONSTRAINT IF EXISTS service_records_status_check;
         ALTER TABLE service_records ADD CONSTRAINT service_records_status_check CHECK (status IN ('received', 'diagnosing', 'waiting_approval', 'repairing', 'ready', 'delivered', 'cancelled', 'converted_to_sale'));
+      END $$;
+
+      -- Update sales status check constraint
+      DO $$ 
+      BEGIN 
+        ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_status_check;
+        ALTER TABLE sales ADD CONSTRAINT sales_status_check CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned'));
       END $$;
 
       CREATE TABLE IF NOT EXISTS service_items (
@@ -1162,6 +1175,14 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='customer_id') THEN
           ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
         END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='shipping_carrier') THEN
+          ALTER TABLE sales ADD COLUMN shipping_carrier TEXT;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='tracking_number') THEN
+          ALTER TABLE sales ADD COLUMN tracking_number TEXT;
+        END IF;
       END $$;
     `);
     console.log("Foreign key cascades checked.");
@@ -1202,5 +1223,98 @@ export async function logAction(
     );
   } catch (e) {
     console.error("Audit Log Error:", e);
+  }
+}
+
+export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null) {
+  const price = unitPrice !== null && unitPrice !== undefined ? Number(unitPrice) : null;
+  const info = customerInfo !== null && customerInfo !== undefined ? String(customerInfo) : null;
+  await client.query(
+    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    [storeId, productId, type, quantity, source, description, price, info]
+  );
+}
+
+export async function processSaleAutomation(client: any, saleId: number, storeId: number) {
+  try {
+    // 1. Fetch sale and items
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE", [saleId, storeId]);
+    if (saleRes.rows.length === 0) return;
+    const sale = saleRes.rows[0];
+
+    const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [saleId]);
+    const items = itemsRes.rows;
+
+    // 2. Deduct Stock and Log Movements
+    for (const item of items) {
+      if (item.product_id) {
+        const productRes = await client.query("SELECT product_type, tax_rate FROM products WHERE id = $1", [item.product_id]);
+        const product = productRes.rows[0];
+        const productType = product?.product_type || 'product';
+
+        if (productType !== 'service') {
+          await client.query(
+            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+            [item.quantity, item.product_id, storeId]
+          );
+          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'web', `Web Satışı #${saleId}`, item.unit_price, sale.customer_name);
+        }
+      }
+    }
+
+    // 3. Create Sales Invoice
+    const prefix = 'WEB';
+    const year = new Date().getFullYear();
+    const countRes = await client.query("SELECT COUNT(*) FROM sales_invoices WHERE store_id = $1 AND invoice_number LIKE $2", [storeId, `${prefix}${year}%`]);
+    const invoiceNumber = `${prefix}${year}${(Number(countRes.rows[0].count) + 1).toString().padStart(6, '0')}`;
+
+    let totalAmount = 0;
+    let totalTax = 0;
+
+    for (const item of items) {
+       const itemTotal = Number(item.total_price);
+       const taxRate = Number(item.tax_rate || 20);
+       const taxAmount = itemTotal - (itemTotal / (1 + taxRate / 100));
+       totalAmount += (itemTotal - taxAmount);
+       totalTax += taxAmount;
+    }
+
+    const invoiceRes = await client.query(
+      `INSERT INTO sales_invoices 
+       (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, status, payment_method, invoice_type) 
+       VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, 'final', $9, 'automatic') RETURNING id`,
+      [storeId, saleId, sale.customer_id || null, invoiceNumber, totalAmount, totalTax, Number(sale.total_amount), sale.currency || 'TRY', sale.payment_method || 'iyzico']
+    );
+    const invoiceId = invoiceRes.rows[0].id;
+
+    // 4. Create Invoice Items
+    for (const item of items) {
+      const itemTotal = Number(item.total_price);
+      const taxRate = Number(item.tax_rate || 20);
+      const taxAmount = itemTotal - (itemTotal / (1 + taxRate / 100));
+      const netPrice = itemTotal - taxAmount;
+
+      await client.query(
+        `INSERT INTO sales_invoice_items 
+         (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [invoiceId, item.product_id, item.product_name, item.barcode || '', item.quantity, (netPrice / item.quantity), taxRate, taxAmount, itemTotal]
+      );
+    }
+
+    // 5. Create Sale Payment record
+    const paymentCheck = await client.query("SELECT id FROM sale_payments WHERE sale_id = $1", [saleId]);
+    if (paymentCheck.rows.length === 0) {
+      await client.query(
+        "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
+        [saleId, sale.payment_method || 'iyzico', sale.total_amount]
+      );
+    }
+
+    await logAction(storeId, null, "sale_automation", "sales", saleId, `Web siparişi otomatik işlendi: Stok düşüldü, fatura #${invoiceNumber} oluşturuldu.`);
+
+  } catch (error) {
+    console.error("Sale Automation Error:", error);
+    throw error;
   }
 }

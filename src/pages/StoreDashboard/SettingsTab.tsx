@@ -52,6 +52,9 @@ interface SettingsTabProps {
   currentUser: any;
   currentStoreId?: number;
   onRefresh?: () => void;
+  bulkPriceForm: any;
+  setBulkPriceForm: (form: any) => void;
+  handleBulkPriceSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
 const SettingsTab = ({ 
@@ -66,7 +69,10 @@ const SettingsTab = ({
   users,
   currentUser,
   currentStoreId,
-  onRefresh
+  onRefresh,
+  bulkPriceForm,
+  setBulkPriceForm,
+  handleBulkPriceSubmit
 }: SettingsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
@@ -103,7 +109,7 @@ const SettingsTab = ({
   const [manualCfAccount, setManualCfAccount] = React.useState("");
   const [loadingCf, setLoadingCf] = React.useState(false);
 
-  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos' | 'domain' | 'menu' | 'layout' | 'shipping'>(() => {
+  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos' | 'domain' | 'menu' | 'layout' | 'shipping' | 'bulk-price'>(() => {
     const stored = localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) as any;
     if (stored === 'layout' || stored === 'menu') return 'web';
     return stored || 'web';
@@ -489,6 +495,13 @@ const SettingsTab = ({
           <Truck className="h-4 w-4" />
           <span>{lang === 'tr' ? 'Kargo Ayarları' : 'Shipping'}</span>
         </button>
+        <button 
+          onClick={() => setActiveSubTab('bulk-price')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'bulk-price' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span>{lang === 'tr' ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}</span>
+        </button>
       </div>
 
       {activeSubTab === 'tax' && (
@@ -585,6 +598,81 @@ const SettingsTab = ({
                 </div>
               </div>
             </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubTab === 'bulk-price' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 mb-6">{lang === 'tr' ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}</h3>
+            <form onSubmit={handleBulkPriceSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Hedef' : 'Target'}</label>
+                  <select 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    value={bulkPriceForm.target}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, target: e.target.value })}
+                  >
+                    <option value="all">{lang === 'tr' ? 'Tüm Ürünler' : 'All Products'}</option>
+                    <option value="category">{lang === 'tr' ? 'Kategori Bazlı' : 'Category Based'}</option>
+                  </select>
+                </div>
+                {bulkPriceForm.target === 'category' && (
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Kategori' : 'Category'}</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                      value={bulkPriceForm.category}
+                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İşlem Tipi' : 'Type'}</label>
+                  <select 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    value={bulkPriceForm.type}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, type: e.target.value })}
+                  >
+                    <option value="percentage">{lang === 'tr' ? 'Yüzde (%)' : 'Percentage (%)'}</option>
+                    <option value="fixed">{lang === 'tr' ? 'Sabit Tutar' : 'Fixed Amount'}</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Yön' : 'Direction'}</label>
+                  <select 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    value={bulkPriceForm.direction}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, direction: e.target.value })}
+                  >
+                    <option value="increase">{lang === 'tr' ? 'Artır' : 'Increase'}</option>
+                    <option value="decrease">{lang === 'tr' ? 'Azalt' : 'Decrease'}</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Değer' : 'Value'}</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    value={bulkPriceForm.value}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, value: e.target.value })}
+                  />
+                </div>
+              </div>
+              <button 
+                type="submit" 
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+              >
+                {lang === 'tr' ? 'Fiyatları Güncelle' : 'Update Prices'}
+              </button>
+            </form>
           </div>
         </motion.div>
       )}

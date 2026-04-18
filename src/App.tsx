@@ -10,6 +10,7 @@ import ResetPasswordPage from "./pages/ResetPassword";
 import SuperAdminDashboard from "./pages/SuperAdmin";
 import PublicQuotation from "./pages/PublicQuotation";
 import CheckoutStatus from "./pages/CheckoutStatus";
+import PaymentGatewayPage from "./pages/PaymentGatewayPage";
 import StoreShowcase from "./pages/StoreShowcase";
 import Logo from "./components/Logo";
 import { LandingPage } from "./components/LandingPageNew";
@@ -155,6 +156,7 @@ export default function App() {
           <Route path="/store/:slug" element={<StoreShowcase />} />
           <Route path="/checkout/success" element={<CheckoutStatus />} />
           <Route path="/checkout/cancel" element={<CheckoutStatus />} />
+          <Route path="/payment-gateway" element={<PaymentGatewayPage />} />
           <Route path="/quotation/:id" element={<PublicQuotation />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

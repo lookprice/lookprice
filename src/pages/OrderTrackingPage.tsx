@@ -34,8 +34,13 @@ export default function OrderTrackingPage() {
                 <p className="text-sm text-white/50">{new Date(order.created_at).toLocaleDateString()}</p>
               </div>
               <div className="text-right">
-                <p className="font-medium">{order.status}</p>
-                {order.tracking_number && <p className="text-xs text-indigo-400">{order.tracking_number}</p>}
+                <p className="font-medium">{t[order.status] || order.status}</p>
+                {order.tracking_number && (
+                  <div className="flex flex-col items-end mt-1">
+                    {order.shipping_carrier && <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">{order.shipping_carrier}</p>}
+                    <p className="text-xs text-indigo-400 font-mono">{order.tracking_number}</p>
+                  </div>
+                )}
               </div>
             </div>
           ))}

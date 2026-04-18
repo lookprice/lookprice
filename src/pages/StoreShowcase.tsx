@@ -26,6 +26,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   Truck,
+  ExternalLink,
   RotateCcw,
   Star,
   Eye,
@@ -38,7 +39,7 @@ import {
 import { CreditCard, User, LogOut, Edit3, Building2, Home } from "lucide-react";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
-import { translations } from "../translations";
+import { translations } from "@/translations";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { PageBuilder } from "../components/PageBuilder";
 
@@ -538,6 +539,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
   const [showLegal, setShowLegal] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const ITEMS_PER_PAGE = 20;
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -1251,15 +1253,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 />
               </div>
               <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <ArrowUpDown className="w-4 h-4" />
+                </div>
                 <select 
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none pl-6 pr-12 py-3 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 outline-none cursor-pointer hover:bg-gray-50 transition-all shadow-sm"
+                  className="appearance-none pl-11 pr-12 py-3 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 outline-none cursor-pointer hover:bg-gray-50 transition-all shadow-sm min-w-[160px]"
                 >
-                  <option value="newest">{t.dashboard.newest}</option>
-                  <option value="price-low">{t.dashboard.priceLow}</option>
-                  <option value="price-high">{t.dashboard.priceHigh}</option>
-                  <option value="popular">{t.dashboard.popular}</option>
+                  <option value="default">{t.dashboard.newest || (lang === 'tr' ? 'Varsayılan' : 'Default')}</option>
+                  <option value="priceAsc">{t.dashboard.priceLow || (lang === 'tr' ? 'En Düşük Fiyat' : 'Price: Low to High')}</option>
+                  <option value="priceDesc">{t.dashboard.priceHigh || (lang === 'tr' ? 'En Yüksek Fiyat' : 'Price: High to Low')}</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-gray-900 transition-colors" />
               </div>
@@ -1267,9 +1271,56 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           </div>
         </div>
 
+        {/* Mobile Horizontal Category Scroll */}
+        <div className="lg:hidden mb-8 -mx-4 px-4 overflow-x-auto custom-scrollbar flex items-center gap-2 pb-2">
+          <button
+            onClick={() => { 
+                setSelectedCategory(null); 
+                setSelectedSubCategory(null);
+                document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className={`flex-shrink-0 px-6 py-2.5 rounded-full text-xs font-black transition-all border whitespace-nowrap ${
+                !selectedCategory 
+                ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
+                : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
+            }`}
+          >
+            {t.dashboard.all}
+          </button>
+          
+          {Array.from(categories.keys()).sort().map(cat => (
+            <button
+              key={cat}
+              onClick={() => {
+                if (selectedCategory === cat) {
+                    setSelectedCategory(null);
+                    setSelectedSubCategory(null);
+                } else {
+                    setSelectedCategory(cat);
+                    setSelectedSubCategory(null);
+                }
+              }}
+              className={`flex-shrink-0 px-6 py-2.5 rounded-full text-xs font-black transition-all border whitespace-nowrap ${
+                selectedCategory === cat 
+                ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
+                : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+
+          <button 
+            onClick={() => setShowMobileFilters(true)}
+            className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-all ml-2 sticky right-0 shadow-lg"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-16">
           {/* Sidebar */}
-          <aside className="lg:w-80 flex-shrink-0">
+          <aside className="hidden lg:block lg:w-80 flex-shrink-0">
             <div className="sticky top-32 space-y-12">
               {/* Categories */}
               <div>
@@ -1910,67 +1961,150 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             </div>
           )}
           {isOrdersView && (
-            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-              <h2 className="text-3xl font-black text-gray-900 mb-8">{lang === 'tr' ? 'Siparişlerim' : 'My Orders'}</h2>
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-display font-black text-gray-900 tracking-tighter">
+                  {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
+                </h2>
+                <div className="px-4 py-1.5 bg-gray-100 rounded-full text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                  {orders.length} {lang === 'tr' ? 'SİPARİŞ' : 'ORDERS'}
+                </div>
+              </div>
               
               {loadingOrders ? (
-                <div className="text-center py-20">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-4 text-gray-500">{lang === 'tr' ? 'Siparişler yükleniyor...' : 'Loading orders...'}</p>
+                <div className="bg-white rounded-3xl p-20 text-center border border-gray-100">
+                  <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Siparişler yükleniyor...' : 'Loading orders...'}</p>
                 </div>
               ) : orders.length > 0 ? (
-                <div className="space-y-6">
+                <div className="grid gap-4">
                   {orders.map((order) => (
-                    <div key={order.id} className="p-6 rounded-2xl border border-gray-100 hover:border-blue-100 transition-all bg-gray-50/30">
-                      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                        <div>
-                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">
-                            {lang === 'tr' ? 'SİPARİŞ NO' : 'ORDER NO'}
-                          </p>
-                          <p className="font-bold text-gray-900">#{order.id}</p>
+                    <motion.div 
+                      key={order.id} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="group bg-white rounded-2xl border border-gray-100 hover:border-primary/20 transition-all shadow-sm hover:shadow-xl overflow-hidden"
+                    >
+                      <div className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-6">
+                          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                            <ShoppingBag className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">#{order.id}</span>
+                              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                              <span className="text-[10px] font-bold text-gray-500">{new Date(order.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+                            </div>
+                            <p className="text-sm font-black text-gray-900">
+                              {order.items_count || (order.items?.length || 1)} {lang === 'tr' ? 'Ürün' : 'Items'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">
-                            {lang === 'tr' ? 'TARİH' : 'DATE'}
-                          </p>
-                          <p className="font-bold text-gray-900">{new Date(order.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">
-                            {lang === 'tr' ? 'TUTAR' : 'TOTAL'}
-                          </p>
-                          <p className="font-bold text-blue-600">{order.total_amount?.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {order.currency}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">
-                            {lang === 'tr' ? 'DURUM' : 'STATUS'}
-                          </p>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                            order.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                            'bg-blue-100 text-blue-700'
-                          }`}>
-                            {order.status === 'pending' ? (lang === 'tr' ? 'Bekliyor' : 'Pending') :
-                             order.status === 'completed' ? (lang === 'tr' ? 'Tamamlandı' : 'Completed') :
-                             order.status === 'cancelled' ? (lang === 'tr' ? 'İptal Edildi' : 'Cancelled') : order.status}
-                          </span>
+
+                        <div className="flex items-center flex-wrap gap-4 md:gap-12">
+                          <div className="hidden sm:block">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'ÖDEME' : 'PAYMENT'}</p>
+                            <p className="text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                              <CreditCard className="w-3 h-3" />
+                              {order.payment_method === 'iyzico' ? 'iyzico' : 
+                               order.payment_method === 'bank_transfer' ? (lang === 'tr' ? 'Havale' : 'Transfer') :
+                               order.payment_method === 'cash_on_delivery' ? (lang === 'tr' ? 'Kapıda' : 'COD') : order.payment_method}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TUTAR' : 'TOTAL'}</p>
+                            <p className="text-sm font-black text-primary">
+                              {order.total_amount?.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {order.currency}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 text-right">{lang === 'tr' ? 'DURUM' : 'STATUS'}</p>
+                            <span className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-colors ${
+                              order.status === 'completed' || order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
+                              order.status === 'shipped' || order.status === 'processing' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                              order.status === 'cancelled' || order.status === 'returned' ? 'bg-red-50 text-red-600 border-red-100' :
+                              'bg-orange-50 text-orange-600 border-orange-100'
+                            }`}>
+                              {order.status === 'pending' ? (lang === 'tr' ? 'Bekliyor' : 'Pending') :
+                               order.status === 'processing' ? (lang === 'tr' ? 'Hazırlanıyor' : 'Preparing') :
+                               order.status === 'shipped' ? (lang === 'tr' ? 'Kargoda' : 'Shipped') :
+                               order.status === 'delivered' ? (lang === 'tr' ? 'Teslim Edildi' : 'Delivered') :
+                               order.status === 'completed' ? (lang === 'tr' ? 'Tamamlandı' : 'Completed') :
+                               order.status === 'cancelled' ? (lang === 'tr' ? 'İptal Edildi' : 'Cancelled') : order.status}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <CreditCard className="w-4 h-4" />
-                        <span>{order.payment_method === 'iyzico' ? 'iyzico' : 
-                               order.payment_method === 'bank_transfer' ? (lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer') :
-                               order.payment_method === 'cash_on_delivery' ? (lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery') : order.payment_method}</span>
-                      </div>
-                    </div>
+
+                      {/* Notes Section */}
+                      {order.notes && (
+                        <div className="px-6 py-3 bg-blue-50/30 border-t border-gray-100 italic text-xs text-gray-500">
+                          {lang === 'tr' ? 'Not: ' : 'Note: '}{order.notes}
+                        </div>
+                      )}
+                      
+                      {/* Shipping Info */}
+                      {(order.tracking_number || order.shipping_carrier) && (
+                        <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-400">
+                              <Truck className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KARGO BİLGİSİ' : 'SHIPPING INFO'}</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-gray-700">{order.shipping_carrier || (lang === 'tr' ? 'Standart Kargo' : 'Standard Shipping')}</span>
+                                {order.tracking_number && (
+                                  <>
+                                    <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                    <span className="text-xs font-mono font-bold text-primary select-all">{order.tracking_number}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {order.tracking_number && (
+                            <a 
+                              href={`#`} // You can add logic for carrier specific tracking URLs if needed
+                              onClick={(e) => {
+                                e.preventDefault();
+                                // Most Turkish carriers have a tracking query page
+                                const carrier = order.shipping_carrier?.toLowerCase();
+                                let url = '';
+                                if (carrier?.includes('aras')) url = `https://www.araskargo.com.tr/takipp-detay?kargo_no=${order.tracking_number}`;
+                                else if (carrier?.includes('yurtiçi')) url = `https://www.yurticikargo.com/tr/online-servisler/gonderi-sorgula?code=${order.tracking_number}`;
+                                else if (carrier?.includes('mng')) url = `https://www.mngkargo.com.tr/gonderitakip/${order.tracking_number}`;
+                                else if (carrier?.includes('ptt')) url = `https://gonderitakip.ptt.gov.tr/Track/Verify?id=${order.tracking_number}`;
+                                else if (carrier?.includes('ups')) url = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
+                                
+                                if (url) window.open(url, '_blank');
+                              }}
+                              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black text-gray-600 hover:border-primary hover:text-primary transition-all flex items-center gap-2"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              {lang === 'tr' ? 'KARGO TAKİP' : 'TRACK SHIPPING'}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20">
+                <div className="bg-white rounded-3xl p-20 text-center border border-gray-100">
                   <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <ShoppingBag className="w-10 h-10 text-gray-300" />
+                    <ShoppingBag className="w-10 h-10 text-gray-200" />
                   </div>
                   <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Henüz bir siparişiniz bulunmuyor.' : 'You don\'t have any orders yet.'}</p>
+                  <button 
+                    onClick={() => navigate(getStorePath("/"))}
+                    className="mt-8 px-8 py-3 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-all"
+                  >
+                    {t.dashboard.startShopping}
+                  </button>
                 </div>
               )}
             </div>
@@ -1988,6 +2122,129 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           )}
         </main>
       )}
+
+      {/* Mobile Filters Modal */}
+      <AnimatePresence>
+        {showMobileFilters && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileFilters(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white rounded-t-[3rem] z-[101] overflow-hidden flex flex-col shadow-2xl"
+            >
+              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter">Filtrele</h3>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{products.length} Ürün Mevcut</p>
+                </div>
+                <button 
+                  onClick={() => setShowMobileFilters(false)}
+                  className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-10">
+                {/* Mobile Subcategories */}
+                {selectedCategory && categories.get(selectedCategory)!.size > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-4">{t.dashboard.subCategories || 'ALT KATEGORİLER'}</h4>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => setSelectedSubCategory(null)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                                !selectedSubCategory ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
+                            }`}
+                        >
+                            Hepsi
+                        </button>
+                        {Array.from(categories.get(selectedCategory)!).sort().map(sub => (
+                            <button
+                                key={sub}
+                                onClick={() => setSelectedSubCategory(sub)}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                                    selectedSubCategory === sub ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
+                                }`}
+                            >
+                                {sub}
+                            </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Brands */}
+                <div>
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-4">{lang === 'tr' ? 'MARKALAR' : 'BRANDS'}</h4>
+                  <div className="relative mb-4">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Marka Ara..."
+                      value={brandSearch}
+                      onChange={(e) => setBrandSearch(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => setSelectedBrand(null)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            !selectedBrand ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
+                        }`}
+                    >
+                        Hepsi
+                    </button>
+                    {brands
+                      .filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase()))
+                      .map(brand => (
+                        <button
+                          key={brand}
+                          onClick={() => setSelectedBrand(brand)}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            selectedBrand === brand ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
+                          }`}
+                        >
+                          {brand}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-gray-50">
+                <button 
+                  onClick={() => setShowMobileFilters(false)}
+                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg shadow-xl shadow-gray-900/20 active:scale-95 transition-all"
+                >
+                  Sonuçları Gör
+                </button>
+                <button 
+                  onClick={() => {
+                    setSelectedCategory(null);
+                    setSelectedSubCategory(null);
+                    setSelectedBrand(null);
+                    setShowMobileFilters(false);
+                  }}
+                  className="w-full mt-4 py-2 text-gray-400 text-xs font-bold hover:text-gray-600 transition-all"
+                >
+                  Filtreleri Temizle
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-100 py-12 mt-12">

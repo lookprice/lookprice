@@ -12,8 +12,8 @@ export const useSales = (
   const [sales, setSales] = useState<any[]>([]);
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesStatusFilter, setSalesStatusFilter] = useState("all");
-  const [salesStartDate, setSalesStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
-  const [salesEndDate, setSalesEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [salesStartDate, setSalesStartDate] = useState("");
+  const [salesEndDate, setSalesEndDate] = useState("");
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [showSaleDetailsModal, setShowSaleDetailsModal] = useState(false);
   
@@ -104,6 +104,42 @@ export const useSales = (
       }
     } catch (error: any) {
       alert(error.message || "Error cancelling sale");
+    } finally {
+      setCompletingSale(false);
+    }
+  };
+
+  const handleShipSale = async (saleId: number, carrier: string, trackingNumber: string) => {
+    try {
+      setCompletingSale(true);
+      const res = await api.shipSale(saleId, { carrier, trackingNumber }, currentStoreId);
+      if (res.success) {
+        alert(lang === 'tr' ? "Sipariş sevk edildi olarak işaretlendi" : "Order marked as shipped");
+        setShowSaleDetailsModal(false);
+        fetchSales();
+      } else {
+        alert(res.error || "Error shipping sale");
+      }
+    } catch (error: any) {
+      alert(error.message || "Error shipping sale");
+    } finally {
+      setCompletingSale(false);
+    }
+  };
+
+  const handleDeliverSale = async (saleId: number) => {
+    try {
+      setCompletingSale(true);
+      const res = await api.deliverSale(saleId, currentStoreId);
+      if (res.success) {
+        alert(lang === 'tr' ? "Sipariş teslim edildi olarak işaretlendi" : "Order marked as delivered");
+        setShowSaleDetailsModal(false);
+        fetchSales();
+      } else {
+        alert(res.error || "Error delivering sale");
+      }
+    } catch (error: any) {
+      alert(error.message || "Error delivering sale");
     } finally {
       setCompletingSale(false);
     }
@@ -237,6 +273,8 @@ export const useSales = (
     handleUpdateSaleItem,
     handleRemoveSaleItem,
     handleCancelPendingSale,
+    handleShipSale,
+    handleDeliverSale,
     handleCompletePendingSale,
     handleConvertToSale,
     handleConfirmSale,

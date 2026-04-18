@@ -8,8 +8,14 @@
 }
 
 @layer base {
+  :root {
+    --brand-indigo: #4F46E5;
+    --brand-dark: #0F172A;
+    --brand-slate: #64748B;
+  }
+
   body {
-    @apply font-sans text-gray-900 antialiased bg-[#F8F9FA];
+    @apply font-sans text-slate-900 antialiased bg-[#F8F9FA];
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -20,6 +26,26 @@
 @layer utilities {
   .glass {
     @apply bg-white/80 backdrop-blur-xl border border-white/20;
+  }
+
+  .os-panel {
+    @apply bg-white border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02),0_10px_20px_-5px_rgba(0,0,0,0.03)] rounded-3xl overflow-hidden;
+  }
+
+  .os-btn-primary {
+    @apply bg-slate-950 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-950/20 disabled:opacity-50;
+  }
+
+  .os-btn-secondary {
+    @apply bg-white border border-slate-200 text-slate-900 px-6 py-3 rounded-2xl font-bold hover:bg-slate-50 active:scale-95 transition-all;
+  }
+
+  .os-input {
+    @apply bg-slate-50 border border-slate-100/80 rounded-2xl px-5 py-3.5 focus:bg-white focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all placeholder:text-slate-400 font-medium;
+  }
+
+  .mono-data {
+    @apply font-mono tracking-tighter;
   }
   
   .text-balance {

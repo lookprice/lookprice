@@ -4,12 +4,12 @@ import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 import bcrypt from "bcryptjs";
-import { pool, logAction } from "../models/db.ts";
-import { authenticate } from "../middleware/auth.ts";
+import { pool, logAction, addStockMovement } from "../models/db";
+import { authenticate } from "../middleware/auth";
 
 import { promises as dnsPromises } from "dns";
 
-export const router = express.Router();
+const router = express.Router();
 const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
 router.use(authenticate);
@@ -233,14 +233,7 @@ async function checkProductLimit(storeId: number, additionalCount: number = 1) {
   return currentCount + additionalCount <= limit;
 }
 
-async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null) {
-  const price = unitPrice !== null && unitPrice !== undefined ? Number(unitPrice) : null;
-  const info = customerInfo !== null && customerInfo !== undefined ? String(customerInfo) : null;
-  await client.query(
-    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-    [storeId, productId, type, quantity, source, description, price, info]
-  );
-}
+// addStockMovement is now imported from models/db
 
 function slugify(text: string) {
   const trMap: Record<string, string> = {
@@ -279,6 +272,7 @@ router.get("/products/:id/movements/export", async (req: any, res) => {
         quotation: "Teklif",
         purchase_invoice: "Alış Faturası",
         pos: "Satış (POS)",
+        web: "Web Siparişi",
         manual: "Manuel İşlem",
         sale_payment: "Satış Ödemesi",
         term_sale: "Vadeli Satış",
@@ -290,6 +284,7 @@ router.get("/products/:id/movements/export", async (req: any, res) => {
         quotation: "Quotation",
         purchase_invoice: "Purchase Invoice",
         pos: "Sale (POS)",
+        web: "Web Order",
         manual: "Manual Entry",
         sale_payment: "Sale Payment",
         term_sale: "Term Sale",
@@ -301,6 +296,7 @@ router.get("/products/:id/movements/export", async (req: any, res) => {
         quotation: "Angebot",
         purchase_invoice: "Eingangsrechnung",
         pos: "Verkauf (POS)",
+        web: "Web-Bestellung",
         manual: "Manueller Eintrag",
         sale_payment: "Verkaufszahlung",
         term_sale: "Terminverkauf",
@@ -539,11 +535,11 @@ router.get("/reports/daily-sales", async (req: any, res) => {
     const { startDate, endDate } = req.query;
     
     let baseQuery = `
-      -- Initial payments for sales (Cash, Card, Bank)
+      -- Initial payments for sales (Cash, Card, Bank, Iyzico)
       SELECT sp.payment_method, sp.amount, sp.created_at, s.store_id, s.customer_name, s.id as sale_id, 'sale_payment' as source
       FROM sale_payments sp
       JOIN sales s ON sp.sale_id = s.id
-      WHERE s.status = 'completed'
+      WHERE s.status IN ('completed', 'processing', 'shipped', 'delivered')
       
       UNION ALL
       
@@ -2226,18 +2222,18 @@ router.post("/sales/:id/complete", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    // Check if sale exists and is pending
+    // Check if sale exists and is pending or processing
     const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE", [id, storeId]);
     if (saleRes.rows.length === 0) {
       throw new Error("Sale not found");
     }
     const sale = saleRes.rows[0];
-    if (sale.status !== 'pending') {
-      throw new Error("Sale is not in pending status");
+    if (!['pending', 'processing', 'shipped', 'delivered'].includes(sale.status)) {
+      throw new Error("Sale is not in a completable status");
     }
 
-    // 0. Update items if provided
-    if (req.body.items && Array.isArray(req.body.items)) {
+    // 0. Update items if provided (only for pending sales)
+    if (sale.status === 'pending' && req.body.items && Array.isArray(req.body.items)) {
       // Delete existing items
       await client.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
       
@@ -2256,26 +2252,29 @@ router.post("/sales/:id/complete", async (req: any, res) => {
       sale.total_amount = newTotal; // Update local variable for later use
     }
 
-    const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
-    
-    // 1. Update Stock and Stock Movements
-    for (const item of itemsRes.rows) {
-      if (item.product_id) {
-        // Fetch product type to check if it's a service
-        const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.product_id]);
-        const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
+    // 1. Update Stock and Stock Movements (only if it was pending)
+    if (sale.status === 'pending') {
+      const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
+      for (const item of itemsRes.rows) {
+        if (item.product_id) {
+          // Fetch product type to check if it's a service
+          const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.product_id]);
+          const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
 
-        if (productType !== 'service') {
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
-            [item.quantity, item.product_id]
-          );
-          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name);
+          if (productType !== 'service') {
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+              [item.quantity, item.product_id]
+            );
+            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name);
+          }
         }
       }
     }
 
-    const primaryMethod = payments && payments.length > 0 ? (payments.length > 1 ? 'multiple' : payments[0].method) : (paymentMethod || 'cash');
+    const primaryMethod = payments && payments.length > 0
+      ? (payments.length > 1 ? 'multiple' : payments[0].method)
+      : (sale.status === 'processing' && sale.payment_method ? sale.payment_method : (paymentMethod || 'cash'));
     
     // 2. Update Sale Status and Info
     await client.query(
@@ -2369,6 +2368,51 @@ router.post("/sales/:id/complete", async (req: any, res) => {
     res.status(400).json({ error: e.message });
   } finally {
     client.release();
+  }
+});
+
+router.post("/sales/:id/ship", async (req: any, res) => {
+  const { id } = req.params;
+  const { carrier, trackingNumber } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  
+  try {
+    const result = await pool.query(
+      "UPDATE sales SET status = 'shipped', shipping_carrier = $1, tracking_number = $2 WHERE id = $3 AND store_id = $4 RETURNING *",
+      [carrier, trackingNumber, id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    await logAction(storeId, req.user.id, "sale_ship", "sales", parseInt(id), JSON.stringify({ carrier, trackingNumber }));
+
+    res.json({ success: true, sale: result.rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/sales/:id/deliver", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  
+  try {
+    const result = await pool.query(
+      "UPDATE sales SET status = 'delivered' WHERE id = $1 AND store_id = $2 RETURNING *",
+      [id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    await logAction(storeId, req.user.id, "sale_deliver", "sales", parseInt(id), "Sipariş teslim edildi olarak işaretlendi");
+
+    res.json({ success: true, sale: result.rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -2801,15 +2845,7 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
   }
 });
 
-router.delete("/sales-invoices/:id", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
-  try {
-    await pool.query("DELETE FROM sales_invoices WHERE id = $1 AND store_id = $2", [req.params.id, storeId]);
-    res.json({ success: true });
-  } catch (e: any) {
-    res.status(400).json({ error: e.message });
-  }
-});
+
 
 router.post("/sales/:id/create-invoice", async (req: any, res) => {
   const { id } = req.params;
@@ -3970,3 +4006,5 @@ router.get("/public/store/:slug/products/:barcode/stock", async (req, res) => {
     res.status(500).json({ error: "Stok bilgisi alınamadı" });
   }
 });
+
+export default router;

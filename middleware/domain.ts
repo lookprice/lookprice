@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { pool } from "../models/db.ts";
+import { pool } from "../models/db";
 
 const domainCache = new Map<string, string | null>();
 const CACHE_TTL = 60 * 1000; // 1 minute

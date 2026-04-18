@@ -59,7 +59,7 @@ import {
   Building2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { translations } from "../../translations";
+import { translations } from "@/translations";
 import PurchaseInvoices from "../../components/PurchaseInvoices";
 import SalesInvoices from "../../components/SalesInvoices";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -98,6 +98,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const { slug } = useParams();
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
+  const [shipCarrier, setShipCarrier] = useState('');
+  const [shipTrackingNumber, setShipTrackingNumber] = useState('');
 
   const numberToTurkishWords = (number: number, currency: string = 'TRY') => {
     const units = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
@@ -270,6 +272,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleUpdateSaleItem,
     handleRemoveSaleItem,
     handleCancelPendingSale,
+    handleShipSale,
+    handleDeliverSale,
     handleCompletePendingSale,
     handleConvertToSale,
     handleConfirmSale,
@@ -798,35 +802,29 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
       {/* Sidebar - Modern Rail */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-50 transition-transform duration-300 ease-in-out
+        fixed lg:static inset-y-0 left-0 w-72 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200">
-                <Logo size={24} className="text-white" />
+          <div className="p-8 border-b border-indigo-500/10">
+            <div className="flex items-center space-x-4">
+              <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-500/20 scale-110">
+                <Logo size={28} className="text-white" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-none">
+              <div className="min-w-0">
+                <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate">
                   {branding.name || branding.store_name || "LookPrice"}
                 </h1>
-                {branding.parent_id ? (
-                  <div className="flex items-center space-x-1 mt-1">
-                    <Building2 className="h-2.5 w-2.5 text-indigo-600" />
-                    <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider">
-                      {branding.parent_name || branding.parent_slug}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">System v4.2.0</p>
-                )}
+                <div className="flex items-center space-x-1.5 mt-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Retail_OS v4.2</p>
+                </div>
               </div>
             </div>
           </div>
           
-          <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 py-2 mb-2">Core Modules</div>
+          <nav className="flex-1 overflow-y-auto p-5 space-y-1.5 custom-scrollbar">
+            <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">System_Modules</div>
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -836,61 +834,67 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   });
                   setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
                   activeTab === item.id 
-                    ? 'bg-indigo-50 text-indigo-600 shadow-sm' 
-                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 }`}
               >
-                <div className="flex items-center space-x-3">
-                  <item.icon className={`h-4 w-4 ${activeTab === item.id ? 'text-indigo-600' : 'text-slate-500'}`} />
+                <div className="flex items-center space-x-3.5">
+                  <item.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
                   <span className="tracking-tight">{item.label}</span>
                 </div>
                 {item.badge > 0 && (
-                  <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
+                  <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black rounded-lg shadow-sm ${
+                    activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-rose-600 text-white animate-pulse'
+                  }`}>
                     {item.badge}
                   </span>
                 )}
               </button>
             ))}
 
-            <div className="pt-4 mt-4 border-t border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 py-2 mb-2">Public Access</div>
+            <div className="pt-6 mt-6 border-t border-white/5">
+              <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">External_Access</div>
               <a
                 href={publicUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-all duration-200"
+                className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
               >
-                <Globe className="h-4 w-4" />
+                <Globe className="h-4.5 w-4.5 text-slate-500" />
                 <span className="tracking-tight">{t.storeWebsite}</span>
               </a>
               <a
                 href={scanUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all duration-200"
+                className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
               >
-                <Scan className="h-4 w-4" />
+                <Scan className="h-4.5 w-4.5 text-slate-500" />
                 <span className="tracking-tight">{t.barcodeScanner}</span>
               </a>
             </div>
           </nav>
           
-          <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-            <div className="bg-white rounded-xl p-4 mb-4 border border-slate-100 shadow-sm">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Operational Status</p>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">All Systems Nominal</span>
+      <div className="p-6 border-t border-white/5 bg-slate-900/30">
+            <div className="bg-indigo-600/5 rounded-2xl p-3 mb-4 border border-indigo-500/10 shadow-inner hidden md:block">
+              <p className="text-[9px] font-black text-indigo-500/60 uppercase tracking-[0.2em] mb-2">Live_Metrics</p>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Uptime</span>
+                <span className="text-[9px] font-mono text-emerald-500 font-bold tracking-widest">99.9%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Sync</span>
+                <span className="text-[9px] font-mono text-indigo-400 font-bold tracking-widest">12ms</span>
               </div>
             </div>
             <button
               onClick={onLogout}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all duration-200 border border-rose-100"
+              className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"
             >
-              <LogOut className="h-4 w-4" />
-              <span className="uppercase tracking-wider">{t.logout}</span>
+              <LogOut className="h-3 w-3" />
+              <span>{t.logout}</span>
             </button>
           </div>
         </div>
@@ -901,7 +905,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         {/* Mobile Sidebar Toggle (Floating) */}
         <button 
           onClick={() => setSidebarOpen(true)} 
-          className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-300 active:scale-95 transition-all"
+          className="lg:hidden fixed bottom-6 left-5 z-[60] p-4 bg-indigo-600 text-white rounded-2xl shadow-2xl shadow-indigo-500/30 active:scale-90 transition-all border border-indigo-500/20"
         >
           <Menu className="h-6 w-6" />
         </button>
@@ -910,68 +914,68 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           <div className="max-w-7xl mx-auto space-y-8">
             {/* Analytical Header Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-6 md:mb-10 pb-6 md:pb-8 border-b border-slate-200">
-              <div className="space-y-2 md:space-y-4">
-                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-wider">
-                  <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                  <span>{lang === 'tr' ? 'MODÜL' : 'MODULE'}: {t[activeTab as keyof typeof t] || activeTab}</span>
-                </div>
+            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 mb-12 pb-10 border-b border-slate-200">
+              <div className="space-y-6">
+                <nav className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  <span className="hover:text-indigo-500 cursor-default transition-colors">ROOT</span>
+                  <ChevronRight className="h-3 w-3 text-slate-300" />
+                  <span className="hover:text-indigo-500 cursor-default transition-colors">CORE_OS</span>
+                  <ChevronRight className="h-3 w-3 text-slate-300" />
+                  <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{activeTab?.toUpperCase()}_MODULE</span>
+                </nav>
                 <div className="flex items-center justify-between w-full md:block">
-                  <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">
-                    {t[activeTab as keyof typeof t] || activeTab}
-                  </h3>
+                  <div className="relative inline-block">
+                    <h3 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none mb-2">
+                      {t[activeTab as keyof typeof t] || activeTab}
+                    </h3>
+                    <div className="h-1.5 w-full bg-indigo-600/10 absolute -bottom-1 left-0 rounded-full" />
+                  </div>
                   
                   {/* Mobile Notification Center (Visible only on mobile) */}
                   <div className="flex md:hidden items-center space-x-2">
                     {(notifications.transfers + notifications.service + notifications.quotations + notifications.sales) > 0 && (
-                      <div className="relative p-2 bg-white border border-slate-200 rounded-xl shadow-sm">
-                        <Bell className="h-4 w-4 text-slate-400" />
-                        <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                      <div className="relative p-2.5 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50">
+                        <Bell className="h-5 w-5 text-slate-400" />
+                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
                         </span>
                       </div>
                     )}
                   </div>
                 </div>
-                <p className="hidden md:block text-sm text-slate-500 max-w-2xl leading-relaxed font-medium opacity-70">
-                  {t.modulePrefix} {t.moduleDescriptions[activeTab as keyof typeof t.moduleDescriptions] || activeTab} {t.moduleDescSuffix}
-                </p>
               </div>
               
-              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <div className="flex items-center gap-3">
                 {activeTab === 'products' && (
                   <>
-                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-                      <label className="flex items-center cursor-pointer gap-2">
-                        <div className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={includeBranches}
-                            onChange={() => setIncludeBranches(!includeBranches)}
-                          />
-                          <div className="w-8 h-4 md:w-9 md:h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 md:after:h-4 md:after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                        </div>
-                        <span className="text-[10px] md:text-xs font-bold text-slate-600 whitespace-nowrap uppercase tracking-wider">
-                          {t.allBranches}
-                        </span>
-                      </label>
-                    </div>
-                    <button onClick={() => setShowImportModal(true)} className="flex items-center space-x-2 px-3 md:px-4 py-2 md:py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] md:text-sm hover:bg-slate-50 transition-all shadow-sm uppercase tracking-wider">
-                      <Upload className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                      <span className="hidden xs:inline">{t.import}</span>
-                    </button>
-                    <button onClick={() => { setEditingProduct(null); setShowProductModal(true); }} className="flex items-center space-x-2 px-3 md:px-4 py-2 md:py-2.5 bg-slate-900 text-white rounded-xl font-bold text-[10px] md:text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
-                      <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                      <span>{t.addEntry}</span>
-                    </button>
+                    {(user.role === 'superadmin' || (branding.stores && branding.stores.length > 1)) && (
+                      <div className="flex items-center bg-white/50 backdrop-blur-md border border-slate-200 rounded-2xl px-5 py-3 shadow-sm hover:border-indigo-200 transition-colors">
+                        <label className="flex items-center cursor-pointer gap-4">
+                          <div className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={includeBranches}
+                              onChange={() => setIncludeBranches(!includeBranches)}
+                            />
+                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900"></div>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-700 whitespace-nowrap uppercase tracking-[0.15em]">
+                            {t.allBranches}
+                          </span>
+                        </label>
+                      </div>
+                    )}
                   </>
                 )}
                 {activeTab === 'quotations' && (
-                  <button onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
-                    <Plus className="h-4 w-4" />
-                    <span>{t.newQuotation}</span>
+                  <button 
+                    onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} 
+                    className="os-btn-primary flex items-center space-x-4 px-8 py-4 shadow-2xl shadow-indigo-500/20 active:scale-95 group"
+                  >
+                    <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-[0.2em]">{t.newQuotation}</span>
                   </button>
                 )}
                 {activeTab === 'companies' && (
@@ -1008,6 +1012,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           isViewer={isViewer}
                           onDeleteAll={handleDeleteAllProducts}
                           onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
+                          onAddNew={() => { setEditingProduct(null); setShowProductModal(true); }}
+                          onImport={() => setShowImportModal(true)}
                           onDelete={handleDeleteProduct}
                           onExportReport={handleExportProducts}
                           onApplyTaxRule={handleApplyTaxRule}
@@ -1079,88 +1085,110 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       </Suspense>
                     )}
                     {activeTab === "procurements" && (
-                      <ProcurementTab 
-                        storeId={currentStoreId}
-                        isViewer={isViewer}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <ProcurementTab 
+                          storeId={currentStoreId}
+                          isViewer={isViewer}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "service" && (
-                      <ServiceTab 
-                        storeId={currentStoreId}
-                        isViewer={isViewer}
-                        products={products}
-                        onTabChange={setActiveTab}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <ServiceTab 
+                          storeId={currentStoreId}
+                          isViewer={isViewer}
+                          products={products}
+                          onTabChange={setActiveTab}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "stock_transfer" && (
-                      <StockTransferTab 
-                        storeId={currentStoreId!}
-                        products={products}
-                        isViewer={isViewer}
-                        includeBranches={includeBranches}
-                        onUpdate={fetchNotifications}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <StockTransferTab 
+                          storeId={currentStoreId!}
+                          products={products}
+                          isViewer={isViewer}
+                          includeBranches={includeBranches}
+                          onUpdate={fetchNotifications}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "fleet" && (
-                      <FleetTab 
-                        storeId={currentStoreId!}
-                        isViewer={isViewer}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <FleetTab 
+                          storeId={currentStoreId!}
+                          isViewer={isViewer}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "companies" && (
-                      <CompaniesTab 
-                        companies={companies}
-                        isViewer={isViewer}
-                        onViewTransactions={(c) => { setSelectedCompany(c); setShowTransactionModal(true); handleFetchTransactions(c.id); }}
-                        onEdit={(c) => { setEditingCompany(c); setShowCompanyModal(true); }}
-                        onDelete={handleDeleteCompany}
-                        onExportReport={handleExportCompanies}
-                        includeZero={includeZeroBalance}
-                        onIncludeZeroChange={setIncludeZeroBalance}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <CompaniesTab 
+                          companies={companies}
+                          isViewer={isViewer}
+                          onViewTransactions={(c) => { setSelectedCompany(c); setShowTransactionModal(true); handleFetchTransactions(c.id); }}
+                          onEdit={(c) => { setEditingCompany(c); setShowCompanyModal(true); }}
+                          onDelete={handleDeleteCompany}
+                          onExportReport={handleExportCompanies}
+                          includeZero={includeZeroBalance}
+                          onIncludeZeroChange={setIncludeZeroBalance}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "pos" && (
-                      <PosTab 
-                        sales={sales}
-                        loading={salesLoading}
-                        statusFilter={salesStatusFilter}
-                        onStatusFilterChange={setSalesStatusFilter}
-                        startDate={salesStartDate}
-                        onStartDateChange={setSalesStartDate}
-                        endDate={salesEndDate}
-                        onEndDateChange={setSalesEndDate}
-                        onViewDetails={(s) => { setSelectedSale(s); setShowSaleDetailsModal(true); }}
-                        onDeleteSale={handleDeleteSale}
-                        onExportReport={() => { setShowDailyReportModal(true); fetchDailySalesReport(); }}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <PosTab 
+                          sales={sales}
+                          loading={salesLoading}
+                          statusFilter={salesStatusFilter}
+                          onStatusFilterChange={setSalesStatusFilter}
+                          startDate={salesStartDate}
+                          onStartDateChange={setSalesStartDate}
+                          endDate={salesEndDate}
+                          onEndDateChange={setSalesEndDate}
+                          onViewDetails={(s) => { setSelectedSale(s); setShowSaleDetailsModal(true); }}
+                          onDeleteSale={handleDeleteSale}
+                          isViewer={isViewer}
+                          onExportReport={() => { setShowDailyReportModal(true); fetchDailySalesReport(); }}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "fast-pos" && (
-                      <FastPosTab 
-                        storeId={currentStoreId} 
-                        onSaleComplete={fetchSales}
-                        branding={branding}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <FastPosTab 
+                          storeId={currentStoreId} 
+                          onSaleComplete={fetchSales}
+                          branding={branding}
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "audit-logs" && (
-                      <AuditLogTab 
-                        storeId={currentStoreId} 
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <AuditLogTab 
+                          storeId={currentStoreId} 
+                        />
+                      </Suspense>
                     )}
                     {activeTab === "settings" && (
-                      <SettingsTab 
-                        branding={branding}
-                        onBrandingChange={(field, value) => setBranding({ ...branding, [field]: value })}
-                        onSaveBranding={handleSaveBranding}
-                        onLogoUpload={(e) => handleFileUpload(e, 'logo')}
-                        onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
-                        onBannerUpload={(e) => handleFileUpload(e, 'banner')}
-                        onAddUser={() => setShowUserModal(true)}
-                        onDeleteUser={handleDeleteUser}
-                        users={users}
-                        currentUser={user}
-                        currentStoreId={currentStoreId}
-                        onRefresh={fetchData}
-                      />
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <SettingsTab 
+                          branding={branding}
+                          onBrandingChange={(field, value) => setBranding({ ...branding, [field]: value })}
+                          onSaveBranding={handleSaveBranding}
+                          onLogoUpload={(e) => handleFileUpload(e, 'logo')}
+                          onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
+                          onBannerUpload={(e) => handleFileUpload(e, 'banner')}
+                          onAddUser={() => setShowUserModal(true)}
+                          onDeleteUser={handleDeleteUser}
+                          users={users}
+                          currentUser={user}
+                          currentStoreId={currentStoreId}
+                          onRefresh={fetchData}
+                          bulkPriceForm={bulkPriceForm}
+                          setBulkPriceForm={setBulkPriceForm}
+                          handleBulkPriceSubmit={handleBulkPriceSubmit}
+                        />
+                      </Suspense>
                     )}
                   </>
                 )}
@@ -1610,9 +1638,59 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     </div>
                   </div>
                 )}
+
+                {selectedSale.status === 'processing' && !isViewer && (
+                  <div className="p-4 bg-emerald-50 rounded-3xl border border-emerald-100 space-y-3">
+                    <div className="flex items-center space-x-2">
+                       <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600">
+                         <CheckCircle2 className="h-4 w-4" />
+                       </div>
+                       <h4 className="text-xs font-bold text-emerald-900">{t.paymentConfirmed || "Ödeme Onaylandı"}</h4>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
+                       <span>{lang === 'tr' ? 'Yöntem' : 'Method'}:</span>
+                       <span className="bg-emerald-100 px-2 py-0.5 rounded-full">
+                         {selectedSale.payment_method === 'iyzico' ? 'Online Ödeme (Iyzico)' : (selectedSale.payment_method || (lang === 'tr' ? 'Kartla Ödendi' : 'Paid with Card'))}
+                       </span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSale.status === 'processing' && !isViewer && (
+                  <div className="p-4 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
+                    <div className="flex items-center space-x-2">
+                       <div className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
+                         <Truck className="h-4 w-4" />
+                       </div>
+                       <h4 className="text-xs font-bold text-slate-900">{lang === 'tr' ? 'Kargo Bilgileri' : 'Shipping Info'}</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">{lang === 'tr' ? 'Kargo Firması' : 'Carrier'}</label>
+                        <input 
+                          type="text"
+                          value={shipCarrier}
+                          onChange={(e) => setShipCarrier(e.target.value)}
+                          placeholder={lang === 'tr' ? 'Örn: Aras, Yurtiçi...' : 'e.g. FedEx, DHL...'}
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-sm text-slate-900"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">{lang === 'tr' ? 'Takip No' : 'Tracking No'}</label>
+                        <input 
+                          type="text"
+                          value={shipTrackingNumber}
+                          onChange={(e) => setShipTrackingNumber(e.target.value)}
+                          placeholder={lang === 'tr' ? 'Takip numarası' : 'Tracking number'}
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-sm text-slate-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3">
-                {selectedSale.status === 'pending' && !isViewer ? (
+                {['pending', 'processing', 'shipped'].includes(selectedSale.status) && !isViewer ? (
                   <>
                     <button 
                       onClick={() => handleCancelPendingSale(selectedSale.id)}
@@ -1622,25 +1700,58 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     >
                       <XCircle className="h-6 w-6" />
                     </button>
-                    <button 
-                      onClick={() => handleCompletePendingSale(selectedSale.id)}
-                      disabled={completingSale}
-                      className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
-                    >
-                      {completingSale ? (
-                        <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <CheckCircle2 className="h-6 w-6" />
-                          <span className="hidden sm:inline">{t.completeSale || 'Tamamla'}</span>
-                        </>
-                      )}
-                    </button>
+                    
+                    {selectedSale.status === 'processing' ? (
+                      <button 
+                        onClick={() => handleShipSale(selectedSale.id, shipCarrier, shipTrackingNumber)}
+                        disabled={completingSale || !shipCarrier || !shipTrackingNumber}
+                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
+                      >
+                        {completingSale ? (
+                          <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Truck className="h-6 w-6" />
+                            <span className="hidden sm:inline">{lang === 'tr' ? 'Sevk Et' : 'Ship Order'}</span>
+                          </>
+                        )}
+                      </button>
+                    ) : selectedSale.status === 'shipped' ? (
+                      <button 
+                        onClick={() => handleDeliverSale(selectedSale.id)}
+                        disabled={completingSale}
+                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
+                      >
+                        {completingSale ? (
+                          <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle2 className="h-6 w-6" />
+                            <span className="hidden sm:inline">{lang === 'tr' ? 'Teslim Edildi' : 'Mark Delivered'}</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleCompletePendingSale(selectedSale.id)}
+                        disabled={completingSale}
+                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
+                      >
+                        {completingSale ? (
+                          <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle2 className="h-6 w-6" />
+                            <span className="hidden sm:inline">{t.completeSale || 'Tamamla'}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>
                     <button 
-                      onClick={() => window.print()}
+                      onClick={() => handlePrint()}
                       className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
                     >
                       <Printer className="h-5 w-5" /> {lang === 'tr' ? 'Yazdır' : 'Print'}

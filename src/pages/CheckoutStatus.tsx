@@ -21,6 +21,13 @@ const CheckoutStatus: React.FC = () => {
     }
 
     const processPayment = async () => {
+      // Check if this is a cancellation/error path
+      if (window.location.pathname.includes('/checkout/cancel')) {
+        setStatus('error');
+        setMessage(searchParams.get("error") || "Ödeme işlemi iptal edildi veya bir hata oluştu.");
+        return;
+      }
+
       if (!saleId) {
         setStatus('error');
         setMessage("Sipariş numarası bulunamadı.");
@@ -54,7 +61,7 @@ const CheckoutStatus: React.FC = () => {
     };
 
     processPayment();
-  }, [saleId, token, PayerID]);
+  }, [saleId, token, PayerID, searchParams]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

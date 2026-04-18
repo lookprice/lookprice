@@ -1,0 +1,74 @@
+829:              <button
+892:            <button
+906:        <button 
+970:                    <button 
+977:                    <button 
+987:                  <button 
+996:                  <button onClick={() => { setEditingCompany(null); setShowCompanyModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
+1212:                  <button onClick={() => setShowQrModal(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
+1249:                      <button 
+1274:                      <button 
+1288:                    <button 
+1295:                    <button 
+1341:                <button onClick={() => setShowPurchaseInvoiceDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+1391:                <button 
+1418:                  <button onClick={() => handlePrint()} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title={t.printShippingSlip}>
+1421:                  <button onClick={() => setShowSaleDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+1519:                                  <button 
+1548:                            <button 
+1619:                        <button
+1689:                    <button 
+1699:                      <button 
+1714:                      <button 
+1729:                      <button 
+1747:                    <button 
+1753:                    <button 
+1777:                  <button 
+1784:                  <button 
+1886:                <button onClick={() => setShowDailyReportModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+1910:                  <button 
+1956:                <button 
+1963:                <button 
+1988:                  <button 
+1995:                  <button onClick={() => setShowTransactionModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+2036:                <button 
+2043:                <button 
+2159:                                              <button 
+2170:                                              <button 
+2204:                                            <button 
+2216:                                            <button 
+2240:                <button 
+2264:                <button onClick={() => setShowAddTransactionModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+2278:                  <button
+2289:                  <button
+2350:                        <button
+2391:                  <button 
+2413:                <button onClick={() => setShowSaleModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+2468:                  <button 
+2476:                  <button 
+2506:                <button onClick={() => setShowBulkPriceModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+2612:                  <button 
+2619:                  <button 
+2648:                <button onClick={() => setShowProductModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+3021:                  <button 
+3028:                  <button 
+3050:                <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportColumns([]); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+3086:                      <button onClick={() => { setImportFile(null); setImportColumns([]); }} className="text-xs font-bold text-emerald-600 hover:underline">Değiştir</button>
+3141:                  <button 
+3150:                    <button 
+3183:                <button onClick={() => setShowCompanyModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+3221:                  <button type="button" onClick={() => setShowCompanyModal(false)} className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">
+3224:                  <button type="submit" className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+3243:                <button onClick={() => setShowUserModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+3264:                  <button type="button" onClick={() => setShowUserModal(false)} className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">
+3267:                  <button type="submit" className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+3288:                <button onClick={() => setShowQuotationModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+3378:                        <button
+3428:                        <button
+3512:                          <button 
+3526:                  <button 
+3547:                  <button type="button" onClick={() => setShowQuotationModal(false)} className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all">
+3550:                  <button type="submit" className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+3573:                  <button onClick={() => setShowQuickProductModal(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
+3627:                    <button type="button" onClick={() => setShowQuickProductModal(false)} className="flex-1 px-6 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all">
+3630:                    <button type="submit" className="flex-1 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
