@@ -63,6 +63,7 @@ import { translations } from "@/translations";
 import PurchaseInvoices from "../../components/PurchaseInvoices";
 import SalesInvoices from "../../components/SalesInvoices";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useDashboardController } from "../../hooks/useDashboardController";
 import { useProducts } from "../../hooks/useProducts";
 import { useQuotations } from "../../hooks/useQuotations";
 import { useSales } from "../../hooks/useSales";
@@ -166,33 +167,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
   const t = translations[lang].dashboard;
-  const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem(`storeDashboardTab_${user.store_id || 'admin'}`) || "products";
-  });
-
-  useEffect(() => {
-    localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
-  }, [activeTab, user.store_id]);
-
+  const {
+    activeTab, setActiveTab,
+    branding, setBranding
+  } = useDashboardController(user);
+  
   const [isPending, startTransition] = useTransition();
 
   const [includeBranches, setIncludeBranches] = useState(false);
-  const [branding, setBranding] = useState<any>({
-    name: "LookPrice",
-    store_name: "LookPrice",
-    primary_color: "#4f46e5",
-    logo_url: "",
-    favicon_url: "",
-    default_currency: "TRY",
-    default_language: "tr",
-    payment_settings: {},
-    amazon_settings: {},
-    n11_settings: {},
-    hepsiburada_settings: {},
-    trendyol_settings: {},
-    pazarama_settings: {},
-    custom_domain: ""
-  });
 
   const planLimits: Record<string, number> = {
     free: 50,

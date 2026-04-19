@@ -301,4 +301,5 @@ export const api = {
   // Transactions
   deleteTransaction: (id: number) => api.delete(`/api/store/transactions/${id}`),
   updateTransaction: (id: number, data: any) => api.put(`/api/store/transactions/${id}`, data),
+  logError: (data: any) => api.post("/api/store/log-error", data),
 };

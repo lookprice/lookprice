@@ -35,6 +35,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useIntegrationSync } from "../../hooks/useIntegrationSync";
 import { DEVELOPED_COUNTRIES } from "../../constants";
 import { api } from "../../services/api";
 import { PageBuilder } from "../../components/PageBuilder";
@@ -76,27 +77,28 @@ const SettingsTab = ({
 }: SettingsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
-  const [syncing, setSyncing] = React.useState(false);
+  const amazonSync = useIntegrationSync('Amazon', t);
+  const n11Sync = useIntegrationSync('N11', t);
+  const hbSync = useIntegrationSync('Hepsiburada', t);
+  const tySync = useIntegrationSync('Trendyol', t);
+  const pzSync = useIntegrationSync('Pazarama', t);
+
   const [amazonClientId, setAmazonClientId] = React.useState(branding.amazon_settings?.clientId || "");
   const [amazonClientSecret, setAmazonClientSecret] = React.useState(branding.amazon_settings?.clientSecret || "");
   const [amazonRefreshToken, setAmazonRefreshToken] = React.useState(branding.amazon_settings?.refresh_token || "");
   const [amazonSellerId, setAmazonSellerId] = React.useState(branding.amazon_settings?.sellerId || "");
   
-  const [n11Syncing, setN11Syncing] = React.useState(false);
   const [n11AppKey, setN11AppKey] = React.useState(branding.n11_settings?.appKey || "");
   const [n11AppSecret, setN11AppSecret] = React.useState(branding.n11_settings?.appSecret || "");
 
-  const [hbSyncing, setHbSyncing] = React.useState(false);
   const [hbApiKey, setHbApiKey] = React.useState(branding.hepsiburada_settings?.apiKey || "");
   const [hbApiSecret, setHbApiSecret] = React.useState(branding.hepsiburada_settings?.apiSecret || "");
   const [hbMerchantId, setHbMerchantId] = React.useState(branding.hepsiburada_settings?.merchantId || "");
 
-  const [tySyncing, setTySyncing] = React.useState(false);
   const [tyApiKey, setTyApiKey] = React.useState(branding.trendyol_settings?.apiKey || "");
   const [tyApiSecret, setTyApiSecret] = React.useState(branding.trendyol_settings?.apiSecret || "");
   const [tyMerchantId, setTyMerchantId] = React.useState(branding.trendyol_settings?.merchantId || "");
 
-  const [pzSyncing, setPzSyncing] = React.useState(false);
   const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
   const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
@@ -168,17 +170,13 @@ const SettingsTab = ({
   };
 
   const handleSyncOrders = async () => {
-    setSyncing(true);
-    try {
-      const res = await api.syncAmazonOrders(currentStoreId);
-      alert(`${t.amazonSyncSuccess}: ${res.count} ${t.sales}`);
-      // Refresh branding to get new last_sync
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      alert(t.amazonSyncError);
-    } finally {
-      setSyncing(false);
-    }
+    await amazonSync.runSync(
+      () => api.syncAmazonOrders(currentStoreId),
+      (res) => {
+        alert(`${t.amazonSyncSuccess}: ${res.count} ${t.sales}`);
+        if (onRefresh) onRefresh();
+      }
+    );
   };
 
   const handleDisconnectAmazon = async () => {
@@ -203,16 +201,13 @@ const SettingsTab = ({
   };
 
   const handleSyncN11Orders = async () => {
-    setN11Syncing(true);
-    try {
-      const res = await api.syncN11Orders(currentStoreId);
-      alert(`${t.n11SyncSuccess}: ${res.count} ${t.sales}`);
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      alert(t.n11SyncError);
-    } finally {
-      setN11Syncing(false);
-    }
+    await n11Sync.runSync(
+      () => api.syncN11Orders(currentStoreId),
+      (res) => {
+        alert(`${t.n11SyncSuccess}: ${res.count} ${t.sales}`);
+        if (onRefresh) onRefresh();
+      }
+    );
   };
 
   const handleDisconnectN11 = async () => {
@@ -237,16 +232,13 @@ const SettingsTab = ({
   };
 
   const handleSyncHbOrders = async () => {
-    setHbSyncing(true);
-    try {
-      const res = await api.syncHepsiburadaOrders(currentStoreId);
-      alert(`${t.hepsiburadaSyncSuccess}: ${res.count} ${t.sales}`);
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      alert(t.hepsiburadaSyncError);
-    } finally {
-      setHbSyncing(false);
-    }
+    await hbSync.runSync(
+      () => api.syncHepsiburadaOrders(currentStoreId),
+      (res) => {
+        alert(`${t.hepsiburadaSyncSuccess}: ${res.count} ${t.sales}`);
+        if (onRefresh) onRefresh();
+      }
+    );
   };
 
   const handleDisconnectHb = async () => {
@@ -271,16 +263,13 @@ const SettingsTab = ({
   };
 
   const handleSyncTyOrders = async () => {
-    setTySyncing(true);
-    try {
-      const res = await api.syncTrendyolOrders(currentStoreId);
-      alert(`${t.trendyolSyncSuccess}: ${res.count} ${t.sales}`);
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      alert(t.trendyolSyncError);
-    } finally {
-      setTySyncing(false);
-    }
+    await tySync.runSync(
+      () => api.syncTrendyolOrders(currentStoreId),
+      (res) => {
+        alert(`${t.trendyolSyncSuccess}: ${res.count} ${t.sales}`);
+        if (onRefresh) onRefresh();
+      }
+    );
   };
 
   const handleDisconnectTy = async () => {
@@ -305,16 +294,13 @@ const SettingsTab = ({
   };
 
   const handleSyncPzOrders = async () => {
-    setPzSyncing(true);
-    try {
-      const res = await api.syncPazaramaOrders(currentStoreId);
-      alert(`${t.pazaramaSyncSuccess}: ${res.count} ${t.sales}`);
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      alert(t.pazaramaSyncError);
-    } finally {
-      setPzSyncing(false);
-    }
+    await pzSync.runSync(
+      () => api.syncPazaramaOrders(currentStoreId),
+      (res) => {
+        alert(`${t.pazaramaSyncSuccess}: ${res.count} ${t.sales}`);
+        if (onRefresh) onRefresh();
+      }
+    );
   };
 
   const handleDisconnectPz = async () => {
@@ -1085,11 +1071,11 @@ const SettingsTab = ({
                       <>
                         <button 
                           onClick={handleSyncOrders}
-                          disabled={syncing}
+                          disabled={amazonSync.isSyncing}
                           className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
-                          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-                          <span>{syncing ? t.loading : t.syncOrders}</span>
+                          <RefreshCw className={`h-4 w-4 ${amazonSync.isSyncing ? 'animate-spin' : ''}`} />
+                          <span>{amazonSync.isSyncing ? t.loading : t.syncOrders}</span>
                         </button>
                         <button 
                           onClick={handleSaveAmazonSettings}
@@ -1113,10 +1099,17 @@ const SettingsTab = ({
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
                       <p className="text-sm font-bold text-slate-900">
-                        {amazonSettings.last_sync 
-                          ? new Date(amazonSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
-                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                        {amazonSync.lastSync ? amazonSync.lastSync.toLocaleString() : (amazonSettings.last_sync ? new Date(amazonSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
                       </p>
+                      {amazonSync.lastError && (
+                        <div className="mt-2 p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-xs flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                             <AlertTriangle className="h-4 w-4 shrink-0" />
+                             <span className="font-medium">{amazonSync.lastError}</span>
+                          </div>
+                          <button onClick={handleSyncOrders} className="w-full text-xs font-bold bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded transition-colors text-rose-700">{lang === 'tr' ? 'Tekrar Dene' : 'Retry'}</button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1179,11 +1172,11 @@ const SettingsTab = ({
                       <>
                         <button 
                           onClick={handleSyncN11Orders}
-                          disabled={n11Syncing}
+                          disabled={n11Sync.isSyncing}
                           className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
-                          <RefreshCw className={`h-4 w-4 ${n11Syncing ? 'animate-spin' : ''}`} />
-                          <span>{n11Syncing ? t.loading : t.syncOrders}</span>
+                          <RefreshCw className={`h-4 w-4 ${n11Sync.isSyncing ? 'animate-spin' : ''}`} />
+                          <span>{n11Sync.isSyncing ? t.loading : t.syncOrders}</span>
                         </button>
                         <button 
                           onClick={handleSaveN11Settings}
@@ -1207,10 +1200,17 @@ const SettingsTab = ({
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
                       <p className="text-sm font-bold text-slate-900">
-                        {n11Settings.last_sync 
-                          ? new Date(n11Settings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
-                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                        {n11Sync.lastSync ? n11Sync.lastSync.toLocaleString() : (n11Settings.last_sync ? new Date(n11Settings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
                       </p>
+                      {n11Sync.lastError && (
+                        <div className="mt-2 p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-xs flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                             <AlertTriangle className="h-4 w-4 shrink-0" />
+                             <span className="font-medium">{n11Sync.lastError}</span>
+                          </div>
+                          <button onClick={handleSyncN11Orders} className="w-full text-xs font-bold bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded transition-colors text-rose-700">{lang === 'tr' ? 'Tekrar Dene' : 'Retry'}</button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1283,11 +1283,11 @@ const SettingsTab = ({
                       <>
                         <button 
                           onClick={handleSyncHbOrders}
-                          disabled={hbSyncing}
+                          disabled={hbSync.isSyncing}
                           className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
-                          <RefreshCw className={`h-4 w-4 ${hbSyncing ? 'animate-spin' : ''}`} />
-                          <span>{hbSyncing ? t.loading : t.syncOrders}</span>
+                          <RefreshCw className={`h-4 w-4 ${hbSync.isSyncing ? 'animate-spin' : ''}`} />
+                          <span>{hbSync.isSyncing ? t.loading : t.syncOrders}</span>
                         </button>
                         <button 
                           onClick={handleSaveHbSettings}
@@ -1311,10 +1311,17 @@ const SettingsTab = ({
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
                       <p className="text-sm font-bold text-slate-900">
-                        {hbSettings.last_sync 
-                          ? new Date(hbSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
-                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                        {hbSync.lastSync ? hbSync.lastSync.toLocaleString() : (hbSettings.last_sync ? new Date(hbSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
                       </p>
+                      {hbSync.lastError && (
+                        <div className="mt-2 p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-xs flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                             <AlertTriangle className="h-4 w-4 shrink-0" />
+                             <span className="font-medium">{hbSync.lastError}</span>
+                          </div>
+                          <button onClick={handleSyncHbOrders} className="w-full text-xs font-bold bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded transition-colors text-rose-700">{lang === 'tr' ? 'Tekrar Dene' : 'Retry'}</button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1387,11 +1394,11 @@ const SettingsTab = ({
                       <>
                         <button 
                           onClick={handleSyncTyOrders}
-                          disabled={tySyncing}
+                          disabled={tySync.isSyncing}
                           className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
-                          <RefreshCw className={`h-4 w-4 ${tySyncing ? 'animate-spin' : ''}`} />
-                          <span>{tySyncing ? t.loading : t.syncOrders}</span>
+                          <RefreshCw className={`h-4 w-4 ${tySync.isSyncing ? 'animate-spin' : ''}`} />
+                          <span>{tySync.isSyncing ? t.loading : t.syncOrders}</span>
                         </button>
                         <button 
                           onClick={handleSaveTySettings}
@@ -1415,10 +1422,17 @@ const SettingsTab = ({
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
                       <p className="text-sm font-bold text-slate-900">
-                        {tySettings.last_sync 
-                          ? new Date(tySettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
-                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                        {tySync.lastSync ? tySync.lastSync.toLocaleString() : (tySettings.last_sync ? new Date(tySettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
                       </p>
+                      {tySync.lastError && (
+                        <div className="mt-2 p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-xs flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                             <AlertTriangle className="h-4 w-4 shrink-0" />
+                             <span className="font-medium">{tySync.lastError}</span>
+                          </div>
+                          <button onClick={handleSyncTyOrders} className="w-full text-xs font-bold bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded transition-colors text-rose-700">{lang === 'tr' ? 'Tekrar Dene' : 'Retry'}</button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1481,11 +1495,11 @@ const SettingsTab = ({
                       <>
                         <button 
                           onClick={handleSyncPzOrders}
-                          disabled={pzSyncing}
+                          disabled={pzSync.isSyncing}
                           className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
-                          <RefreshCw className={`h-4 w-4 ${pzSyncing ? 'animate-spin' : ''}`} />
-                          <span>{pzSyncing ? t.loading : t.syncOrders}</span>
+                          <RefreshCw className={`h-4 w-4 ${pzSync.isSyncing ? 'animate-spin' : ''}`} />
+                          <span>{pzSync.isSyncing ? t.loading : t.syncOrders}</span>
                         </button>
                         <button 
                           onClick={handleSavePzSettings}
@@ -1509,10 +1523,17 @@ const SettingsTab = ({
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
                       <p className="text-sm font-bold text-slate-900">
-                        {pzSettings.last_sync 
-                          ? new Date(pzSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') 
-                          : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never')}
+                        {pzSync.lastSync ? pzSync.lastSync.toLocaleString() : (pzSettings.last_sync ? new Date(pzSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
                       </p>
+                      {pzSync.lastError && (
+                        <div className="mt-2 p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-xs flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                             <AlertTriangle className="h-4 w-4 shrink-0" />
+                             <span className="font-medium">{pzSync.lastError}</span>
+                          </div>
+                          <button onClick={handleSyncPzOrders} className="w-full text-xs font-bold bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded transition-colors text-rose-700">{lang === 'tr' ? 'Tekrar Dene' : 'Retry'}</button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
