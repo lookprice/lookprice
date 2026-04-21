@@ -143,8 +143,12 @@ const ProductsTab = ({
                       <Plus className="h-4.5 w-4.5" />
                     </button>
                     <button 
-                      onClick={onDeleteAll}
-                      className="p-3 text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-transparent hover:border-rose-700 active:scale-95"
+                      onClick={() => {
+                        if (window.confirm(lang === 'tr' ? "DİKKAT! Bu İşlem Listenizdeki TÜM ÜRÜNLERİ SİLECEKTİR! EMİN MİSİNİZ?" : "ATTENTION! This will delete ALL PRODUCTS in your list! ARE YOU SURE?")) {
+                          onDeleteAll();
+                        }
+                      }}
+                      className="p-3 text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-transparent hover:border-rose-700 active:scale-95 text-rose-600 font-black hover:text-white"
                       title={t.deleteAll}
                     >
                       <Trash2 className="h-4.5 w-4.5" />
@@ -242,7 +246,7 @@ const ProductsTab = ({
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group cursor-default">
                     <td className="px-6 py-4">
                       <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
-                        {p.barcode?.toString().padStart(13, '0').slice(-13)}
+                        {p.barcode?.toString().padStart(14, '0').slice(-14)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -358,6 +362,17 @@ const ProductsTab = ({
                             className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-300 active:scale-90"
                           >
                             <Edit2 className="h-4.5 w-4.5" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm(lang === 'tr' ? "Bu ürünü silmek istediğinize emin misiniz?" : "Are you sure you want to delete this product?")) {
+                                onDelete(p.id);
+                              }
+                            }}
+                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-200 active:scale-90"
+                            title={t.deleteEntry}
+                          >
+                            <Trash2 className="h-4.5 w-4.5" />
                           </button>
                         </div>
                       )}

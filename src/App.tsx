@@ -17,6 +17,7 @@ import { LandingPage } from "./components/LandingPageNew";
 import StoreDashboard from "./pages/StoreDashboard/index";
 import Navbar from "./components/Navbar";
 import { User } from "./types";
+import { Toaster } from "sonner";
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "./contexts/LanguageContext";
@@ -149,6 +150,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
+      <Toaster position="top-center" richColors />
       <Routes>
           {/* Public Routes */}
           <Route path="/scan/:slug" element={<CustomerScanPage />} />

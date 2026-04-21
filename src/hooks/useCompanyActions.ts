@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { api } from "../services/api";
 
 export const useCompanyActions = (
@@ -23,56 +24,78 @@ export const useCompanyActions = (
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
 
-    try {
+    const savePromise = (async () => {
+      let res;
       if (editingCompany) {
-        await api.updateCompany(editingCompany.id, data, targetStoreId);
+        res = await api.updateCompany(editingCompany.id, data, targetStoreId);
       } else {
-        await api.addCompany(data, targetStoreId);
+        res = await api.addCompany(data, targetStoreId);
       }
-      setShowCompanyModal(false);
-      setEditingCompany(null);
       fetchCompanies();
-    } catch (error) {
-      alert("Hata oluştu");
-    }
+      return res;
+    })();
+
+    setShowCompanyModal(false);
+    setEditingCompany(null);
+
+    toast.promise(savePromise, {
+      loading: lang === 'tr' ? "Cari kaydediliyor..." : "Saving company...",
+      success: lang === 'tr' ? "Cari kaydedildi" : "Company saved",
+      error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+    });
   };
 
   const handleDeleteCompany = async (id: number) => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
-      try {
-        await api.deleteCompany(id, targetStoreId);
+      const deletePromise = (async () => {
+        const res = await api.deleteCompany(id, targetStoreId);
         fetchCompanies();
-      } catch (error) {
-        alert("Hata oluştu");
-      }
+        return res;
+      })();
+
+      toast.promise(deletePromise, {
+        loading: lang === 'tr' ? "Siliniyor..." : "Deleting...",
+        success: lang === 'tr' ? "Cari silindi" : "Company deleted",
+        error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+      });
     }
   };
 
   const handleDeleteTransaction = async (id: number) => {
     if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
-      try {
-        await api.deleteTransaction(id);
+      const deletePromise = (async () => {
+        const res = await api.deleteTransaction(id);
         if (selectedCompany) {
             handleFetchTransactions(selectedCompany.id, user.role === 'superadmin' ? currentStoreId : undefined);
             fetchCompanies();
         }
-      } catch (error) {
-        alert("Hata oluştu");
-      }
+        return res;
+      })();
+
+      toast.promise(deletePromise, {
+        loading: lang === 'tr' ? "İşlem siliniyor..." : "Deleting transaction...",
+        success: lang === 'tr' ? "İşlem silindi" : "Transaction deleted",
+        error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+      });
     }
   };
 
   const handleEditTransaction = async (id: number, data: any) => {
-    try {
-      await api.updateTransaction(id, data);
+    const editPromise = (async () => {
+      const res = await api.updateTransaction(id, data);
       if (selectedCompany) {
         handleFetchTransactions(selectedCompany.id, user.role === 'superadmin' ? currentStoreId : undefined);
         fetchCompanies();
       }
-    } catch (error) {
-      alert("Hata oluştu");
-    }
+      return res;
+    })();
+
+    toast.promise(editPromise, {
+      loading: lang === 'tr' ? "Güncelleniyor..." : "Updating...",
+      success: lang === 'tr' ? "Güncellendi" : "Updated",
+      error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+    });
   };
 
   const handleAddTransaction = async (e: React.FormEvent, newTransactionType: 'debt' | 'credit', newTransactionAmount: string, newTransactionDescription: string, newTransactionDate: string, newTransactionPaymentMethod: 'cash' | 'credit_card' | 'bank' | 'term', newTransactionCurrency: string, newTransactionExchangeRate: string) => {
@@ -80,8 +103,8 @@ export const useCompanyActions = (
     if (!selectedCompany) return;
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
 
-    try {
-      await api.addCompanyTransaction(selectedCompany.id, {
+    const addPromise = (async () => {
+      const res = await api.addCompanyTransaction(selectedCompany.id, {
         type: newTransactionType,
         amount: Number(String(newTransactionAmount).replace(',', '.')),
         description: newTransactionDescription,
@@ -91,17 +114,22 @@ export const useCompanyActions = (
         exchange_rate: Number(String(newTransactionExchangeRate).replace(',', '.')) || 1
       }, targetStoreId);
       
-      setShowAddTransactionModal(false);
-      setNewTransactionAmount('');
-      setNewTransactionDescription('');
-      setNewTransactionCurrency(branding?.default_currency || 'TRY');
-      setNewTransactionExchangeRate('1');
       handleFetchTransactions(selectedCompany.id, targetStoreId);
       fetchCompanies();
-    } catch (error) {
-      console.error("Add transaction error:", error);
-      alert(lang === 'tr' ? "İşlem eklenirken hata oluştu." : "Error adding transaction.");
-    }
+      return res;
+    })();
+
+    setShowAddTransactionModal(false);
+    setNewTransactionAmount('');
+    setNewTransactionDescription('');
+    setNewTransactionCurrency(branding?.default_currency || 'TRY');
+    setNewTransactionExchangeRate('1');
+
+    toast.promise(addPromise, {
+      loading: lang === 'tr' ? "İşlem ekleniyor..." : "Adding transaction...",
+      success: lang === 'tr' ? "İşlem eklendi" : "Transaction added",
+      error: lang === 'tr' ? "İşlem eklenirken hata oluştu" : "Error adding transaction"
+    });
   };
 
   return { handleAddCompany, handleDeleteCompany, handleDeleteTransaction, handleEditTransaction, handleAddTransaction };

@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { api } from '../services/api';
 
 export const useQuotationActions = (
@@ -17,7 +18,7 @@ export const useQuotationActions = (
 
   const handleQuickAddProduct = async (e: React.FormEvent, quickProductForm: any) => {
     e.preventDefault();
-    try {
+    const savePromise = (async () => {
       const price = Number(quickProductForm.price);
       const taxRate = (quickProductForm.tax_rate !== undefined && quickProductForm.tax_rate !== "") ? Number(quickProductForm.tax_rate) : Number(branding?.default_tax_rate !== undefined ? branding.default_tax_rate : 20);
       const currency = branding?.default_currency || 'TRY';
@@ -45,12 +46,18 @@ export const useQuotationActions = (
         total_price: Number(newProduct.price)
       }]);
       
-      setShowQuickProductModal(false);
-      setQuickProductForm({ name: '', price: '', barcode: '', tax_rate: String(branding?.default_tax_rate ?? 20) });
       fetchProductsData();
-    } catch (error) {
-      alert("Hata oluştu");
-    }
+      return newProduct;
+    })();
+
+    setShowQuickProductModal(false);
+    setQuickProductForm({ name: '', price: '', barcode: '', tax_rate: String(branding?.default_tax_rate ?? 20) });
+
+    toast.promise(savePromise, {
+      loading: lang === 'tr' ? "Ürün ekleniyor..." : "Adding product...",
+      success: lang === 'tr' ? "Ürün eklendi" : "Product added",
+      error: lang === 'tr' ? "Ürün eklenirken hata oluştu" : "Error adding product"
+    });
   };
 
   const handleAddQuotation = async (e: React.FormEvent, quotationItems: any, editingQuotation: any) => {
@@ -62,7 +69,8 @@ export const useQuotationActions = (
       customer_name: data.customer_name,
       customer_title: data.customer_title,
       total_amount: quotationItems.reduce((sum: number, item: any) => sum + Number(item.total_price), 0),
-      currency: data.currency || branding.default_currency,
+      currency: data.currency,
+      exchange_rate: Number(data.exchange_rate),
       notes: data.notes,
       items: quotationItems,
       company_id: data.company_id ? parseInt(String(data.company_id)) : null,
@@ -73,55 +81,75 @@ export const useQuotationActions = (
       due_date: data.due_date
     };
 
-    try {
+    const savePromise = (async () => {
+      let res;
       if (editingQuotation) {
-        await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);
+        res = await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);
       } else {
-        await api.addQuotation(quotationData, currentStoreId || undefined);
+        res = await api.addQuotation(quotationData, currentStoreId || undefined);
       }
-      setShowQuotationModal(false);
-      setEditingQuotation(null);
-      setQuotationItems([]);
       fetchQuotations();
-    } catch (error) {
-      alert("Hata oluştu");
-    }
+      return res;
+    })();
+
+    setShowQuotationModal(false);
+    setEditingQuotation(null);
+    setQuotationItems([]);
+
+    toast.promise(savePromise, {
+      loading: lang === 'tr' ? "Teklif kaydediliyor..." : "Saving quotation...",
+      success: lang === 'tr' ? "Teklif kaydedildi" : "Quotation saved",
+      error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+    });
   };
 
   const handleApproveQuotation = async (quotation: any) => {
-    try {
-      await api.approveQuotation(quotation.id, {}, currentStoreId || undefined);
-      
+    const approvePromise = (async () => {
+      const res = await api.approveQuotation(quotation.id, {}, currentStoreId || undefined);
       fetchQuotations();
       if (selectedQuotationDetails?.id === quotation.id) {
         setSelectedQuotationDetails((prev: any) => prev ? { ...prev, status: 'approved' as any } : null);
       }
-    } catch (error) {
-      console.error('Error approving quotation:', error);
-      alert(lang === 'tr' ? "Hata oluştu: Teklif onaylanamadı." : "Error: Quotation could not be approved.");
-    }
+      return res;
+    })();
+
+    toast.promise(approvePromise, {
+      loading: lang === 'tr' ? "Onaylanıyor..." : "Approving...",
+      success: lang === 'tr' ? "Onaylandı" : "Approved",
+      error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+    });
   };
 
   const handleCancelQuotation = async (id: number) => {
-    try {
-      await api.cancelQuotation(id, currentStoreId || undefined);
+    const cancelPromise = (async () => {
+      const res = await api.cancelQuotation(id, currentStoreId || undefined);
       fetchQuotations();
       if (selectedQuotationDetails?.id === id) {
         setSelectedQuotationDetails((prev: any) => prev ? { ...prev, status: 'cancelled' as any } : null);
       }
-    } catch (error) {
-      alert("Hata oluştu");
-    }
+      return res;
+    })();
+
+    toast.promise(cancelPromise, {
+      loading: lang === 'tr' ? "İptal ediliyor..." : "Cancelling...",
+      success: lang === 'tr' ? "İptal edildi" : "Cancelled",
+      error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+    });
   };
 
   const handleDeleteQuotation = async (id: number) => {
     if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
-      try {
-        await api.deleteQuotation(id, currentStoreId || undefined);
+      const deletePromise = (async () => {
+        const res = await api.deleteQuotation(id, currentStoreId || undefined);
         fetchQuotations();
-      } catch (error) {
-        alert("Hata oluştu");
-      }
+        return res;
+      })();
+
+      toast.promise(deletePromise, {
+        loading: lang === 'tr' ? "Siliniyor..." : "Deleting...",
+        success: lang === 'tr' ? "Silindi" : "Deleted",
+        error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+      });
     }
   };
 

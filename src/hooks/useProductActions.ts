@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { useState } from "react";
 import { api } from "../services/api";
 import { Product } from "../types";
@@ -12,7 +13,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     const currentPlan = branding.plan || 'free';
     const limit = planLimits[currentPlan];
     if (!editingProduct && products.length >= limit) {
-      alert(lang === 'tr' 
+      toast.error(lang === 'tr' 
         ? `Hesap planı limitine ulaştınız (${limit} ürün). Lütfen planınızı yükseltin.` 
         : `You have reached your plan limit (${limit} products). Please upgrade your plan.`);
       return;
@@ -51,46 +52,63 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
 
     const barcode = String(data.barcode || '').trim();
     if (!barcode) {
-      alert(lang === 'tr' ? "Lütfen geçerli bir barkod giriniz." : "Please enter a valid barcode.");
+      toast.error(lang === 'tr' ? "Lütfen geçerli bir barkod giriniz." : "Please enter a valid barcode.");
       return;
     }
 
-    try {
+    const savePromise = (async () => {
+      let res;
       if (editingProduct) {
-        await api.updateProduct(editingProduct.id, data, targetStoreId);
+        res = await api.updateProduct(editingProduct.id, data, targetStoreId);
       } else {
-        await api.addProduct(data, targetStoreId);
+        res = await api.addProduct(data, targetStoreId);
       }
-      setShowProductModal(false);
-      setEditingProduct(null);
-      setShowDescription(false);
       fetchData(true);
-    } catch (error) {
-      alert("Hata oluştu");
-    }
+      return res;
+    })();
+
+    setShowProductModal(false);
+    setEditingProduct(null);
+    setShowDescription(false);
+
+    toast.promise(savePromise, {
+      loading: lang === 'tr' ? "Ürün kaydediliyor..." : "Saving product...",
+      success: lang === 'tr' ? "Ürün başarıyla kaydedildi" : "Product saved successfully",
+      error: lang === 'tr' ? "Ürün kaydedilemedi" : "Failed to save product"
+    });
   };
 
   const handleDeleteProduct = async (id: number) => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
-      try {
-        await api.deleteProduct(id, targetStoreId);
+      const deletePromise = (async () => {
+        const res = await api.deleteProduct(id, targetStoreId);
         fetchData(true);
-      } catch (error) {
-        alert("Hata oluştu");
-      }
+        return res;
+      })();
+
+      toast.promise(deletePromise, {
+        loading: lang === 'tr' ? "Ürün siliniyor..." : "Deleting product...",
+        success: lang === 'tr' ? "Ürün silindi" : "Product deleted",
+        error: lang === 'tr' ? "Ürün silinemedi" : "Failed to delete product"
+      });
     }
   };
 
   const handleDeleteAllProducts = async () => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     if (window.confirm(lang === 'tr' ? "Tüm ürünleri silmek istediğinize emin misiniz?" : "Are you sure you want to delete all products?")) {
-      try {
-        await api.deleteAllProducts(targetStoreId);
+      const deletePromise = (async () => {
+        const res = await api.deleteAllProducts(targetStoreId);
         fetchData(true);
-      } catch (error) {
-        alert("Hata oluştu");
-      }
+        return res;
+      })();
+
+      toast.promise(deletePromise, {
+        loading: lang === 'tr' ? "Tüm ürünler siliniyor..." : "Deleting all products...",
+        success: lang === 'tr' ? "Tüm ürünler silindi" : "All products deleted",
+        error: lang === 'tr' ? "Ürünler silinemedi" : "Failed to delete products"
+      });
     }
   };
 

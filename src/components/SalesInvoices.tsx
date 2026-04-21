@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue, useRef } from "react";
 import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2, Printer } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -269,47 +270,94 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId && !companyId && !isNewCustomer) {
-      alert(isTr ? "Lütfen bir müşteri veya cari seçin" : "Please select a customer or company");
+      toast.error(isTr ? "Lütfen bir müşteri veya cari seçin" : "Please select a customer or company");
       return;
     }
     if (items.length === 0) {
-      alert(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
+      toast.error(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const targetStoreId = role === 'superadmin' ? (storeId || undefined) : undefined;
-      
-      // Handle new customer creation or existing update if needed
-      let finalCustomerId = customerId;
-      let finalCompanyId = companyId;
+    // Capture state values before closing the modal
+    const targetStoreId = role === 'superadmin' ? (storeId || undefined) : undefined;
+    const currentItems = [...items];
+    const currentInvoiceNumber = invoiceNumber;
+    const currentWaybillNumber = waybillNumber;
+    const currentInvoiceDate = invoiceDate;
+    const currentNotes = notes;
+    const currentCustomerId = customerId;
+    const currentCompanyId = companyId;
+    const currentSearch = customerSearch;
+    const currentPaymentMethod = paymentMethod;
+    const currentCurrency = currency;
+    const currentExchangeRate = exchangeRate;
+    const currentStatus = status;
+    const currentEditingId = editingInvoiceId;
+    const currentIsNew = isNewCustomer;
 
-      if (isNewCustomer && customerSearch) {
-        // Create a new company (defaulting to company for tax info)
+    // Validation: If status is 'approved' and currency is not default, exchange rate is mandatory
+    if (currentStatus === 'approved' && currentCurrency !== (branding?.default_currency || 'TRY')) {
+      const rate = Number(currentExchangeRate);
+      if (!rate || rate <= 0 || isNaN(rate) || currentExchangeRate === '1') {
+        toast.error(isTr ? "Tamamlanan faturalarda farklı para birimi için geçerli bir döviz kuru girmelisiniz" : "You must enter a valid exchange rate for a different currency on completed invoices");
+        return;
+      }
+    }
+
+    // Capture values needed for company/customer updates
+    const currentTaxNumber = editTaxNumber;
+    const currentTaxOffice = editTaxOffice;
+    const currentAddress = editAddress;
+    const currentSelectedCompany = selectedCompany ? {...selectedCompany} : null;
+    const currentSelectedCustomer = selectedCustomer ? {...selectedCustomer} : null;
+
+    // Reset form and close modal immediately for "background" effect
+    setShowModal(false);
+    setEditingInvoiceId(null);
+    setCustomerId("");
+    setCompanyId("");
+    setCustomerSearch("");
+    setInvoiceNumber("");
+    setWaybillNumber("");
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setNotes("");
+    setItems([]);
+    setPaymentMethod('cash');
+    setCurrency(branding?.default_currency || 'TRY');
+    setExchangeRate("1");
+    setStatus('draft');
+    setIsNewCustomer(false);
+    setEditTaxNumber("");
+    setEditTaxOffice("");
+    setEditAddress("");
+
+    const savePromise = (async () => {
+      // Handle new customer creation or existing update if needed
+      let finalCustomerId = currentCustomerId;
+      let finalCompanyId = currentCompanyId;
+
+      if (currentIsNew && currentSearch) {
         const newComp = await api.addCompany({
-          title: customerSearch,
-          tax_number: editTaxNumber,
-          tax_office: editTaxOffice,
-          address: editAddress,
+          title: currentSearch,
+          tax_number: currentTaxNumber,
+          tax_office: currentTaxOffice,
+          address: currentAddress,
           store_id: targetStoreId
         }, targetStoreId);
         finalCompanyId = newComp.id;
-      } else if (companyId && (editTaxNumber !== selectedCompany?.tax_number || editTaxOffice !== selectedCompany?.tax_office || editAddress !== selectedCompany?.address)) {
-        // Update existing company
-        await api.updateCompany(companyId, {
-          ...selectedCompany,
-          tax_number: editTaxNumber,
-          tax_office: editTaxOffice,
-          address: editAddress
+      } else if (currentCompanyId && (currentTaxNumber !== currentSelectedCompany?.tax_number || currentTaxOffice !== currentSelectedCompany?.tax_office || currentAddress !== currentSelectedCompany?.address)) {
+        await api.updateCompany(currentCompanyId, {
+          ...currentSelectedCompany,
+          tax_number: currentTaxNumber,
+          tax_office: currentTaxOffice,
+          address: currentAddress
         }, targetStoreId);
-      } else if (customerId && (editTaxNumber !== selectedCustomer?.tax_number || editTaxOffice !== selectedCustomer?.tax_office || editAddress !== selectedCustomer?.address)) {
-        // Update existing customer
-        await api.updateCustomer(customerId, {
-          ...selectedCustomer,
-          tax_number: editTaxNumber,
-          tax_office: editTaxOffice,
-          address: editAddress
+      } else if (currentCustomerId && (currentTaxNumber !== currentSelectedCustomer?.tax_number || currentTaxOffice !== currentSelectedCustomer?.tax_office || currentAddress !== currentSelectedCustomer?.address)) {
+        await api.updateCustomer(currentCustomerId, {
+          ...currentSelectedCustomer,
+          tax_number: currentTaxNumber,
+          tax_office: currentTaxOffice,
+          address: currentAddress
         }, targetStoreId);
       }
 
@@ -317,24 +365,24 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         storeId: targetStoreId,
         customer_id: finalCustomerId || null,
         company_id: finalCompanyId || null,
-        invoice_number: invoiceNumber,
-        waybill_number: waybillNumber,
-        invoice_date: invoiceDate,
-        notes,
-        items: items.map(item => ({
+        invoice_number: currentInvoiceNumber,
+        waybill_number: currentWaybillNumber,
+        invoice_date: currentInvoiceDate,
+        notes: currentNotes,
+        items: currentItems.map(item => ({
           ...item,
           quantity: Number(String(item.quantity).replace(',', '.')) || 0,
           unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
           tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
         })),
-        payment_method: paymentMethod,
-        currency,
-        exchange_rate: Number(exchangeRate) || 1,
-        status
+        payment_method: currentPaymentMethod,
+        currency: currentCurrency,
+        exchange_rate: Number(currentExchangeRate) || 1,
+        status: currentStatus
       };
 
-      const res = editingInvoiceId 
-        ? await api.updateSalesInvoice(editingInvoiceId, payload, targetStoreId)
+      const res = currentEditingId 
+        ? await api.updateSalesInvoice(currentEditingId, payload, targetStoreId)
         : await api.addSalesInvoice(payload, targetStoreId);
 
       if (res.error) {
@@ -343,31 +391,14 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
       await fetchInvoicesData();
       if (onSave) await onSave();
-      
-      setShowModal(false);
-      setEditingInvoiceId(null);
-      setCustomerId("");
-      setCompanyId("");
-      setCustomerSearch("");
-      setInvoiceNumber("");
-      setWaybillNumber("");
-      setInvoiceDate(new Date().toISOString().split('T')[0]);
-      setNotes("");
-      setItems([]);
-      setPaymentMethod('cash');
-      setCurrency(branding?.default_currency || 'TRY');
-      setExchangeRate("1");
-      setStatus('draft');
-      setIsNewCustomer(false);
-      setEditTaxNumber("");
-      setEditTaxOffice("");
-      setEditAddress("");
-      alert(isTr ? "Fatura başarıyla kaydedildi" : "Invoice saved successfully");
-    } catch (error: any) {
-      alert(error.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice"));
-    } finally {
-      setIsSubmitting(false);
-    }
+      return res;
+    })();
+
+    toast.promise(savePromise, {
+      loading: isTr ? "Fatura kaydediliyor..." : "Saving invoice...",
+      success: isTr ? "Fatura başarıyla kaydedildi" : "Invoice saved successfully",
+      error: (err) => err.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice")
+    });
   };
 
   const handleDelete = async (id: number) => {
@@ -1412,7 +1443,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     type="text"
                     value={quickProductForm.barcode}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
-                    maxLength={13}
+                    maxLength={14}
                     className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>

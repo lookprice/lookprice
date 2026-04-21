@@ -63,11 +63,13 @@ export async function initDb() {
         fiscal_active BOOLEAN DEFAULT FALSE,
         default_tax_rate INTEGER DEFAULT 20,
         currency_rates JSONB DEFAULT '{"USD": 1, "EUR": 1, "GBP": 1}',
+        branding JSONB DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS default_tax_rate INTEGER DEFAULT 20;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS category_tax_rules JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS branding JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS custom_domain_status VARCHAR(50) DEFAULT 'pending';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS custom_domain_verification_code VARCHAR(255);
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_hostname_id VARCHAR(255);

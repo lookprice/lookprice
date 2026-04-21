@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { useState } from "react";
 import * as XLSX from 'xlsx';
 import { api } from "../services/api";
@@ -78,60 +79,71 @@ export const useSaleActions = (
 
   const handleCancelPendingSale = async (saleId: number) => {
     if (!window.confirm(lang === 'tr' ? "Siparişi iptal etmek istediğinize emin misiniz?" : "Are you sure you want to cancel this order?")) return;
-    try {
+    
+    const cancelPromise = (async () => {
       setCompletingSale(true);
       const res = await api.cancelSale(saleId, currentStoreId);
       if (res.success) {
         setShowSaleDetailsModal(false);
         fetchSales();
       } else {
-        alert(res.error || "Error cancelling sale");
+        throw new Error(res.error || "Error cancelling sale");
       }
-    } catch (error: any) {
-      alert(error.message || "Error cancelling sale");
-    } finally {
-      setCompletingSale(false);
-    }
+      return res;
+    })();
+
+    toast.promise(cancelPromise, {
+      loading: lang === 'tr' ? "İptal ediliyor..." : "Cancelling...",
+      success: lang === 'tr' ? "İptal edildi" : "Cancelled",
+      error: (err) => err.message,
+      finally: () => setCompletingSale(false)
+    });
   };
 
   const handleShipSale = async (saleId: number, carrier: string, trackingNumber: string) => {
-    try {
+    const shipPromise = (async () => {
       setCompletingSale(true);
       const res = await api.shipSale(saleId, { carrier, trackingNumber }, currentStoreId);
       if (res.success) {
-        alert(lang === 'tr' ? "Sipariş sevk edildi olarak işaretlendi" : "Order marked as shipped");
         setShowSaleDetailsModal(false);
         fetchSales();
       } else {
-        alert(res.error || "Error shipping sale");
+        throw new Error(res.error || "Error shipping sale");
       }
-    } catch (error: any) {
-      alert(error.message || "Error shipping sale");
-    } finally {
-      setCompletingSale(false);
-    }
+      return res;
+    })();
+
+    toast.promise(shipPromise, {
+      loading: lang === 'tr' ? "Sevk ediliyor..." : "Shipping...",
+      success: lang === 'tr' ? "Sipariş sevk edildi" : "Order shipped",
+      error: (err) => err.message,
+      finally: () => setCompletingSale(false)
+    });
   };
 
   const handleDeliverSale = async (saleId: number) => {
-    try {
+    const deliverPromise = (async () => {
       setCompletingSale(true);
       const res = await api.deliverSale(saleId, currentStoreId);
       if (res.success) {
-        alert(lang === 'tr' ? "Sipariş teslim edildi olarak işaretlendi" : "Order marked as delivered");
         setShowSaleDetailsModal(false);
         fetchSales();
       } else {
-        alert(res.error || "Error delivering sale");
+        throw new Error(res.error || "Error delivering sale");
       }
-    } catch (error: any) {
-      alert(error.message || "Error delivering sale");
-    } finally {
-      setCompletingSale(false);
-    }
+      return res;
+    })();
+
+    toast.promise(deliverPromise, {
+      loading: lang === 'tr' ? "Teslim ediliyor..." : "Delivering...",
+      success: lang === 'tr' ? "Sipariş teslim edildi" : "Order delivered",
+      error: (err) => err.message,
+      finally: () => setCompletingSale(false)
+    });
   };
 
   const handleCompletePendingSale = async (saleId: number) => {
-    try {
+    const completePromise = (async () => {
       setCompletingSale(true);
       const res = await api.completeSale(saleId, {
         paymentMethod: posPaymentMethod,
@@ -139,20 +151,26 @@ export const useSaleActions = (
       }, currentStoreId);
       
       if (res.success) {
-        alert(lang === 'tr' ? "Satış tamamlandı" : "Sale completed");
-        if (res.fiscal) {
-          alert(`${lang === 'tr' ? 'Mali fiş oluşturuldu' : 'Fiscal receipt generated'}\n${lang === 'tr' ? 'Fiş No' : 'Receipt No'}: ${res.fiscal.receiptNo}\nZ No: ${res.fiscal.zNo}`);
-        }
         setShowSaleDetailsModal(false);
         fetchSales();
       } else {
-        alert(res.error || "Error completing sale");
+        throw new Error(res.error || "Error completing sale");
       }
-    } catch (error: any) {
-      alert(error.message || "Error completing sale");
-    } finally {
-      setCompletingSale(false);
-    }
+      return res;
+    })();
+
+    toast.promise(completePromise, {
+      loading: lang === 'tr' ? "Tamamlanıyor..." : "Completing...",
+      success: (res: any) => {
+        let msg = lang === 'tr' ? "Satış tamamlandı" : "Sale completed";
+        if (res.fiscal) {
+          msg += `\n${lang === 'tr' ? 'Mali fiş oluşturuldu' : 'Fiscal receipt generated'}\n${lang === 'tr' ? 'Fiş No' : 'Receipt No'}: ${res.fiscal.receiptNo}`;
+        }
+        return msg;
+      },
+      error: (err) => err.message,
+      finally: () => setCompletingSale(false)
+    });
   };
 
   const handleConvertToSale = (quotation: any) => {
@@ -165,8 +183,8 @@ export const useSaleActions = (
     if (!selectedQuotation) return;
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
 
-    setIsConfirmingSale(true);
-    try {
+    const confirmPromise = (async () => {
+      setIsConfirmingSale(true);
       let companyId = selectedQuotation.company_id;
 
       if (createCompanyFromSale && !companyId) {
@@ -194,26 +212,35 @@ export const useSaleActions = (
 
       await api.approveQuotation(selectedQuotation.id, saleData, targetStoreId);
       
-      setShowSaleModal(false);
-      setSelectedQuotation(null);
       setCreateCompanyFromSale(false);
       fetchData();
-      alert(lang === 'tr' ? "Satış başarıyla kaydedildi" : "Sale recorded successfully");
-    } catch (error: any) {
-      alert(error.response?.data?.error || (lang === 'tr' ? "Hata oluştu" : "An error occurred"));
-    } finally {
-      setIsConfirmingSale(false);
-    }
+      return true;
+    })();
+
+    setShowSaleModal(false);
+    setSelectedQuotation(null);
+
+    toast.promise(confirmPromise, {
+      loading: lang === 'tr' ? "Satış kaydediliyor..." : "Recording sale...",
+      success: lang === 'tr' ? "Satış başarıyla kaydedildi" : "Sale recorded successfully",
+      error: (err) => err.message || (lang === 'tr' ? "Hata oluştu" : "An error occurred"),
+      finally: () => setIsConfirmingSale(false)
+    });
   };
 
   const handleDeleteSale = async (id: number) => {
     if (window.confirm(lang === 'tr' ? "Bu satışı silmek istediğinize emin misiniz?" : "Are you sure you want to delete this sale?")) {
-      try {
-        await api.deleteSale(id, currentStoreId);
+      const deletePromise = (async () => {
+        const res = await api.deleteSale(id, currentStoreId);
         fetchSales();
-      } catch (error) {
-        alert("Hata oluştu");
-      }
+        return res;
+      })();
+
+      toast.promise(deletePromise, {
+        loading: lang === 'tr' ? "Siliniyor..." : "Deleting...",
+        success: lang === 'tr' ? "Satış silindi" : "Sale deleted",
+        error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+      });
     }
   };
 

@@ -1473,7 +1473,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <td className="px-4 py-3 text-gray-900">
                               <div className="font-bold">{item.product_name}</div>
                               <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                                {item.barcode ? item.barcode.toString().padStart(13, '0').slice(-13) : `#${item.product_id}`}
+                                {item.barcode ? item.barcode.toString().padStart(14, '0').slice(-14) : `#${item.product_id}`}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-center">
@@ -1530,7 +1530,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <div>
                             <div className="font-bold text-gray-900 leading-tight">{item.product_name}</div>
                             <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                              {item.barcode ? item.barcode.toString().padStart(13, '0').slice(-13) : `#${item.product_id}`}
+                              {item.barcode ? item.barcode.toString().padStart(14, '0').slice(-14) : `#${item.product_id}`}
                             </div>
                           </div>
                           {selectedSale.status === 'pending' && (
@@ -2089,19 +2089,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
                           <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
                           <p className="text-2xl font-black">
-                            {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                            {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                           </p>
                         </div>
                         <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
                           <p className="text-2xl font-black text-red-600">
-                            {filteredTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                            {filteredTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                           </p>
                         </div>
                         <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
                           <p className="text-2xl font-black text-green-600">
-                            {filteredTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                            {filteredTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                           </p>
                         </div>
                       </div>
@@ -2149,20 +2149,20 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                           <td className="py-4 px-4 text-right">
                                             {runningBalance > 0 ? (
                                               <span className="text-xs font-black text-rose-600">
-                                                {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                                {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                                               </span>
                                             ) : '-'}
                                           </td>
                                           <td className="py-4 px-4 text-right">
                                             {runningBalance < 0 ? (
                                               <span className="text-xs font-black text-emerald-600">
-                                                {Math.abs(runningBalance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                                {Math.abs(runningBalance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                                               </span>
                                             ) : '-'}
                                           </td>
                                           <td className="py-4 px-4 text-right">
                                             <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-slate-900' : 'text-emerald-600'}`}>
-                                              {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                              {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                           </td>
                                         </tr>
@@ -2199,8 +2199,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                             {tx.sales_invoice_id && (
                                               <button 
                                                 onClick={() => {
-                                                  // Optional: Can redirect to sales invoices tab or open invoice modal if we have one
-                                                  // For now, it will just be a label/badge since we don't have a specific "view invoice" modal in this scope easily accessible
                                                 }}
                                                 className="text-[9px] text-blue-600 font-bold uppercase tracking-widest"
                                               >
@@ -2221,7 +2219,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                           {tx.type === 'debt' ? (
                                             <div className="flex flex-col items-end">
                                               <span className="text-xs font-black text-red-600">
-                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                                               </span>
                                             </div>
                                           ) : '-'}
@@ -2230,14 +2228,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                           {tx.type === 'credit' ? (
                                             <div className="flex flex-col items-end">
                                               <span className="text-xs font-black text-green-600">
-                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedCurrency.slice(0, 3)}
+                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                                               </span>
                                             </div>
                                           ) : '-'}
                                         </td>
                                         <td className="py-4 px-4 text-right">
                                           <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                                            {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                            {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </span>
                                         </td>
                                         <td className="py-4 px-4 text-right">
@@ -2701,7 +2699,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <input 
                         name="barcode" 
                         required 
-                        maxLength={13}
+                        maxLength={14}
                         defaultValue={editingProduct?.barcode} 
                         placeholder="869..."
                         className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
@@ -3383,6 +3381,33 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
 
                 <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Teklif Para Birimi' : 'Quotation Currency'}</label>
+                      <select 
+                        name="currency" 
+                        defaultValue={editingQuotation?.currency || branding?.default_currency || 'TRY'}
+                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-gray-700"
+                      >
+                        <option value="TRY">TRY</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Döviz Kuru' : 'Exchange Rate'}</label>
+                      <input 
+                        name="exchange_rate" 
+                        type="number"
+                        step="0.01"
+                        defaultValue={editingQuotation?.exchange_rate || '1'} 
+                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-gray-700" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.items || 'Ürünler'}</h4>
                   </div>
@@ -3396,12 +3421,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
                           placeholder={lang === 'tr' ? 'Ürün adı veya barkod ile ara...' : 'Search by product name or barcode...'}
                           value={quotationProductSearch}
+                          onFocus={() => setQuotationProductSearch("")}
                           onChange={(e) => {
                             const search = e.target.value;
                             setQuotationProductSearch(search);
                             const dropdown = document.getElementById('global-product-dropdown');
                             if (dropdown) {
                               dropdown.classList.toggle('hidden', search.length < 1);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
                             }
                           }}
                         />
@@ -3459,7 +3490,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                               <div className="text-xs text-gray-400">{p.barcode}</div>
                             </div>
                             <div className="text-sm font-black text-indigo-600">
-                              {p.price} {p.currency?.slice(0, 3)}
+                              {Number(p.price).toFixed(2)} {p.currency?.slice(0, 3)}
                             </div>
                           </div>
                         </button>
@@ -3658,7 +3689,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <input 
                         value={quickProductForm.barcode}
                         onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
-                        maxLength={13}
+                        maxLength={14}
                         className="w-[22ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
                       />
                     </div>

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue } from "react";
 import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, Building2, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -55,16 +56,14 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     if (role === 'superadmin' && !storeId) return;
     setLoading(true);
     try {
+      const targetStoreId = role === 'superadmin' ? storeId : undefined;
       const [invRes, compRes, prodRes] = await Promise.all([
-        fetch(`/api/store/purchase-invoices${role === 'superadmin' && storeId ? `?storeId=${storeId}` : ''}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
-        api.getCompanies(false, role === 'superadmin' ? storeId : undefined),
-        api.getProducts("", role === 'superadmin' ? storeId : undefined)
+        api.getPurchaseInvoices(targetStoreId),
+        api.getCompanies(false, targetStoreId),
+        api.getProducts("", targetStoreId)
       ]);
       
-      if (invRes.ok) {
-        const invData = await invRes.json();
-        setInvoices(Array.isArray(invData) ? invData : []);
-      }
+      setInvoices(Array.isArray(invRes) ? invRes : []);
       setCompanies(Array.isArray(compRes) ? compRes : []);
       setProducts(Array.isArray(prodRes) ? prodRes : []);
     } catch (error) {
@@ -149,116 +148,122 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyId) {
-      alert(isTr ? "Lütfen bir cari seçin" : "Please select a company");
+      toast.error(isTr ? "Lütfen bir cari seçin" : "Please select a company");
       return;
     }
     if (items.length === 0) {
-      alert(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
+      toast.error(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const targetStoreId = role === 'superadmin' ? (storeId || undefined) : undefined;
-      
-      if (role === 'superadmin' && !storeId) {
-        alert(isTr ? "Mağaza ID bulunamadı. Lütfen sayfayı yenileyin." : "Store ID not found. Please refresh the page.");
-        setIsSubmitting(false);
+    const targetStoreId = role === 'superadmin' ? (storeId || undefined) : undefined;
+    if (role === 'superadmin' && !storeId) {
+      toast.error(isTr ? "Mağaza ID bulunamadı. Lütfen sayfayı yenileyin." : "Store ID not found. Please refresh the page.");
+      return;
+    }
+
+    // Capture state values
+    const currentItems = [...items];
+    const currentCompanyId = companyId;
+    const currentInvoiceNumber = invoiceNumber;
+    const currentWaybillNumber = waybillNumber;
+    const currentInvoiceDate = invoiceDate;
+    const currentNotes = notes;
+    const currentPaymentMethod = paymentMethod;
+    const currentCurrency = currency;
+    const currentExchangeRate = exchangeRate;
+    const currentEditingId = editingInvoiceId;
+
+    if (currentCurrency !== (branding?.default_currency || 'TRY')) {
+      const rate = Number(currentExchangeRate);
+      if (!rate || rate <= 0 || isNaN(rate) || currentExchangeRate === '1') {
+        toast.error(isTr ? "Farklı para birimi için geçerli bir döviz kuru girmelisiniz" : "You must enter a valid exchange rate for a different currency");
         return;
       }
+    }
 
-      const res = await fetch(editingInvoiceId ? `/api/store/purchase-invoices/${editingInvoiceId}` : '/api/store/purchase-invoices', {
-        method: editingInvoiceId ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          storeId: targetStoreId,
-          company_id: companyId,
-          invoice_number: invoiceNumber,
-          waybill_number: waybillNumber,
-          invoice_date: invoiceDate,
-          notes,
-          items: items.map(item => ({
-            ...item,
-            quantity: Number(item.quantity) || 0,
-            unit_price: Number(item.unit_price) || 0,
-            tax_rate: Number(item.tax_rate) || 0
-          })),
-          payment_method: paymentMethod,
-          currency,
-          exchange_rate: Number(exchangeRate) || 1
-        })
-      });
+    // Reset form and close modal immediately
+    setShowModal(false);
+    setShowConfirmModal(false);
+    setEditingInvoiceId(null);
+    setCompanyId("");
+    setCompanySearch("");
+    setInvoiceNumber("");
+    setWaybillNumber("");
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setNotes("");
+    setItems([]);
+    setPaymentMethod('term');
+    setCurrency(branding?.default_currency || 'TRY');
+    setExchangeRate("1");
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || (isTr ? "Fatura kaydedilemedi" : "Failed to save invoice"));
+    const savePromise = (async () => {
+      const payload = {
+        storeId: targetStoreId,
+        company_id: currentCompanyId,
+        invoice_number: currentInvoiceNumber,
+        waybill_number: currentWaybillNumber,
+        invoice_date: currentInvoiceDate,
+        notes: currentNotes,
+        items: currentItems.map(item => ({
+          ...item,
+          quantity: Number(item.quantity) || 0,
+          unit_price: Number(item.unit_price) || 0,
+          tax_rate: Number(item.tax_rate) || 0
+        })),
+        payment_method: currentPaymentMethod,
+        currency: currentCurrency,
+        exchange_rate: Number(currentExchangeRate) || 1
+      };
+
+      const res = currentEditingId 
+        ? await api.updatePurchaseInvoice(currentEditingId, payload, targetStoreId)
+        : await api.addPurchaseInvoice(payload, targetStoreId);
+
+      if (res.error) {
+        throw new Error(res.error);
       }
 
       await fetchInvoicesData();
-      if (onSave) {
-        await onSave();
-      }
-      
-      setShowModal(false);
-      setShowConfirmModal(false);
-      setEditingInvoiceId(null);
-      setCompanyId("");
-      setCompanySearch("");
-      setInvoiceNumber("");
-      setWaybillNumber("");
-      setInvoiceDate(new Date().toISOString().split('T')[0]);
-      setNotes("");
-      setItems([]);
-      setPaymentMethod('term');
-      setCurrency(branding?.default_currency || 'TRY');
-      setExchangeRate("1");
-      alert(isTr ? "Fatura başarıyla kaydedildi ve stoklar güncellendi" : "Invoice saved successfully and stock updated");
-    } catch (error: any) {
-      alert(error.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice"));
-    } finally {
-      setIsSubmitting(false);
-    }
+      if (onSave) await onSave();
+      return res;
+    })();
+
+    toast.promise(savePromise, {
+      loading: isTr ? "Fatura kaydediliyor..." : "Saving invoice...",
+      success: isTr ? "Fatura başarıyla kaydedildi" : "Invoice saved successfully",
+      error: (err) => err.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice")
+    });
   };
   const handleDelete = async (id: number) => {
     if (!window.confirm(isTr ? "Bu faturayı silmek istediğinize emin misiniz? Stoklar geri alınacaktır." : "Are you sure you want to delete this invoice? Stocks will be reverted.")) return;
     
     try {
-      const res = await fetch(`/api/store/purchase-invoices/${id}${role === 'superadmin' && storeId ? `?storeId=${storeId}` : ''}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!res.ok) throw new Error("Failed to delete invoice");
+      const res = await api.deletePurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
+      if (res.error) throw new Error(res.error);
+      toast.success(isTr ? "Fatura silindi" : "Invoice deleted");
       fetchInvoicesData();
       if (onSave) onSave();
     } catch (error: any) {
-      alert(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
     }
   };
 
   const viewDetails = async (id: number) => {
     try {
-      const res = await fetch(`/api/store/purchase-invoices/${id}${role === 'superadmin' && storeId ? `?storeId=${storeId}` : ''}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch details");
-      const data = await res.json();
+      const data = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
+      if (data.error) throw new Error(data.error);
       setSelectedInvoice(data);
       setShowDetailsModal(true);
-    } catch (error) {
-      alert(isTr ? "Hata oluştu" : "An error occurred");
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
     }
   };
 
   const handleEdit = async (id: number) => {
     try {
-      const res = await fetch(`/api/store/purchase-invoices/${id}${role === 'superadmin' && storeId ? `?storeId=${storeId}` : ''}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch details");
-      const data = await res.json();
+      const data = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
+      if (data.error) throw new Error(data.error);
       
       setEditingInvoiceId(id);
       setCompanyId(data.company_id);
@@ -279,8 +284,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
       })));
       setShowModal(true);
-    } catch (error) {
-      alert(isTr ? "Hata oluştu" : "An error occurred");
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
     }
   };
 
@@ -1458,7 +1463,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                     type="text"
                     value={quickProductForm.barcode}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
-                    maxLength={13}
+                    maxLength={14}
                     className="w-[22ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>

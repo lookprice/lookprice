@@ -2725,18 +2725,23 @@ router.post("/sales-invoices", async (req: any, res) => {
       }
     }
     
-    // Add transaction to current account if company_id is provided
-    if (company_id) {
+    // Add transaction to current account if company_id is provided AND status is not draft
+    if (company_id && status !== 'draft') {
       // Prevent double entry if this was converted from a quotation/sale that already has transactions
       if (quotation_id || sale_id) {
         await client.query("DELETE FROM current_account_transactions WHERE (quotation_id = $1 OR sale_id = $2) AND sales_invoice_id IS NULL", [quotation_id || null, sale_id || null]);
       }
 
+      const storeRes = await client.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
       await client.query(
         `INSERT INTO current_account_transactions 
           (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [storeId, company_id, invoiceId, 'debt', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Satış Faturası: ${invoice_number}`]
+        [storeId, company_id, invoiceId, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`]
       );
 
       // If payment method is provided, add a credit transaction to offset the debt
@@ -2745,7 +2750,7 @@ router.post("/sales-invoices", async (req: any, res) => {
           `INSERT INTO current_account_transactions 
             (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [storeId, company_id, invoiceId, 'credit', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method]
+          [storeId, company_id, invoiceId, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method]
         );
       }
     }
@@ -2854,16 +2859,18 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
       }
     }
 
-    // 7. Add new transactions if company_id is provided
-    if (company_id) {
-      const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
-      const branding = storeRes.rows[0]?.branding || {};
+    // 7. Add new transactions if company_id is provided AND status is not draft
+    if (company_id && status !== 'draft') {
+      const storeRes = await client.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
 
       await client.query(
         `INSERT INTO current_account_transactions 
           (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [storeId, company_id, req.params.id, 'debt', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Satış Faturası Revizyonu: ${invoice_number}`]
+        [storeId, company_id, req.params.id, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`]
       );
 
       if (payment_method && payment_method !== 'term') {
@@ -2871,7 +2878,7 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
           `INSERT INTO current_account_transactions 
             (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [storeId, company_id, req.params.id, 'credit', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Satış Faturası Tahsilatı Revizyonu: ${invoice_number} (${payment_method})`, payment_method]
+        [storeId, company_id, req.params.id, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method]
         );
       }
     }

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState } from "react";
 import { 
   Plus, 
@@ -207,7 +208,7 @@ const QuotationsTab = ({
                             onClick={() => {
                               const url = `${window.location.origin}/quotation/${q.id}`;
                               navigator.clipboard.writeText(url);
-                              alert(t.quotationLinkCopied);
+                              toast.success(t.quotationLinkCopied || (lang === 'tr' ? "Bağlantı kopyalandı" : "Link copied"));
                             }}
                             className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"
                             title={t.copyLink}
