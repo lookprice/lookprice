@@ -396,7 +396,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       item_name: type === 'labor' ? t.service_tab.laborCost : '',
       quantity: 1,
       unit_price: 0,
-      tax_rate: 20,
+      tax_rate: storeInfo?.default_tax_rate ?? 20,
       total_price: 0,
       type
     };

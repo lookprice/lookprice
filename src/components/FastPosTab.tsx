@@ -44,7 +44,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
   useEffect(() => {
     const checkBridge = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:1616/pos/sale', { 
+        const bridgeIp = branding?.pos_bridge_ip || '127.0.0.1';
+        const bridgePort = branding?.pos_bridge_port || '1616';
+        const res = await fetch(`http://${bridgeIp}:${bridgePort}/pos/sale`, { 
           method: 'OPTIONS',
           signal: AbortSignal.timeout(1000)
         }).catch(() => null);
@@ -54,12 +56,14 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
       }
     };
     
-    if (branding?.fiscal_active) {
+    if (branding?.pos_bridge_enabled) {
       checkBridge();
       const interval = setInterval(checkBridge, 10000);
       return () => clearInterval(interval);
+    } else {
+      setBridgeDetected(null);
     }
-  }, [branding?.fiscal_active]);
+  }, [branding?.pos_bridge_enabled, branding?.pos_bridge_ip, branding?.pos_bridge_port]);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
@@ -141,15 +145,17 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
       setCompleting(true);
 
       // POS Integration Simulation
-      if (paymentMethod === 'credit_card' && branding?.fiscal_active) {
+      if (paymentMethod === 'credit_card' && branding?.pos_bridge_enabled) {
         setPosStatus('waiting');
-        setPosMessage(lang === 'tr' ? `${branding.fiscal_brand?.toUpperCase()} POS Cihazına bağlanılıyor...` : `Connecting to ${branding.fiscal_brand?.toUpperCase()} POS...`);
+        setPosMessage(lang === 'tr' ? `Fiziksel POS Cihazına bağlanılıyor...` : `Connecting to Physical POS...`);
         
         // Real-world bridge attempt simulation
         try {
-          // We attempt to call a local bridge service (e.g. running on localhost:1616)
+          // We attempt to call a local bridge service (e.g. using the configured IP/Port)
           // This is a common pattern for web-to-local hardware communication
-          const bridgeUrl = `http://127.0.0.1:1616/pos/sale`;
+          const bridgeIp = branding?.pos_bridge_ip || '127.0.0.1';
+          const bridgePort = branding?.pos_bridge_port || '1616';
+          const bridgeUrl = `http://${bridgeIp}:${bridgePort}/pos/sale`;
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 3000);
 

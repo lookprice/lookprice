@@ -73,7 +73,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [editAddress, setEditAddress] = useState("");
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: "", price: "", barcode: "" });
+  const [quickProductForm, setQuickProductForm] = useState({ name: "", price: "", barcode: "", tax_rate: String(branding?.default_tax_rate ?? 20) });
 
   const isTr = lang === 'tr';
 
@@ -192,56 +192,56 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   };
 
   const handleAddProduct = (product: any) => {
-    const existingItem = items.find(item => item.product_id === product.id);
-    if (existingItem) {
-      setItems(items.map(item => 
-        item.product_id === product.id 
-          ? { ...item, quantity: String(Math.floor(Number(item.quantity) + 1)) }
-          : item
-      ));
-    } else {
-      const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : String(20));
-      const taxRate = Number(taxRateStr);
-      
-      let unitPrice: number;
-      if (product.price_2 && Number(product.price_2) > 0) {
-        // If price_2 is set, use it as the base price (KDV Hariç)
-        unitPrice = Number(product.price_2);
+    setItems((prevItems) => {
+      const existingItem = prevItems.find(item => item.product_id === product.id);
+      if (existingItem) {
+        return prevItems.map(item => 
+          item.product_id === product.id 
+            ? { ...item, quantity: String(Math.floor(Number(item.quantity) + 1)) }
+            : item
+        );
       } else {
-        // Otherwise calculate from tax-inclusive price
-        const kdvDahilPrice = Number(product.price) || 0;
-        unitPrice = kdvDahilPrice / (1 + taxRate / 100);
-      }
+        const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : String(20));
+        const taxRate = Number(taxRateStr);
+        
+        let unitPrice: number;
+        if (product.price_2 && Number(product.price_2) > 0) {
+          unitPrice = Number(product.price_2);
+        } else {
+          const kdvDahilPrice = Number(product.price) || 0;
+          unitPrice = kdvDahilPrice / (1 + taxRate / 100);
+        }
 
-      setItems([...items, {
-        product_id: product.id,
-        product_name: product.name,
-        barcode: product.barcode,
-        quantity: "1",
-        unit_price: unitPrice.toFixed(2),
-        tax_rate: taxRateStr
-      }]);
-    }
+        return [...prevItems, {
+          product_id: product.id,
+          product_name: product.name,
+          barcode: product.barcode,
+          quantity: "1",
+          unit_price: unitPrice.toFixed(2),
+          tax_rate: taxRateStr
+        }];
+      }
+    });
     setProductSearch("");
     setShowProductDropdown(false);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
-    const newItems = [...items];
-    if (field === 'tax_rate') {
-      // Force integer for tax rate
-      newItems[index][field] = value.replace(/[^0-9]/g, '').substring(0, 2);
-    } else if (field === 'quantity') {
-      // Force integer for quantity
-      newItems[index][field] = value.replace(/[^0-9]/g, '');
-    } else {
-      newItems[index][field] = value;
-    }
-    setItems(newItems);
+    setItems(prevItems => {
+      const newItems = [...prevItems];
+      if (field === 'tax_rate') {
+        newItems[index][field] = value.replace(/[^0-9]/g, '').substring(0, 2);
+      } else if (field === 'quantity') {
+        newItems[index][field] = value.replace(/[^0-9]/g, '');
+      } else {
+        newItems[index][field] = value;
+      }
+      return newItems;
+    });
   };
 
   const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+    setItems(prevItems => prevItems.filter((_, i) => i !== index));
   };
 
   const calculateTotals = () => {
@@ -423,7 +423,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
       let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
       
-      let taxRate = branding?.default_tax_rate ?? 20;
+      let taxRate = branding?.default_tax_rate !== undefined ? Number(branding.default_tax_rate) : 20;
       let category = '';
 
       if (matchedRule) {
@@ -450,10 +450,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         category: category
       }, role === 'superadmin' ? storeId : undefined);
       
-      setProducts([...products, newProduct] as any);
+      setProducts(prev => [...prev, newProduct]);
       handleAddProduct(newProduct);
       setShowQuickProductModal(false);
-      setQuickProductForm({ name: "", price: "", barcode: "" });
+      setQuickProductForm({ name: "", price: "", barcode: "", tax_rate: String(branding?.default_tax_rate ?? 20) });
     } catch (error) {
       alert(isTr ? "Hata oluştu" : "An error occurred");
     }
@@ -1413,6 +1413,15 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     value={quickProductForm.barcode}
                     onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
                     maxLength={13}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "KDV %" : "Tax %"}</label>
+                  <input
+                    type="number"
+                    value={quickProductForm.tax_rate}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, tax_rate: e.target.value })}
                     className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>

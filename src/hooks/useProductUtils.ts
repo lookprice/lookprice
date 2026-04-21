@@ -67,12 +67,13 @@ export const useProductUtils = (user: any, currentStoreId: number | undefined, i
       try {
         setLoading(true);
         const res = await api.bulkUpdatePrice(bulkPriceForm, targetStoreId);
-        alert(lang === 'tr' ? `${res.data.count} ürünün fiyatı başarıyla güncellendi.` : `Prices of ${res.data.count} products updated successfully.`);
+        if (res.error) throw new Error(res.error);
+        alert(lang === 'tr' ? `${res.count} ürünün fiyatı başarıyla güncellendi.` : `Prices of ${res.count} products updated successfully.`);
         setBulkPriceForm({ target: 'all', category: '', type: 'percentage', direction: 'increase', value: '', rounding: 'none' });
         setShowBulkPriceModal(false);
         fetchData(true);
       } catch (error: any) {
-        alert(error.response?.data?.error || "Hata oluştu");
+        alert(error.message || "Hata oluştu");
       } finally {
         setLoading(false);
       }
@@ -85,10 +86,11 @@ export const useProductUtils = (user: any, currentStoreId: number | undefined, i
       try {
         setLoading(true);
         const res = await api.bulkRecalculatePrice2(targetStoreId);
+        if (res.error) throw new Error(res.error);
         alert(lang === 'tr' ? `${res.count} ürünün 2. fiyatı başarıyla güncellendi.` : `2nd prices of ${res.count} products updated successfully.`);
         fetchData(true);
       } catch (error: any) {
-        alert(error.response?.data?.error || "Hata oluştu");
+        alert(error.message || "Hata oluştu");
       } finally {
         setLoading(false);
       }

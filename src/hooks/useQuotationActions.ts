@@ -19,12 +19,13 @@ export const useQuotationActions = (
     e.preventDefault();
     try {
       const price = Number(quickProductForm.price);
-      const taxRate = Number(quickProductForm.tax_rate) || Number(branding?.default_tax_rate ?? 20);
+      const taxRate = (quickProductForm.tax_rate !== undefined && quickProductForm.tax_rate !== "") ? Number(quickProductForm.tax_rate) : Number(branding?.default_tax_rate !== undefined ? branding.default_tax_rate : 20);
       const currency = branding?.default_currency || 'TRY';
       const price_2 = price / (1 + taxRate / 100);
 
       const newProduct = await api.addProduct({
         ...quickProductForm,
+        tax_rate: taxRate,
         price,
         price_2,
         currency,
@@ -40,7 +41,7 @@ export const useQuotationActions = (
         barcode: newProduct.barcode,
         quantity: 1,
         unit_price: Number(newProduct.price),
-        tax_rate: Number(newProduct.tax_rate) || Number(branding?.default_tax_rate ?? 20),
+        tax_rate: (newProduct.tax_rate !== undefined && newProduct.tax_rate !== null) ? Number(newProduct.tax_rate) : taxRate,
         total_price: Number(newProduct.price)
       }]);
       
@@ -91,29 +92,13 @@ export const useQuotationActions = (
     try {
       await api.approveQuotation(quotation.id, {}, currentStoreId || undefined);
       
-      const invoiceData = {
-        customer_name: quotation.customer_name,
-        customer_title: quotation.customer_title,
-        total_amount: quotation.total_amount,
-        currency: quotation.currency,
-        items: quotation.items,
-        company_id: quotation.company_id,
-        tax_number: quotation.tax_number,
-        tax_office: quotation.tax_office,
-        payment_method: quotation.payment_method,
-        due_date: quotation.due_date,
-        quotation_id: quotation.id
-      };
-      
-      await api.addSalesInvoice(invoiceData, currentStoreId || undefined);
-      
       fetchQuotations();
       if (selectedQuotationDetails?.id === quotation.id) {
         setSelectedQuotationDetails((prev: any) => prev ? { ...prev, status: 'approved' as any } : null);
       }
     } catch (error) {
-      console.error('Error approving quotation or creating invoice:', error);
-      alert(lang === 'tr' ? "Hata oluştu: Teklif onaylanamadı veya fatura oluşturulamadı." : "Error: Quotation could not be approved.");
+      console.error('Error approving quotation:', error);
+      alert(lang === 'tr' ? "Hata oluştu: Teklif onaylanamadı." : "Error: Quotation could not be approved.");
     }
   };
 

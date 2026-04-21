@@ -24,6 +24,7 @@ interface CompaniesTabProps {
   onExportReport: () => void;
   includeZero: boolean;
   onIncludeZeroChange: (val: boolean) => void;
+  defaultCurrency?: string;
 }
 
 const CompaniesTab = ({ 
@@ -34,7 +35,8 @@ const CompaniesTab = ({
   onDelete,
   onExportReport,
   includeZero,
-  onIncludeZeroChange
+  onIncludeZeroChange,
+  defaultCurrency = 'TRY'
 }: CompaniesTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -131,25 +133,34 @@ const CompaniesTab = ({
                       <div className="text-xs text-slate-500">{c.email || '-'}</div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex flex-col items-end space-y-1">
-                        {Object.entries(c.balances || {}).length > 0 ? (
+                      <div className="flex flex-col items-end gap-1.5 min-w-[120px]">
+                        {Object.entries(c.balances || {}).some(([_, bal]) => Number(bal) !== 0) ? (
                           Object.entries(c.balances || {}).map(([currency, bal]) => {
                             const numBal = Number(bal);
                             if (numBal === 0) return null;
+                            const isDebt = numBal > 0;
                             return (
-                              <div key={currency} className="flex flex-col items-end">
-                                <div className={`text-sm font-bold tabular-nums ${numBal > 0 ? 'text-rose-600' : numBal < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                  {Math.abs(numBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] font-medium ml-0.5">{currency.substring(0, 3)}</span>
+                              <div key={currency} className={`flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border transition-all ${isDebt ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}>
+                                <div className="flex flex-col items-end leading-none">
+                                  <span className="text-xs font-black tabular-nums">
+                                    {Math.abs(numBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                  </span>
+                                  <span className="text-[8px] font-bold uppercase tracking-widest opacity-70">
+                                    {isDebt ? t.statements.debt : t.statements.credit}
+                                  </span>
                                 </div>
-                                <div className="text-[9px] font-bold uppercase tracking-tighter opacity-60">
-                                  {numBal > 0 ? t.statements.debt : numBal < 0 ? t.statements.credit : t.balanced}
+                                <div className={`px-1.5 py-0.5 rounded md text-[10px] font-black ${isDebt ? 'bg-rose-600/10' : 'bg-emerald-600/10'}`}>
+                                  {currency.substring(0, 3)}
                                 </div>
                               </div>
                             );
                           })
                         ) : (
-                          <div className="text-sm font-bold tabular-nums text-slate-900">
-                            0 <span className="text-[10px] font-medium ml-0.5">TRY</span>
+                          <div className="flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border bg-slate-50 border-slate-100 text-slate-400 opacity-60">
+                            <span className="text-xs font-black">0</span>
+                            <div className="px-1.5 py-0.5 rounded md text-[10px] font-black bg-slate-200">
+                              {defaultCurrency}
+                            </div>
                           </div>
                         )}
                       </div>

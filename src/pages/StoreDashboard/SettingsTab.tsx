@@ -588,6 +588,256 @@ const SettingsTab = ({
         </motion.div>
       )}
 
+      {activeSubTab === 'pos' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto space-y-8"
+        >
+          {/* Iyzico Virtual POS Settings */}
+          <div className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden relative ${branding.iyzico_enabled ? 'bg-white border-indigo-200 shadow-xl shadow-indigo-100/50' : 'bg-slate-50 border-slate-200 opacity-80 hover:opacity-100'}`}>
+            {branding.iyzico_enabled && (
+              <div className="absolute top-0 right-0 p-8">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+              </div>
+            )}
+            
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${branding.iyzico_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}>
+                  <CreditCard className={`w-6 h-6 ${branding.iyzico_enabled ? 'text-white' : 'text-slate-400'}`} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                    {lang === 'tr' ? 'Iyzico Sanal POS' : 'Iyzico Virtual POS'}
+                  </h3>
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
+                    {lang === 'tr' ? 'E-Ticaret Tahsilat Altyapısı' : 'E-Commerce Payment Gateway'}
+                  </p>
+                </div>
+              </div>
+              
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer"
+                  checked={!!branding.payment_settings?.iyzico_enabled}
+                  onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_enabled: e.target.checked })}
+                />
+                <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+
+            <AnimatePresence>
+              {branding.payment_settings?.iyzico_enabled && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="space-y-6 overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'API Anahtarı' : 'API Key'}</label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Lock className="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                        </div>
+                        <input
+                          type="password"
+                          value={branding.payment_settings?.iyzico_api_key || ''}
+                          onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_api_key: e.target.value })}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                          placeholder={lang === 'tr' ? 'Iyzico panelinden kopyalayın...' : 'Copy from Iyzico panel...'}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Güvenlik Anahtarı' : 'Secret Key'}</label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Lock className="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                        </div>
+                        <input
+                          type="password"
+                          value={branding.payment_settings?.iyzico_secret_key || ''}
+                          onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_secret_key: e.target.value })}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                          placeholder={lang === 'tr' ? 'Gizli anahtarınız...' : 'Your secret key...'}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2 col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Çalışma Ortamı' : 'Environment'}</label>
+                      <div className="flex gap-4">
+                        <button
+                          type="button"
+                          onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_sandbox: true })}
+                          className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all font-bold text-sm ${!!branding.payment_settings?.iyzico_sandbox ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                        >
+                          <Wrench className="w-4 h-4" />
+                          {lang === 'tr' ? 'Sandbox (Test Eğitimi)' : 'Sandbox (Test)'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_sandbox: false })}
+                          className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all font-bold text-sm ${!branding.payment_settings?.iyzico_sandbox ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                        >
+                          <Globe className="w-4 h-4" />
+                          {lang === 'tr' ? 'Canlı (Production)' : 'Live (Production)'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end pt-2">
+                     <button
+                        onClick={onSaveBranding}
+                        className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20 transition-all flex items-center space-x-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>{lang === 'tr' ? 'Bağlantıyı Kaydet' : 'Save Connection'}</span>
+                      </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Local Cash Register/POS Bridge Settings */}
+           <div className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden relative ${branding.pos_bridge_enabled ? 'bg-white border-orange-200 shadow-xl shadow-orange-100/50' : 'bg-slate-50 border-slate-200 opacity-80 hover:opacity-100'}`}>
+            {branding.pos_bridge_enabled && (
+               <div className="absolute top-0 right-0 p-8">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${branding.pos_bridge_enabled ? 'bg-orange-500' : 'bg-slate-200'}`}>
+                  <Smartphone className={`w-6 h-6 ${branding.pos_bridge_enabled ? 'text-white' : 'text-slate-400'}`} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                    {lang === 'tr' ? 'Fiziksel Yazar Kasa / POS Köprüsü' : 'Physical POS Bridge'}
+                  </h3>
+                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
+                    {lang === 'tr' ? 'Yerel Ağ Aygıt İletişimi' : 'Local Network Device Communication'}
+                  </p>
+                </div>
+              </div>
+              
+               <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer"
+                  checked={!!branding.pos_bridge_enabled}
+                  onChange={(e) => onBrandingChange('pos_bridge_enabled', e.target.checked)}
+                />
+                <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+              </label>
+            </div>
+
+            <AnimatePresence>
+               {branding.pos_bridge_enabled && (
+                 <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="space-y-6 overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Köprü IP Adresi' : 'Bridge IP Address'}</label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Globe className="h-4 w-4 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                        </div>
+                        <input
+                          type="text"
+                          value={branding.pos_bridge_ip || '127.0.0.1'}
+                          onChange={(e) => onBrandingChange('pos_bridge_ip', e.target.value)}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Köprü Portu' : 'Bridge Port'}</label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <AlertTriangle className="h-4 w-4 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                        </div>
+                        <input
+                          type="text"
+                          value={branding.pos_bridge_port || '1616'}
+                          onChange={(e) => onBrandingChange('pos_bridge_port', e.target.value)}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 p-5 bg-orange-50 border border-orange-100 rounded-2xl flex flex-col md:flex-row items-start gap-4">
+                    <div className="p-2 bg-white rounded-xl shadow-sm shrink-0">
+                      <Info className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-black text-orange-900 mb-1 tracking-tight">{lang === 'tr' ? 'Yerel Ağ Köprüsü Nasıl Çalışır?' : 'How Local Network Bridge Works?'}</h4>
+                      <p className="text-[13px] font-medium text-orange-800/80 leading-relaxed mb-4">
+                        {lang === 'tr' 
+                          ? 'LookPrice, buluttan mağazanızın içindeki fiziksel donanımlara (Yazar Kasa, Para Çekmecesi, POS) erişmek için mağazanızdaki bir bilgisayara kurulan küçük bir köprü yazılımı ile iletişim kurar. Bu ayarlar, o bilgisayarın yerel IP adresi ve portudur. "Hızlı POS" modülü bu kanalı kullanır.' 
+                          : 'LookPrice communicates with physical hardware in your store (Cash Register, Cash Drawer, POS) from the cloud using a small bridge software installed on a store computer. These settings define its local IP and port. The "Fast POS" module uses this channel.'}
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <a 
+                          href="#" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            alert(lang === 'tr' ? 'Köprü yazılımı indirmesi başlatılıyor...' : 'Bridge software download starting...');
+                          }}
+                          className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-white border border-orange-200 rounded-xl text-xs font-bold text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-all shadow-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{lang === 'tr' ? 'Windows için İndir (.exe)' : 'Download for Windows (.exe)'}</span>
+                        </a>
+                        <a 
+                          href="#" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            alert(lang === 'tr' ? 'Köprü yazılımı indirmesi başlatılıyor...' : 'Bridge software download starting...');
+                          }}
+                          className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{lang === 'tr' ? 'Mac için İndir (.dmg)' : 'Download for Mac (.dmg)'}</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end pt-4">
+                    <button
+                      onClick={onSaveBranding}
+                      className="px-8 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 hover:shadow-lg hover:shadow-orange-500/20 transition-all flex items-center space-x-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{lang === 'tr' ? 'Köprü Ayarlarını Kaydet' : 'Save Bridge Settings'}</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      )}
+
       {activeSubTab === 'bulk-price' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -1882,71 +2132,11 @@ const SettingsTab = ({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900 leading-tight">{lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Methods'}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">{lang === 'tr' ? 'Aktif etmek istediğiniz ödeme yöntemlerini seçin' : 'Select payment methods to enable'}</p>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">{lang === 'tr' ? 'Iyzico ve Fiziksel POS ayarları için yukarıdaki POS Ayarları sekmesini kullanın.' : 'Use the POS Settings tab above for Iyzico and Physical POS settings.'}</p>
               </div>
             </div>
             
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="text-sm font-bold text-slate-900 cursor-pointer">Iyzico</label>
-                <button 
-                  type="button"
-                  onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_enabled: !branding.payment_settings?.iyzico_enabled })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.iyzico_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.iyzico_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-              {branding.payment_settings?.iyzico_enabled && (
-                <div className="mt-6 p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-6 animate-in slide-in-from-top-4 duration-500">
-                  <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-xl ${branding.payment_settings?.iyzico_sandbox ? 'bg-amber-100' : 'bg-emerald-100'}`}>
-                        <Info className={`h-4 w-4 ${branding.payment_settings?.iyzico_sandbox ? 'text-amber-600' : 'text-emerald-600'}`} />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900">{lang === 'tr' ? 'Sandbox Modu' : 'Sandbox Mode'}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">{lang === 'tr' ? 'Test işlemleri için aktif edin' : 'Enable for test transactions'}</p>
-                      </div>
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_sandbox: !branding.payment_settings?.iyzico_sandbox })}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.iyzico_sandbox ? 'bg-amber-500' : 'bg-slate-200'}`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.payment_settings?.iyzico_sandbox ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">API KEY</label>
-                      <input 
-                        type="password" 
-                        className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all text-sm font-mono"
-                        placeholder="api_key_..."
-                        value={branding.payment_settings?.iyzico_api_key || ""}
-                        onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_api_key: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">SECRET KEY</label>
-                      <input 
-                        type="password" 
-                        className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all text-sm font-mono"
-                        placeholder="secret_key_..."
-                        value={branding.payment_settings?.iyzico_secret_key || ""}
-                        onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_secret_key: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-medium italic px-1">
-                    {lang === 'tr' 
-                      ? "* iyzico panelinizden aldığınız API anahtarlarını buraya giriniz. Kaydettikten sonra ödeme sistemi aktif olacaktır."
-                      : "* Enter the API keys you received from your iyzico panel. The payment system will be active after saving."}
-                  </p>
-                </div>
-              )}
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <label className="text-sm font-bold text-slate-900 cursor-pointer">PayPal</label>
                 <button 

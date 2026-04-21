@@ -298,7 +298,7 @@ const ProductsTab = ({
                     )}
                     <td className="px-6 py-4">
                       <span className="text-[15px] font-black text-slate-900 mono-data tracking-tighter">
-                        {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
+                        {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -310,7 +310,7 @@ const ProductsTab = ({
                       {p.cost_price > 0 ? (
                         <div className="flex flex-col">
                           <span className="text-[13px] font-black text-slate-600 mono-data">
-                            {Number(p.cost_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-bold ml-1">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
+                            {Number(p.cost_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-bold ml-1">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
                           </span>
                           {(() => {
                             const profit = calculateProfitMargin(p);

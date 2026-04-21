@@ -1114,6 +1114,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onExportReport={handleExportCompanies}
                           includeZero={includeZeroBalance}
                           onIncludeZeroChange={setIncludeZeroBalance}
+                          defaultCurrency={branding?.default_currency}
                         />
                       </Suspense>
                     )}
@@ -2043,6 +2044,47 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
                   return (
                     <>
+                      <div className="flex flex-wrap gap-2 pb-2">
+                        {Object.entries((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances || {}).some(([_, b]) => Number(b) !== 0) ? (
+                          Object.entries((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances || {}).map(([curr, bal]) => {
+                            const nBal = Number(bal);
+                            if (nBal === 0) return null;
+                            const isSelected = curr === selectedCurrency;
+                            return (
+                              <button
+                                key={curr}
+                                onClick={() => setSelectedCurrency(curr)}
+                                className={`flex items-center gap-3 pl-4 pr-3 py-2 rounded-2xl border transition-all ${
+                                  isSelected 
+                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 ring-2 ring-indigo-600 ring-offset-2' 
+                                    : 'bg-white border-gray-100 text-gray-600 hover:border-gray-200 shadow-sm'
+                                }`}
+                              >
+                                <div className="flex flex-col items-start leading-none gap-1">
+                                  <span className={`text-[10px] font-black uppercase tracking-widest opacity-70 ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+                                    {curr}
+                                  </span>
+                                  <span className="text-sm font-black tabular-nums">
+                                    {Math.abs(nBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                                  </span>
+                                </div>
+                                <div className={`flex flex-col items-center justify-center p-1.5 rounded-lg ${
+                                  isSelected ? 'bg-white/20' : nBal > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+                                }`}>
+                                  <span className="text-[8px] font-black uppercase leading-none">
+                                    {nBal > 0 ? t.statements.debt.slice(0, 3) : t.statements.credit.slice(0, 3)}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 text-gray-400 text-xs font-bold italic">
+                            {lang === 'tr' ? 'Henüz bakiye bulunmuyor' : 'No balances yet'}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
                           <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
@@ -2143,7 +2185,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                         <td className="py-4 px-4">
                                           <p className="text-xs font-bold text-gray-700">{tx.description}</p>
                                           <div className="flex gap-2 mt-1">
-                                            {tx.sale_id && (
+                                            {tx.sale_id && !tx.sales_invoice_id && (
                                               <button 
                                                 onClick={() => {
                                                   setSelectedSale({ id: tx.sale_id });
@@ -2152,6 +2194,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                                 className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
                                               >
                                                 #{tx.sale_id} {t.sources.pos}
+                                              </button>
+                                            )}
+                                            {tx.sales_invoice_id && (
+                                              <button 
+                                                onClick={() => {
+                                                  // Optional: Can redirect to sales invoices tab or open invoice modal if we have one
+                                                  // For now, it will just be a label/badge since we don't have a specific "view invoice" modal in this scope easily accessible
+                                                }}
+                                                className="text-[9px] text-blue-600 font-bold uppercase tracking-widest"
+                                              >
+                                                #{tx.sales_invoice_number || tx.sales_invoice_id} {lang === 'tr' ? 'SATIŞ FATURASI' : 'SALES INVOICE'}
                                               </button>
                                             )}
                                             {tx.purchase_invoice_id && (
@@ -3369,7 +3422,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           className="product-option w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors"
                           onClick={() => {
                             const existingIdx = quotationItems.findIndex(item => item.product_id === p.id);
-                            const taxRate = Math.round(Number(p.tax_rate ?? branding.default_tax_rate ?? 20));
+                            const taxRate = Math.round(Number(p.tax_rate ?? (branding?.default_tax_rate !== undefined ? branding.default_tax_rate : 20)));
                             
                             let unitPrice: number;
                             if (p.price_2 && Number(p.price_2) > 0) {

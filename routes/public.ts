@@ -840,6 +840,9 @@ router.post("/quotations/:id/action", async (req, res) => {
     const quotation = qResult.rows[0];
     const storeId = quotation.store_id;
     
+    const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    const branding = storeRes.rows[0]?.branding || {};
+    
     console.log(`[PublicQuotationAction] Quotation found:`, { id: quotation.id, status: quotation.status, is_sale: quotation.is_sale });
 
     if (quotation.status === 'approved' || quotation.is_sale) {
@@ -866,9 +869,14 @@ router.post("/quotations/:id/action", async (req, res) => {
     // Items and Stock
     const itemsRes = await client.query("SELECT * FROM quotation_items WHERE quotation_id = $1", [quotation.id]);
     for (const item of itemsRes.rows) {
+      const taxRate = (item.tax_rate !== undefined && item.tax_rate !== null) ? Number(item.tax_rate) : (branding?.default_tax_rate !== undefined ? Number(branding.default_tax_rate) : 20);
+      const kdvHariçPrice = Number(item.unit_price) / (1 + taxRate / 100);
+      const kdvHariçTotal = Number(item.quantity) * kdvHariçPrice;
+      const taxAmount = (Number(item.quantity) * Number(item.unit_price)) - kdvHariçTotal;
+
       await client.query(
-        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [saleId, item.product_id, item.product_name, item.barcode, item.quantity, item.unit_price, item.total_price]
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        [saleId, item.product_id, item.product_name, item.barcode, item.quantity, kdvHariçPrice, taxRate, taxAmount, kdvHariçTotal]
       );
       
       if (item.product_id) {
@@ -879,7 +887,7 @@ router.post("/quotations/:id/action", async (req, res) => {
 
         await client.query(
           "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, 'out', $3, 'quotation', $4, $5, $6)",
-          [storeId, item.product_id, item.quantity, `Müşteri Onaylı Satış #${saleId} (Teklif #${quotation.id})`, item.unit_price, quotation.customer_name]
+          [storeId, item.product_id, item.quantity, `Müşteri Onaylı Satış #${saleId} (Teklif #${quotation.id})`, kdvHariçPrice, quotation.customer_name]
         );
       }
     }
@@ -887,14 +895,14 @@ router.post("/quotations/:id/action", async (req, res) => {
     // Current Account Transactions
     if (quotation.company_id) {
       await client.query(
-        "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-        [storeId, quotation.company_id, quotation.id, saleId, 'debt', quotation.total_amount, `Müşteri Onaylı Satış #${quotation.id} (${paymentMethod})`, paymentMethod]
+        "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        [storeId, quotation.company_id, quotation.id, saleId, 'debt', quotation.total_amount, `Müşteri Onaylı Satış #${quotation.id} (${paymentMethod})`, paymentMethod, quotation.currency || 'TRY', quotation.exchange_rate || 1]
       );
 
       if (paymentMethod !== 'term') {
         await client.query(
-          "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-          [storeId, quotation.company_id, quotation.id, saleId, 'credit', quotation.total_amount, `Teklif #${quotation.id} Ödemesi (${paymentMethod})`, paymentMethod]
+          "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+          [storeId, quotation.company_id, quotation.id, saleId, 'credit', quotation.total_amount, `Teklif #${quotation.id} Ödemesi (${paymentMethod})`, paymentMethod, quotation.currency || 'TRY', quotation.exchange_rate || 1]
         );
       }
     }
