@@ -92,8 +92,13 @@ const ProductsTab = ({
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
 
+  const normalizeSearch = (text: string) => {
+    if (!text) return "";
+    return text.replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i').toLowerCase();
+  };
+
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLocaleLowerCase('tr-TR').includes(deferredSearch.toLocaleLowerCase('tr-TR')) || 
+    const matchesSearch = normalizeSearch(p.name).includes(normalizeSearch(deferredSearch)) || 
                          p.barcode.includes(deferredSearch);
     const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
     return matchesSearch && matchesCategory;

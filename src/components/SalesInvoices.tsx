@@ -451,8 +451,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const handleQuickProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const productNameLower = quickProductForm.name.toLocaleLowerCase('tr-TR');
-      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(r.category.toLocaleLowerCase('tr-TR')));
+      const normalizeText = (text: string) => text ? text.replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i').toLowerCase() : '';
+      const productNameLower = normalizeText(quickProductForm.name);
+      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(normalizeText(r.category)));
       
       let taxRate = branding?.default_tax_rate !== undefined ? Number(branding.default_tax_rate) : 20;
       let category = '';

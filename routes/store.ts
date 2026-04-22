@@ -818,7 +818,7 @@ router.get("/products", async (req: any, res) => {
     const params: any[] = [storeIds];
 
     if (search) {
-      query += ` AND (LOWER(p.name) LIKE LOWER($2) OR p.barcode LIKE $2)`;
+      query += ` AND (p.name ILIKE $2 OR p.barcode ILIKE $2)`;
       params.push(`%${search}%`);
     }
 
@@ -2242,6 +2242,12 @@ router.post("/pos/sale", async (req: any, res) => {
       const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${branding.fiscal_brand}`;
       await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, saleId]);
     }
+
+    // 4. Record Payment for Cash Register Report
+    await client.query(
+      "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
+      [saleId, paymentMethod || 'cash', total || 0]
+    );
 
     await client.query("COMMIT");
 

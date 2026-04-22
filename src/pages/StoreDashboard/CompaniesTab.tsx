@@ -45,8 +45,13 @@ const CompaniesTab = ({
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
+  const normalizeSearch = (text: string) => {
+    if (!text) return "";
+    return text.replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i').toLowerCase();
+  };
+
   const filteredCompanies = companies.filter(c => {
-    const matchesSearch = c.title.toLocaleLowerCase('tr-TR').includes(deferredSearch.toLocaleLowerCase('tr-TR')) || 
+    const matchesSearch = normalizeSearch(c.title).includes(normalizeSearch(deferredSearch)) || 
                           c.tax_number?.includes(deferredSearch);
     
     const hasBalance = Object.values(c.balances || {}).some(bal => Number(bal) !== 0);

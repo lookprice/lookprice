@@ -26,7 +26,7 @@ interface MetaSettings {
 
 const MetaIntegration = () => {
   const { lang } = useLanguage();
-  const t = translations[lang];
+  const t = translations[lang].dashboard;
   const [settings, setSettings] = useState<MetaSettings>({
     enabled: false,
     pixel_id: '',

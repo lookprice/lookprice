@@ -104,6 +104,14 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
     }
   };
 
+  const getExchangeRate = (currency: string) => {
+    if (!currency || currency === (branding?.default_currency || 'TRY')) return 1;
+    if (branding?.currency_rates && branding.currency_rates[currency]) {
+      return parseFloat(branding.currency_rates[currency]) || 1;
+    }
+    return 1;
+  };
+
   const addToCart = (product: any) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
@@ -114,7 +122,16 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
             : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      
+      const rate = getExchangeRate(product.currency || 'TRY');
+      const convertedPrice = (parseFloat(product.price || 0) * rate).toFixed(2);
+
+      return [...prev, { 
+        ...product, 
+        quantity: 1,
+        price: convertedPrice, // Store cross-currency calculated price
+        currency: branding?.default_currency || 'TRY' // Normalize currency to store setting
+      }];
     });
     setSearchTerm("");
     if (searchInputRef.current) {
@@ -136,7 +153,16 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
     }));
   };
 
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const updatePrice = (productId: number, newPrice: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === productId) {
+        return { ...item, price: newPrice };
+      }
+      return item;
+    }));
+  };
+
+  const total = cart.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * item.quantity), 0);
 
   const handleFinalizeSale = async () => {
     if (cart.length === 0) return;
@@ -210,7 +236,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
         }
       }
 
-      const currentCart = [...cart];
+      const currentCart = cart.map(item => ({ ...item, price: parseFloat(item.price) || 0 }));
       const res = await api.createPosSale({
         items: currentCart,
         total,
@@ -334,7 +360,17 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
                 >
                   <div className="flex-1 min-w-0 mr-4">
                     <p className="text-sm font-bold text-slate-800 truncate">{item.name}</p>
-                    <p className="text-xs font-medium text-slate-500">{item.price} {item.currency || 'TRY'}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.price}
+                        onChange={(e) => updatePrice(item.id, e.target.value)}
+                        className="w-20 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded px-2 py-0.5 outline-none focus:border-indigo-500 transition-colors"
+                      />
+                      <span className="text-xs font-medium text-slate-500">{item.currency || 'TRY'}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
@@ -516,7 +552,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
                   {lastCart.map((item, idx) => (
                     <div key={idx} className="flex justify-between">
                       <span>{item.quantity}x {item.name}</span>
-                      <span>{(item.price * item.quantity).toFixed(2)}</span>
+                      <span>{((parseFloat(item.price) || 0) * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -524,7 +560,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
                 <div className="border-t border-dashed border-slate-300 pt-2 font-bold">
                   <div className="flex justify-between text-sm">
                     <span>TOPLAM</span>
-                    <span>{lastCart.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2)} ₺</span>
+                    <span>{lastCart.reduce((sum, i) => sum + ((parseFloat(i.price) || 0) * i.quantity), 0).toFixed(2)} ₺</span>
                   </div>
                   <p className="mt-1">Ödeme: {paymentMethod === 'cash' ? 'NAKİT' : 'KREDİ KARTI'}</p>
                 </div>
