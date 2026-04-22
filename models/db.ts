@@ -535,6 +535,7 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS hepsiburada_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS trendyol_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS pazarama_settings JSONB DEFAULT '{}';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS meta_settings JSONB DEFAULT '{"enabled": false, "pixel_id": "", "catalog_id": ""}';
 
       CREATE TABLE IF NOT EXISTS amazon_orders (
         id SERIAL PRIMARY KEY,

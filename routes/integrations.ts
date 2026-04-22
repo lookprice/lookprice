@@ -913,4 +913,36 @@ router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
+// --- Meta (Facebook/Instagram) Integration ---
+
+// 1. Save Meta Settings
+router.post("/meta/settings", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { enabled, pixel_id, catalog_id } = req.body;
+
+  try {
+    const settings = {
+      enabled: !!enabled,
+      pixel_id: pixel_id || "",
+      catalog_id: catalog_id || ""
+    };
+
+    await pool.query("UPDATE stores SET meta_settings = $1 WHERE id = $2", [settings, storeId]);
+    res.json({ success: true, settings });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. Get Meta Settings
+router.get("/meta/settings", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query("SELECT meta_settings FROM stores WHERE id = $1", [storeId]);
+    res.json(result.rows[0]?.meta_settings || { enabled: false, pixel_id: "", catalog_id: "" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

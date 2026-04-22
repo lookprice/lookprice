@@ -349,6 +349,101 @@ router.get("/store/:slug/products", async (req, res) => {
   res.json(convertedProducts);
 });
 
+// Public: Facebook Product Catalog XML Feed
+router.get("/store/:slug/catalog", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id, name, slug, description, default_currency, currency_rates, meta_settings, custom_domain FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    const store = storeRes.rows[0];
+    
+    // Check if meta catalog is enabled
+    const metaSettings = typeof store.meta_settings === 'string' ? JSON.parse(store.meta_settings) : (store.meta_settings || {});
+    if (metaSettings.enabled === false) {
+      return res.status(403).send("Meta Catalog is not enabled for this store.");
+    }
+
+    const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 ORDER BY name ASC", [store.id]);
+    const products = productsRes.rows;
+    
+    const protocol = req.secure ? 'https' : 'http';
+    const host = store.custom_domain || req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+    
+    const defaultCurrency = store.default_currency || 'TRY';
+    const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+
+    let xml = `<?xml version="1.0"?>
+<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
+  <channel>
+    <title>${store.name}</title>
+    <link>${baseUrl}</link>
+    <description>${store.description || store.name + " Ürün Kataloğu"}</description>\n`;
+
+    products.forEach(p => {
+      // Currency conversion
+      let convertedPrice = p.price;
+      const fromCurrency = p.currency || 'TRY';
+      if (fromCurrency !== defaultCurrency) {
+        if (defaultCurrency === 'TRY') {
+          const rate = rates[fromCurrency] || 1;
+          convertedPrice = p.price * rate;
+        } else if (fromCurrency === 'TRY') {
+          const rate = rates[defaultCurrency] || 1;
+          convertedPrice = p.price / rate;
+        } else {
+          const fromRate = rates[fromCurrency] || 1;
+          const toRate = rates[defaultCurrency] || 1;
+          convertedPrice = (p.price * fromRate) / toRate;
+        }
+      }
+
+      const availability = (p.stock_quantity > 0) ? 'in stock' : 'out of stock';
+      const productUrl = `${baseUrl}/s/${store.slug}/p/${p.barcode || p.id}`;
+      const imageUrl = p.image_url || '';
+      const brand = p.brand || store.name;
+      const description = (p.description || p.name).replace(/[<&">]/g, (c: string) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '"': return '&quot;';
+          default: return c;
+        }
+      });
+
+      xml += `    <item>
+      <g:id>${p.barcode || p.id}</g:id>
+      <g:title>${p.name.replace(/[<&">]/g, (c: string) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '"': return '&quot;';
+          default: return c;
+        }
+      })}</g:title>
+      <g:description>${description}</g:description>
+      <g:link>${productUrl}</g:link>
+      <g:image_link>${imageUrl}</g:image_link>
+      <g:brand>${brand}</g:brand>
+      <g:condition>new</g:condition>
+      <g:availability>${availability}</g:availability>
+      <g:price>${convertedPrice.toFixed(2)} ${defaultCurrency}</g:price>
+      <g:google_product_category>${p.category || 'Apparel &amp; Accessories'}</g:google_product_category>
+    </item>\n`;
+    });
+
+    xml += `  </channel>
+</rss>`;
+
+    res.header('Content-Type', 'text/xml');
+    res.send(xml);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 

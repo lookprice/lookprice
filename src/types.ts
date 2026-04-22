@@ -90,6 +90,15 @@ export interface Store {
     pre_info?: LegalPage;
   };
   page_layout?: any[];
+  page_layout_settings?: {
+    show_announcement?: boolean;
+    show_stories?: boolean;
+    show_campaigns?: boolean;
+    show_testimonials?: boolean;
+    show_newsletter?: boolean;
+    enable_live_activity?: boolean;
+    theme?: 'modern' | 'minimal' | 'bold';
+  };
   menu_links?: any[];
   footer_links?: any[];
   shipping_profiles?: any[];

@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
 import { 
+  Check,
+  Lock,
   Search, 
   ShoppingBasket, 
   Plus, 
@@ -25,6 +27,8 @@ import {
   Info,
   ArrowLeft,
   ShieldCheck,
+  Shield,
+  Globe,
   Truck,
   ExternalLink,
   RotateCcw,
@@ -301,27 +305,6 @@ const ProductDetailModal: React.FC<{
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 mb-10">
-            <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-3xl border border-gray-100">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-                <Truck className="w-6 h-6" style={{ color: primaryColor }} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-900">{t.dashboard.fastDelivery}</span>
-                <span className="text-xs text-gray-500">24-48 Saat</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-3xl border border-gray-100">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-                <ShieldCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-900">{t.dashboard.securePayment}</span>
-                <span className="text-xs text-gray-500">SSL Encrypted</span>
-              </div>
-            </div>
-          </div>
-
           <button 
             onClick={() => {
               addToBasket(product);
@@ -490,7 +473,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     }
   }, []);
 
-  const [showLiveActivity, setShowLiveActivity] = useState(false);
+  const formatPrice = (price: number, currency?: string) => {
+    return `${Number(price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency || store?.currency || 'TRY'}`;
+  };
 
   const layoutSettings = store?.page_layout_settings || {
     show_announcement: true,
@@ -501,25 +486,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     enable_live_activity: true,
     theme_variety: 'modern'
   };
-
-  useEffect(() => {
-    // Show live activity after 5 seconds, then every 45-60 seconds
-    if (!layoutSettings.enable_live_activity) return;
-    
-    const firstTimer = setTimeout(() => setShowLiveActivity(true), 5000);
-    const hideTimer = setTimeout(() => setShowLiveActivity(false), 12000);
-    
-    const interval = setInterval(() => {
-        setShowLiveActivity(true);
-        setTimeout(() => setShowLiveActivity(false), 7000);
-    }, 55000);
-
-    return () => {
-      clearTimeout(firstTimer);
-      clearTimeout(hideTimer);
-      clearInterval(interval);
-    };
-  }, [layoutSettings.enable_live_activity]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1023,74 +989,35 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     <ErrorBoundary lang={lang}>
       <div className="min-h-screen bg-white pb-24 font-sans selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
       
-      {/* Live Activity Toast (Simulated Social Proof) */}
-      <AnimatePresence>
-        {showLiveActivity && (
-          <motion.div
-            initial={{ opacity: 0, x: -100, y: 100 }}
-            animate={{ opacity: 1, x: 24, y: -24 }}
-            exit={{ opacity: 0, x: -100, scale: 0.8 }}
-            className="fixed bottom-0 left-0 z-[100] bg-white/90 backdrop-blur-xl border border-gray-100 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center gap-4 max-w-sm"
-          >
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-50 flex-shrink-0">
-               <img src={`https://i.pravatar.cc/150?u=${Math.random()}`} alt="User" />
-            </div>
-            <div className="flex-1">
-               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
-                 {lang === 'tr' ? 'AZ ÖNCE ALINDI' : 'JUST PURCHASED'}
-               </p>
-               <p className="text-xs font-bold text-gray-900 leading-tight">
-                 {lang === 'tr' ? 'Bir müşteri bir ürün satın aldı' : 'A customer just purchased an item'}
-               </p>
-               <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                 <CheckCircle2 className="w-3 h-3 text-green-500" />
-                 {lang === 'tr' ? 'Doğrulanmış İşlem' : 'Verified Purchase'}
-               </p>
-            </div>
-            <button onClick={() => setShowLiveActivity(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-               <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Announcement Bar */}
       {layoutSettings.show_announcement && (
       <div className="bg-gray-900 overflow-hidden py-2">
         <div className="flex whitespace-nowrap animate-marquee">
           <div className="flex gap-12 text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] px-4">
             <span className="flex items-center gap-2">
-              <Truck className="w-3 h-3" />
-              {lang === 'tr' ? 'Hızlı Teslimat' : 'Fast Delivery'}
-            </span>
-            <span className="flex items-center gap-2">
-              <Shield className="w-3 h-3" />
-              {lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}
-            </span>
-            <span className="flex items-center gap-2">
               <Package className="w-3 h-3" />
               {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
             </span>
             <span className="flex items-center gap-2">
               <Globe className="w-3 h-3" />
               {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
+            </span>
+            <span className="flex items-center gap-2">
+              <RotateCcw className="w-3 h-3" />
+              {lang === 'tr' ? 'Kolay İade' : 'Easy Returns'}
             </span>
             {/* Repeat for continuous scroll */}
             <span className="flex items-center gap-2">
-              <Truck className="w-3 h-3" />
-              {lang === 'tr' ? 'Hızlı Teslimat' : 'Fast Delivery'}
-            </span>
-            <span className="flex items-center gap-2">
-              <Shield className="w-3 h-3" />
-              {lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}
-            </span>
-            <span className="flex items-center gap-2">
               <Package className="w-3 h-3" />
               {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
             </span>
             <span className="flex items-center gap-2">
               <Globe className="w-3 h-3" />
               {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
+            </span>
+            <span className="flex items-center gap-2">
+              <RotateCcw className="w-3 h-3" />
+              {lang === 'tr' ? 'Kolay İade' : 'Easy Returns'}
             </span>
           </div>
         </div>
@@ -1198,40 +1125,59 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
       {/* Category Stories */}
       {layoutSettings.show_stories && Array.from(categories.keys()).length > 0 && (
-        <div className="bg-white border-b border-gray-50 py-4 overflow-x-auto no-scrollbar">
-          <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center gap-6 sm:gap-10">
-            {Array.from(categories.keys()).map((cat, idx) => (
-              <button
-                key={`story-${cat}`}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="flex flex-col items-center gap-2 group shrink-0"
-              >
-                <div className="relative">
-                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 border-2 transition-all duration-300 ${selectedCategory === cat ? 'border-primary' : 'border-gray-200 group-hover:border-primary/50'}`}>
-                    <div className="w-full h-full rounded-full bg-gray-50 overflow-hidden flex items-center justify-center">
-                       {/* Try to find a representative image from products in this category */}
-                       {products.find(p => p.category === cat)?.image_url ? (
-                         <img src={products.find(p => p.category === cat).image_url} alt={cat} className="w-full h-full object-cover group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-                       ) : (
-                         <Tag className="w-6 h-6 text-gray-300" />
-                       )}
+        <div className="bg-white border-b border-gray-100 py-6 relative group">
+          <div className="max-w-7xl mx-auto px-4 md:px-8">
+            <div className="flex items-center gap-6 sm:gap-10 overflow-x-auto pb-4 -mb-4 scrollbar-hide snap-x no-scrollbar">
+              {Array.from(categories.keys()).map((cat, idx) => (
+                <button
+                  key={`story-${cat}`}
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    const el = document.getElementById('products-grid');
+                    if (el) {
+                      const offset = 100;
+                      const bodyRect = document.body.getBoundingClientRect().top;
+                      const elementRect = el.getBoundingClientRect().top;
+                      const elementPosition = elementRect - bodyRect;
+                      const offsetPosition = elementPosition - offset;
+                      window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                      });
+                    }
+                  }}
+                  className="flex flex-col items-center gap-3 group shrink-0 snap-center"
+                >
+                  <div className="relative">
+                    <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full p-1 border-2 transition-all duration-500 ${selectedCategory === cat ? 'border-blue-600 scale-110 shadow-lg shadow-blue-500/20' : 'border-gray-100 group-hover:border-blue-400 group-hover:scale-105'}`}>
+                      <div className="w-full h-full rounded-full bg-gray-50 overflow-hidden flex items-center justify-center">
+                         {products.find(p => p.category === cat)?.image_url ? (
+                           <img src={products.find(p => p.category === cat).image_url} alt={cat} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                         ) : (
+                           <Tag className="w-7 h-7 text-gray-300" />
+                         )}
+                      </div>
                     </div>
+                    {selectedCategory === cat && (
+                      <motion.div 
+                        layoutId="active-cat-indicator"
+                        className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1.5 rounded-full border-2 border-white shadow-lg"
+                      >
+                        <Check className="w-3 h-3" />
+                      </motion.div>
+                    )}
                   </div>
-                  {selectedCategory === cat && (
-                    <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full border-2 border-white">
-                      <Check className="w-3 h-3" />
-                    </div>
-                  )}
-                </div>
-                <span className={`text-[10px] sm:text-xs font-bold whitespace-nowrap transition-colors ${selectedCategory === cat ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'}`}>
-                  {cat.toLocaleUpperCase('tr-TR')}
-                </span>
-              </button>
-            ))}
+                  <span className={`text-[10px] sm:text-xs font-bold whitespace-nowrap transition-all tracking-tight uppercase ${selectedCategory === cat ? 'text-blue-600 scale-110' : 'text-gray-500 group-hover:text-gray-900'}`}>
+                    {cat}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
+          
+          {/* Subtle Fade Indicators for Desktop Scroll */}
+          <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-white to-transparent pointer-events-none opacity-0 md:group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-white to-transparent pointer-events-none opacity-0 md:group-hover:opacity-100 transition-opacity" />
         </div>
       )}
 
@@ -1335,7 +1281,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   className="group relative bg-white rounded-[2rem] p-5 border border-gray-100 hover:border-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer"
                   onClick={() => {
                     setSelectedProduct(product);
-                    setIsProductModalOpen(true);
                   }}
                 >
                   {/* Campaign Badge */}
@@ -1766,72 +1711,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           </section>
         )}
 
-        {/* Testimonials Section */}
-        {!selectedCategory && !searchQuery && (
-          <section className="mt-32">
-            <div className="flex flex-col items-center text-center mb-16">
-              <h2 className="text-4xl font-black text-gray-900 mb-4">{t.dashboard.testimonials}</h2>
-              <div className="h-1.5 w-24 rounded-full" style={{ backgroundColor: primaryColor }}></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                { name: "Ahmet Y.", comment: "Ürünler çok kaliteli ve hızlı geldi. Teşekkürler!", rating: 5 },
-                { name: "Selin K.", comment: "Müşteri hizmetleri çok ilgili. Kesinlikle tavsiye ederim.", rating: 5 },
-                { name: "Mehmet A.", comment: "Fiyat performans açısından harika ürünler.", rating: 4 }
-              ].map((testi, i) => (
-                <div key={i} className="bg-gray-50 p-8 rounded-[32px] relative">
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(testi.rating)].map((_, j) => (
-                      <Star key={j} className="w-4 h-4 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  <p className="text-gray-600 italic mb-6 leading-relaxed">"{testi.comment}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                    <span className="font-bold text-gray-900">{testi.name}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-        {/* Trust Badges */}
-        <section className="mt-40 mb-20">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
-              <div 
-                className="w-16 h-16 rounded-3xl mb-8 flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500"
-                style={{ backgroundColor: `${primaryColor}10`, color: primaryColor }}
-              >
-                <Truck className="w-8 h-8" />
-              </div>
-              <h4 className="text-xl font-display font-black text-gray-900 mb-2 uppercase tracking-tight">{t.dashboard.fastDelivery || 'Hızlı Teslimat'}</h4>
-              <p className="text-gray-400 font-medium leading-relaxed">Tüm siparişlerinizde hızlı ve güvenli teslimat avantajı.</p>
-            </div>
-
-            <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
-              <div 
-                className="w-16 h-16 rounded-3xl mb-8 flex items-center justify-center text-green-600 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500"
-                style={{ backgroundColor: '#10b98110' }}
-              >
-                <ShieldCheck className="w-8 h-8" />
-              </div>
-              <h4 className="text-xl font-display font-black text-gray-900 mb-2 uppercase tracking-tight">{t.dashboard.securePayment}</h4>
-              <p className="text-gray-400 font-medium leading-relaxed">256-bit SSL sertifikası ile %100 güvenli ödeme altyapısı.</p>
-            </div>
-
-            <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
-              <div 
-                className="w-16 h-16 rounded-3xl mb-8 flex items-center justify-center text-purple-600 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500"
-                style={{ backgroundColor: '#8b5cf610' }}
-              >
-                <RotateCcw className="w-8 h-8" />
-              </div>
-              <h4 className="text-xl font-display font-black text-gray-900 mb-2 uppercase tracking-tight">{t.dashboard.returnPolicy}</h4>
-              <p className="text-gray-400 font-medium leading-relaxed">14 gün içerisinde koşulsuz şartsız kolay iade imkanı.</p>
-            </div>
-          </div>
-        </section>
       </main>
       </>
       ) : (
@@ -2402,110 +2281,162 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         )}
       </AnimatePresence>
 
+      {/* Newsletter Section */}
+      {layoutSettings.show_newsletter && (
+      <section className="bg-white py-24 px-4 md:px-8 border-t border-gray-100">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-gray-900 rounded-[4rem] p-10 md:p-24 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-600/30 via-indigo-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]" />
+            
+            <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
+              <div className="max-w-xl text-center lg:text-left">
+                <h2 className="text-4xl md:text-7xl font-display font-black text-white tracking-tighter mb-8 leading-[0.9]">
+                  {lang === 'tr' ? 'Fırsatları Kaçırmayın' : 'Never Miss a Deal'}
+                </h2>
+                <p className="text-white/60 font-medium text-xl md:text-2xl leading-relaxed">
+                  {lang === 'tr' ? 'Yeni ürünler ve özel indirimlerden ilk siz haberdar olun. Hemen abone olun!' : 'Be the first to know about new products and special discounts. Subscribe now!'}
+                </p>
+              </div>
+
+              <div className="w-full max-w-md">
+                <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                  <div className="relative">
+                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input 
+                      type="email" 
+                      placeholder={lang === 'tr' ? 'E-posta adresiniz' : 'Your email address'}
+                      className="w-full pl-16 pr-6 py-6 bg-white/10 border border-white/10 rounded-3xl text-white placeholder:text-gray-500 font-bold focus:bg-white/20 focus:border-white/30 transition-all outline-none text-lg"
+                    />
+                  </div>
+                  <button className="w-full py-6 bg-white text-gray-900 rounded-3xl font-black text-lg uppercase tracking-[0.2em] hover:bg-blue-50 hover:scale-[0.98] transition-all shadow-2xl shadow-black/20">
+                    {lang === 'tr' ? 'ABONE OL VE KEŞFET' : 'SUBSCRIBE & DISCOVER'}
+                  </button>
+                </form>
+                <div className="flex items-center justify-center lg:justify-start gap-4 mt-8 opacity-40">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-3 h-3 text-white" />
+                    <span className="text-[10px] text-white font-black uppercase tracking-widest">KVKK GÜVENLİ</span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-white/20" />
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-3 h-3 text-white" />
+                    <span className="text-[10px] text-white font-black uppercase tracking-widest">SSL KORUMALI</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      )}
+
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-12 mt-12">
+      <footer className="bg-black pt-32 pb-12 overflow-hidden relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        
         <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-4 mb-8">
                 {store?.logo_url ? (
-                  <img src={store.logo_url} alt={store.name} className="h-8 w-auto" />
+                  <img src={store.logo_url} alt={store.name} className="h-12 w-auto brightness-0 invert" />
                 ) : (
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
-                    <ShoppingBag className="w-4 h-4" />
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white bg-blue-600 shadow-xl shadow-blue-500/20">
+                    <ShoppingBag className="w-6 h-6" />
                   </div>
                 )}
-                <span className="text-xl font-display font-black tracking-tighter text-gray-900">{store?.name}</span>
+                <span className="text-3xl font-display font-black tracking-tighter text-white">{store?.name}</span>
               </div>
-              <p className="text-gray-500 text-sm font-medium max-w-md leading-relaxed mb-6">
+              <p className="text-gray-500 text-lg font-medium max-w-md leading-relaxed mb-10">
                 {store?.description || (lang === 'tr' ? 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.' : 'We offer you the highest quality products at the most affordable prices. Customer satisfaction is always our priority.')}
               </p>
               
-              <div className="flex items-center gap-3">
-                {store?.instagram_url && (
-                  <a 
-                    href={store.instagram_url.startsWith('http') ? store.instagram_url : `https://instagram.com/${store.instagram_url}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-pink-600 hover:border-pink-100 hover:bg-pink-50 transition-all group"
-                  >
-                    <Instagram className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </a>
-                )}
-                {store?.facebook_url && (
-                  <a 
-                    href={store.facebook_url.startsWith('http') ? store.facebook_url : `https://facebook.com/${store.facebook_url}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-100 hover:bg-blue-50 transition-all group"
-                  >
-                    <Facebook className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </a>
-                )}
-                {store?.twitter_url && (
-                  <a 
-                    href={store.twitter_url.startsWith('http') ? store.twitter_url : `https://twitter.com/${store.twitter_url}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-sky-500 hover:border-sky-100 hover:bg-sky-50 transition-all group"
-                  >
-                    <Twitter className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </a>
-                )}
-                {store?.whatsapp_number && (
-                  <a 
-                    href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9]/g, '')}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-100 hover:bg-green-50 transition-all group"
-                  >
-                    <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </a>
-                )}
+              <div className="flex items-center gap-4">
+                {[
+                  { id: 'instagram_url', icon: Instagram, color: 'hover:text-pink-500', bg: 'hover:bg-pink-500/10' },
+                  { id: 'facebook_url', icon: Facebook, color: 'hover:text-blue-500', bg: 'hover:bg-blue-500/10' },
+                  { id: 'twitter_url', icon: Twitter, color: 'hover:text-sky-400', bg: 'hover:bg-sky-400/10' },
+                  { id: 'whatsapp_number', icon: MessageCircle, color: 'hover:text-green-500', bg: 'hover:bg-green-500/10' }
+                ].map((social) => {
+                  const url = store?.[social.id as keyof StoreInfo];
+                  if (!url) return null;
+                  
+                  let href = String(url);
+                  if (social.id === 'whatsapp_number') {
+                    href = `https://wa.me/${href.replace(/[^0-9]/g, '')}`;
+                  } else if (!href.startsWith('http')) {
+                    const base = social.id.split('_')[0];
+                    href = `https://${base}.com/${href}`;
+                  }
+
+                  return (
+                    <a 
+                      key={social.id}
+                      href={href}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className={`w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 transition-all duration-500 ${social.color} ${social.bg} hover:border-current hover:scale-110`}
+                    >
+                      <social.icon className="w-6 h-6" />
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
             <div>
-              <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 mb-4">{lang === 'tr' ? 'Hızlı Menü' : 'Quick Menu'}</h4>
-              <ul className="space-y-2">
+              <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'HIZLI ERİŞİM' : 'QUICK LINKS'}</h4>
+              <ul className="space-y-4">
                 {(store?.menu_links || []).map((link: any, index: number) => (
                   <li key={index}>
-                    <a href={link.url} className="text-gray-500 hover:text-gray-900 text-sm font-medium transition-colors" style={{ '--tw-text-opacity': 1, ':hover': { color: primaryColor } } as any}>{link.label}</a>
+                    <a href={link.url} className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                      {link.label}
+                    </a>
                   </li>
                 ))}
                 {(!store?.menu_links || store.menu_links.length === 0) && (
-                  <li><span className="text-gray-400 text-sm">{lang === 'tr' ? 'Menü bulunamadı.' : 'No menu links.'}</span></li>
+                  <li><span className="text-gray-600 text-sm font-medium">{lang === 'tr' ? 'Menü bulunamadı.' : 'No menu links.'}</span></li>
                 )}
               </ul>
             </div>
 
             <div>
-              <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 mb-4">İletişim</h4>
-              <ul className="space-y-2">
-                {(store?.emails && store.emails.filter(e => e && e.trim() !== '').length > 0) ? (
-                  store.emails.filter(e => e && e.trim() !== '').map((e, idx) => (
-                    <li key={`email-${idx}`} className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-                      <Mail className="w-4 h-4 text-gray-400" />
+              <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'İLETİŞİM' : 'CONTACT US'}</h4>
+              <ul className="space-y-6">
+                {(store?.emails && store.emails.some(e => e?.trim())) ? (
+                  store.emails.filter(e => e?.trim()).map((e, idx) => (
+                    <li key={`email-${idx}`} className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
+                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-all">
+                        <Mail className="w-4 h-4" />
+                      </div>
                       {e}
                     </li>
                   ))
                 ) : (
-                  <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-                    <Mail className="w-4 h-4 text-gray-400" />
+                  <li className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-all">
+                      <Mail className="w-4 h-4" />
+                    </div>
                     {store?.email || 'destek@lookprice.net'}
                   </li>
                 )}
                 
-                {(store?.phones && store.phones.filter(p => p && p.trim() !== '').length > 0) ? (
-                  store.phones.filter(p => p && p.trim() !== '').map((p, idx) => (
-                    <li key={`phone-${idx}`} className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-                      <Phone className="w-4 h-4 text-gray-400" />
+                {(store?.phones && store.phones.some(p => p?.trim())) ? (
+                  store.phones.filter(p => p?.trim()).map((p, idx) => (
+                    <li key={`phone-${idx}`} className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
+                       <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-green-600/10 group-hover:text-green-500 transition-all">
+                        <Phone className="w-4 h-4" />
+                      </div>
                       {p}
                     </li>
                   ))
                 ) : (
-                  <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-                    <Phone className="w-4 h-4 text-gray-400" />
+                  <li className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
+                     <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-green-600/10 group-hover:text-green-500 transition-all">
+                        <Phone className="w-4 h-4" />
+                      </div>
                     {store?.phone || '+90 212 000 00 00'}
                   </li>
                 )}
@@ -2513,145 +2444,35 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             </div>
           </div>
 
-          {/* Social Proof / Experience Section */}
-          {layoutSettings.show_testimonials && (
-          <section className="bg-slate-50 -mx-4 md:-mx-8 px-4 md:px-8 py-20 mt-20 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl -mr-48 -mt-48"></div>
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl -ml-48 -mb-48"></div>
-            
-            <div className="max-w-7xl mx-auto relative z-10">
-              <div className="text-center max-w-2xl mx-auto mb-16">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-600 mb-4">
-                  {lang === 'tr' ? 'DENEYİM' : 'EXPERIENCE'}
-                </h3>
-                <h2 className="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tighter mb-6">
-                  {lang === 'tr' ? 'Müşterilerimiz Neler Diyor?' : 'What Our Customers Say'}
-                </h2>
-                <div className="flex items-center justify-center gap-1">
-                   {[1,2,3,4,5].map(s => <Star key={s} className="w-5 h-5 fill-yellow-400 text-yellow-400" />)}
-                   <span className="ml-2 text-sm font-bold text-gray-500">4.9/5 Ortalama Puan</span>
+          {/* Bottom Footer */}
+          <div className="pt-12 border-t border-white/5">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="flex flex-wrap items-center justify-center gap-8 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
+                <div className="flex items-center gap-6">
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest underline underline-offset-8 decoration-blue-600">Secure Payments</span>
+                  <div className="flex items-center gap-4">
+                    <CreditCard className="w-5 h-5 text-white" />
+                    <ShieldCheck className="w-5 h-5 text-white" />
+                    <Globe className="w-5 h-5 text-white" />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                  {
-                    name: "Ahmet Yılmaz",
-                    role: lang === 'tr' ? "Sadık Müşteri" : "Loyal Customer",
-                    text: lang === 'tr' ? "Ürün kalitesi ve teslimat hızı gerçekten şaşırtıcı. İlk defa alışveriş yaptım ama son olmayacak." : "Product quality and delivery speed are amazing. My first purchase, but definitely not my last.",
-                    avatar: "https://i.pravatar.cc/150?u=a"
-                  },
-                  {
-                    name: "Selena Kaya",
-                    role: lang === 'tr' ? "Ürün İncelemeci" : "Product Reviewer",
-                    text: lang === 'tr' ? "Sitenin tasarımı çok temiz ve ürünlere ulaşmak çok kolay. QR kod ile fiyat kontrolü harika bir özellik." : "The site design is very clean and products are easy to find. Real-time price checking is a great feature.",
-                    avatar: "https://i.pravatar.cc/150?u=s"
-                  },
-                  {
-                    name: "Can Demir",
-                    role: lang === 'tr' ? "Kurumsal Müşteri" : "Corporate Customer",
-                    text: lang === 'tr' ? "Destek ekibi çok ilgiliydi. Her soruma anında yanıt aldım. Teşekkürler!" : "The support team was very helpful. I received instant answers to all my questions. Thanks!",
-                    avatar: "https://i.pravatar.cc/150?u=c"
-                  }
-                ].map((t, i) => (
-                  <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    viewport={{ once: true }}
-                    className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-500"
-                  >
-                    <div className="flex items-center gap-4 mb-6">
-                      <img src={t.avatar} alt={t.name} className="w-12 h-12 rounded-full ring-2 ring-blue-50" />
-                      <div>
-                        <h4 className="font-bold text-gray-900">{t.name}</h4>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.role}</p>
-                      </div>
-                    </div>
-                    <p className="text-gray-500 font-medium leading-relaxed italic">"{t.text}"</p>
-                  </motion.div>
+              <p className="text-gray-600 font-bold text-[10px] uppercase tracking-widest">
+                © {new Date().getFullYear()} {store?.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
+              </p>
+
+              <div className="flex items-center gap-6">
+                {(store?.footer_links || []).map((page: any, index: number) => (
+                  <a key={index} href={page.url} className="text-gray-600 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors">{page.label}</a>
                 ))}
               </div>
             </div>
-          </section>
-          )}
-
-          {/* Newsletter Section */}
-          {layoutSettings.show_newsletter && (
-          <section className="max-w-7xl mx-auto px-4 md:px-8 pt-20">
-            <div className="bg-gray-900 rounded-[3rem] p-8 md:p-16 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-12 group">
-              <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-              
-              <div className="relative z-10 max-w-xl text-center md:text-left">
-                <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tighter mb-4 leading-tight">
-                  {lang === 'tr' ? 'Fırsatları Kaçırmayın' : 'Never Miss a Deal'}
-                </h2>
-                <p className="text-gray-400 font-medium text-lg">
-                  {lang === 'tr' ? 'Yeni ürünler ve özel indirimlerden ilk siz haberdar olun.' : 'Be the first to know about new products and special discounts.'}
-                </p>
-              </div>
-
-              <div className="relative z-10 w-full max-w-md">
-                <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()}>
-                  <input 
-                    type="email" 
-                    placeholder={lang === 'tr' ? 'E-posta adresiniz' : 'Your email address'}
-                    className="flex-1 px-6 py-4 bg-white/10 border border-white/10 rounded-2xl text-white placeholder:text-gray-500 font-bold focus:bg-white/20 transition-all outline-none"
-                  />
-                  <button className="px-8 py-4 bg-white text-gray-900 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95 whitespace-nowrap">
-                    {lang === 'tr' ? 'ABONE OL' : 'SUBSCRIBE'}
-                  </button>
-                </form>
-                <p className="text-[10px] text-gray-500 mt-4 text-center md:text-left font-medium">
-                  {lang === 'tr' ? '* Kişisel verileriniz KVKK kapsamında korunmaktadır.' : '* Your personal data is protected under data privacy laws.'}
-                </p>
-              </div>
-            </div>
-          </section>
-          )}
-
-          <div className="pt-8 border-t border-gray-100 mb-8">
-            <div className="flex flex-wrap items-center justify-between gap-6 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-              <div className="flex items-center gap-8 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase">{lang === 'tr' ? 'ÖDEME YÖNTEMLERİ' : 'PAYMENT METHODS'}</div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-gray-900 text-sm">PayPal</span>
-                    <span className="font-bold text-gray-900 text-sm">Payoneer</span>
-                    <span className="font-bold text-gray-900 text-sm">iyzico</span>
-                    <span className="font-bold text-gray-900 text-sm">Visa</span>
-                    <span className="font-bold text-gray-900 text-sm">Mastercard</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase">{lang === 'tr' ? 'GÜVENLİK' : 'SECURITY'}</div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 font-bold text-gray-900 text-sm">
-                    <Shield className="w-3.5 h-3.5" />
-                    SSL Secure
-                  </div>
-                  <div className="flex items-center gap-1 font-bold text-gray-900 text-sm">
-                    <Globe className="w-3.5 h-3.5" />
-                    Cloudflare
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-gray-400 font-medium text-xs">
-              © {new Date().getFullYear()} {store?.name}. Tüm hakları saklıdır.
-            </p>
-            <div className="flex flex-wrap items-center gap-4 md:gap-6">
-              {(store?.footer_links || []).map((page: any, index: number) => (
-                <a key={index} href={page.url} className="text-gray-400 hover:text-gray-900 text-xs font-medium transition-colors">{page.label}</a>
-              ))}
-            </div>
           </div>
         </div>
+        
+        {/* Abstract Background Element */}
+        <div className="absolute -bottom-48 -left-48 w-96 h-96 bg-blue-600/5 rounded-full blur-[120px]" />
       </footer>
 
       {/* Floating Basket Summary (Mobile) */}

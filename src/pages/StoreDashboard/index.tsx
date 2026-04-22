@@ -56,7 +56,8 @@ import {
   Loader2,
   Truck,
   Wrench,
-  Building2
+  Building2,
+  Facebook
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -88,6 +89,7 @@ const ProcurementTab = React.lazy(() => import("./ProcurementTab").then(m => ({ 
 const ServiceTab = React.lazy(() => import("./ServiceTab").then(m => ({ default: m.ServiceTab })));
 const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
 const FleetTab = React.lazy(() => import("./FleetTab"));
+const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
 import ShippingSlip from "../../components/ShippingSlip";
 
 interface StoreDashboardProps {
@@ -760,6 +762,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
     { id: "fast-pos", label: t.fastPos, icon: Scan },
     { id: "audit-logs", label: t.auditLogs, icon: History },
+    { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
   console.log("navItems:", navItems);
@@ -1160,6 +1163,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <AuditLogTab 
                           storeId={currentStoreId} 
                         />
+                      </Suspense>
+                    )}
+                    {activeTab === "meta" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <MetaIntegrationTab />
                       </Suspense>
                     )}
                     {activeTab === "settings" && (
