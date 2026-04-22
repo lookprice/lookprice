@@ -1,29 +1,50 @@
 
-const getCfConfig = (manualToken?: string, manualAccount?: string) => {
-  const token = manualToken || 
+const getCfConfig = (manualToken?: string, manualAccount?: string, manualEmail?: string) => {
+  const token = (manualToken || 
                 process.env.CLOUDFLARE_API_TOKEN || 
                 process.env.VITE_CLOUDFLARE_API_TOKEN || 
                 process.env.CF_API_TOKEN ||
-                process.env.CLOUDFLARE_TOKEN;
+                process.env.CLOUDFLARE_TOKEN || "").trim();
 
-  const accountId = manualAccount || 
+  const accountId = (manualAccount || 
                     process.env.CLOUDFLARE_ACCOUNT_ID || 
                     process.env.VITE_CLOUDFLARE_ACCOUNT_ID || 
                     process.env.CLOUDFLARE_ACC ||
-                    process.env.CF_ACCOUNT_ID;
+                    process.env.CF_ACCOUNT_ID || "").trim();
+
+  const email = (manualEmail || 
+                 process.env.CLOUDFLARE_EMAIL || 
+                 process.env.CF_EMAIL || "").trim();
   
   console.log("getCfConfig Debug:", {
     hasManualToken: !!manualToken,
     hasManualAccount: !!manualAccount,
+    hasManualEmail: !!manualEmail,
     envTokenFound: !!process.env.CLOUDFLARE_API_TOKEN,
     envAccountFound: !!process.env.CLOUDFLARE_ACCOUNT_ID,
+    envEmailFound: !!process.env.CLOUDFLARE_EMAIL,
     envKeys: Object.keys(process.env).filter(k => k.includes('CLOUD') || k.includes('CF'))
   });
 
   if (!token || !accountId) {
-    throw new Error(`Cloudflare configuration missing. Please ensure you have entered API Token and Account ID in the form above.`);
+    throw new Error(`Cloudflare configuration missing. Please ensure you have entered API Token/Key and Account ID.`);
   }
-  return { token, accountId };
+
+  // Determine headers based on authentication type
+  // API Tokens are typically 40 chars, Global Keys are 32 chars.
+  // If email is provided, we use the legacy Global Key headers.
+  const headers: any = {
+    "Content-Type": "application/json"
+  };
+
+  if (email) {
+    headers["X-Auth-Email"] = email;
+    headers["X-Auth-Key"] = token;
+  } else {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return { token, accountId, email, headers };
 };
 
 async function fetchWithTimeout(url: string, options: any = {}, timeout = 30000) {
@@ -41,17 +62,14 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 30000)
 }
 
 export const cloudflareService = {
-  async createZone(domain: string, manualToken?: string, manualAccount?: string) {
-    const { token, accountId } = getCfConfig(manualToken, manualAccount);
+  async createZone(domain: string, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { accountId, headers } = getCfConfig(manualToken, manualAccount, manualEmail);
 
     console.log(`Creating Cloudflare Zone for: ${domain}`);
     const url = `https://api.cloudflare.com/client/v4/zones`;
     const response = await fetchWithTimeout(url, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         account: { id: accountId },
         name: domain,
@@ -64,7 +82,7 @@ export const cloudflareService = {
       // If the zone already exists in this account, we can fetch it
       if (data.errors?.[0]?.code === 1061) {
         console.log(`Zone ${domain} already exists, fetching it...`);
-        return this.getZoneByName(domain, manualToken, manualAccount);
+        return this.getZoneByName(domain, manualToken, manualAccount, manualEmail);
       }
       console.error("Cloudflare API Error (Create Zone):", data);
       throw new Error(`Failed to create zone: ${data.errors?.[0]?.message || JSON.stringify(data.errors)}`);
@@ -73,15 +91,12 @@ export const cloudflareService = {
     return data.result; // Contains id and name_servers
   },
 
-  async getZoneByName(domain: string, manualToken?: string, manualAccount?: string) {
-    const { token } = getCfConfig(manualToken, manualAccount);
+  async getZoneByName(domain: string, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { headers } = getCfConfig(manualToken, manualAccount, manualEmail);
     const url = `https://api.cloudflare.com/client/v4/zones?name=${domain}`;
     const response = await fetchWithTimeout(url, {
       method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
     const data: any = await response.json();
     if (!response.ok || !data.result || data.result.length === 0) {
@@ -90,15 +105,12 @@ export const cloudflareService = {
     return data.result[0];
   },
 
-  async getDnsRecords(zoneId: string, manualToken?: string, manualAccount?: string) {
-    const { token } = getCfConfig(manualToken, manualAccount);
+  async getDnsRecords(zoneId: string, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { headers } = getCfConfig(manualToken, manualAccount, manualEmail);
     const url = `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`;
     const response = await fetchWithTimeout(url, {
       method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers
     });
     const data: any = await response.json();
     if (!response.ok) {
@@ -107,15 +119,12 @@ export const cloudflareService = {
     return data.result;
   },
 
-  async updateDnsRecord(zoneId: string, recordId: string, type: string, name: string, content: string, proxied: boolean, manualToken?: string, manualAccount?: string) {
-    const { token } = getCfConfig(manualToken, manualAccount);
+  async updateDnsRecord(zoneId: string, recordId: string, type: string, name: string, content: string, proxied: boolean, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { headers } = getCfConfig(manualToken, manualAccount, manualEmail);
     const url = `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${recordId}`;
     const response = await fetchWithTimeout(url, {
       method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         type,
         name,
@@ -131,8 +140,8 @@ export const cloudflareService = {
     return data.result;
   },
 
-  async ensureDnsRecord(zoneId: string, type: string, name: string, content: string, proxied: boolean, manualToken?: string, manualAccount?: string) {
-    const records = await this.getDnsRecords(zoneId, manualToken, manualAccount);
+  async ensureDnsRecord(zoneId: string, type: string, name: string, content: string, proxied: boolean, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const records = await this.getDnsRecords(zoneId, manualToken, manualAccount, manualEmail);
     
     // Normalize name for comparison (Cloudflare returns fully qualified names)
     const searchName = name === "@" ? undefined : name; // We'll check both
@@ -146,25 +155,22 @@ export const cloudflareService = {
       // Check if it needs update
       if (existing.content !== content || existing.proxied !== proxied) {
         console.log(`Updating existing DNS record ${type} ${name} to match desired state.`);
-        return this.updateDnsRecord(zoneId, existing.id, type, name, content, proxied, manualToken, manualAccount);
+        return this.updateDnsRecord(zoneId, existing.id, type, name, content, proxied, manualToken, manualAccount, manualEmail);
       }
       console.log(`DNS record ${type} ${name} is already correct.`);
       return existing;
     }
 
     // Create new
-    return this.addDnsRecord(zoneId, type, name, content, proxied, manualToken, manualAccount);
+    return this.addDnsRecord(zoneId, type, name, content, proxied, manualToken, manualAccount, manualEmail);
   },
 
-  async addDnsRecord(zoneId: string, type: string, name: string, content: string, proxied: boolean, manualToken?: string, manualAccount?: string) {
-    const { token } = getCfConfig(manualToken, manualAccount);
+  async addDnsRecord(zoneId: string, type: string, name: string, content: string, proxied: boolean, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { headers } = getCfConfig(manualToken, manualAccount, manualEmail);
     const url = `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`;
     const response = await fetchWithTimeout(url, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         type,
         name,
@@ -189,15 +195,12 @@ export const cloudflareService = {
     return data.result;
   },
 
-  async getZoneStatus(zoneId: string, manualToken?: string, manualAccount?: string) {
-    const { token } = getCfConfig(manualToken, manualAccount);
+  async getZoneStatus(zoneId: string, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { headers } = getCfConfig(manualToken, manualAccount, manualEmail);
     const url = `https://api.cloudflare.com/client/v4/zones/${zoneId}`;
     const response = await fetchWithTimeout(url, {
       method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
     const data: any = await response.json();
     if (!response.ok) {
@@ -206,8 +209,8 @@ export const cloudflareService = {
     return data.result;
   },
 
-  async setupOriginRules(zoneId: string, originHost: string, manualToken?: string, manualAccount?: string) {
-    const { token } = getCfConfig(manualToken, manualAccount);
+  async setupOriginRules(zoneId: string, originHost: string, manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { headers } = getCfConfig(manualToken, manualAccount, manualEmail);
 
     console.log(`Setting up Origin Rules for zone ${zoneId} to origin ${originHost}`);
 
@@ -215,10 +218,7 @@ export const cloudflareService = {
     const originRuleUrl = `https://api.cloudflare.com/client/v4/zones/${zoneId}/rulesets/phases/http_request_origin/entrypoint`;
     const originRuleResponse = await fetchWithTimeout(originRuleUrl, {
       method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         rules: [
           {
@@ -243,10 +243,7 @@ export const cloudflareService = {
     const transformRuleUrl = `https://api.cloudflare.com/client/v4/zones/${zoneId}/rulesets/phases/http_request_late_transform/entrypoint`;
     const transformRuleResponse = await fetchWithTimeout(transformRuleUrl, {
       method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         rules: [
           {
@@ -274,17 +271,14 @@ export const cloudflareService = {
     return { originData, transformData };
   },
 
-  async setZoneSslMode(zoneId: string, mode: "off" | "flexible" | "full" | "strict", manualToken?: string, manualAccount?: string) {
-    const { token } = getCfConfig(manualToken, manualAccount);
+  async setZoneSslMode(zoneId: string, mode: "off" | "flexible" | "full" | "strict", manualToken?: string, manualAccount?: string, manualEmail?: string) {
+    const { headers } = getCfConfig(manualToken, manualAccount, manualEmail);
 
     console.log(`Setting SSL mode to ${mode} for zone ${zoneId}`);
     const url = `https://api.cloudflare.com/client/v4/zones/${zoneId}/settings/ssl`;
     const response = await fetchWithTimeout(url, {
       method: "PATCH",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ value: mode }),
     });
 

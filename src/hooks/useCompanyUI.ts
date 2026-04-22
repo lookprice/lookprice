@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const useCompanyUI = (branding: any) => {
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -17,6 +17,22 @@ export const useCompanyUI = (branding: any) => {
   const [newTransactionCurrency, setNewTransactionCurrency] = useState(branding?.default_currency || 'TRY');
   const [newTransactionExchangeRate, setNewTransactionExchangeRate] = useState('1');
   const [selectedCurrency, setSelectedCurrency] = useState(branding?.default_currency || 'TRY');
+
+  // Hareketler butonu tıklandığında para birimini otomatik seç
+  useEffect(() => {
+    if (showTransactionModal && selectedCompany) {
+      const balances = selectedCompany.balances || {};
+      const currenciesWithBalance = Object.entries(balances)
+        .filter(([_, bal]) => Number(bal) !== 0)
+        .map(([curr]) => curr);
+      
+      if (currenciesWithBalance.length > 0) {
+        setSelectedCurrency(currenciesWithBalance[0]);
+      } else {
+        setSelectedCurrency(branding?.default_currency || 'TRY');
+      }
+    }
+  }, [showTransactionModal, selectedCompany]);
 
   return {
     showCompanyModal, setShowCompanyModal,

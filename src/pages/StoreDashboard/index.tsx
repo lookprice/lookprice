@@ -69,7 +69,7 @@ import { useQuotations } from "../../hooks/useQuotations";
 import { useSales } from "../../hooks/useSales";
 import { useCompanies } from "../../hooks/useCompanies";
 import { api } from "../../services/api";
-import { User, Product, Store as StoreType } from "../../types";
+import { User, Product, Store as StoreType, Quotation } from "../../types";
 import Logo from "../../components/Logo";
 import * as XLSX from 'xlsx';
 import ErrorBoundary from "../../components/ErrorBoundary";
@@ -702,11 +702,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const handleFetchPurchaseInvoiceDetails = async (id: number) => {
     try {
-      const res = await api.get(`/api/store/purchase-invoices/${id}${currentStoreId ? `?storeId=${currentStoreId}` : ''}`);
+      const res = await api.getPurchaseInvoice(id, currentStoreId);
       setSelectedPurchaseInvoice(res);
       setShowPurchaseInvoiceDetailsModal(true);
     } catch (error) {
       console.error("Fetch purchase invoice details error:", error);
+    }
+  };
+
+  const handleFetchSalesInvoiceDetails = async (id: number) => {
+    try {
+      const res = await api.getSalesInvoice(id, currentStoreId);
+      setSelectedSale(res);
+      setShowSaleDetailsModal(true);
+    } catch (error) {
+      console.error("Fetch sales invoice details error:", error);
     }
   };
 
@@ -2198,9 +2208,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                                             )}
                                             {tx.sales_invoice_id && (
                                               <button 
-                                                onClick={() => {
-                                                }}
-                                                className="text-[9px] text-blue-600 font-bold uppercase tracking-widest"
+                                                onClick={() => handleFetchSalesInvoiceDetails(tx.sales_invoice_id)}
+                                                className="text-[9px] text-blue-600 font-bold uppercase tracking-widest hover:underline"
                                               >
                                                 #{tx.sales_invoice_number || tx.sales_invoice_id} {lang === 'tr' ? 'SATIŞ FATURASI' : 'SALES INVOICE'}
                                               </button>
@@ -2724,33 +2733,34 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'KATEGORİ' : 'CATEGORY'}
                         </label>
                         <input 
+                          list="existing-categories"
                           name="category" 
                           defaultValue={editingProduct?.category} 
-                          onChange={(e) => {
-                            const val = e.target.value.trim().toLocaleLowerCase('tr-TR');
-                            const matchedRule = branding?.category_tax_rules?.find((r: any) => r.category.trim().toLocaleLowerCase('tr-TR') === val);
-                            if (matchedRule) {
-                              const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
-                              if (taxInput) taxInput.value = String(matchedRule.taxRate);
-                            } else if (val === 'kitap') {
-                              const taxInput = e.target.closest('form')?.querySelector('input[name="tax_rate"]') as HTMLInputElement;
-                              if (taxInput) taxInput.value = '0';
-                            }
-                          }}
-                          placeholder={lang === 'tr' ? 'Örn: Ofis' : 'e.g. Office'}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                          placeholder={lang === 'tr' ? 'Seç veya Yaz...' : 'Select or Type...'}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-sm" 
                         />
+                        <datalist id="existing-categories">
+                          {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
+                            <option key={cat} value={cat} />
+                          ))}
+                        </datalist>
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
                           <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ALT KATEGORİ' : 'SUB-CATEGORY'}
                         </label>
                         <input 
+                          list="existing-sub-categories"
                           name="sub_category" 
-                          defaultValue={editingProduct?.sub_category} 
-                          placeholder={lang === 'tr' ? 'Örn: Dosyalama' : 'e.g. Filing'}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
+                          defaultValue={editingProduct?.sub_category}
+                          placeholder={lang === 'tr' ? 'Seç veya Yaz...' : 'Select or Type...'}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-sm" 
                         />
+                        <datalist id="existing-sub-categories">
+                          {Array.from(new Set(products.map(p => p.sub_category).filter(Boolean))).map(sub => (
+                            <option key={sub} value={sub} />
+                          ))}
+                        </datalist>
                       </div>
                     </div>
 

@@ -935,130 +935,132 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-6 rounded-2xl max-w-3xl w-full relative my-4"
+            className="bg-white p-6 rounded-2xl max-w-3xl w-full relative my-4 max-h-[90vh] overflow-y-auto flex flex-col"
           >
-            <button onClick={() => setShowAdd(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
-            <h2 className="text-xl font-bold mb-5">{st.registerNewStore}</h2>
-            <form onSubmit={handleAddStore} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.storeInformation}</h3>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.storeName}</label>
-                  <input required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} placeholder="e.g. Migros" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.slugIdentifier}</label>
-                  <input required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.slug} onChange={e => setNewStore({...newStore, slug: e.target.value})} placeholder="e.g. migros" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.address}</label>
-                  <textarea className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" rows={2} value={newStore.address} onChange={e => setNewStore({...newStore, address: e.target.value})} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setShowAdd(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"><X className="h-5 w-5" /></button>
+            <h2 className="text-xl font-bold mb-5 sticky top-0 bg-white z-0">{st.registerNewStore}</h2>
+            <form onSubmit={handleAddStore} className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.storeInformation}</h3>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700">{st.authorizedPerson}</label>
-                    <input className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.contact_person} onChange={e => setNewStore({...newStore, contact_person: e.target.value})} />
+                    <label className="block text-xs font-medium text-gray-700">{st.storeName}</label>
+                    <input required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} placeholder="e.g. Migros" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700">{st.country}</label>
+                    <label className="block text-xs font-medium text-gray-700">{st.slugIdentifier}</label>
+                    <input required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.slug} onChange={e => setNewStore({...newStore, slug: e.target.value})} placeholder="e.g. migros" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.address}</label>
+                    <textarea className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" rows={2} value={newStore.address} onChange={e => setNewStore({...newStore, address: e.target.value})} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">{st.authorizedPerson}</label>
+                      <input className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.contact_person} onChange={e => setNewStore({...newStore, contact_person: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">{st.country}</label>
+                      <select 
+                        className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={newStore.country} 
+                        onChange={e => {
+                          const country = DEVELOPED_COUNTRIES.find(c => c.code === e.target.value);
+                          setNewStore({
+                            ...newStore, 
+                            country: e.target.value,
+                            phone: country ? country.dialCode + " " : newStore.phone
+                          });
+                        }}
+                      >
+                        {DEVELOPED_COUNTRIES.map(c => (
+                          <option key={c.code} value={c.code}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.phone}</label>
+                    <input className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.phone} onChange={e => setNewStore({...newStore, phone: e.target.value})} placeholder="+90 5XX XXX XX XX" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.email}</label>
+                    <input type="email" className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.email} onChange={e => setNewStore({...newStore, email: e.target.value})} />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.adminAccount}</h3>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.adminLoginEmail}</label>
+                    <input type="email" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.admin_email} onChange={e => setNewStore({...newStore, admin_email: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.adminPassword}</label>
+                    <input type="password" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.admin_password} onChange={e => setNewStore({...newStore, admin_password: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.subscriptionEndDate}</label>
+                    <input type="date" required className="mt-1 block w-[16ch] p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.subscription_end} onChange={e => setNewStore({...newStore, subscription_end: e.target.value})} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">{st.plan || 'Plan'}</label>
+                      <select 
+                        className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={newStore.plan} 
+                        onChange={e => setNewStore({...newStore, plan: e.target.value as any})}
+                      >
+                        <option value="free">Free (50)</option>
+                        <option value="basic">Basic (100)</option>
+                        <option value="pro">Pro (500)</option>
+                        <option value="enterprise">Enterprise (Unlimited)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">{st.currency}</label>
+                      <select 
+                        className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={newStore.default_currency} 
+                        onChange={e => setNewStore({...newStore, default_currency: e.target.value})}
+                      >
+                        <option value="TRY">TRY</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">{st.language}</label>
                     <select 
                       className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-                      value={newStore.country} 
-                      onChange={e => {
-                        const country = DEVELOPED_COUNTRIES.find(c => c.code === e.target.value);
-                        setNewStore({
-                          ...newStore, 
-                          country: e.target.value,
-                          phone: country ? country.dialCode + " " : newStore.phone
-                        });
-                      }}
+                      value={newStore.language} 
+                      onChange={e => setNewStore({...newStore, language: e.target.value})}
                     >
-                      {DEVELOPED_COUNTRIES.map(c => (
-                        <option key={c.code} value={c.code}>{c.name}</option>
+                      <option value="tr">Turkish</option>
+                      <option value="en">English</option>
+                      <option value="de">German</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">Üst Mağaza (Şube ise)</label>
+                    <select 
+                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                      value={newStore.parent_id} 
+                      onChange={e => setNewStore({...newStore, parent_id: e.target.value})}
+                    >
+                      <option value="">Bağımsız Mağaza</option>
+                      {stores.filter(s => !s.parent_id).map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.phone}</label>
-                  <input className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.phone} onChange={e => setNewStore({...newStore, phone: e.target.value})} placeholder="+90 5XX XXX XX XX" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.email}</label>
-                  <input type="email" className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.email} onChange={e => setNewStore({...newStore, email: e.target.value})} />
-                </div>
               </div>
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.adminAccount}</h3>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.adminLoginEmail}</label>
-                  <input type="email" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.admin_email} onChange={e => setNewStore({...newStore, admin_email: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.adminPassword}</label>
-                  <input type="password" required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.admin_password} onChange={e => setNewStore({...newStore, admin_password: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.subscriptionEndDate}</label>
-                  <input type="date" required className="mt-1 block w-[16ch] p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.subscription_end} onChange={e => setNewStore({...newStore, subscription_end: e.target.value})} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700">{st.plan || 'Plan'}</label>
-                    <select 
-                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-                      value={newStore.plan} 
-                      onChange={e => setNewStore({...newStore, plan: e.target.value as any})}
-                    >
-                      <option value="free">Free (50)</option>
-                      <option value="basic">Basic (100)</option>
-                      <option value="pro">Pro (500)</option>
-                      <option value="enterprise">Enterprise (Unlimited)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700">{st.currency}</label>
-                    <select 
-                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-                      value={newStore.default_currency} 
-                      onChange={e => setNewStore({...newStore, default_currency: e.target.value})}
-                    >
-                      <option value="TRY">TRY</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">{st.language}</label>
-                  <select 
-                    className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-                    value={newStore.language} 
-                    onChange={e => setNewStore({...newStore, language: e.target.value})}
-                  >
-                    <option value="tr">Turkish</option>
-                    <option value="en">English</option>
-                    <option value="de">German</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">Üst Mağaza (Şube ise)</label>
-                  <select 
-                    className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-                    value={newStore.parent_id} 
-                    onChange={e => setNewStore({...newStore, parent_id: e.target.value})}
-                  >
-                    <option value="">Bağımsız Mağaza</option>
-                    {stores.filter(s => !s.parent_id).map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex justify-end space-x-2 pt-6">
-                  <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-gray-500 font-medium text-sm">{st.cancel}</button>
-                  <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-sm text-sm">{st.register}</button>
-                </div>
+              <div className="sticky bottom-0 bg-white pt-6 pb-2 flex justify-end space-x-2">
+                <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-gray-500 font-medium text-sm">{st.cancel}</button>
+                <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-sm text-sm">{st.register}</button>
               </div>
             </form>
           </motion.div>

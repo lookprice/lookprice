@@ -56,6 +56,12 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       return;
     }
 
+    const isDuplicate = products.some(p => p.barcode === barcode && p.id !== editingProduct?.id);
+    if (isDuplicate) {
+      toast.error(lang === 'tr' ? "Bu barkod numarasına sahip başka bir ürün zaten var!" : "Another product with this barcode already exists!");
+      return;
+    }
+
     const savePromise = (async () => {
       let res;
       if (editingProduct) {

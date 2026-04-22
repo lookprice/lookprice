@@ -109,13 +109,40 @@ const SettingsTab = ({
   const [showManualCf, setShowManualCf] = React.useState(false);
   const [manualCfToken, setManualCfToken] = React.useState("");
   const [manualCfAccount, setManualCfAccount] = React.useState("");
+  const [manualCfEmail, setManualCfEmail] = React.useState("");
   const [loadingCf, setLoadingCf] = React.useState(false);
 
-  const [activeSubTab, setActiveSubTab] = React.useState<'web' | 'e-stores' | 'currency' | 'tax' | 'pos' | 'domain' | 'menu' | 'layout' | 'shipping' | 'bulk-price'>(() => {
-    const stored = localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) as any;
-    if (stored === 'layout' || stored === 'menu') return 'web';
-    return stored || 'web';
-  });
+  const [emails, setEmails] = React.useState<string[]>((branding.emails && branding.emails.length > 0) ? branding.emails : ['']);
+  const [phones, setPhones] = React.useState<string[]>((branding.phones && branding.phones.length > 0) ? branding.phones : ['']);
+  const [activeSubTab, setActiveSubTab] = React.useState<string>(localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) || 'web');
+  
+  const addEmail = () => setEmails([...emails, '']);
+  const removeEmail = (index: number) => setEmails(emails.filter((_, i) => i !== index));
+  const updateEmail = (index: number, value: string) => {
+    const newEmails = [...emails];
+    newEmails[index] = value;
+    setEmails(newEmails);
+  };
+
+  const addPhone = () => setPhones([...phones, '']);
+  const removePhone = (index: number) => setPhones(phones.filter((_, i) => i !== index));
+  const updatePhone = (index: number, value: string) => {
+    const newPhones = [...phones];
+    newPhones[index] = value;
+    setPhones(newPhones);
+  };
+
+  React.useEffect(() => {
+    onBrandingChange('emails', emails);
+    onBrandingChange('phones', phones);
+    // Sync singular fields for compatibility with Showcase footer
+    if (emails.length > 0 && emails[0]) {
+      onBrandingChange('email', emails[0]);
+    }
+    if (phones.length > 0 && phones[0]) {
+      onBrandingChange('phone', phones[0]);
+    }
+  }, [emails, phones]);
 
   React.useEffect(() => {
     localStorage.setItem(`settingsSubTab_${currentStoreId || 'admin'}`, activeSubTab);
@@ -347,7 +374,8 @@ const SettingsTab = ({
     try {
       const res = await api.addCustomDomain(branding.custom_domain, currentStoreId, {
         manualToken: manualCfToken || undefined,
-        manualAccount: manualCfAccount || undefined
+        manualAccount: manualCfAccount || undefined,
+        manualEmail: manualCfEmail || undefined
       });
       if (res.error) {
         if (res.error.toLowerCase().includes("configuration missing")) {
@@ -361,6 +389,7 @@ const SettingsTab = ({
       }
       setManualCfToken("");
       setManualCfAccount("");
+      setManualCfEmail("");
       fetchCfStatus();
     } catch (error: any) {
       alert(error.message || (lang === 'tr' ? 'Hata oluştu' : 'Error occurred'));
@@ -594,6 +623,69 @@ const SettingsTab = ({
           animate={{ opacity: 1, y: 0 }}
           className="max-w-4xl mx-auto space-y-8"
         >
+          {/* Payment Method Settings */}
+          <div className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden relative bg-white border-slate-200`}>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight mb-6">
+                {lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Methods'}
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Cash on Delivery Toggle */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="font-bold text-sm text-slate-700">{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={!!branding.payment_settings?.cod_enabled}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, cod_enabled: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {/* Bank Transfer Toggle */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="font-bold text-sm text-slate-700">{lang === 'tr' ? 'Banka Transferi' : 'Bank Transfer'}</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={!!branding.payment_settings?.bank_transfer_enabled}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, bank_transfer_enabled: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Bank Details Input - Visible only if enabled */}
+              {branding.payment_settings?.bank_transfer_enabled && (
+                <div className="mt-6 space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                    {lang === 'tr' ? 'Banka Hesap Bilgileri (IBAN)' : 'Bank Account Details (IBAN)'}
+                  </label>
+                  <textarea
+                    value={branding.payment_settings?.bank_details || ''}
+                    onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, bank_details: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-indigo-500 transition-all outline-none"
+                    rows={3}
+                    placeholder={lang === 'tr' ? 'Banka adı, Hesap sahibi, IBAN bilgileri...' : 'Bank name, Account holder, IBAN details...'}
+                  />
+                </div>
+              )}
+              
+              <div className="flex justify-end pt-6">
+                <button
+                    onClick={onSaveBranding}
+                    className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all flex items-center space-x-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{lang === 'tr' ? 'Ayarları Kaydet' : 'Save Settings'}</span>
+                  </button>
+              </div>
+            </div>
+
           {/* Iyzico Virtual POS Settings */}
           <div className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden relative ${branding.iyzico_enabled ? 'bg-white border-indigo-200 shadow-xl shadow-indigo-100/50' : 'bg-slate-50 border-slate-200 opacity-80 hover:opacity-100'}`}>
             {branding.iyzico_enabled && (
@@ -1895,7 +1987,17 @@ const SettingsTab = ({
                             </div>
                             <div className="space-y-2">
                               <div className="space-y-1">
-                                <label className="text-[10px] font-medium text-indigo-700 ml-1">Cloudflare API Token</label>
+                                <label className="text-[10px] font-medium text-indigo-700 ml-1">Cloudflare Email (Required for Global API Key)</label>
+                                <input 
+                                  type="email"
+                                  placeholder="Örn: user@example.com"
+                                  value={manualCfEmail}
+                                  onChange={(e) => setManualCfEmail(e.target.value)}
+                                  className="w-full p-2.5 text-[11px] border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white mb-2"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-medium text-indigo-700 ml-1">Cloudflare API Token / Global Key</label>
                                 <input 
                                   type="password"
                                   placeholder="Örn: 1234567890abcdef..."
@@ -2035,6 +2137,99 @@ const SettingsTab = ({
           animate={{ opacity: 1, y: 0 }}
           className="max-w-4xl mx-auto space-y-8"
         >
+          {/* Showcase Sections Control Panel */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100 flex items-center justify-center">
+                <Palette className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Vitrin Bölümleri' : 'Showcase Sections'}</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Zenginleştirilmiş Mağaza Özellikleri' : 'Enriched Store Features'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { key: 'show_announcement', label: lang === 'tr' ? 'Duyuru Bandı (Marquee)' : 'Announcement Bar', icon: <RefreshCw className="w-4 h-4" />, desc: lang === 'tr' ? 'Üstte kayan kampanya metni' : 'Scrolling campaign text at the top' },
+                { key: 'show_stories', label: lang === 'tr' ? 'Kategori Hikayeleri' : 'Category Stories', icon: <ImageIcon className="w-4 h-4" />, desc: lang === 'tr' ? 'İnstagram tarzı yuvarlak ikonlar' : 'Instagram-style circular icons' },
+                { key: 'show_campaigns', label: lang === 'tr' ? 'Fırsat Bölümü' : 'Deals Section', icon: <ShoppingBag className="w-4 h-4" />, desc: lang === 'tr' ? 'Özel fiyatlı ürünleri öne çıkar' : 'Highlight special-priced items' },
+                { key: 'show_testimonials', label: lang === 'tr' ? 'Sosyal Kanıt (Yorumlar)' : 'Social Proof (Reviews)', icon: <User className="w-4 h-4" />, desc: lang === 'tr' ? 'Müşteri deneyimlerini sergile' : 'Showcase customer experiences' },
+                { key: 'show_newsletter', label: lang === 'tr' ? 'Haber Bülteni' : 'Newsletter', icon: <Mail className="w-4 h-4" />, desc: lang === 'tr' ? 'E-posta listesi toplayın' : 'Collect email subscribers' },
+                { key: 'enable_live_activity', label: lang === 'tr' ? 'Canlı Aktivite' : 'Live Activity', icon: <Smartphone className="w-4 h-4" />, desc: lang === 'tr' ? 'Satış bildirim baloncukları' : 'Recent purchase notifications' },
+              ].map((section) => (
+                <div key={section.key} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-white transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white rounded-xl text-slate-400 group-hover:text-indigo-600 shadow-sm border border-slate-100 flex items-center justify-center transition-colors">
+                      {section.icon}
+                    </div>
+                    <div>
+                      <label className="text-sm font-black text-slate-700 cursor-pointer block">{section.label}</label>
+                      <span className="text-[10px] text-slate-400 font-medium">{section.desc}</span>
+                    </div>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const currentLayout = branding.page_layout_settings || {
+                        show_announcement: true,
+                        show_stories: true,
+                        show_campaigns: true,
+                        show_testimonials: true,
+                        show_newsletter: true,
+                        enable_live_activity: true,
+                        theme_variety: 'modern'
+                      };
+                      onBrandingChange('page_layout_settings', { ...currentLayout, [section.key]: currentLayout[section.key as keyof typeof currentLayout] === false ? true : false });
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.page_layout_settings?.[section.key] !== false ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.page_layout_settings?.[section.key] !== false ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 p-6 bg-slate-900 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-700"></div>
+               <div className="relative z-10">
+                 <h4 className="text-xs font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+                   <Palette className="w-4 h-4 text-indigo-400" />
+                   {lang === 'tr' ? 'TASARIM KONSEPTİ' : 'DESIGN CONCEPT'}
+                 </h4>
+                 <div className="grid grid-cols-3 gap-4">
+                    {['modern', 'minimal', 'bold'].map((theme) => (
+                      <button
+                        key={theme}
+                        onClick={() => {
+                          const currentLayout = branding.page_layout_settings || {};
+                          onBrandingChange('page_layout_settings', { ...currentLayout, theme_variety: theme });
+                        }}
+                        className={`py-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${branding.page_layout_settings?.theme_variety === theme ? 'border-indigo-400 bg-indigo-500/10 text-white shadow-lg' : 'border-slate-800 bg-slate-800/50 text-slate-500 hover:border-slate-700'}`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${branding.page_layout_settings?.theme_variety === theme ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
+                           {theme === 'modern' && <RefreshCw className="w-5 h-5" />}
+                           {theme === 'minimal' && <Settings className="w-5 h-5" />}
+                           {theme === 'bold' && <Building2 className="w-5 h-5" />}
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{theme}</span>
+                      </button>
+                    ))}
+                 </div>
+               </div>
+            </div>
+            
+            <div className="flex justify-end pt-8">
+              <button
+                onClick={onSaveBranding}
+                className="px-10 py-5 bg-indigo-600 text-white rounded-2xl text-sm font-black uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all flex items-center space-x-3 shadow-2xl shadow-indigo-200 active:scale-95"
+              >
+                <Save className="w-5 h-5" />
+                <span>{lang === 'tr' ? 'GÜNCELLEMELERİ YAYINLA' : 'PUBLISH UPDATES'}</span>
+              </button>
+            </div>
+          </div>
+
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center space-x-3 mb-8">
               <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
@@ -2111,6 +2306,52 @@ const SettingsTab = ({
                   onChange={(e) => onBrandingChange('hero_image_url', e.target.value)}
                 />
               </div>
+              <div className="space-y-4 md:col-span-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İletişim Bilgileri' : 'Contact Information'}</label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* EMAILS */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-slate-400">{lang === 'tr' ? 'E-posta Adresleri' : 'Email Addresses'}</p>
+                    {emails.map((email, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => updateEmail(index, e.target.value)}
+                          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                          placeholder="email@example.com"
+                        />
+                        {emails.length > 1 && (
+                          <button onClick={() => removeEmail(index)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={addEmail} className="text-xs font-bold text-indigo-600 flex items-center gap-1">+ {lang === 'tr' ? 'E-posta Ekle' : 'Add Email'}</button>
+                  </div>
+                  
+                  {/* PHONES */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-slate-400">{lang === 'tr' ? 'Telefon Numaraları' : 'Phone Numbers'}</p>
+                    {phones.map((phone, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={phone}
+                          onChange={(e) => updatePhone(index, e.target.value)}
+                          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                          placeholder="+905XXXXXXXXX"
+                        />
+                        {phones.length > 1 && (
+                          <button onClick={() => removePhone(index)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={addPhone} className="text-xs font-bold text-indigo-600 flex items-center gap-1">+ {lang === 'tr' ? 'Telefon Ekle' : 'Add Phone'}</button>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.aboutText}</label>
                 <div className="relative">

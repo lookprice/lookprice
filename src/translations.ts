@@ -859,6 +859,7 @@ export const translations: Record<string, any> = {
       sources: {
         quotation: "Teklif",
         purchase_invoice: "Alış Faturası",
+        sales_invoice: "Satış Faturası",
         pos: "Satış (POS)",
         manual: "Manuel İşlem",
         sale_payment: "Satış Ödemesi",
@@ -1967,6 +1968,7 @@ export const translations: Record<string, any> = {
       sources: {
         quotation: "Quotation",
         purchase_invoice: "Purchase Invoice",
+        sales_invoice: "Sales Invoice",
         pos: "Sale (POS)",
         manual: "Manual Entry",
         sale_payment: "Sale Payment",
@@ -2993,6 +2995,7 @@ export const translations: Record<string, any> = {
       sources: {
         quotation: "Angebot",
         purchase_invoice: "Eingangsrechnung",
+        sales_invoice: "Verkaufsrechnung",
         pos: "Verkauf (POS)",
         manual: "Manueller Eintrag",
         sale_payment: "Verkaufszahlung",

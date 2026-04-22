@@ -221,23 +221,28 @@ router.get("/store/:slug", async (req, res) => {
   const { slug } = req.params;
   const storeRes = await pool.query(`
     SELECT 
-      id, name, logo_url, primary_color, default_currency, background_image_url,
-      hero_title, hero_subtitle, hero_image_url, about_text,
+      id, name, logo_url, favicon_url, primary_color, default_currency, background_image_url,
+      hero_title, hero_subtitle, hero_image_url, about_text, description,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, parent_id, payment_settings, shipping_profiles
+      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles
     FROM stores 
     WHERE slug = $1
   `, [slug]);
   let store = storeRes.rows[0];
 
   if (store) {
-    if (typeof store.shipping_profiles === 'string') {
-      try {
-        store.shipping_profiles = JSON.parse(store.shipping_profiles);
-      } catch (e) {
-        store.shipping_profiles = [];
+    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles'];
+    jsonFields.forEach(field => {
+      if (typeof store[field] === 'string') {
+        try {
+          store[field] = JSON.parse(store[field]);
+        } catch (e) {
+          store[field] = [];
+        }
+      } else if (!store[field]) {
+        store[field] = [];
       }
-    }
+    });
 
     // Sanitize payment_settings to only expose enabled flags and sandbox mode
     let ps = store.payment_settings || {};
@@ -254,7 +259,10 @@ router.get("/store/:slug", async (req, res) => {
       paypal_enabled: !!ps.paypal_enabled,
       paypal_sandbox: !!ps.paypal_sandbox,
       payoneer_enabled: !!ps.payoneer_enabled,
-      payoneer_sandbox: !!ps.payoneer_sandbox
+      payoneer_sandbox: !!ps.payoneer_sandbox,
+      bank_transfer_enabled: !!ps.bank_transfer_enabled,
+      bank_details: ps.bank_details || '',
+      cod_enabled: !!ps.cod_enabled
     };
   }
 

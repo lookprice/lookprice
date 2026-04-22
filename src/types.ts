@@ -39,6 +39,25 @@ export interface Product {
   updated_at: string;
 }
 
+export interface FAQEntry {
+  question: string;
+  answer: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  image_url?: string;
+  date: string;
+}
+
+export interface LegalPage {
+  title: string;
+  content: string;
+}
+
 export interface Store {
   id: number;
   name: string;
@@ -49,6 +68,8 @@ export interface Store {
   address: string;
   phone: string;
   email: string;
+  emails?: string[];
+  phones?: string[];
   custom_domain?: string;
   plan: 'free' | 'basic' | 'pro' | 'enterprise';
   hero_title?: string;
@@ -59,11 +80,32 @@ export interface Store {
   twitter_url?: string;
   whatsapp_number?: string;
   about_text?: string;
+  description?: string;
+  faq?: FAQEntry[];
+  blog_posts?: BlogPost[];
+  legal_pages?: {
+    kvkk?: LegalPage;
+    privacy?: LegalPage;
+    sales_agreement?: LegalPage;
+    pre_info?: LegalPage;
+  };
+  page_layout?: any[];
+  menu_links?: any[];
+  footer_links?: any[];
+  shipping_profiles?: any[];
+  default_currency?: string;
+  currency?: string;
   // Payment configuration
   payment_settings?: {
     iyzico_enabled: boolean;
     paypal_enabled: boolean;
     payoneer_enabled: boolean;
+    cod_enabled?: boolean;
+    bank_transfer_enabled?: boolean;
+    bank_details?: string;
+    iyzico_api_key?: string;
+    iyzico_secret_key?: string;
+    iyzico_sandbox?: boolean;
   };
   created_at: string;
 }
@@ -74,6 +116,7 @@ export interface Quotation {
   customer_title?: string;
   total_amount: number;
   currency: string;
+  exchange_rate?: number;
   status: 'pending' | 'approved' | 'sold' | 'cancelled';
   notes?: string;
   expiry_date?: string;

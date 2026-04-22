@@ -45,10 +45,18 @@ const CompaniesTab = ({
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
-  const filteredCompanies = companies.filter(c => 
-    c.title.toLocaleLowerCase('tr-TR').includes(deferredSearch.toLocaleLowerCase('tr-TR')) || 
-    c.tax_number?.includes(deferredSearch)
-  );
+  const filteredCompanies = companies.filter(c => {
+    const matchesSearch = c.title.toLocaleLowerCase('tr-TR').includes(deferredSearch.toLocaleLowerCase('tr-TR')) || 
+                          c.tax_number?.includes(deferredSearch);
+    
+    const hasBalance = Object.values(c.balances || {}).some(bal => Number(bal) !== 0);
+    
+    if (!includeZero && !hasBalance) {
+      return false;
+    }
+    
+    return matchesSearch;
+  });
 
   const paginatedCompanies = filteredCompanies.slice(
     (page - 1) * itemsPerPage,

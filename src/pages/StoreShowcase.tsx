@@ -39,92 +39,10 @@ import {
 import { CreditCard, User, LogOut, Edit3, Building2, Home } from "lucide-react";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
-import { translations } from "@/translations";
+import { translations } from "../translations";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { PageBuilder } from "../components/PageBuilder";
-
-interface Product {
-  id: number;
-  barcode: string;
-  name: string;
-  price: number;
-  currency: string;
-  cost_price: number;
-  cost_currency: string;
-  tax_rate: number;
-  description?: string;
-  stock_quantity: number;
-  min_stock_level: number;
-  unit?: string;
-  category?: string;
-  sub_category?: string;
-  brand?: string;
-  author?: string;
-  labels?: string[];
-  is_web_sale?: boolean;
-  image_url?: string;
-  shipping_profile_id?: string;
-  updated_at: string;
-}
-
-interface FAQEntry {
-  question: string;
-  answer: string;
-}
-
-interface BlogPost {
-  id: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  image_url?: string;
-  date: string;
-}
-
-interface LegalPage {
-  title: string;
-  content: string;
-}
-
-interface StoreInfo {
-  id: number;
-  name: string;
-  logo_url?: string;
-  primary_color?: string;
-  secondary_color?: string;
-  slug: string;
-  currency?: string;
-  default_currency?: string;
-  hero_title?: string;
-  hero_subtitle?: string;
-  hero_image_url?: string;
-  about_text?: string;
-  description?: string;
-  email?: string;
-  phone?: string;
-  instagram_url?: string;
-  facebook_url?: string;
-  twitter_url?: string;
-  whatsapp_number?: string;
-  address?: string;
-  faq?: FAQEntry[];
-  blog_posts?: BlogPost[];
-  payment_settings?: {
-    iyzico_enabled: boolean;
-    paypal_enabled: boolean;
-    payoneer_enabled: boolean;
-  };
-  legal_pages?: {
-    kvkk?: LegalPage;
-    privacy?: LegalPage;
-    sales_agreement?: LegalPage;
-    pre_info?: LegalPage;
-  };
-  page_layout?: any[];
-  menu_links?: any[];
-  footer_links?: any[];
-  shipping_profiles?: any[];
-}
+import { Product, Store as StoreInfo, FAQEntry, BlogPost, LegalPage } from "../types";
 
 interface BasketItem extends Product {
   quantity: number;
@@ -522,7 +440,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   useEffect(() => {
     if (store?.payment_settings) {
-      if (store.payment_settings.iyzico_enabled) {
+      if (store.payment_settings.cod_enabled) {
+        setPaymentMethod('cash_on_delivery');
+      } else if (store.payment_settings.bank_transfer_enabled) {
+        setPaymentMethod('bank_transfer');
+      } else if (store.payment_settings.iyzico_enabled) {
         setPaymentMethod('iyzico');
       } else if (store.payment_settings.paypal_enabled) {
         setPaymentMethod('paypal');
@@ -568,6 +490,37 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     }
   }, []);
 
+  const [showLiveActivity, setShowLiveActivity] = useState(false);
+
+  const layoutSettings = store?.page_layout_settings || {
+    show_announcement: true,
+    show_stories: true,
+    show_campaigns: true,
+    show_testimonials: true,
+    show_newsletter: true,
+    enable_live_activity: true,
+    theme_variety: 'modern'
+  };
+
+  useEffect(() => {
+    // Show live activity after 5 seconds, then every 45-60 seconds
+    if (!layoutSettings.enable_live_activity) return;
+    
+    const firstTimer = setTimeout(() => setShowLiveActivity(true), 5000);
+    const hideTimer = setTimeout(() => setShowLiveActivity(false), 12000);
+    
+    const interval = setInterval(() => {
+        setShowLiveActivity(true);
+        setTimeout(() => setShowLiveActivity(false), 7000);
+    }, 55000);
+
+    return () => {
+      clearTimeout(firstTimer);
+      clearTimeout(hideTimer);
+      clearInterval(interval);
+    };
+  }, [layoutSettings.enable_live_activity]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!slug) return;
@@ -607,7 +560,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         }
         
         storeRes.currency = storeRes.default_currency || 'TRY';
+        console.log('Store data fetched:', storeRes);
         setStore(storeRes);
+        
+        // Update favicon
+        if (storeRes.favicon_url) {
+          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+          link.rel = 'icon';
+          link.href = storeRes.favicon_url;
+          document.head.appendChild(link);
+        }
+
         document.title = storeRes.name || 'Store';
         setProducts(productsRes.filter((p: Product) => p.is_web_sale !== false));
         
@@ -1058,7 +1021,82 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   return (
     <ErrorBoundary lang={lang}>
-      <div className="min-h-screen bg-white pb-24 font-sans selection:bg-blue-100 selection:text-blue-900">
+      <div className="min-h-screen bg-white pb-24 font-sans selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
+      
+      {/* Live Activity Toast (Simulated Social Proof) */}
+      <AnimatePresence>
+        {showLiveActivity && (
+          <motion.div
+            initial={{ opacity: 0, x: -100, y: 100 }}
+            animate={{ opacity: 1, x: 24, y: -24 }}
+            exit={{ opacity: 0, x: -100, scale: 0.8 }}
+            className="fixed bottom-0 left-0 z-[100] bg-white/90 backdrop-blur-xl border border-gray-100 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center gap-4 max-w-sm"
+          >
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-50 flex-shrink-0">
+               <img src={`https://i.pravatar.cc/150?u=${Math.random()}`} alt="User" />
+            </div>
+            <div className="flex-1">
+               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
+                 {lang === 'tr' ? 'AZ ÖNCE ALINDI' : 'JUST PURCHASED'}
+               </p>
+               <p className="text-xs font-bold text-gray-900 leading-tight">
+                 {lang === 'tr' ? 'Bir müşteri bir ürün satın aldı' : 'A customer just purchased an item'}
+               </p>
+               <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                 <CheckCircle2 className="w-3 h-3 text-green-500" />
+                 {lang === 'tr' ? 'Doğrulanmış İşlem' : 'Verified Purchase'}
+               </p>
+            </div>
+            <button onClick={() => setShowLiveActivity(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+               <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Announcement Bar */}
+      {layoutSettings.show_announcement && (
+      <div className="bg-gray-900 overflow-hidden py-2">
+        <div className="flex whitespace-nowrap animate-marquee">
+          <div className="flex gap-12 text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] px-4">
+            <span className="flex items-center gap-2">
+              <Truck className="w-3 h-3" />
+              {lang === 'tr' ? 'Hızlı Teslimat' : 'Fast Delivery'}
+            </span>
+            <span className="flex items-center gap-2">
+              <Shield className="w-3 h-3" />
+              {lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}
+            </span>
+            <span className="flex items-center gap-2">
+              <Package className="w-3 h-3" />
+              {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
+            </span>
+            <span className="flex items-center gap-2">
+              <Globe className="w-3 h-3" />
+              {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
+            </span>
+            {/* Repeat for continuous scroll */}
+            <span className="flex items-center gap-2">
+              <Truck className="w-3 h-3" />
+              {lang === 'tr' ? 'Hızlı Teslimat' : 'Fast Delivery'}
+            </span>
+            <span className="flex items-center gap-2">
+              <Shield className="w-3 h-3" />
+              {lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}
+            </span>
+            <span className="flex items-center gap-2">
+              <Package className="w-3 h-3" />
+              {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
+            </span>
+            <span className="flex items-center gap-2">
+              <Globe className="w-3 h-3" />
+              {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
+            </span>
+          </div>
+        </div>
+      </div>
+      )}
+
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[60] transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between gap-8">
@@ -1158,6 +1196,45 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         </div>
       </header>
 
+      {/* Category Stories */}
+      {layoutSettings.show_stories && Array.from(categories.keys()).length > 0 && (
+        <div className="bg-white border-b border-gray-50 py-4 overflow-x-auto no-scrollbar">
+          <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center gap-6 sm:gap-10">
+            {Array.from(categories.keys()).map((cat, idx) => (
+              <button
+                key={`story-${cat}`}
+                onClick={() => {
+                  setSelectedCategory(cat);
+                  document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="flex flex-col items-center gap-2 group shrink-0"
+              >
+                <div className="relative">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 border-2 transition-all duration-300 ${selectedCategory === cat ? 'border-primary' : 'border-gray-200 group-hover:border-primary/50'}`}>
+                    <div className="w-full h-full rounded-full bg-gray-50 overflow-hidden flex items-center justify-center">
+                       {/* Try to find a representative image from products in this category */}
+                       {products.find(p => p.category === cat)?.image_url ? (
+                         <img src={products.find(p => p.category === cat).image_url} alt={cat} className="w-full h-full object-cover group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                       ) : (
+                         <Tag className="w-6 h-6 text-gray-300" />
+                       )}
+                    </div>
+                  </div>
+                  {selectedCategory === cat && (
+                    <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full border-2 border-white">
+                      <Check className="w-3 h-3" />
+                    </div>
+                  )}
+                </div>
+                <span className={`text-[10px] sm:text-xs font-bold whitespace-nowrap transition-colors ${selectedCategory === cat ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'}`}>
+                  {cat.toLocaleUpperCase('tr-TR')}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       {!isProfileView && !isOrdersView && !isReturnView ? (
         <>
@@ -1225,6 +1302,85 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               </div>
             </div>
           </section>
+
+          {/* Featured / Campaign Section */}
+          {layoutSettings.show_campaigns && (
+          <section className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20 border-b border-gray-100">
+            <div className="flex flex-col md:flex-row items-end justify-between gap-4 mb-10">
+              <div className="space-y-1">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600 mb-2">
+                  {lang === 'tr' ? 'HAFTANIN FIRSATLARI' : 'DEALS OF THE WEEK'}
+                </h3>
+                <h2 className="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tighter">
+                  {lang === 'tr' ? 'Kampanyalı Ürünler' : 'Special Campaigns'}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2 text-sm font-bold text-gray-400">
+                <span className="w-12 h-[1px] bg-gray-200"></span>
+                {products.length} {lang === 'tr' ? 'Ürün Keşfedilmeyi Bekliyor' : 'Products waiting to be discovered'}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {(products.some(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat')) 
+                ? products.filter(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat'))
+                : products
+              ).slice(0, 4).map((product, idx) => (
+                <motion.div 
+                  key={`featured-${product.id}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  viewport={{ once: true }}
+                  className="group relative bg-white rounded-[2rem] p-5 border border-gray-100 hover:border-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer"
+                  onClick={() => {
+                    setSelectedProduct(product);
+                    setIsProductModalOpen(true);
+                  }}
+                >
+                  {/* Campaign Badge */}
+                  <div className="absolute top-8 left-8 z-10 px-4 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-red-500/30">
+                    {lang === 'tr' ? 'FIRSAT' : 'DEAL'}
+                  </div>
+
+                  <div className="aspect-[4/5] rounded-[1.5rem] overflow-hidden bg-gray-50 mb-6 relative">
+                    <img 
+                      src={product.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=400&auto=format&fit=crop"} 
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{product.category}</div>
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400">
+                        <Truck className="w-3 h-3" />
+                        {lang === 'tr' ? 'Ücretsiz Kargo' : 'Free Shipping'}
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{product.name}</h3>
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                       <div className="flex flex-col">
+                         <span className="text-[10px] text-gray-400 line-through font-bold">
+                           {formatPrice(product.price * 1.2, product.currency)}
+                         </span>
+                         <span className="text-2xl font-display font-black text-gray-900">
+                           {formatPrice(product.price, product.currency)}
+                         </span>
+                       </div>
+                       <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-900 group-hover:bg-gray-900 group-hover:text-white transition-all shadow-sm">
+                         <Plus className="w-5 h-5 transition-transform group-active:scale-90" />
+                       </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </section>
+          )}
 
           {/* Removed category boxes section */}
 
@@ -2261,9 +2417,52 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 )}
                 <span className="text-xl font-display font-black tracking-tighter text-gray-900">{store?.name}</span>
               </div>
-              <p className="text-gray-500 text-sm font-medium max-w-md leading-relaxed">
-                {store?.description || 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.'}
+              <p className="text-gray-500 text-sm font-medium max-w-md leading-relaxed mb-6">
+                {store?.description || (lang === 'tr' ? 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.' : 'We offer you the highest quality products at the most affordable prices. Customer satisfaction is always our priority.')}
               </p>
+              
+              <div className="flex items-center gap-3">
+                {store?.instagram_url && (
+                  <a 
+                    href={store.instagram_url.startsWith('http') ? store.instagram_url : `https://instagram.com/${store.instagram_url}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-pink-600 hover:border-pink-100 hover:bg-pink-50 transition-all group"
+                  >
+                    <Instagram className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </a>
+                )}
+                {store?.facebook_url && (
+                  <a 
+                    href={store.facebook_url.startsWith('http') ? store.facebook_url : `https://facebook.com/${store.facebook_url}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-100 hover:bg-blue-50 transition-all group"
+                  >
+                    <Facebook className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </a>
+                )}
+                {store?.twitter_url && (
+                  <a 
+                    href={store.twitter_url.startsWith('http') ? store.twitter_url : `https://twitter.com/${store.twitter_url}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-sky-500 hover:border-sky-100 hover:bg-sky-50 transition-all group"
+                  >
+                    <Twitter className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </a>
+                )}
+                {store?.whatsapp_number && (
+                  <a 
+                    href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9]/g, '')}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-100 hover:bg-green-50 transition-all group"
+                  >
+                    <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </a>
+                )}
+              </div>
             </div>
 
             <div>
@@ -2283,15 +2482,162 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <div>
               <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 mb-4">İletişim</h4>
               <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-                  <Mail className="w-4 h-4 text-gray-400" />
-                  {store?.email || 'destek@lookprice.net'}
-                </li>
-                <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-                  <Phone className="w-4 h-4 text-gray-400" />
-                  {store?.phone || '+90 212 000 00 00'}
-                </li>
+                {(store?.emails && store.emails.filter(e => e && e.trim() !== '').length > 0) ? (
+                  store.emails.filter(e => e && e.trim() !== '').map((e, idx) => (
+                    <li key={`email-${idx}`} className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      {e}
+                    </li>
+                  ))
+                ) : (
+                  <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    {store?.email || 'destek@lookprice.net'}
+                  </li>
+                )}
+                
+                {(store?.phones && store.phones.filter(p => p && p.trim() !== '').length > 0) ? (
+                  store.phones.filter(p => p && p.trim() !== '').map((p, idx) => (
+                    <li key={`phone-${idx}`} className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      {p}
+                    </li>
+                  ))
+                ) : (
+                  <li className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    {store?.phone || '+90 212 000 00 00'}
+                  </li>
+                )}
               </ul>
+            </div>
+          </div>
+
+          {/* Social Proof / Experience Section */}
+          {layoutSettings.show_testimonials && (
+          <section className="bg-slate-50 -mx-4 md:-mx-8 px-4 md:px-8 py-20 mt-20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl -mr-48 -mt-48"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl -ml-48 -mb-48"></div>
+            
+            <div className="max-w-7xl mx-auto relative z-10">
+              <div className="text-center max-w-2xl mx-auto mb-16">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-600 mb-4">
+                  {lang === 'tr' ? 'DENEYİM' : 'EXPERIENCE'}
+                </h3>
+                <h2 className="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tighter mb-6">
+                  {lang === 'tr' ? 'Müşterilerimiz Neler Diyor?' : 'What Our Customers Say'}
+                </h2>
+                <div className="flex items-center justify-center gap-1">
+                   {[1,2,3,4,5].map(s => <Star key={s} className="w-5 h-5 fill-yellow-400 text-yellow-400" />)}
+                   <span className="ml-2 text-sm font-bold text-gray-500">4.9/5 Ortalama Puan</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                  {
+                    name: "Ahmet Yılmaz",
+                    role: lang === 'tr' ? "Sadık Müşteri" : "Loyal Customer",
+                    text: lang === 'tr' ? "Ürün kalitesi ve teslimat hızı gerçekten şaşırtıcı. İlk defa alışveriş yaptım ama son olmayacak." : "Product quality and delivery speed are amazing. My first purchase, but definitely not my last.",
+                    avatar: "https://i.pravatar.cc/150?u=a"
+                  },
+                  {
+                    name: "Selena Kaya",
+                    role: lang === 'tr' ? "Ürün İncelemeci" : "Product Reviewer",
+                    text: lang === 'tr' ? "Sitenin tasarımı çok temiz ve ürünlere ulaşmak çok kolay. QR kod ile fiyat kontrolü harika bir özellik." : "The site design is very clean and products are easy to find. Real-time price checking is a great feature.",
+                    avatar: "https://i.pravatar.cc/150?u=s"
+                  },
+                  {
+                    name: "Can Demir",
+                    role: lang === 'tr' ? "Kurumsal Müşteri" : "Corporate Customer",
+                    text: lang === 'tr' ? "Destek ekibi çok ilgiliydi. Her soruma anında yanıt aldım. Teşekkürler!" : "The support team was very helpful. I received instant answers to all my questions. Thanks!",
+                    avatar: "https://i.pravatar.cc/150?u=c"
+                  }
+                ].map((t, i) => (
+                  <motion.div 
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    viewport={{ once: true }}
+                    className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-500"
+                  >
+                    <div className="flex items-center gap-4 mb-6">
+                      <img src={t.avatar} alt={t.name} className="w-12 h-12 rounded-full ring-2 ring-blue-50" />
+                      <div>
+                        <h4 className="font-bold text-gray-900">{t.name}</h4>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.role}</p>
+                      </div>
+                    </div>
+                    <p className="text-gray-500 font-medium leading-relaxed italic">"{t.text}"</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+          )}
+
+          {/* Newsletter Section */}
+          {layoutSettings.show_newsletter && (
+          <section className="max-w-7xl mx-auto px-4 md:px-8 pt-20">
+            <div className="bg-gray-900 rounded-[3rem] p-8 md:p-16 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-12 group">
+              <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              
+              <div className="relative z-10 max-w-xl text-center md:text-left">
+                <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tighter mb-4 leading-tight">
+                  {lang === 'tr' ? 'Fırsatları Kaçırmayın' : 'Never Miss a Deal'}
+                </h2>
+                <p className="text-gray-400 font-medium text-lg">
+                  {lang === 'tr' ? 'Yeni ürünler ve özel indirimlerden ilk siz haberdar olun.' : 'Be the first to know about new products and special discounts.'}
+                </p>
+              </div>
+
+              <div className="relative z-10 w-full max-w-md">
+                <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()}>
+                  <input 
+                    type="email" 
+                    placeholder={lang === 'tr' ? 'E-posta adresiniz' : 'Your email address'}
+                    className="flex-1 px-6 py-4 bg-white/10 border border-white/10 rounded-2xl text-white placeholder:text-gray-500 font-bold focus:bg-white/20 transition-all outline-none"
+                  />
+                  <button className="px-8 py-4 bg-white text-gray-900 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95 whitespace-nowrap">
+                    {lang === 'tr' ? 'ABONE OL' : 'SUBSCRIBE'}
+                  </button>
+                </form>
+                <p className="text-[10px] text-gray-500 mt-4 text-center md:text-left font-medium">
+                  {lang === 'tr' ? '* Kişisel verileriniz KVKK kapsamında korunmaktadır.' : '* Your personal data is protected under data privacy laws.'}
+                </p>
+              </div>
+            </div>
+          </section>
+          )}
+
+          <div className="pt-8 border-t border-gray-100 mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-6 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
+              <div className="flex items-center gap-8 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase">{lang === 'tr' ? 'ÖDEME YÖNTEMLERİ' : 'PAYMENT METHODS'}</div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-gray-900 text-sm">PayPal</span>
+                    <span className="font-bold text-gray-900 text-sm">Payoneer</span>
+                    <span className="font-bold text-gray-900 text-sm">iyzico</span>
+                    <span className="font-bold text-gray-900 text-sm">Visa</span>
+                    <span className="font-bold text-gray-900 text-sm">Mastercard</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase">{lang === 'tr' ? 'GÜVENLİK' : 'SECURITY'}</div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 font-bold text-gray-900 text-sm">
+                    <Shield className="w-3.5 h-3.5" />
+                    SSL Secure
+                  </div>
+                  <div className="flex items-center gap-1 font-bold text-gray-900 text-sm">
+                    <Globe className="w-3.5 h-3.5" />
+                    Cloudflare
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -3125,25 +3471,39 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             </button>
                           )}
 
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('bank_transfer')}
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                            style={{ borderColor: paymentMethod === 'bank_transfer' ? primaryColor : undefined }}
-                          >
-                            <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
-                            <span className={`font-bold text-xs text-center ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('cash_on_delivery')}
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                            style={{ borderColor: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }}
-                          >
-                            <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
-                            <span className={`font-bold text-xs text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
-                          </button>
+                          {/* Bank Transfer */}
+                          {store?.payment_settings?.bank_transfer_enabled && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('bank_transfer')}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
+                              style={{ borderColor: paymentMethod === 'bank_transfer' ? primaryColor : undefined }}
+                            >
+                              <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xs text-center ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
+                            </button>
+                          )}
+                          
+                          {/* Cash on Delivery */}
+                          {store?.payment_settings?.cod_enabled && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('cash_on_delivery')}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
+                              style={{ borderColor: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }}
+                            >
+                              <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xs text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
+                            </button>
+                          )}
                         </div>
+                        
+                        {/* Bank Details Display */}
+                        {paymentMethod === 'bank_transfer' && store?.payment_settings?.bank_details && (
+                          <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-sm font-medium whitespace-pre-wrap">
+                            {store.payment_settings.bank_details}
+                          </div>
+                        )}
                       </div>
 
                       {checkoutStatus === 'error' && (

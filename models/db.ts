@@ -78,6 +78,13 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS page_layout JSONB DEFAULT '[]';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS menu_links JSONB DEFAULT '[]';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS shipping_profiles JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS phones JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS description TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS footer_links JSONB DEFAULT '[]';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_api_token TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_account_id TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_api_email TEXT;
 
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,

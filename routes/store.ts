@@ -19,9 +19,22 @@ router.use((req, res, next) => {
   next();
 });
 
+router.post("/log-error", (req: any, res) => {
+  const { error, info, stack, url } = req.body;
+  const userId = req.user?.id || 'anonymous';
+  const storeId = req.user?.store_id || 'unknown';
+  
+  console.error(`[CLIENT-ERROR] Store: ${storeId}, User: ${userId}, URL: ${url}`);
+  console.error(`Error: ${error}`);
+  if (stack) console.error(`Stack: ${stack}`);
+  if (info) console.error(`Info: ${JSON.stringify(info)}`);
+  
+  res.json({ success: true });
+});
+
 // --- DOMAIN MANAGEMENT ---
 router.post("/domain", async (req: any, res) => {
-  const { domain, manualToken, manualAccount } = req.body;
+  const { domain, manualToken, manualAccount, manualEmail } = req.body;
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
 
   console.log(`POST /api/store/domain: storeId=${storeId}, domain=${domain}, manual=${!!manualToken}`);
@@ -35,25 +48,19 @@ router.post("/domain", async (req: any, res) => {
     
     // 1. Create Zone
     console.log(`Step 1: Creating Zone for ${domain}`);
-    const zoneResult = await cloudflareService.createZone(domain, manualToken, manualAccount);
+    const zoneResult = await cloudflareService.createZone(domain, manualToken, manualAccount, manualEmail);
     const zoneId = zoneResult.id;
     const nameServers = zoneResult.name_servers;
     console.log(`Zone created: ${zoneId}, NS: ${JSON.stringify(nameServers)}`);
 
     // 2. Add DNS Records (A record to Render, CNAME for www) - Set proxied to FALSE to avoid Error 1000 with Render
     console.log(`Step 2: Ensuring DNS records are correct (Grey Cloud)`);
-    await cloudflareService.ensureDnsRecord(zoneId, "A", "@", "216.24.57.1", false, manualToken, manualAccount);
-    await cloudflareService.ensureDnsRecord(zoneId, "CNAME", "www", "lookprice-2bpv.onrender.com", false, manualToken, manualAccount);
-
-    // 3. Setup Origin Rules to handle Host header override for Render
-    // (Note: Origin Rules require proxying, but Error 1000 happens when proxying to another CF customer)
-    // If we disable proxying, Origin Rules won't work, but Render handles Host headers if domain is added to their dashboard.
-    // console.log(`Step 3: Setting up Origin Rules`);
-    // await cloudflareService.setupOriginRules(zoneId, "lookprice-2bpv.onrender.com", manualToken, manualAccount);
+    await cloudflareService.ensureDnsRecord(zoneId, "A", "@", "216.24.57.1", false, manualToken, manualAccount, manualEmail);
+    await cloudflareService.ensureDnsRecord(zoneId, "CNAME", "www", "lookprice-2bpv.onrender.com", false, manualToken, manualAccount, manualEmail);
 
     // 4. Ensure SSL mode is set to "flexible" or "full"
     console.log(`Step 4: Setting SSL mode to flexible`);
-    await cloudflareService.setZoneSslMode(zoneId, "flexible", manualToken, manualAccount);
+    await cloudflareService.setZoneSslMode(zoneId, "flexible", manualToken, manualAccount, manualEmail);
 
     // 5. Register domain on Render (CRITICAL for Grey Cloud to work)
     console.log(`Step 5: Registering domain on Render dashboard`);
@@ -71,8 +78,8 @@ router.post("/domain", async (req: any, res) => {
     // 6. Save to database
     console.log(`Step 6: Saving to database`);
     const dbUpdate = await pool.query(
-      "UPDATE stores SET custom_domain = $1, custom_domain_status = $2, cf_zone_id = $3, cf_name_servers = $4, cf_api_token = $5, cf_account_id = $6 WHERE id = $7",
-      [domain, zoneResult.status || 'pending', zoneId, JSON.stringify(nameServers), manualToken || null, manualAccount || null, storeId]
+      "UPDATE stores SET custom_domain = $1, custom_domain_status = $2, cf_zone_id = $3, cf_name_servers = $4, cf_api_token = $5, cf_account_id = $6, cf_api_email = $7 WHERE id = $8",
+      [domain, zoneResult.status || 'pending', zoneId, JSON.stringify(nameServers), manualToken || null, manualAccount || null, manualEmail || null, storeId]
     );
     console.log(`Database update result: ${dbUpdate.rowCount} rows affected`);
     
@@ -364,7 +371,7 @@ router.get("/info", async (req: any, res) => {
   const store = storeRes.rows[0];
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings', 'page_layout', 'menu_links', 'shipping_profiles'];
+  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings', 'page_layout', 'menu_links', 'shipping_profiles', 'emails', 'phones', 'footer_links'];
   jsonFields.forEach(field => {
     if (typeof store[field] === 'string') {
       try {
@@ -396,12 +403,12 @@ router.post("/branding", async (req: any, res) => {
     const { 
       name, logo_url, favicon_url, primary_color, default_currency, 
       background_image_url, language, fiscal_brand, fiscal_terminal_id, 
-      fiscal_active, currency_rates, plan, country, phone, address,
+      fiscal_active, currency_rates, plan, country, phone, address, email,
       hero_title, hero_subtitle, hero_image_url, instagram_url, 
       facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
       category_tax_rules, faq, blog_posts, legal_pages, social_links, custom_domain, payment_settings,
       amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings,
-      page_layout, menu_links, shipping_profiles
+      page_layout, menu_links, shipping_profiles, emails, phones, description, footer_links
     } = req.body;
 
     await pool.query(
@@ -416,8 +423,9 @@ router.post("/branding", async (req: any, res) => {
         category_tax_rules = $25, faq = $26, blog_posts = $27, legal_pages = $28,
         social_links = $29, custom_domain = $30, payment_settings = $31,
         amazon_settings = $32, n11_settings = $33, hepsiburada_settings = $34,
-        trendyol_settings = $35, pazarama_settings = $36, page_layout = $37, menu_links = $38, shipping_profiles = $39
-      WHERE id = $40`, 
+        trendyol_settings = $35, pazarama_settings = $36, page_layout = $37, menu_links = $38, 
+        shipping_profiles = $39, emails = $40, phones = $41, description = $42, email = $43, footer_links = $44
+      WHERE id = $45`, 
       [
         name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
         background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -440,6 +448,11 @@ router.post("/branding", async (req: any, res) => {
         JSON.stringify(page_layout || []),
         JSON.stringify(menu_links || []),
         JSON.stringify(shipping_profiles || []),
+        JSON.stringify(emails || []),
+        JSON.stringify(phones || []),
+        description,
+        email,
+        JSON.stringify(footer_links || []),
         storeId
       ]
     );
@@ -553,12 +566,34 @@ router.get("/reports/daily-sales", async (req: any, res) => {
       UNION ALL
       
       -- Direct payments to current accounts (Collections)
-      SELECT cat.payment_method, cat.amount, cat.transaction_date as created_at, cat.store_id, c.title as customer_name, NULL as sale_id, 'collection' as source
+      SELECT cat.payment_method, cat.amount, cat.transaction_date as created_at, cat.store_id, c.title as customer_name, NULL as sale_id, 
+        CASE WHEN cat.sales_invoice_id IS NOT NULL THEN 'sales_invoice' ELSE 'collection' END as source
       FROM current_account_transactions cat
       LEFT JOIN companies c ON cat.company_id = c.id
       WHERE cat.type = 'credit' 
       AND cat.payment_method IS NOT NULL
       AND cat.quotation_id IS NULL
+      
+      UNION ALL
+      
+      -- Sales Invoices Payments (Standalone, Non-Company, or Term)
+      SELECT 
+        si.payment_method, 
+        si.grand_total as amount, 
+        si.invoice_date as created_at, 
+        si.store_id, 
+        COALESCE(c.title, cust.full_name, 'Müşteri') as customer_name, 
+        NULL as sale_id, 
+        'sales_invoice' as source
+      FROM sales_invoices si
+      LEFT JOIN companies c ON si.company_id = c.id
+      LEFT JOIN customers cust ON si.customer_id = cust.id
+      WHERE si.status != 'draft' 
+      AND (
+         (si.company_id IS NULL AND si.sale_id IS NULL) 
+         OR 
+         (si.company_id IS NOT NULL AND si.payment_method = 'term')
+      )
     `;
 
     let summaryQuery = `
