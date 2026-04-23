@@ -30,7 +30,8 @@ import {
   Truck,
   Plus,
   Trash2,
-  Wrench
+  Wrench,
+  Tag
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
@@ -52,6 +53,7 @@ interface SettingsTabProps {
   users: any[];
   currentUser: any;
   currentStoreId?: number;
+  products?: any[];
   onRefresh?: () => void;
   bulkPriceForm: any;
   setBulkPriceForm: (form: any) => void;
@@ -70,6 +72,7 @@ const SettingsTab = ({
   users,
   currentUser,
   currentStoreId,
+  products = [],
   onRefresh,
   bulkPriceForm,
   setBulkPriceForm,
@@ -101,7 +104,16 @@ const SettingsTab = ({
 
   const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
   const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
+  const [pzMerchantId, setPzMerchantId] = React.useState(branding.pazarama_settings?.merchantId || "");
   const [pzCommissionRate, setPzCommissionRate] = React.useState(branding.pazarama_settings?.commissionRate || 0);
+  const [pzCategories, setPzCategories] = React.useState<any[]>([]);
+  const [pzBrands, setPzBrands] = React.useState<any[]>([]);
+  const [loadingPzCats, setLoadingPzCats] = React.useState(false);
+  const [loadingPzBrands, setLoadingPzBrands] = React.useState(false);
+  const [pzCategoryMappings, setPzCategoryMappings] = React.useState<Record<string, string>>(branding.pazarama_settings?.categoryMappings || {});
+  const [pzBrandMappings, setPzBrandMappings] = React.useState<Record<string, string>>(branding.pazarama_settings?.brandMappings || {});
+  const [showPzMapping, setShowPzMapping] = React.useState(false);
+  const [showPzBrandMapping, setShowPzBrandMapping] = React.useState(false);
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
   const [verificationResult, setVerificationResult] = React.useState<{ a: boolean, cname: boolean, ip: string | null, target: string | null } | null>(null);
   const [cfStatus, setCfStatus] = React.useState<any>(null);
@@ -112,6 +124,17 @@ const SettingsTab = ({
   const [manualCfAccount, setManualCfAccount] = React.useState("");
   const [manualCfEmail, setManualCfEmail] = React.useState("");
   const [loadingCf, setLoadingCf] = React.useState(false);
+
+  // Sync Pazarama state when branding prop changes
+  React.useEffect(() => {
+    const s = branding.pazarama_settings || {};
+    setPzApiKey(s.apiKey || "");
+    setPzApiSecret(s.apiSecret || "");
+    setPzMerchantId(s.merchantId || "");
+    setPzCommissionRate(s.commissionRate || 0);
+    setPzCategoryMappings(s.categoryMappings || {});
+    setPzBrandMappings(s.brandMappings || {});
+  }, [branding.pazarama_settings]);
 
   const [emails, setEmails] = React.useState<string[]>((branding.emails && branding.emails.length > 0) ? branding.emails : ['']);
   const [phones, setPhones] = React.useState<string[]>((branding.phones && branding.phones.length > 0) ? branding.phones : ['']);
@@ -313,18 +336,76 @@ const SettingsTab = ({
 
   const handleSavePzSettings = async () => {
     try {
-      await api.savePazaramaSettings({ 
+      const pzData = { 
         apiKey: pzApiKey, 
         apiSecret: pzApiSecret, 
+        merchantId: pzMerchantId,
         commissionRate: Number(pzCommissionRate),
+        categoryMappings: pzCategoryMappings,
+        brandMappings: pzBrandMappings,
+        connected: !!(pzApiKey && pzApiSecret)
+      };
+      await api.savePazaramaSettings({ 
+        ...pzData,
         storeId: currentStoreId 
-      });
+      } as any);
+      onBrandingChange('pazarama_settings', pzData);
       alert(t.saveSuccess);
       if (onRefresh) onRefresh();
     } catch (error) {
       alert(t.errorOccurred);
     }
   };
+
+  const fetchPzCategories = async () => {
+    if (!pzApiKey || !pzApiSecret) {
+      alert(lang === 'tr' ? 'Önce API bilgilerini kaydedin' : 'Save API credentials first');
+      return;
+    }
+    setLoadingPzCats(true);
+    try {
+      const res = await api.getPazaramaCategories(currentStoreId);
+      setPzCategories(res.data || []);
+      setShowPzMapping(true);
+    } catch (e: any) {
+      alert(e.response?.data?.error || "Hata oluştu");
+    } finally {
+      setLoadingPzCats(false);
+    }
+  };
+
+  const fetchPzBrands = async () => {
+    if (!pzApiKey || !pzApiSecret) {
+      alert(lang === 'tr' ? 'Önce API bilgilerini kaydedin' : 'Save API credentials first');
+      return;
+    }
+    setLoadingPzBrands(true);
+    try {
+      const res = await api.getPazaramaBrands(currentStoreId);
+      setPzBrands(res.data || []);
+      setShowPzBrandMapping(true);
+    } catch (e: any) {
+      alert(e.response?.data?.error || "Hata oluştu");
+    } finally {
+      setLoadingPzBrands(false);
+    }
+  };
+
+  const localCategories = React.useMemo(() => {
+    const cats = new Set<string>();
+    products.forEach((p: any) => {
+      if (p.category) cats.add(p.category);
+    });
+    return Array.from(cats);
+  }, [products]);
+
+  const localBrands = React.useMemo(() => {
+    const brands = new Set<string>();
+    products.forEach((p: any) => {
+      if (p.brand) brands.add(p.brand);
+    });
+    return Array.from(brands);
+  }, [products]);
 
   const handleSyncPzOrders = async () => {
     await pzSync.runSync(
@@ -340,6 +421,7 @@ const SettingsTab = ({
     if (!confirm(t.confirmDelete)) return;
     try {
       await api.disconnectPazarama(currentStoreId);
+      onBrandingChange('pazarama_settings', {});
       alert(t.pazaramaDisconnected);
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -1971,7 +2053,19 @@ const SettingsTab = ({
                 </div>
 
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                        {lang === 'tr' ? 'Satıcı ID' : 'Merchant ID'}
+                      </label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                        value={pzMerchantId}
+                        onChange={(e) => setPzMerchantId(e.target.value)}
+                        placeholder="ae486bf3-..."
+                      />
+                    </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.pazaramaApiKey}</label>
                       <input 
@@ -2047,7 +2141,120 @@ const SettingsTab = ({
                   </div>
 
                   {isPzConnected && (
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Tag className="h-5 w-5 text-blue-600" />
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'Kategori Eşleştirme' : 'Category Mapping'}</p>
+                              <p className="text-[10px] text-slate-500 font-medium">{lang === 'tr' ? 'Pazarama kategorilerini kendi kategorilerinle eşle' : 'Map Pazarama categories with your own categories'}</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={fetchPzCategories}
+                            disabled={loadingPzCats}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-all flex items-center space-x-2 disabled:opacity-50"
+                          >
+                            {loadingPzCats ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                            <span>{lang === 'tr' ? 'Verileri Çek' : 'Fetch Data'}</span>
+                          </button>
+                        </div>
+
+                        {showPzMapping && (
+                          <div className="mt-6 space-y-4 pt-4 border-t border-blue-100">
+                            {localCategories.length === 0 ? (
+                              <p className="text-xs text-slate-500 italic">{lang === 'tr' ? 'Henüz kategori içeren ürününüz yok.' : 'No products with categories found.'}</p>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-3">
+                                {localCategories.map(cat => (
+                                  <div key={cat} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-xl border border-blue-50">
+                                    <span className="text-xs font-bold text-slate-700">{cat}</span>
+                                    <select 
+                                      className="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/10 min-w-[200px]"
+                                      value={pzCategoryMappings[cat] || ""}
+                                      onChange={(e) => setPzCategoryMappings({...pzCategoryMappings, [cat]: e.target.value})}
+                                    >
+                                      <option value="">{lang === 'tr' ? 'Pazarama Kategorisi Seç' : 'Select Pazarama Category'}</option>
+                                      {pzCategories.map((pzCat: any) => (
+                                        <option key={pzCat.id || pzCat.categoryId} value={pzCat.id || pzCat.categoryId}>
+                                          {pzCat.name || pzCat.categoryName}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex justify-end pt-2">
+                              <button 
+                                onClick={handleSavePzSettings}
+                                className="px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-xs hover:bg-slate-800 transition-all"
+                              >
+                                {lang === 'tr' ? 'Eşleştirmeleri Kaydet' : 'Save Mappings'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-4 bg-purple-50/50 rounded-2xl border border-purple-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Tag className="h-5 w-5 text-purple-600" />
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'Marka Eşleştirme' : 'Brand Mapping'}</p>
+                              <p className="text-[10px] text-slate-500 font-medium">{lang === 'tr' ? 'Pazarama markalarını kendi markalarınla eşle' : 'Map Pazarama brands with your own brands'}</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={fetchPzBrands}
+                            disabled={loadingPzBrands}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs hover:bg-purple-700 transition-all flex items-center space-x-2 disabled:opacity-50"
+                          >
+                            {loadingPzBrands ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                            <span>{lang === 'tr' ? 'Markaları Çek' : 'Fetch Brands'}</span>
+                          </button>
+                        </div>
+
+                        {showPzBrandMapping && (
+                          <div className="mt-6 space-y-4 pt-4 border-t border-purple-100">
+                            {localBrands.length === 0 ? (
+                              <p className="text-xs text-slate-500 italic">{lang === 'tr' ? 'Henüz marka içeren ürününüz yok.' : 'No products with brands found.'}</p>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-3">
+                                {localBrands.map(brand => (
+                                  <div key={brand} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-xl border border-purple-50">
+                                    <span className="text-xs font-bold text-slate-700">{brand}</span>
+                                    <select 
+                                      className="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500/10 min-w-[200px]"
+                                      value={pzBrandMappings[brand] || ""}
+                                      onChange={(e) => setPzBrandMappings({...pzBrandMappings, [brand]: e.target.value})}
+                                    >
+                                      <option value="">{lang === 'tr' ? 'Pazarama Markası Seç' : 'Select Pazarama Brand'}</option>
+                                      {pzBrands.map((pzBrand: any) => (
+                                        <option key={pzBrand.id || pzBrand.brandId} value={pzBrand.id || pzBrand.brandId}>
+                                          {pzBrand.name || pzBrand.brandName}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex justify-end pt-2">
+                              <button 
+                                onClick={handleSavePzSettings}
+                                className="px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-xs hover:bg-slate-800 transition-all"
+                              >
+                                {lang === 'tr' ? 'Eşleştirmeleri Kaydet' : 'Save Mappings'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
                       <p className="text-sm font-bold text-slate-900">
                         {pzSync.lastSync ? pzSync.lastSync.toLocaleString() : (pzSettings.last_sync ? new Date(pzSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
@@ -2062,7 +2269,8 @@ const SettingsTab = ({
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
+                )}
                 </div>
               </div>
             </div>

@@ -782,7 +782,7 @@ router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
 // 1. Save Pazarama Settings
 router.post("/pazarama/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { apiKey, apiSecret, commissionRate } = req.body;
+  const { apiKey, apiSecret, merchantId, commissionRate, categoryMappings, brandMappings } = req.body;
 
   try {
     const prevRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
@@ -793,7 +793,10 @@ router.post("/pazarama/settings", authenticate, async (req: any, res) => {
       connected: !!(apiKey && apiSecret),
       apiKey,
       apiSecret,
-      commissionRate: commissionRate !== undefined ? Number(commissionRate) : (prevSettings.commissionRate || 0)
+      merchantId: merchantId || prevSettings.merchantId || "",
+      commissionRate: commissionRate !== undefined ? Number(commissionRate) : (prevSettings.commissionRate || 0),
+      categoryMappings: categoryMappings || prevSettings.categoryMappings || {},
+      brandMappings: brandMappings || prevSettings.brandMappings || {}
     };
 
     await pool.query("UPDATE stores SET pazarama_settings = $1 WHERE id = $2", [settings, storeId]);
@@ -967,6 +970,11 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
     const salePrice = listPrice; // In this demo, list and sale are same
 
     // 3. Prepare standard Pazarama POST structure
+    const mappings = settings.categoryMappings || {};
+    const pzCategoryId = (product.category && mappings[product.category]) 
+      ? Number(mappings[product.category]) 
+      : 1; // Default to 1 if no mapping exists
+
     const payload = {
       productCode: `PRD-${product.id}`,
       barcode: product.barcode || `PRD-BARCODE-${product.id}`,
@@ -977,7 +985,7 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
       salePrice: salePrice,
       stockCount: product.stock_quantity || 0,
       brandId: 1, 
-      categoryId: 1, 
+      categoryId: pzCategoryId, 
       images: [] as any[]
     };
 
@@ -985,21 +993,125 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
       payload.images.push({ url: product.image_url, order: 1 });
     }
 
-    // In a real scenario, this payload would be sent via Axios to Pazarama API:
-    // const response = await axios.post("https://isortagim.pazarama.com/api/v1/products", payload, { headers: { 'Authorization': `Bearer ${settings.apiKey}` }});
+    // --- REAL API CALL ---
+    let apiSuccess = false;
+    let apiMessage = "Ürün başarıyla Pazarama'ya aktarıldı.";
+    let pazaramaResponseData: any = null;
 
-    // 4. MOCK SUCCESS RESPONSE
-    console.log(`[Pazarama Entegrasyonu] Ürün Pazarama'ya basıldı:`, payload);
-    
-    res.json({ 
-      success: true, 
-      message: "Ürün başarıyla Pazarama'ya aktarıldı.", 
-      pazaramaCode: payload.productCode
-    });
+    try {
+      if (!settings.merchantId) {
+        throw new Error("Pazarama Satıcı ID (Merchant ID) ayarı eksik. Lütfen ayarlar bölümünden kaydedin.");
+      }
+
+      // Pazarama API integration typically uses Basic Auth with Key and Secret
+      const authHeader = Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64');
+      
+      // The endpoint for Pazarama often includes the merchantId or uses it as seller identifier
+      // Base URL: https://isortagimapi.pazarama.com/api/v1/product/upsert
+      // Some versions might use: https://isortagimapi.pazarama.com/api/v1/product/upsert/${settings.merchantId}
+      // Let's use the one that is known to work for modern integrations
+      const pzResponse = await axios.post(`https://isortagimapi.pazarama.com/api/v1/product/upsert`, payload, {
+        headers: {
+          'Authorization': `Basic ${authHeader}`,
+          'SellerId': settings.merchantId, // Some integrations pass it as header
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000 // 15 seconds timeout
+      });
+
+      pazaramaResponseData = pzResponse.data;
+      
+      // Pazarama usually returns success in the body
+      if (pzResponse.status === 200 && (pazaramaResponseData?.success === true || pazaramaResponseData?.isSuccess === true)) {
+        apiSuccess = true;
+      } else {
+        apiSuccess = false;
+        apiMessage = pazaramaResponseData?.message || pazaramaResponseData?.error || "Pazarama API bir hata döndürdü.";
+      }
+    } catch (apiErr: any) {
+      console.error("Pazarama API Connection Error:", apiErr.response?.data || apiErr.message);
+      apiSuccess = false;
+      apiMessage = apiErr.response?.data?.message || apiErr.response?.data?.error || "Pazarama API bağlantı hatası: " + apiErr.message;
+    }
+
+    // 4. Update local product status if successful
+    if (apiSuccess) {
+      try {
+        await pool.query(`
+          ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_id VARCHAR(50);
+          ALTER TABLE products ADD COLUMN IF NOT EXISTS is_pazarama_active BOOLEAN DEFAULT FALSE;
+          ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_last_error TEXT;
+        `);
+        await pool.query("UPDATE products SET pazarama_id = $1, is_pazarama_active = TRUE, pazarama_last_error = NULL WHERE id = $2", [payload.productCode, productId]);
+      } catch (dbErr) {
+        console.warn("DB Update Error (non-fatal):", dbErr);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: apiMessage, 
+        pazaramaCode: payload.productCode
+      });
+    } else {
+      // Even if API failed, we might want to log the error in the product
+      try {
+        await pool.query("UPDATE products SET pazarama_last_error = $1 WHERE id = $2", [apiMessage, productId]);
+      } catch (e) {}
+
+      res.status(400).json({ 
+        success: false, 
+        error: apiMessage,
+        details: pazaramaResponseData 
+      });
+    }
 
   } catch (error: any) {
     console.error("Pazarama Publish Error:", error.message);
     res.status(500).json({ error: "Pazarama'ya ürün aktarılırken bir hata oluştu: " + error.message });
+  }
+});
+
+// 4. Get Pazarama Categories
+router.get("/pazarama/categories", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.pazarama_settings || {};
+    
+    if (!settings.apiKey || !settings.apiSecret) {
+      return res.status(400).json({ error: "Pazarama API ayarları eksik." });
+    }
+
+    const authHeader = Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64');
+    const pzRes = await axios.get("https://isortagimapi.pazarama.com/api/v1/product/category/all", {
+      headers: { 'Authorization': `Basic ${authHeader}` }
+    });
+
+    res.json(pzRes.data);
+  } catch (error: any) {
+    res.status(500).json({ error: "Kategoriler çekilemedi: " + (error.response?.data?.message || error.message) });
+  }
+});
+
+// 5. Get Pazarama Brands
+router.get("/pazarama/brands", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.pazarama_settings || {};
+    
+    if (!settings.apiKey || !settings.apiSecret) {
+      return res.status(400).json({ error: "Pazarama API ayarları eksik." });
+    }
+
+    const authHeader = Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64');
+    const pzRes = await axios.get("https://isortagimapi.pazarama.com/api/v1/brands", {
+      headers: { 'Authorization': `Basic ${authHeader}` }
+    });
+
+    res.json(pzRes.data);
+  } catch (error: any) {
+    res.status(500).json({ error: "Markalar çekilemedi: " + (error.response?.data?.message || error.message) });
   }
 });
 

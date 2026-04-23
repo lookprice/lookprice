@@ -1174,6 +1174,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
                         <SettingsTab 
                           branding={branding}
+                          products={products}
                           onBrandingChange={(field, value) => setBranding({ ...branding, [field]: value })}
                           onSaveBranding={handleSaveBranding}
                           onLogoUpload={(e) => handleFileUpload(e, 'logo')}

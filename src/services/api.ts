@@ -300,10 +300,12 @@ export const api = {
 
   // Pazarama Integration
   getPazaramaSettings: (storeId?: number) => api.get(`/api/integrations/pazarama/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  savePazaramaSettings: (data: { apiKey: string, apiSecret: string, commissionRate?: number, storeId?: number }) => api.post("/api/integrations/pazarama/settings", data),
+  savePazaramaSettings: (data: { apiKey: string, apiSecret: string, merchantId?: string, commissionRate?: number, storeId?: number }) => api.post("/api/integrations/pazarama/settings", data),
   syncPazaramaOrders: (storeId?: number) => api.post("/api/integrations/pazarama/sync", { storeId }),
   disconnectPazarama: (storeId?: number) => api.post("/api/integrations/pazarama/disconnect", { storeId }),
   publishPazaramaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/pazarama/publish", { productId, storeId }),
+  getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
+  getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
 
   // Transactions
   deleteTransaction: (id: number) => api.delete(`/api/store/transactions/${id}`),

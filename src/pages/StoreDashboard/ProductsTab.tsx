@@ -23,7 +23,8 @@ import {
   Globe,
   Share2,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -71,6 +72,7 @@ const ProductsTab = ({
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [marketplaceFilter, setMarketplaceFilter] = useState("all"); // all, listed, not_listed
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -130,7 +132,10 @@ const ProductsTab = ({
     const matchesSearch = normalizeSearch(p.name).includes(normalizeSearch(deferredSearch)) || 
                          p.barcode.includes(deferredSearch);
     const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesMarketplace = marketplaceFilter === "all" || 
+                              (marketplaceFilter === "listed" && p.is_pazarama_active) ||
+                              (marketplaceFilter === "not_listed" && !p.is_pazarama_active);
+    return matchesSearch && matchesCategory && matchesMarketplace;
   });
   
   const paginatedProducts = filteredProducts.slice(
@@ -240,6 +245,23 @@ const ProductsTab = ({
                 ))}
               </select>
             </div>
+            {/* Marketplace Status Filter */}
+            <div className="relative w-36 sm:w-44 shrink-0 group">
+              <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
+              <select 
+                className="os-input w-full pr-8 py-2.5 text-[13px] font-bold appearance-none cursor-pointer truncate"
+                style={{ paddingLeft: '2.75rem' }}
+                value={marketplaceFilter}
+                onChange={(e) => {
+                  setMarketplaceFilter(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">{lang === 'tr' ? 'Tüm İlanlar' : 'All Listings'}</option>
+                <option value="listed">{lang === 'tr' ? 'Pazarama: İlanda' : 'Pazarama: Listed'}</option>
+                <option value="not_listed">{lang === 'tr' ? 'Pazarama: İlanda Değil' : 'Pazarama: Not Listed'}</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -274,13 +296,15 @@ const ProductsTab = ({
                   </td>
                 </tr>
               ) : (
-                paginatedProducts.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group cursor-default">
-                    <td className="px-6 py-4">
-                      <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
-                        {p.barcode?.toString().padStart(14, '0').slice(-14)}
-                      </span>
-                    </td>
+                paginatedProducts.map((p, pIdx) => {
+                  const isNearBottom = pIdx >= paginatedProducts.length - 4;
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group cursor-default">
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
+                          {p.barcode?.toString().padStart(14, '0').slice(-14)}
+                        </span>
+                      </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
                         {p.image_url ? (
@@ -314,6 +338,12 @@ const ProductsTab = ({
                             {p.is_web_sale === false && (
                               <span className="text-[8px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
                                 OFF_LINE
+                              </span>
+                            )}
+                            {p.is_pazarama_active && (
+                              <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                PAZARAMA
                               </span>
                             )}
                           </div>
@@ -389,9 +419,9 @@ const ProductsTab = ({
                                   onClick={() => setOpenMarketMenu(null)}
                                 />
                                 <motion.div 
-                                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                  initial={{ opacity: 0, scale: 0.95, y: isNearBottom ? 10 : -10 }}
                                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                                  className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                                  className={`absolute right-0 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden ${isNearBottom ? 'bottom-full mb-2' : 'mt-2'}`}
                                 >
                                   <div className="p-3 border-b border-slate-50 bg-slate-50/50">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'PAZARYERLERİ' : 'CHANNELS'}</p>
@@ -407,15 +437,25 @@ const ProductsTab = ({
                                       className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
                                     >
                                       <div className="flex items-center gap-3">
-                                        <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                                        <div className={`p-1.5 rounded-lg transition-colors ${p.is_pazarama_active ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'}`}>
                                           <Store className="h-4 w-4" />
                                         </div>
                                         <div className="text-left">
                                           <p className="text-xs font-bold text-slate-700">Pazarama</p>
-                                          <p className="text-[10px] text-slate-400">{lang === 'tr' ? 'İlana Çık' : 'Publish Product'}</p>
+                                          <p className={`text-[10px] ${p.pazarama_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                            {p.pazarama_last_error 
+                                              ? (lang === 'tr' ? `HATA: ${p.pazarama_last_error.substring(0, 30)}...` : `ERROR: ${p.pazarama_last_error.substring(0, 30)}...`)
+                                              : (p.is_pazarama_active 
+                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                          </p>
                                         </div>
                                       </div>
-                                      {publishingId === p.id && <div className="h-2 w-2 bg-orange-500 rounded-full animate-ping" />}
+                                      <div className="flex items-center gap-2">
+                                        {p.pazarama_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
+                                        {p.is_pazarama_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                                        {publishingId === p.id && <div className="h-2 w-2 bg-orange-500 rounded-full animate-ping" />}
+                                      </div>
                                     </button>
 
                                     {/* Placeholder for Trendyol */}
@@ -481,8 +521,9 @@ const ProductsTab = ({
                       )}
                     </td>
                   </tr>
-                ))
-              )}
+                  );
+                 })
+               )}
             </tbody>
           </table>
         </div>
