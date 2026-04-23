@@ -1237,13 +1237,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <button 
-                    onClick={() => document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="px-10 py-5 bg-white text-gray-900 rounded-2xl font-black text-lg hover:bg-gray-100 transition-all shadow-2xl active:scale-95 flex items-center gap-3 group"
-                  >
-                    {t.dashboard.startShopping}
-                    <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                  </button>
                 </motion.div>
               </div>
             </div>
@@ -2134,12 +2127,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <ShoppingBag className="w-10 h-10 text-gray-200" />
                   </div>
                   <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Henüz bir siparişiniz bulunmuyor.' : 'You don\'t have any orders yet.'}</p>
-                  <button 
-                    onClick={() => navigate(getStorePath("/"))}
-                    className="mt-8 px-8 py-3 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-all"
-                  >
-                    {t.dashboard.startShopping}
-                  </button>
                 </div>
               )}
             </div>

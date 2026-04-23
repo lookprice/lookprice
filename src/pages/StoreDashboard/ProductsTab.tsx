@@ -223,10 +223,8 @@ const ProductsTab = ({
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.barcode}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.productName}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.category}</th>
                 {showStoreName && <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.branch}</th>}
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.price}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.tax}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.cost}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.stock}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
@@ -293,11 +291,6 @@ const ProductsTab = ({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-[9px] font-black text-indigo-600 bg-indigo-50/50 px-2.5 py-1.5 rounded-xl border border-indigo-200 uppercase tracking-widest">
-                        {p.category || 'N/A'}
-                      </span>
-                    </td>
                     {showStoreName && (
                       <td className="px-6 py-4">
                         <span className="text-[9px] font-black text-slate-500 bg-slate-100/50 px-2.5 py-1.5 rounded-xl border border-slate-200 uppercase tracking-widest">
@@ -308,11 +301,6 @@ const ProductsTab = ({
                     <td className="px-6 py-4">
                       <span className="text-[15px] font-black text-slate-900 mono-data tracking-tighter">
                         {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-[10px] font-black text-indigo-600 border border-indigo-100 bg-white px-2 py-1 rounded-lg shadow-sm">
-                        VAT_{p.tax_rate}%
                       </span>
                     </td>
                     <td className="px-6 py-4">

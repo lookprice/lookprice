@@ -277,6 +277,9 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='customer_info') THEN
           ALTER TABLE stock_movements ADD COLUMN customer_info TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='currency') THEN
+          ALTER TABLE stock_movements ADD COLUMN currency TEXT DEFAULT 'TRY';
+        END IF;
       END $$;
 
       CREATE TABLE IF NOT EXISTS sales (
@@ -1236,12 +1239,13 @@ export async function logAction(
   }
 }
 
-export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null) {
+export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null, currency: any = 'TRY') {
   const price = unitPrice !== null && unitPrice !== undefined ? Number(unitPrice) : null;
   const info = customerInfo !== null && customerInfo !== undefined ? String(customerInfo) : null;
+  const curr = currency !== null && currency !== undefined ? String(currency) : 'TRY';
   await client.query(
-    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-    [storeId, productId, type, quantity, source, description, price, info]
+    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    [storeId, productId, type, quantity, source, description, price, info, curr]
   );
 }
 

@@ -625,8 +625,12 @@ router.get("/reports/daily-sales", async (req: any, res) => {
     summaryQuery += dateFilter + " GROUP BY payment_method";
     detailsQuery += dateFilter + " ORDER BY created_at DESC";
 
+    console.log(`[DEBUG] daily-sales params: ${JSON.stringify(params)}, summaryQuery: ${summaryQuery}`);
+
     const summaryResult = await pool.query(summaryQuery, params);
     const detailsResult = await pool.query(detailsQuery, params);
+    
+    console.log(`[DEBUG] daily-sales results: summary=${summaryResult.rowCount}, details=${detailsResult.rowCount}`);
 
     res.json({
       summary: summaryResult.rows,
@@ -2219,7 +2223,7 @@ router.post("/pos/sale", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
             [item.quantity, item.id]
           );
-          await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış');
+          await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış', currency || 'TRY');
         }
       }
     }
@@ -2250,6 +2254,8 @@ router.post("/pos/sale", async (req: any, res) => {
     );
 
     await client.query("COMMIT");
+
+    console.log(`[DEBUG] POS Sale completed and payment recorded: saleId=${saleId}, method=${paymentMethod || 'cash'}`);
 
     // Log the action
     await logAction(
@@ -2325,7 +2331,7 @@ router.post("/sales/:id/complete", async (req: any, res) => {
               "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
               [item.quantity, item.product_id]
             );
-            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name);
+            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name, sale.currency || 'TRY');
           }
         }
       }
@@ -2761,7 +2767,7 @@ router.post("/sales-invoices", async (req: any, res) => {
           );
           
           // Log stock movement
-          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName);
+          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency);
         }
       }
     }
@@ -2845,10 +2851,12 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, item.product_id, storeId]
         );
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sales_invoice', `Satış Faturası Revizyonu (Eski): ${oldInvoice.invoice_number}`, item.unit_price, displayName);
       }
     }
     
+    // Delete old stock movements related to this invoice
+    await client.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND (description LIKE $1 OR description LIKE $2 OR description LIKE $3)", [`%${oldInvoice.invoice_number}%`, `%${oldInvoice.invoice_number}%`, `%${oldInvoice.invoice_number}%`]);
+
     // 3. Delete old items and transactions
     await client.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [req.params.id]);
     await client.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [req.params.id]);
@@ -2896,7 +2904,7 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, item.product_id, storeId]
         );
-        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'sales_invoice', `Satış Faturası Revizyonu (Yeni): ${invoice_number}`, item.unit_price, displayName);
+        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'sales_invoice', `Satış Faturası (Güncellendi): ${invoice_number}`, item.unit_price, displayName, currency);
       }
     }
 
@@ -3132,7 +3140,7 @@ router.post("/purchase-invoices", async (req: any, res) => {
           );
           
           // Log stock movement
-          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, item.unit_price, companyName);
+          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, item.unit_price, companyName, currency);
         }
       }
     }
@@ -3200,12 +3208,12 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, item.product_id, storeId]
         );
-        
-        // Log stock movement (out)
-        await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Eski): ${oldInvoice.invoice_number}`, item.unit_price, companyName);
       }
     }
     
+    // Delete old stock movements related to this invoice
+    await client.query("DELETE FROM stock_movements WHERE source = 'purchase_invoice' AND description LIKE $1", [`%${oldInvoice.invoice_number}%`]);
+
     // 3. Delete old items and transactions
     await client.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [req.params.id]);
     await client.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [req.params.id]);
@@ -3251,7 +3259,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
         );
         
         // Log stock movement (in)
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası Revizyonu (Yeni): ${invoice_number}`, item.unit_price, companyName);
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası (Güncellendi): ${invoice_number}`, item.unit_price, companyName, currency);
       }
     }
 

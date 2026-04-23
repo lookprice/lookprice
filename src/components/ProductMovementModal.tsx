@@ -13,6 +13,7 @@ interface Movement {
   description: string;
   unit_price?: number;
   customer_info?: string;
+  currency?: string;
   created_at: string;
 }
 
@@ -106,7 +107,7 @@ const ProductMovementModal = ({ product, onClose, branding }: ProductMovementMod
                             <span><span className="font-medium">{t.statements.customerSupplier}:</span> {m.customer_info}</span>
                           )}
                           {m.unit_price != null && (
-                            <span><span className="font-medium">{t.statements.unitPrice}:</span> {m.unit_price.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding.default_currency || 'TRY' })}</span>
+                            <span><span className="font-medium">{t.statements.unitPrice}:</span> {Number(m.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {m.currency || branding?.default_currency || 'TRY'}</span>
                           )}
                         </div>
                       )}
