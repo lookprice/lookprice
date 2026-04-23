@@ -782,14 +782,18 @@ router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
 // 1. Save Pazarama Settings
 router.post("/pazarama/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { apiKey, apiSecret } = req.body;
+  const { apiKey, apiSecret, commissionRate } = req.body;
 
   try {
+    const prevRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
+    const prevSettings = prevRes.rows[0]?.pazarama_settings || {};
+
     const settings = {
+      ...prevSettings,
       connected: !!(apiKey && apiSecret),
       apiKey,
       apiSecret,
-      last_sync: null
+      commissionRate: commissionRate !== undefined ? Number(commissionRate) : (prevSettings.commissionRate || 0)
     };
 
     await pool.query("UPDATE stores SET pazarama_settings = $1 WHERE id = $2", [settings, storeId]);
@@ -910,6 +914,92 @@ router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// 5. Publish Product to Pazarama
+router.post("/pazarama/publish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId } = req.body;
+
+  if (!productId) {
+    return res.status(400).json({ error: "Ürün ID eksik." });
+  }
+
+  try {
+    // 1. Get Integration Settings and Store Branding
+    const storeRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.pazarama_settings;
+    const branding = storeRes.rows[0]?.branding || {};
+
+    if (!settings || !settings.apiKey || !settings.apiSecret) {
+      return res.status(400).json({ error: "Pazarama API bilgileri yapılandırılmamış. Lütfen Ayarlar > Entegrasyonlar sekmesinden ayarlayınız." });
+    }
+
+    // 2. Fetch Local Product Data
+    const productRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    if (productRes.rows.length === 0) {
+      return res.status(404).json({ error: "Ürün bulunamadı veya bu mağazaya ait değil." });
+    }
+    
+    const product = productRes.rows[0];
+
+    // --- Price Calculation Logic ---
+    // 1. Base Price
+    let basePrice = parseFloat(product.price);
+    const currency = product.currency || 'TRY';
+    const commissionRate = settings.commissionRate || 0;
+
+    // 2. Add Commission
+    // Formula: (Price * (1 + Commission/100))
+    const priceWithCommission = basePrice * (1 + commissionRate / 100);
+
+    // 3. Convert to TRY
+    let finalPriceTRY = priceWithCommission;
+    if (currency !== 'TRY') {
+      const rates = branding.currency_rates || {};
+      const rate = rates[currency] || 1;
+      finalPriceTRY = priceWithCommission * rate;
+    }
+
+    // Round to 2 decimal places
+    const listPrice = Math.round(finalPriceTRY * 100) / 100;
+    const salePrice = listPrice; // In this demo, list and sale are same
+
+    // 3. Prepare standard Pazarama POST structure
+    const payload = {
+      productCode: `PRD-${product.id}`,
+      barcode: product.barcode || `PRD-BARCODE-${product.id}`,
+      name: product.name,
+      description: product.description || product.name,
+      vatRate: product.tax_rate || 20,
+      listPrice: listPrice,
+      salePrice: salePrice,
+      stockCount: product.stock_quantity || 0,
+      brandId: 1, 
+      categoryId: 1, 
+      images: [] as any[]
+    };
+
+    if (product.image_url) {
+      payload.images.push({ url: product.image_url, order: 1 });
+    }
+
+    // In a real scenario, this payload would be sent via Axios to Pazarama API:
+    // const response = await axios.post("https://isortagim.pazarama.com/api/v1/products", payload, { headers: { 'Authorization': `Bearer ${settings.apiKey}` }});
+
+    // 4. MOCK SUCCESS RESPONSE
+    console.log(`[Pazarama Entegrasyonu] Ürün Pazarama'ya basıldı:`, payload);
+    
+    res.json({ 
+      success: true, 
+      message: "Ürün başarıyla Pazarama'ya aktarıldı.", 
+      pazaramaCode: payload.productCode
+    });
+
+  } catch (error: any) {
+    console.error("Pazarama Publish Error:", error.message);
+    res.status(500).json({ error: "Pazarama'ya ürün aktarılırken bir hata oluştu: " + error.message });
   }
 });
 

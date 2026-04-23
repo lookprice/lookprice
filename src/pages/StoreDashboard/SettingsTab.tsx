@@ -101,6 +101,7 @@ const SettingsTab = ({
 
   const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
   const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
+  const [pzCommissionRate, setPzCommissionRate] = React.useState(branding.pazarama_settings?.commissionRate || 0);
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
   const [verificationResult, setVerificationResult] = React.useState<{ a: boolean, cname: boolean, ip: string | null, target: string | null } | null>(null);
   const [cfStatus, setCfStatus] = React.useState<any>(null);
@@ -312,7 +313,12 @@ const SettingsTab = ({
 
   const handleSavePzSettings = async () => {
     try {
-      await api.savePazaramaSettings({ apiKey: pzApiKey, apiSecret: pzApiSecret, storeId: currentStoreId });
+      await api.savePazaramaSettings({ 
+        apiKey: pzApiKey, 
+        apiSecret: pzApiSecret, 
+        commissionRate: Number(pzCommissionRate),
+        storeId: currentStoreId 
+      });
       alert(t.saveSuccess);
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -1985,6 +1991,21 @@ const SettingsTab = ({
                         onChange={(e) => setPzApiSecret(e.target.value)}
                         placeholder="API Secret"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                        {lang === 'tr' ? 'Komisyon Oranı (%)' : 'Commission Rate (%)'}
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                        <input 
+                          type="number" 
+                          className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                          value={pzCommissionRate}
+                          onChange={(e) => setPzCommissionRate(e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
                     </div>
                   </div>
 

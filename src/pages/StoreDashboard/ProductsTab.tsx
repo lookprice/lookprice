@@ -16,12 +16,21 @@ import {
   Percent,
   History,
   Truck,
-  X
+  X,
+  Store,
+  UploadCloud,
+  MoreVertical,
+  Globe,
+  Share2,
+  ExternalLink,
+  CheckCircle2
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import ProductMovementModal from "../../components/ProductMovementModal";
+import { api } from "../../services/api";
+import { toast } from "sonner";
 
 interface ProductsTabProps {
   products: any[];
@@ -65,7 +74,27 @@ const ProductsTab = ({
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const itemsPerPage = 15;
+
+  const handlePublishToPazarama = async (product: any) => {
+    if (publishingId === product.id) return;
+    try {
+      setPublishingId(product.id);
+      const res = await api.publishPazaramaProduct(product.id);
+      // Fixed: api returns common JSON response directly, not wrapped in .data (unless axios was used)
+      if (res && res.success) {
+        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla Pazarama'ya aktarıldı." : "Product published to Pazarama successfully."));
+      } else {
+        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Pazarama aktarım hatası");
+    } finally {
+      setPublishingId(null);
+    }
+  };
 
   const calculateProfitMargin = (p: any) => {
     if (!p.cost_price || p.cost_price === 0) return null;
@@ -342,7 +371,88 @@ const ProductsTab = ({
                     </td>
                     <td className="px-6 py-4 text-right">
                       {!isViewer && (
-                        <div className="flex justify-end items-center gap-1 transition-opacity">
+                        <div className="flex justify-end items-center gap-1">
+                          {/* Marketplace / Channels Hub */}
+                          <div className="relative">
+                            <button 
+                              onClick={() => setOpenMarketMenu(openMarketMenu === p.id ? null : p.id)}
+                              className={`p-2.5 rounded-xl transition-all border active:scale-90 flex items-center justify-center ${openMarketMenu === p.id ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border-transparent hover:border-indigo-100'}`}
+                              title={lang === 'tr' ? "Pazaryeri İşlemleri" : "Marketplace Channels"}
+                            >
+                              <Globe className="h-4.5 w-4.5" />
+                            </button>
+
+                            {openMarketMenu === p.id && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-40" 
+                                  onClick={() => setOpenMarketMenu(null)}
+                                />
+                                <motion.div 
+                                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                                >
+                                  <div className="p-3 border-b border-slate-50 bg-slate-50/50">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'PAZARYERLERİ' : 'CHANNELS'}</p>
+                                  </div>
+                                  <div className="p-2 space-y-1">
+                                    {/* Pazarama */}
+                                    <button
+                                      disabled={publishingId === p.id}
+                                      onClick={() => {
+                                        handlePublishToPazarama(p);
+                                        setOpenMarketMenu(null);
+                                      }}
+                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                                          <Store className="h-4 w-4" />
+                                        </div>
+                                        <div className="text-left">
+                                          <p className="text-xs font-bold text-slate-700">Pazarama</p>
+                                          <p className="text-[10px] text-slate-400">{lang === 'tr' ? 'İlana Çık' : 'Publish Product'}</p>
+                                        </div>
+                                      </div>
+                                      {publishingId === p.id && <div className="h-2 w-2 bg-orange-500 rounded-full animate-ping" />}
+                                    </button>
+
+                                    {/* Placeholder for Trendyol */}
+                                    <button
+                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group opacity-50 cursor-not-allowed"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="p-1.5 bg-orange-100 text-orange-700 rounded-lg">
+                                          <Package className="h-4 w-4" />
+                                        </div>
+                                        <div className="text-left">
+                                          <p className="text-xs font-bold text-slate-700">Trendyol</p>
+                                          <p className="text-[10px] text-slate-400">{lang === 'tr' ? 'Çok Yakında' : 'Coming Soon'}</p>
+                                        </div>
+                                      </div>
+                                    </button>
+
+                                    {/* Placeholder for Amazon */}
+                                    <button
+                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group opacity-50 cursor-not-allowed"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="p-1.5 bg-yellow-50 text-yellow-700 rounded-lg">
+                                          <ExternalLink className="h-4 w-4" />
+                                        </div>
+                                        <div className="text-left">
+                                          <p className="text-xs font-bold text-slate-700">Amazon</p>
+                                          <p className="text-[10px] text-slate-400">{lang === 'tr' ? 'Çok Yakında' : 'Coming Soon'}</p>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  </div>
+                                </motion.div>
+                              </>
+                            )}
+                          </div>
+
                           <button 
                             onClick={() => setSelectedProduct(p)}
                             className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100 active:scale-90"
