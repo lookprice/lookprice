@@ -308,4 +308,10 @@ export const api = {
   deleteTransaction: (id: number) => api.delete(`/api/store/transactions/${id}`),
   updateTransaction: (id: number, data: any) => api.put(`/api/store/transactions/${id}`, data),
   logError: (data: any) => api.post("/api/store/log-error", data),
+
+  // E-Invoice Methods
+  checkTaxpayer: (vknTckn: string) => api.post("/api/einvoice/check-taxpayer", { vknTckn }),
+  sendEInvoice: (invoiceId: number) => api.post(`/api/einvoice/send/${invoiceId}`, {}),
+  checkEInvoiceStatus: (invoiceId: number) => api.get(`/api/einvoice/status/${invoiceId}`),
+  syncIncomingEInvoices: (startDate: string, endDate: string) => api.post("/api/einvoice/sync-inbox", { startDate, endDate }),
 };

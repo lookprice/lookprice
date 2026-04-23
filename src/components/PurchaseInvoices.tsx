@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, Building2, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit } from "lucide-react";
+import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, Building2, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, CloudDownload } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -48,9 +48,38 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
 
   const isTr = lang === 'tr';
 
+  const [syncing, setSyncing] = useState(false);
+
   useEffect(() => {
     fetchInvoicesData();
   }, [storeId]);
+
+  const handleSyncInbox = async () => {
+    setSyncing(true);
+    try {
+      // By default sync last 5 days
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - 5);
+      
+      const s = start.toISOString().split('T')[0];
+      const e = end.toISOString().split('T')[0];
+      
+      const res = await api.syncIncomingEInvoices(s, e);
+      if (res.error) throw new Error(res.error);
+      
+      const msg = isTr 
+        ? `${res.importedCount} adet yeni e-fatura/e-arşiv sisteme alındı!` 
+        : `${res.importedCount} new e-invoices imported!`;
+      
+      toast.success(msg);
+      await fetchInvoicesData();
+    } catch (error: any) {
+       toast.error(error.message || (isTr ? "Fatura Gelen Kutusu eşitlenemedi" : "Inbox sync failed"));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchInvoicesData = async () => {
     if (role === 'superadmin' && !storeId) return;
@@ -289,6 +318,20 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     }
   };
 
+  const handleUpdateTicariStatus = async (id: number, status: 'APPROVED' | 'REJECTED') => {
+    if (!window.confirm(isTr ? `Bu faturayı ${status === 'APPROVED' ? 'onaylamak' : 'reddetmek'} istediğinize emin misiniz?` : `Are you sure you want to ${status === 'APPROVED' ? 'approve' : 'reject'} this invoice?`)) return;
+    
+    try {
+      const res = await api.updatePurchaseInvoiceTicariStatus(id, status, role === 'superadmin' ? storeId : undefined);
+      if (res.error) throw new Error(res.error);
+      
+      toast.success(isTr ? "Fatura durumu güncellendi" : "Invoice status updated");
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+    }
+  };
+
   const totals = calculateTotals();
 
   const filteredInvoices = invoices.filter((inv: any) => {
@@ -461,6 +504,17 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {branding?.einvoice_settings?.is_active && (
+            <button 
+              onClick={handleSyncInbox}
+              disabled={syncing}
+              className={`flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold transition-all ${syncing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-100'}`}
+              title={isTr ? "Son 3 gündeki GİB Faturalarını Çek" : "Sync GIB Inbox"}
+            >
+              <CloudDownload className={`h-4 w-4 ${syncing ? 'animate-bounce' : ''}`} />
+              <span className="hidden sm:inline">{isTr ? "Gelen Kutusu" : "Sync Inbox"}</span>
+            </button>
+          )}
           <button
             onClick={exportToExcel}
             className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors"
@@ -643,6 +697,24 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
+                      {invoice.type === 'TICARIFATURA' && invoice.integration_status === 'RECEIVED' && (
+                        <>
+                          <button
+                            onClick={() => handleUpdateTicariStatus(invoice.id, 'APPROVED')}
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title={isTr ? "Onayla" : "Approve"}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleUpdateTicariStatus(invoice.id, 'REJECTED')}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title={isTr ? "Reddet" : "Reject"}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

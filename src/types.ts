@@ -116,7 +116,21 @@ export interface Store {
     iyzico_secret_key?: string;
     iyzico_sandbox?: boolean;
   };
+  einvoice_settings?: EInvoiceSettings;
   created_at: string;
+}
+
+export interface EInvoiceSettings {
+  is_active: boolean;
+  provider: 'mysoft' | 'diyalogo' | 'none';
+  username?: string;            // User ID / Tax URN prefix
+  api_token?: string;           // E-Fatura Token / API Key
+  tenant_id?: string;           // VKN / Tenant
+  sender_alias?: string;        // GB
+  receiver_alias?: string;      // PK
+  earchive_username?: string;   // E-Archive user id
+  einvoice_prefix?: string;     // GAP
+  earchive_prefix?: string;     // GEA
 }
 
 export interface Quotation {

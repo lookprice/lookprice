@@ -11,6 +11,7 @@ import storeRoutes from "./routes/store";
 import fleetRoutes from "./routes/fleet";
 import paymentRoutes from "./routes/payment";
 import integrationRoutes from "./routes/integrations";
+import einvoiceRoutes from "./routes/einvoice";
 import { authenticate } from "./middleware/auth";
 import { domainMiddleware } from "./middleware/domain";
 import { pool } from "./models/db";
@@ -37,7 +38,7 @@ async function startServer() {
     hasCloudflareAccount: !!process.env.CLOUDFLARE_ACCOUNT_ID
   });
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
 
   app.set("trust proxy", true);
 
@@ -177,6 +178,7 @@ async function startServer() {
   app.use("/api/fleet", authenticate, fleetRoutes);
   app.use("/api/payment", paymentRoutes);
   app.use("/api/integrations", integrationRoutes);
+  app.use("/api", einvoiceRoutes);
 
   // CRM: Tickets (Special case, mounted at /api/tickets)
   app.get("/api/tickets", authenticate, async (req: any, res) => {

@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue, useRef } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2, Printer } from "lucide-react";
+import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2, Printer, CloudUpload, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -57,6 +57,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
+  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA'>('TEMELFATURA');
+  const [isReturn, setIsReturn] = useState(false);
   
   const selectedCompany = companies.find((c: any) => c.id === Number(companyId));
   const selectedCustomer = customers.find((c: any) => c.id === Number(customerId));
@@ -230,7 +232,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const updateItem = (index: number, field: string, value: any) => {
     setItems(prevItems => {
       const newItems = [...prevItems];
-      if (field === 'tax_rate') {
+      if (field === 'tax_rate' || field === 'tevkifat_rate') {
         newItems[index][field] = value.replace(/[^0-9]/g, '').substring(0, 2);
       } else if (field === 'quantity') {
         newItems[index][field] = value.replace(/[^0-9]/g, '');
@@ -445,6 +447,31 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setShowModal(true);
     } catch (error: any) {
       alert(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+    }
+  };
+
+  const handleSendToGIB = async (id: number) => {
+    if (!window.confirm(isTr ? "Faturayı resmileştirmek üzere GİB'e göndermek istediğinize emin misiniz? Bu işlem geri alınamaz." : "Are you sure you want to send this invoice to the government? This operation cannot be undone.")) return;
+    try {
+      toast.info(isTr ? "Fatura gönderiliyor..." : "Sending invoice...");
+      const res = await api.sendEInvoice(id);
+      if (res.error) throw new Error(res.error);
+      toast.success(isTr ? "Fatura GİB'e başarıyla iletildi!" : "Invoice successfully pushed to integrator!");
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "Servis sağlayıcıya bağlanırken hata oluştu" : "Error connecting to integrator"));
+    }
+  };
+
+  const handleCheckEInvoiceStatus = async (id: number) => {
+    try {
+      toast.info(isTr ? "Durum sorgulanıyor..." : "Checking status...");
+      const res = await api.checkEInvoiceStatus(id);
+      if (res.error) throw new Error(res.error);
+      toast.success(`${isTr ? "Durum" : "Status"}: ${res.status}`);
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "Durum sorgulama başarısız" : "Status check failed"));
     }
   };
 
@@ -687,6 +714,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-900">#{inv.invoice_number}</div>
+                      {inv.document_number && (
+                         <div className="text-[10px] text-indigo-600 font-black tracking-widest mt-0.5">{inv.document_number}</div>
+                      )}
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
                     </td>
                     <td className="px-6 py-4">
@@ -701,6 +731,29 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                          inv.status === 'cancelled' ? (isTr ? 'İptal' : 'Cancelled') :
                          inv.status}
                       </span>
+                      {inv.e_document_type && (
+                         <div className="flex flex-col gap-1 mt-1">
+                           <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
+                             inv.e_document_type === 'E-FATURA' ? 'border-purple-200 bg-purple-50 text-purple-700' : 
+                             'border-blue-200 bg-blue-50 text-blue-700'
+                           }`}>
+                             {inv.e_document_type}
+                           </div>
+                           {inv.integration_status && (
+                             <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
+                               inv.integration_status === 'QUEUED' ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                               inv.integration_status === 'APPROVED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                               inv.integration_status === 'REJECTED' ? 'border-rose-200 bg-rose-50 text-rose-700' :
+                               'border-slate-200 bg-slate-50 text-slate-700'
+                             }`}>
+                               {inv.integration_status === 'QUEUED' ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
+                                inv.integration_status === 'APPROVED' ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
+                                inv.integration_status === 'REJECTED' ? (isTr ? 'REDDEDİLDİ' : 'REJECTED') :
+                                inv.integration_status}
+                             </div>
+                           )}
+                         </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-600">
                       {inv.waybill_number || '-'}
@@ -733,7 +786,27 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       {inv.currency}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-1 flex-wrap">
+                        {/* E-Invoice / E-Archive Send Action */}
+                        {!['QUEUED', 'APPROVED'].includes(inv.integration_status) && branding?.einvoice_settings?.is_active && inv.status !== 'draft' && (
+                          <button 
+                            onClick={() => handleSendToGIB(inv.id)}
+                            className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                            title={isTr ? "GİB'e Gönder" : "Push to Document Integrator"}
+                          >
+                            <CloudUpload className="h-4 w-4" />
+                          </button>
+                        )}
+                        {/* E-Invoice Check Status Action */}
+                        {inv.integration_status === 'QUEUED' && branding?.einvoice_settings?.is_active && (
+                          <button 
+                            onClick={() => handleCheckEInvoiceStatus(inv.id)}
+                            className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
+                            title={isTr ? "GİB Durumunu Sorgula" : "Check Integrator Status"}
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => handleEdit(inv.id)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
@@ -927,7 +1000,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-4">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura No' : 'Invoice Number'}</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Sistem Fiş / Takip No' : 'System Invoice / Tracking No'}</label>
                         <div className="relative">
                           <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                           <input 
@@ -936,9 +1009,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                             className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
                             value={invoiceNumber}
                             onChange={(e) => setInvoiceNumber(e.target.value)}
-                            placeholder="INV-2024-001"
+                            placeholder={isTr ? "SİSTEM-001" : "SYS-001"}
                           />
                         </div>
+                        <p className="text-[10px] text-slate-400 mt-1 pl-1 leading-tight">{isTr ? "İç takibiniz içindir, resmi GİB E-Fatura seri numarasını bozmaz." : "For internal tracking. Official Integrator sequence is strictly separated."}</p>
                       </div>
                       <div className="space-y-4">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'İrsaliye No' : 'Waybill Number'}</label>
@@ -980,6 +1054,36 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                             <option value="cancelled">{isTr ? "İptal Edildi" : "Cancelled"}</option>
                           </select>
                         </div>
+                      </div>
+                      <div className="space-y-4">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura Tipi' : 'Invoice Profile'}</label>
+                        <select 
+                          className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700 appearance-none"
+                          value={invoiceProfile}
+                          onChange={(e: any) => setInvoiceProfile(e.target.value)}
+                        >
+                          <option value="TEMELFATURA">{isTr ? "Temel Fatura" : "Basic Invoice"}</option>
+                          <option value="TICARIFATURA">{isTr ? "Ticari Fatura" : "Commercial Invoice"}</option>
+                        </select>
+                      </div>
+                      <div className="space-y-4">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'İşlem Tipi' : 'Trans Type'}</label>
+                         <div className="flex items-center gap-4 py-4">
+                           <button
+                             type="button"
+                             onClick={() => setIsReturn(false)}
+                             className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${!isReturn ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
+                           >
+                             {isTr ? "Satış" : "Sale"}
+                           </button>
+                           <button
+                             type="button"
+                             onClick={() => setIsReturn(true)}
+                             className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isReturn ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 text-slate-500'}`}
+                           >
+                             {isTr ? "İade" : "Return"}
+                           </button>
+                         </div>
                       </div>
                     </div>
                   </div>

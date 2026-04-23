@@ -517,6 +517,13 @@ const SettingsTab = ({
           <RefreshCw className="h-4 w-4" />
           <span>{lang === 'tr' ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}</span>
         </button>
+        <button 
+          onClick={() => setActiveSubTab('e-invoice')}
+          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <Building2 className="h-4 w-4" />
+          <span>{lang === 'tr' ? 'Resmi Belge & E-Fatura' : 'E-Invoice Options'}</span>
+        </button>
       </div>
 
       {activeSubTab === 'tax' && (
@@ -1001,6 +1008,163 @@ const SettingsTab = ({
                 {lang === 'tr' ? 'Fiyatları Güncelle' : 'Update Prices'}
               </button>
             </form>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubTab === 'e-invoice' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">{lang === 'tr' ? 'Resmi Belge & E-Fatura' : 'Official Docs & E-Invoice'}</h3>
+                <p className="text-xs text-slate-500 mt-1">{lang === 'tr' ? 'E-Fatura sistemini açıp kapatın ve entegratör ayarlarınızı yapın.' : 'Enable/disable e-invoice system and configure your integrator.'}</p>
+              </div>
+            </div>
+
+            {/* Toggle System */}
+            <div className="flex items-center justify-between p-6 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <h4 className="font-bold text-slate-800">{lang === 'tr' ? 'E-Fatura Sistemi Aktif' : 'E-Invoice System Active'}</h4>
+                <p className="text-sm text-slate-500">{lang === 'tr' ? 'Eğer bu ülkede/mağazada e-fatura kullanmıyorsanız kapalı tutun.' : 'Keep this disabled if you do not use e-invoices in your country/store.'}</p>
+              </div>
+              <button
+                type="button"
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${branding?.einvoice_settings?.is_active ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                onClick={() => {
+                  const currentParams = branding?.einvoice_settings || { provider: 'none' };
+                  onBrandingChange('einvoice_settings', { ...currentParams, is_active: !currentParams.is_active });
+                }}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding?.einvoice_settings?.is_active ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {branding?.einvoice_settings?.is_active && (
+              <div className="space-y-6 pt-4 border-t border-slate-100">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Entegratör (Servis Sağlayıcı)' : 'Integrator (Provider)'}</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-medium"
+                    value={branding.einvoice_settings.provider || 'none'}
+                    onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, provider: e.target.value })}
+                  >
+                    <option value="none">-- {lang === 'tr' ? 'Seçiniz' : 'Select'} --</option>
+                    <option value="mysoft">MySoft</option>
+                    <option value="diyalogo">Diyalogo (Yakında)</option>
+                  </select>
+                </div>
+                
+                {branding.einvoice_settings.provider === 'mysoft' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <div className="md:col-span-2">
+                      <h4 className="text-sm font-bold text-slate-700 mb-4">{lang === 'tr' ? 'MySoft Kimlik Bilgileri' : 'MySoft Credentials'}</h4>
+                    </div>
+                    
+                    {/* User & Token */}
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Kullanıcı ID (URN/Tax Identity)</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="Örn: 210"
+                        value={branding.einvoice_settings.username || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, username: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Token / API Key</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="tPerKc0mws..."
+                        value={branding.einvoice_settings.api_token || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, api_token: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Tenant (Vergi Numarası)</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="11111111111"
+                        value={branding.einvoice_settings.tenant_id || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, tenant_id: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-bold text-slate-700 mb-4">{lang === 'tr' ? 'GİB Etiket (Alias) Posta Kutuları' : 'GIB URN Alias Mailboxes'}</h4>
+                      <p className="text-xs text-slate-500 mb-4">{lang === 'tr' ? 'Fatura paketlerinin (UBL) içine yazılacak resmi GİB gönderici ve alıcı etiketleriniz.' : 'Official URNs injected into the invoice XML payload.'}</p>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Gönderici Birim Alias (GB)</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="urn:mail:faturagb@firma.com"
+                        value={branding.einvoice_settings.sender_alias || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, sender_alias: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Posta Kutusu Alias (PK)</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="urn:mail:faturapk@firma.com"
+                        value={branding.einvoice_settings.receiver_alias || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, receiver_alias: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Arşiv Kullanıcı Adı</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="gapbilisim"
+                        value={branding.einvoice_settings.earchive_username || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, earchive_username: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2 pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-bold text-slate-700 mb-4">{lang === 'tr' ? 'Fatura Ön Ek (Seri) Ayarları' : 'Invoice Prefix Series'}</h4>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Ön Eki (Örn: GAP)</label>
+                      <input 
+                        type="text" 
+                        maxLength={3}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm uppercase"
+                        placeholder="GAP"
+                        value={branding.einvoice_settings.einvoice_prefix || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, einvoice_prefix: e.target.value.toUpperCase() })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Arşiv Ön Eki (Örn: GEA)</label>
+                      <input 
+                        type="text" 
+                        maxLength={3}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm uppercase"
+                        placeholder="GEA"
+                        value={branding.einvoice_settings.earchive_prefix || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, earchive_prefix: e.target.value.toUpperCase() })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
       )}

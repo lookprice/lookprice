@@ -408,7 +408,8 @@ router.post("/branding", async (req: any, res) => {
       facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
       category_tax_rules, faq, blog_posts, legal_pages, social_links, custom_domain, payment_settings,
       amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings,
-      page_layout, menu_links, shipping_profiles, emails, phones, description, footer_links
+      page_layout, menu_links, shipping_profiles, emails, phones, description, footer_links,
+      einvoice_settings
     } = req.body;
 
     await pool.query(
@@ -424,8 +425,9 @@ router.post("/branding", async (req: any, res) => {
         social_links = $29, custom_domain = $30, payment_settings = $31,
         amazon_settings = $32, n11_settings = $33, hepsiburada_settings = $34,
         trendyol_settings = $35, pazarama_settings = $36, page_layout = $37, menu_links = $38, 
-        shipping_profiles = $39, emails = $40, phones = $41, description = $42, email = $43, footer_links = $44
-      WHERE id = $45`, 
+        shipping_profiles = $39, emails = $40, phones = $41, description = $42, email = $43, footer_links = $44,
+        einvoice_settings = $45
+      WHERE id = $46`, 
       [
         name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
         background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -453,6 +455,7 @@ router.post("/branding", async (req: any, res) => {
         description,
         email,
         JSON.stringify(footer_links || []),
+        JSON.stringify(einvoice_settings || { is_active: false, provider: 'none' }),
         storeId
       ]
     );
@@ -2707,8 +2710,37 @@ router.post("/sales-invoices", async (req: any, res) => {
 
     if (!storeId) throw new Error("Store ID is required");
 
-    const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
     const branding = storeRes.rows[0]?.branding || {};
+    const einvoiceSettings = storeRes.rows[0]?.einvoice_settings || { is_active: false };
+    
+    // Auto E-Invoice Check
+    let e_document_type = null;
+    let tax_number = null;
+    
+    if (einvoiceSettings.is_active) {
+      if (company_id) {
+         const cRes = await client.query("SELECT tax_number FROM companies WHERE id = $1", [company_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      } else if (customer_id) {
+         const cRes = await client.query("SELECT tax_number FROM customers WHERE id = $1", [customer_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      }
+
+      if (tax_number) {
+         try {
+           const { MySoftService } = await import("../src/services/backend/mysoftService");
+           const mysoft = new MySoftService(einvoiceSettings);
+           const taxResult = await mysoft.checkTaxpayer(tax_number);
+           e_document_type = taxResult.documentType; 
+         } catch (err) {
+           console.error("E-Invoice check failed during invoice creation", err);
+           e_document_type = 'E-ARSIV'; // Fallback
+         }
+      } else {
+         e_document_type = 'E-ARSIV'; // No Tax number means regular citizen -> e-arşiv
+      }
+    }
     
     // Calculate totals
     let total_amount = 0;
@@ -2726,9 +2758,9 @@ router.post("/sales-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
-      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash', quotation_id || null]
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
+      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash', quotation_id || null, e_document_type]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -2878,13 +2910,44 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
       tax_amount += itemTax;
       grand_total += (itemTotal + itemTax);
     }
+    
+    // Auto E-Invoice Check
+    const storeResAuto = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
+    const einvoiceSettings = storeResAuto.rows[0]?.einvoice_settings || { is_active: false };
+    
+    let e_document_type = oldInvoice.e_document_type; // keep old if we don't query
+    
+    if (einvoiceSettings.is_active) {
+      let tax_number = null;
+      if (company_id) {
+         const cRes = await client.query("SELECT tax_number FROM companies WHERE id = $1", [company_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      } else if (customer_id) {
+         const cRes = await client.query("SELECT tax_number FROM customers WHERE id = $1", [customer_id]);
+         if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
+      }
+
+      if (tax_number) {
+         try {
+           const { MySoftService } = await import("../src/services/backend/mysoftService");
+           const mysoft = new MySoftService(einvoiceSettings);
+           const taxResult = await mysoft.checkTaxpayer(tax_number);
+           e_document_type = taxResult.documentType; 
+         } catch (err) {
+           console.error("E-Invoice check failed during invoice update", err);
+           e_document_type = 'E-ARSIV'; 
+         }
+      } else {
+         e_document_type = 'E-ARSIV';
+      }
+    }
 
     // 5. Update invoice
     await client.query(
       `UPDATE sales_invoices 
-       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14
-       WHERE id = $15 AND store_id = $16`,
-      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, req.params.id, storeId]
+       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15
+       WHERE id = $16 AND store_id = $17`,
+      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, e_document_type, req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock

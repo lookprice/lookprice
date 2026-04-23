@@ -81,6 +81,7 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS phones JSONB DEFAULT '[]';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS description TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS einvoice_settings JSONB DEFAULT '{"is_active": false, "provider": "none"}'::jsonb;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS footer_links JSONB DEFAULT '[]';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_api_token TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS cf_account_id TEXT;
@@ -516,8 +517,18 @@ export async function initDb() {
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS payment_method TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS ettn TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS document_number TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS e_document_type TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS integration_status TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS integration_message TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS payment_method TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS ettn TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS document_number TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS e_document_type TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS integration_status TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS integration_message TEXT;
       ALTER TABLE sales_invoices DROP CONSTRAINT IF EXISTS fk_invoice_sale;
       ALTER TABLE sales_invoices ADD CONSTRAINT fk_invoice_sale FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS currency_rates JSONB DEFAULT '{"USD": 1, "EUR": 1, "GBP": 1}';
