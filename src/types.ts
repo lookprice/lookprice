@@ -115,6 +115,8 @@ export interface Store {
     iyzico_api_key?: string;
     iyzico_secret_key?: string;
     iyzico_sandbox?: boolean;
+    paypal_client_id?: string;
+    payoneer_email?: string;
   };
   einvoice_settings?: EInvoiceSettings;
   created_at: string;

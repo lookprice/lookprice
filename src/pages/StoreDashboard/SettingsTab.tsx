@@ -31,7 +31,11 @@ import {
   Plus,
   Trash2,
   Wrench,
-  Tag
+  Tag,
+  Star,
+  X,
+  Cpu,
+  Cpu as CpuIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "../../translations";
@@ -365,10 +369,20 @@ const SettingsTab = ({
     setLoadingPzCats(true);
     try {
       const res = await api.getPazaramaCategories(currentStoreId);
-      setPzCategories(res.data || []);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      
+      // Backend now returns only the data array, but being safe
+      const cats = Array.isArray(res) ? res : (res?.data || []);
+      if (cats.length === 0) {
+        alert(lang === 'tr' ? 'Pazarama\'dan hiç kategori gelmedi. Lütfen API bilgilerinizin doğruluğunu ve yetkilerini kontrol edin.' : 'No categories received from Pazarama. Please check your API credentials and permissions.');
+      }
+      setPzCategories(cats);
       setShowPzMapping(true);
     } catch (e: any) {
-      alert(e.response?.data?.error || "Hata oluştu");
+      console.error("Pazarama Category Fetch Error:", e);
+      alert(`${lang === 'tr' ? "Kategoriler çekilemedi" : "Could not fetch categories"}: ${e.message}`);
     } finally {
       setLoadingPzCats(false);
     }
@@ -382,10 +396,20 @@ const SettingsTab = ({
     setLoadingPzBrands(true);
     try {
       const res = await api.getPazaramaBrands(currentStoreId);
-      setPzBrands(res.data || []);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+
+      // Backend now returns only the data array, but being safe
+      const brands = Array.isArray(res) ? res : (res?.data || []);
+      if (brands.length === 0) {
+        alert(lang === 'tr' ? 'Pazarama\'dan hiç marka gelmedi. Lütfen API bilgilerinizin doğruluğunu ve yetkilerini kontrol edin.' : 'No brands received from Pazarama. Please check your API credentials and permissions.');
+      }
+      setPzBrands(brands);
       setShowPzBrandMapping(true);
     } catch (e: any) {
-      alert(e.response?.data?.error || "Hata oluştu");
+      console.error("Pazarama Brand Fetch Error:", e);
+      alert(`${lang === 'tr' ? "Markalar çekilemedi" : "Could not fetch brands"}: ${e.message}`);
     } finally {
       setLoadingPzBrands(false);
     }
@@ -547,91 +571,141 @@ const SettingsTab = ({
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-24">
-      {/* Sub-tab Navigation */}
-      <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 flex flex-wrap gap-1">
-        <button 
-          onClick={() => setActiveSubTab('web')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <Palette className="h-4 w-4" />
-          <span>{t.settingsCategories?.webSettings}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('e-stores')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <ShoppingBag className="h-4 w-4" />
-          <span>{t.settingsCategories?.eStores}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('currency')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'currency' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <Globe className="h-4 w-4" />
-          <span>{t.settingsCategories?.currencyExchange}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('tax')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'tax' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <Building2 className="h-4 w-4" />
-          <span>{t.settingsCategories?.taxUnits}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('pos')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <CreditCard className="h-4 w-4" />
-          <span>{t.settingsCategories?.posSettings}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('domain')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'domain' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <Globe className="h-4 w-4" />
-          <span>{t.settingsCategories?.domainSettings}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('shipping')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'shipping' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <Truck className="h-4 w-4" />
-          <span>{lang === 'tr' ? 'Kargo Ayarları' : 'Shipping'}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('bulk-price')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'bulk-price' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <RefreshCw className="h-4 w-4" />
-          <span>{lang === 'tr' ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}</span>
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('e-invoice')}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-        >
-          <Building2 className="h-4 w-4" />
-          <span>{lang === 'tr' ? 'Resmi Belge & E-Fatura' : 'E-Invoice Options'}</span>
-        </button>
-      </div>
+        {/* Sub-tab Navigation */}
+        <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 flex flex-wrap gap-1">
+          <button 
+            onClick={() => setActiveSubTab('web')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Palette className="h-4 w-4" />
+            <span>{t.settingsCategories?.webSettings}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('store-ops')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Wrench className="h-4 w-4" />
+            <span>Store Settings</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('pos')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <CreditCard className="h-4 w-4" />
+            <span>{t.settingsCategories?.posSettings}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('e-stores')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span>{t.settingsCategories?.eStores}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('domain')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'domain' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Globe className="h-4 w-4" />
+            <span>{t.settingsCategories?.domainSettings}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('e-invoice')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Building2 className="h-4 w-4" />
+            <span>E-Invoice</span>
+          </button>
+        </div>
 
-      {activeSubTab === 'tax' && (
+      {activeSubTab === 'store-ops' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
+          className="max-w-4xl mx-auto space-y-8"
         >
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+          {/* Currency & Language */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
             <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <Building2 className="h-5 w-5" />
+              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                <Globe className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.settingsCategories?.taxUnits}</h3>
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Para Birimi & Dil' : 'Currency & Language'}</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Yerelleştirme Ayarları' : 'Localization Settings'}</p>
               </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultCurrency}</label>
+                <div className="relative">
+                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <select 
+                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
+                    value={branding.default_currency || "TRY"}
+                    onChange={(e) => onBrandingChange('default_currency', e.target.value)}
+                  >
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultLanguage}</label>
+                <div className="relative">
+                  <Languages className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <select 
+                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
+                    value={branding.default_language || branding.language || "tr"}
+                    onChange={(e) => onBrandingChange('language', e.target.value)}
+                  >
+                    <option value="tr">Türkçe</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <h4 className="text-sm font-bold text-slate-900 mb-4">{t.crossExchangeRates || 'Çapraz Kurlar'}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {['USD', 'EUR', 'GBP'].map(curr => (
+                    <div key={curr} className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{curr} {t.rate || 'Kuru'}</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₺</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                          value={branding.currency_rates?.[curr] || ""}
+                          onChange={(e) => {
+                            const rates = { ...(branding.currency_rates || {}) };
+                            rates[curr] = parseFloat(e.target.value);
+                            onBrandingChange('currency_rates', rates);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tax Rates & Rules */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                <Building2 className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Vergi Ayarları</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultTaxRate || 'Varsayılan KDV Oranı (%)'}</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Varsayılan KDV Oranı (%)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                   <input 
@@ -639,20 +713,19 @@ const SettingsTab = ({
                     className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
                     value={branding.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : '20'}
                     onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
-                    onFocus={(e) => e.target.select()}
                   />
                 </div>
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.categoryTaxRules || 'Kategori KDV Kuralları'}</label>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori KDV Kuralları</label>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
                   <div className="flex gap-2">
                     <input 
                       type="text" 
                       id="new-category-name"
-                      placeholder={t.categoryNamePlaceholder || 'Kategori Adı (Örn: ALKOLLÜ İÇECEKLER)'}
-                      className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      placeholder="Kategori Adı"
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
                     />
                     <div className="relative w-24">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
@@ -660,7 +733,7 @@ const SettingsTab = ({
                         type="text" 
                         id="new-category-tax"
                         placeholder="0"
-                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                        className="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
                       />
                     </div>
                     <button 
@@ -676,414 +749,161 @@ const SettingsTab = ({
                           taxInput.value = '';
                         }
                       }}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700"
                     >
-                      {t.add}
+                      Ekle
                     </button>
                   </div>
                   
-                  {(branding.category_tax_rules || []).length > 0 && (
-                    <div className="space-y-2 mt-4">
-                      {(branding.category_tax_rules || []).map((rule: any, idx: number) => (
-                        <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-sm text-slate-700">{rule.category}</span>
-                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold">KDV %{rule.taxRate}</span>
-                          </div>
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              const newRules = [...branding.category_tax_rules];
-                              newRules.splice(idx, 1);
-                              onBrandingChange('category_tax_rules', newRules);
-                            }}
-                            className="text-red-500 hover:text-red-700 text-sm font-medium"
-                          >
-                            {t.delete}
-                          </button>
+                  <div className="space-y-2 mt-4">
+                    {(branding.category_tax_rules || []).map((rule: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-sm text-slate-700">{rule.category}</span>
+                          <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black">KDV %{rule.taxRate}</span>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const newRules = [...branding.category_tax_rules];
+                            newRules.splice(idx, 1);
+                            onBrandingChange('category_tax_rules', newRules);
+                          }}
+                          className="text-red-500 hover:text-red-700 text-sm font-bold"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </motion.div>
-      )}
 
-      {activeSubTab === 'pos' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto space-y-8"
-        >
-          {/* Payment Method Settings */}
-          <div className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden relative bg-white border-slate-200`}>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight mb-6">
-                {lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Methods'}
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Cash on Delivery Toggle */}
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="font-bold text-sm text-slate-700">{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer"
-                      checked={!!branding.payment_settings?.cod_enabled}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, cod_enabled: e.target.checked })}
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  </label>
+          {/* Shipping Profiles */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                  <Truck className="h-6 w-6" />
                 </div>
-
-                {/* Bank Transfer Toggle */}
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="font-bold text-sm text-slate-700">{lang === 'tr' ? 'Banka Transferi' : 'Bank Transfer'}</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer"
-                      checked={!!branding.payment_settings?.bank_transfer_enabled}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, bank_transfer_enabled: e.target.checked })}
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  </label>
-                </div>
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kargo Ayarları</h3>
               </div>
-
-              {/* Bank Details Input - Visible only if enabled */}
-              {branding.payment_settings?.bank_transfer_enabled && (
-                <div className="mt-6 space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-                    {lang === 'tr' ? 'Banka Hesap Bilgileri (IBAN)' : 'Bank Account Details (IBAN)'}
-                  </label>
-                  <textarea
-                    value={branding.payment_settings?.bank_details || ''}
-                    onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, bank_details: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-indigo-500 transition-all outline-none"
-                    rows={3}
-                    placeholder={lang === 'tr' ? 'Banka adı, Hesap sahibi, IBAN bilgileri...' : 'Bank name, Account holder, IBAN details...'}
-                  />
-                </div>
-              )}
-              
-              <div className="flex justify-end pt-6">
-                <button
-                    onClick={onSaveBranding}
-                    className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all flex items-center space-x-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>{lang === 'tr' ? 'Ayarları Kaydet' : 'Save Settings'}</span>
-                  </button>
-              </div>
+              <button 
+                onClick={() => {
+                  const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
+                  onBrandingChange('shipping_profiles', newProfiles);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800"
+              >
+                <Plus className="h-4 w-4" /> Yeni Profil
+              </button>
             </div>
-
-          {/* Iyzico Virtual POS Settings */}
-          <div className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden relative ${branding.iyzico_enabled ? 'bg-white border-indigo-200 shadow-xl shadow-indigo-100/50' : 'bg-slate-50 border-slate-200 opacity-80 hover:opacity-100'}`}>
-            {branding.iyzico_enabled && (
-              <div className="absolute top-0 right-0 p-8">
-                <span className="flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
-              </div>
-            )}
             
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${branding.iyzico_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}>
-                  <CreditCard className={`w-6 h-6 ${branding.iyzico_enabled ? 'text-white' : 'text-slate-400'}`} />
+            <div className="space-y-4">
+              {(branding.shipping_profiles || []).map((profile: any, index: number) => (
+                <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                  <div className="flex-1 w-full">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Profil Adı</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
+                      value={profile.name}
+                      onChange={(e) => {
+                        const newProfiles = [...branding.shipping_profiles];
+                        newProfiles[index].name = e.target.value;
+                        onBrandingChange('shipping_profiles', newProfiles);
+                      }}
+                    />
+                  </div>
+                  <div className="w-full sm:w-32 shrink-0">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Ücret</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
+                      value={profile.cost}
+                      onChange={(e) => {
+                        const newProfiles = [...branding.shipping_profiles];
+                        newProfiles[index].cost = parseFloat(e.target.value) || 0;
+                        onBrandingChange('shipping_profiles', newProfiles);
+                      }}
+                    />
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const newProfiles = branding.shipping_profiles.filter((_: any, i: number) => i !== index);
+                      onBrandingChange('shipping_profiles', newProfiles);
+                    }}
+                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-6 sm:mt-5"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
                 </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                    {lang === 'tr' ? 'Iyzico Sanal POS' : 'Iyzico Virtual POS'}
-                  </h3>
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
-                    {lang === 'tr' ? 'E-Ticaret Tahsilat Altyapısı' : 'E-Commerce Payment Gateway'}
-                  </p>
-                </div>
-              </div>
-              
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer"
-                  checked={!!branding.payment_settings?.iyzico_enabled}
-                  onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_enabled: e.target.checked })}
-                />
-                <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
-              </label>
+              ))}
             </div>
-
-            <AnimatePresence>
-              {branding.payment_settings?.iyzico_enabled && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="space-y-6 overflow-hidden"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'API Anahtarı' : 'API Key'}</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <Lock className="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                        </div>
-                        <input
-                          type="password"
-                          value={branding.payment_settings?.iyzico_api_key || ''}
-                          onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_api_key: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
-                          placeholder={lang === 'tr' ? 'Iyzico panelinden kopyalayın...' : 'Copy from Iyzico panel...'}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Güvenlik Anahtarı' : 'Secret Key'}</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <Lock className="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                        </div>
-                        <input
-                          type="password"
-                          value={branding.payment_settings?.iyzico_secret_key || ''}
-                          onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_secret_key: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
-                          placeholder={lang === 'tr' ? 'Gizli anahtarınız...' : 'Your secret key...'}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2 col-span-1 md:col-span-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Çalışma Ortamı' : 'Environment'}</label>
-                      <div className="flex gap-4">
-                        <button
-                          type="button"
-                          onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_sandbox: true })}
-                          className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all font-bold text-sm ${!!branding.payment_settings?.iyzico_sandbox ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                        >
-                          <Wrench className="w-4 h-4" />
-                          {lang === 'tr' ? 'Sandbox (Test Eğitimi)' : 'Sandbox (Test)'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, iyzico_sandbox: false })}
-                          className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all font-bold text-sm ${!branding.payment_settings?.iyzico_sandbox ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                        >
-                          <Globe className="w-4 h-4" />
-                          {lang === 'tr' ? 'Canlı (Production)' : 'Live (Production)'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end pt-2">
-                     <button
-                        onClick={onSaveBranding}
-                        className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20 transition-all flex items-center space-x-2"
-                      >
-                        <Save className="w-4 h-4" />
-                        <span>{lang === 'tr' ? 'Bağlantıyı Kaydet' : 'Save Connection'}</span>
-                      </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
-          {/* Local Cash Register/POS Bridge Settings */}
-           <div className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden relative ${branding.pos_bridge_enabled ? 'bg-white border-orange-200 shadow-xl shadow-orange-100/50' : 'bg-slate-50 border-slate-200 opacity-80 hover:opacity-100'}`}>
-            {branding.pos_bridge_enabled && (
-               <div className="absolute top-0 right-0 p-8">
-                <span className="flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
+          {/* Bulk Price Update */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                <RefreshCw className="h-6 w-6" />
               </div>
-            )}
-
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${branding.pos_bridge_enabled ? 'bg-orange-500' : 'bg-slate-200'}`}>
-                  <Smartphone className={`w-6 h-6 ${branding.pos_bridge_enabled ? 'text-white' : 'text-slate-400'}`} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                    {lang === 'tr' ? 'Fiziksel Yazar Kasa / POS Köprüsü' : 'Physical POS Bridge'}
-                  </h3>
-                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
-                    {lang === 'tr' ? 'Yerel Ağ Aygıt İletişimi' : 'Local Network Device Communication'}
-                  </p>
-                </div>
-              </div>
-              
-               <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer"
-                  checked={!!branding.pos_bridge_enabled}
-                  onChange={(e) => onBrandingChange('pos_bridge_enabled', e.target.checked)}
-                />
-                <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
-              </label>
+              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Toplu Fiyat Güncelleme</h3>
             </div>
-
-            <AnimatePresence>
-               {branding.pos_bridge_enabled && (
-                 <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="space-y-6 overflow-hidden"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Köprü IP Adresi' : 'Bridge IP Address'}</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <Globe className="h-4 w-4 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
-                        </div>
-                        <input
-                          type="text"
-                          value={branding.pos_bridge_ip || '127.0.0.1'}
-                          onChange={(e) => onBrandingChange('pos_bridge_ip', e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Köprü Portu' : 'Bridge Port'}</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <AlertTriangle className="h-4 w-4 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
-                        </div>
-                        <input
-                          type="text"
-                          value={branding.pos_bridge_port || '1616'}
-                          onChange={(e) => onBrandingChange('pos_bridge_port', e.target.value)}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-sm focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-8 p-5 bg-orange-50 border border-orange-100 rounded-2xl flex flex-col md:flex-row items-start gap-4">
-                    <div className="p-2 bg-white rounded-xl shadow-sm shrink-0">
-                      <Info className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-black text-orange-900 mb-1 tracking-tight">{lang === 'tr' ? 'Yerel Ağ Köprüsü Nasıl Çalışır?' : 'How Local Network Bridge Works?'}</h4>
-                      <p className="text-[13px] font-medium text-orange-800/80 leading-relaxed mb-4">
-                        {lang === 'tr' 
-                          ? 'LookPrice, buluttan mağazanızın içindeki fiziksel donanımlara (Yazar Kasa, Para Çekmecesi, POS) erişmek için mağazanızdaki bir bilgisayara kurulan küçük bir köprü yazılımı ile iletişim kurar. Bu ayarlar, o bilgisayarın yerel IP adresi ve portudur. "Hızlı POS" modülü bu kanalı kullanır.' 
-                          : 'LookPrice communicates with physical hardware in your store (Cash Register, Cash Drawer, POS) from the cloud using a small bridge software installed on a store computer. These settings define its local IP and port. The "Fast POS" module uses this channel.'}
-                      </p>
-                      
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <a 
-                          href="#" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            alert(lang === 'tr' ? 'Köprü yazılımı indirmesi başlatılıyor...' : 'Bridge software download starting...');
-                          }}
-                          className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-white border border-orange-200 rounded-xl text-xs font-bold text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-all shadow-sm"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span>{lang === 'tr' ? 'Windows için İndir (.exe)' : 'Download for Windows (.exe)'}</span>
-                        </a>
-                        <a 
-                          href="#" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            alert(lang === 'tr' ? 'Köprü yazılımı indirmesi başlatılıyor...' : 'Bridge software download starting...');
-                          }}
-                          className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span>{lang === 'tr' ? 'Mac için İndir (.dmg)' : 'Download for Mac (.dmg)'}</span>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end pt-4">
-                    <button
-                      onClick={onSaveBranding}
-                      className="px-8 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 hover:shadow-lg hover:shadow-orange-500/20 transition-all flex items-center space-x-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>{lang === 'tr' ? 'Köprü Ayarlarını Kaydet' : 'Save Bridge Settings'}</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-      )}
-
-      {activeSubTab === 'bulk-price' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-6">{lang === 'tr' ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}</h3>
+            
             <form onSubmit={handleBulkPriceSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Hedef' : 'Target'}</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Hedef</label>
                   <select 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
                     value={bulkPriceForm.target}
                     onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, target: e.target.value })}
                   >
-                    <option value="all">{lang === 'tr' ? 'Tüm Ürünler' : 'All Products'}</option>
-                    <option value="category">{lang === 'tr' ? 'Kategori Bazlı' : 'Category Based'}</option>
+                    <option value="all">Tüm Ürünler</option>
+                    <option value="category">Kategori Bazlı</option>
                   </select>
                 </div>
                 {bulkPriceForm.target === 'category' && (
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Kategori' : 'Category'}</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori</label>
                     <input 
                       type="text" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
                       value={bulkPriceForm.category}
                       onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
                     />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İşlem Tipi' : 'Type'}</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">İşlem Tipi</label>
                   <select 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
                     value={bulkPriceForm.type}
                     onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, type: e.target.value })}
                   >
-                    <option value="percentage">{lang === 'tr' ? 'Yüzde (%)' : 'Percentage (%)'}</option>
-                    <option value="fixed">{lang === 'tr' ? 'Sabit Tutar' : 'Fixed Amount'}</option>
+                    <option value="percentage">Yüzde (%)</option>
+                    <option value="fixed">Sabit Tutar</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Yön' : 'Direction'}</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Yön</label>
                   <select 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
                     value={bulkPriceForm.direction}
                     onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, direction: e.target.value })}
                   >
-                    <option value="increase">{lang === 'tr' ? 'Artır' : 'Increase'}</option>
-                    <option value="decrease">{lang === 'tr' ? 'Azalt' : 'Decrease'}</option>
+                    <option value="increase">Artır</option>
+                    <option value="decrease">Azalt</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Değer' : 'Value'}</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Değer</label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
                     value={bulkPriceForm.value}
                     onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, value: e.target.value })}
                   />
@@ -1091,11 +911,18 @@ const SettingsTab = ({
               </div>
               <button 
                 type="submit" 
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]"
               >
-                {lang === 'tr' ? 'Fiyatları Güncelle' : 'Update Prices'}
+                Fiyatları Güncelle
               </button>
             </form>
+          </div>
+
+          <div className="flex justify-end pt-6">
+            <button onClick={onSaveBranding} className="px-10 py-5 bg-slate-900 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-black transition-all shadow-2xl active:scale-95 flex items-center gap-3">
+              <Save className="w-5 h-5" />
+              Tüm Mağaza Ayarlarını Kaydet
+            </button>
           </div>
         </motion.div>
       )}
@@ -1257,6 +1084,262 @@ const SettingsTab = ({
         </motion.div>
       )}
 
+      {activeSubTab === 'pos' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto space-y-8"
+        >
+          {/* Online Payment Gateways */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                <CreditCard className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Gateways'}</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Online Tahsilat Seçenekleri' : 'Online Collection Options'}</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* Cash on Delivery */}
+              <div className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{lang === 'tr' ? 'Nakit veya Kart' : 'Cash or Card'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), cod_enabled: !branding.payment_settings?.cod_enabled })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${branding.payment_settings?.cod_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.cod_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Bank Transfer */}
+              <div className={`p-5 rounded-2xl border transition-all ${branding.payment_settings?.bank_transfer_enabled ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
+                      <Building2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">{lang === 'tr' ? 'Banka Havalesi / EFT' : 'Bank Transfer / EFT'}</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{lang === 'tr' ? 'IBAN ile Ödeme' : 'Payment via IBAN'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), bank_transfer_enabled: !branding.payment_settings?.bank_transfer_enabled })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${branding.payment_settings?.bank_transfer_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.bank_transfer_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {branding.payment_settings?.bank_transfer_enabled && (
+                  <div className="mt-4 space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'BANKA HESAP BİLGİLERİ' : 'BANK ACCOUNT DETAILS'}</label>
+                    <textarea 
+                      className="w-full h-24 p-4 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-500/5 outline-none resize-none"
+                      placeholder={lang === 'tr' ? 'IBAN, Banka Adı ve Alıcı ismini buraya yazın...' : 'Write IBAN, Bank Name and Receiver name here...'}
+                      value={branding.payment_settings?.bank_details || ''}
+                      onChange={(e) => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), bank_details: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* PayPal */}
+              <div className={`p-5 rounded-2xl border transition-all ${branding.payment_settings?.paypal_enabled ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">PayPal</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{lang === 'tr' ? 'Global Ödeme' : 'Global Payment'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), paypal_enabled: !branding.payment_settings?.paypal_enabled })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${branding.payment_settings?.paypal_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.paypal_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {branding.payment_settings?.paypal_enabled && (
+                  <div className="mt-4 space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">PayPal Client ID</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                        value={branding.payment_settings?.paypal_client_id || ''}
+                        onChange={(e) => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), paypal_client_id: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Payoneer */}
+              <div className={`p-5 rounded-2xl border transition-all ${branding.payment_settings?.payoneer_enabled ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
+                      <CreditCard className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Payoneer</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{lang === 'tr' ? 'Global Ödeme' : 'Global Payment'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), payoneer_enabled: !branding.payment_settings?.payoneer_enabled })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${branding.payment_settings?.payoneer_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.payoneer_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {branding.payment_settings?.payoneer_enabled && (
+                  <div className="mt-4 space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Payoneer Account Email</label>
+                      <input 
+                        type="email" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                        value={branding.payment_settings?.payoneer_email || ''}
+                        onChange={(e) => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), payoneer_email: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Iyzico */}
+              <div className={`p-5 rounded-2xl border transition-all ${branding.payment_settings?.iyzico_enabled ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
+                      <CreditCard className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Iyzico Sanal POS</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{lang === 'tr' ? 'Güvenli Kredi Kartı' : 'Secure Credit Card'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), iyzico_enabled: !branding.payment_settings?.iyzico_enabled })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${branding.payment_settings?.iyzico_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.iyzico_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {branding.payment_settings?.iyzico_enabled && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">API Key</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                        value={branding.payment_settings?.iyzico_api_key || ''}
+                        onChange={(e) => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), iyzico_api_key: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Secret Key</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                        value={branding.payment_settings?.iyzico_secret_key || ''}
+                        onChange={(e) => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), iyzico_secret_key: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'Mod' : 'Mode'}</label>
+                      <select 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none"
+                        value={branding.payment_settings?.iyzico_sandbox ? 'true' : 'false'}
+                        onChange={(e) => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), iyzico_sandbox: e.target.value === 'true' })}
+                      >
+                        <option value="true">Sandbox (Test)</option>
+                        <option value="false">Production (Live)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* POS Bridge Configuration */}
+          <div className="bg-slate-950 p-6 md:p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-slate-900 rounded-2xl text-indigo-400 border border-slate-800">
+                    <Cpu className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white leading-tight tracking-tight">POS Köprüsü</h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Cihaz Entegrasyonu</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onBrandingChange('pos_bridge_enabled', !branding.pos_bridge_enabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${branding.pos_bridge_enabled ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.pos_bridge_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500 ${branding.pos_bridge_enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Köprü IP Adresi</label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
+                    <input 
+                      type="text" 
+                      className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-sm font-mono text-indigo-400 outline-none focus:border-indigo-500/50 transition-all"
+                      placeholder="192.168.1.XX"
+                      value={branding.pos_bridge_ip || ''}
+                      onChange={(e) => onBrandingChange('pos_bridge_ip', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Port</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-sm font-mono text-indigo-400 outline-none focus:border-indigo-500/50 transition-all"
+                    placeholder="8080"
+                    value={branding.pos_bridge_port || ''}
+                    onChange={(e) => onBrandingChange('pos_bridge_port', e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-800/50">
+                    <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                      {lang === 'tr' 
+                        ? 'LookPrice POS Köprüsü, yerel ağınızdaki fiziksel POS cihazları ile bulut sistemi arasında güvenli bir bağlantı kurar. Bu ayar aktif olduğunda, yapılan satışlar otomatik olarak fiziksel terminale gönderilir.'
+                        : 'LookPrice POS Bridge establishes a secure connection between physical POS devices on your local network and the cloud system.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {activeSubTab === 'layout' && (
         <div className="max-w-4xl mx-auto">
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
@@ -1267,106 +1350,6 @@ const SettingsTab = ({
             />
           </div>
         </div>
-      )}
-
-      {activeSubTab === 'shipping' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{lang === 'tr' ? 'Kargo Ücretleri' : 'Shipping Profiles'}</h3>
-                <p className="text-sm text-slate-500">
-                  {lang === 'tr' 
-                    ? 'Farklı desi, ağırlık veya bölgeler için kargo ücretleri tanımlayın. Bu ücretleri ürün eklerken seçebilirsiniz.' 
-                    : 'Define shipping costs for different weights, volumes, or regions. You can select these when adding products.'}
-                </p>
-              </div>
-              <button 
-                onClick={() => {
-                  const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
-                  onBrandingChange('shipping_profiles', newProfiles);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shrink-0"
-              >
-                <Plus className="h-4 w-4" />
-                {lang === 'tr' ? 'Yeni Kargo Profili' : 'New Profile'}
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {(branding.shipping_profiles || []).map((profile: any, index: number) => (
-                <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="flex-1 w-full">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">{lang === 'tr' ? 'Profil Adı (örn: 0-1 Desi)' : 'Profile Name'}</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                      value={profile.name}
-                      onChange={(e) => {
-                        const newProfiles = [...branding.shipping_profiles];
-                        newProfiles[index].name = e.target.value;
-                        onBrandingChange('shipping_profiles', newProfiles);
-                      }}
-                      placeholder={lang === 'tr' ? 'Örn: 0-1 Desi Aras Kargo' : 'e.g. 0-1 Kg Standard'}
-                    />
-                  </div>
-                  <div className="w-full sm:w-32 shrink-0">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">{lang === 'tr' ? 'Ücret' : 'Cost'}</label>
-                    <input 
-                      type="number" 
-                      min="0"
-                      step="0.01"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                      value={profile.cost}
-                      onChange={(e) => {
-                        const newProfiles = [...branding.shipping_profiles];
-                        newProfiles[index].cost = parseFloat(e.target.value) || 0;
-                        onBrandingChange('shipping_profiles', newProfiles);
-                      }}
-                    />
-                  </div>
-                  <div className="w-full sm:w-24 shrink-0">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
-                    <select
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                      value={profile.currency}
-                      onChange={(e) => {
-                        const newProfiles = [...branding.shipping_profiles];
-                        newProfiles[index].currency = e.target.value;
-                        onBrandingChange('shipping_profiles', newProfiles);
-                      }}
-                    >
-                      <option value="TRY">TRY</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      const newProfiles = branding.shipping_profiles.filter((_: any, i: number) => i !== index);
-                      onBrandingChange('shipping_profiles', newProfiles);
-                    }}
-                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-6 sm:mt-5"
-                    title={lang === 'tr' ? 'Sil' : 'Delete'}
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
-              ))}
-              {(!branding.shipping_profiles || branding.shipping_profiles.length === 0) && (
-                <div className="text-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                  <Truck className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm font-medium">{lang === 'tr' ? 'Henüz kargo profili eklemediniz.' : 'No shipping profiles added yet.'}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
       )}
 
       {activeSubTab === 'menu' && (
@@ -1483,85 +1466,6 @@ const SettingsTab = ({
           </div>
         </motion.div>
       )}
-
-      {activeSubTab === 'currency' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <Globe className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.settingsCategories?.currencyExchange}</h3>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultCurrency}</label>
-                <div className="relative">
-                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <select 
-                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
-                    value={branding.default_currency || "TRY"}
-                    onChange={(e) => onBrandingChange('default_currency', e.target.value)}
-                  >
-                    <option value="TRY">TRY (₺)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultLanguage}</label>
-                <div className="relative">
-                  <Languages className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <select 
-                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
-                    value={branding.default_language || branding.language || "tr"}
-                    onChange={(e) => onBrandingChange('language', e.target.value)}
-                  >
-                    <option value="tr">Türkçe</option>
-                    <option value="en">English</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="md:col-span-2 mt-6">
-                <h4 className="text-sm font-bold text-slate-900 mb-4">{t.crossExchangeRates || 'Çapraz Kurlar'}</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {['USD', 'EUR', 'GBP'].map(curr => (
-                    <div key={curr} className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{curr} {t.rate || 'Kuru'}</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₺</span>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                          value={branding.currency_rates?.[curr] || ""}
-                          onChange={(e) => {
-                            const rates = { ...(branding.currency_rates || {}) };
-                            rates[curr] = parseFloat(e.target.value);
-                            onBrandingChange('currency_rates', rates);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-
 
       {activeSubTab === 'e-stores' && (
         <motion.div 
@@ -2177,8 +2081,8 @@ const SettingsTab = ({
                                     >
                                       <option value="">{lang === 'tr' ? 'Pazarama Kategorisi Seç' : 'Select Pazarama Category'}</option>
                                       {pzCategories.map((pzCat: any) => (
-                                        <option key={pzCat.id || pzCat.categoryId} value={pzCat.id || pzCat.categoryId}>
-                                          {pzCat.name || pzCat.categoryName}
+                                        <option key={pzCat.id || pzCat.categoryId || pzCat.CategoryId} value={pzCat.id || pzCat.categoryId || pzCat.CategoryId}>
+                                          {pzCat.name || pzCat.categoryName || pzCat.CategoryName}
                                         </option>
                                       ))}
                                     </select>
@@ -2233,8 +2137,8 @@ const SettingsTab = ({
                                     >
                                       <option value="">{lang === 'tr' ? 'Pazarama Markası Seç' : 'Select Pazarama Brand'}</option>
                                       {pzBrands.map((pzBrand: any) => (
-                                        <option key={pzBrand.id || pzBrand.brandId} value={pzBrand.id || pzBrand.brandId}>
-                                          {pzBrand.name || pzBrand.brandName}
+                                        <option key={pzBrand.id || pzBrand.brandId || pzBrand.BrandId} value={pzBrand.id || pzBrand.brandId || pzBrand.BrandId}>
+                                          {pzBrand.name || pzBrand.brandName || pzBrand.BrandName}
                                         </option>
                                       ))}
                                     </select>
@@ -2528,575 +2432,246 @@ const SettingsTab = ({
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto space-y-8"
+          className="max-w-5xl mx-auto space-y-6 pb-20"
         >
-          {/* Showcase Sections Control Panel */}
-          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100 flex items-center justify-center">
-                <Palette className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Vitrin Bölümleri' : 'Showcase Sections'}</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Zenginleştirilmiş Mağaza Özellikleri' : 'Enriched Store Features'}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { key: 'show_announcement', label: lang === 'tr' ? 'Duyuru Bandı (Marquee)' : 'Announcement Bar', icon: <RefreshCw className="w-4 h-4" />, desc: lang === 'tr' ? 'Üstte kayan kampanya metni' : 'Scrolling campaign text at the top' },
-                { key: 'show_stories', label: lang === 'tr' ? 'Kategori Hikayeleri' : 'Category Stories', icon: <ImageIcon className="w-4 h-4" />, desc: lang === 'tr' ? 'İnstagram tarzı yuvarlak ikonlar' : 'Instagram-style circular icons' },
-                { key: 'show_campaigns', label: lang === 'tr' ? 'Fırsat Bölümü' : 'Deals Section', icon: <ShoppingBag className="w-4 h-4" />, desc: lang === 'tr' ? 'Özel fiyatlı ürünleri öne çıkar' : 'Highlight special-priced items' },
-                { key: 'show_testimonials', label: lang === 'tr' ? 'Sosyal Kanıt (Yorumlar)' : 'Social Proof (Reviews)', icon: <User className="w-4 h-4" />, desc: lang === 'tr' ? 'Müşteri deneyimlerini sergile' : 'Showcase customer experiences' },
-                { key: 'show_newsletter', label: lang === 'tr' ? 'Haber Bülteni' : 'Newsletter', icon: <Mail className="w-4 h-4" />, desc: lang === 'tr' ? 'E-posta listesi toplayın' : 'Collect email subscribers' },
-                { key: 'enable_live_activity', label: lang === 'tr' ? 'Canlı Aktivite' : 'Live Activity', icon: <Smartphone className="w-4 h-4" />, desc: lang === 'tr' ? 'Satış bildirim baloncukları' : 'Recent purchase notifications' },
-              ].map((section) => (
-                <div key={section.key} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-white transition-all group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-white rounded-xl text-slate-400 group-hover:text-indigo-600 shadow-sm border border-slate-100 flex items-center justify-center transition-colors">
-                      {section.icon}
-                    </div>
-                    <div>
-                      <label className="text-sm font-black text-slate-700 cursor-pointer block">{section.label}</label>
-                      <span className="text-[10px] text-slate-400 font-medium">{section.desc}</span>
-                    </div>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      const currentLayout = branding.page_layout_settings || {
-                        show_announcement: true,
-                        show_stories: true,
-                        show_campaigns: true,
-                        show_testimonials: true,
-                        show_newsletter: true,
-                        enable_live_activity: true,
-                        theme_variety: 'modern'
-                      };
-                      onBrandingChange('page_layout_settings', { ...currentLayout, [section.key]: currentLayout[section.key as keyof typeof currentLayout] === false ? true : false });
-                    }}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.page_layout_settings?.[section.key] !== false ? 'bg-indigo-600' : 'bg-slate-200'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.page_layout_settings?.[section.key] !== false ? 'translate-x-[22px]' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-10 p-6 bg-slate-900 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-700"></div>
-               <div className="relative z-10">
-                 <h4 className="text-xs font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
-                   <Palette className="w-4 h-4 text-indigo-400" />
-                   {lang === 'tr' ? 'TASARIM KONSEPTİ' : 'DESIGN CONCEPT'}
-                 </h4>
-                 <div className="grid grid-cols-3 gap-4">
-                    {['modern', 'minimal', 'bold'].map((theme) => (
-                      <button
-                        key={theme}
-                        onClick={() => {
-                          const currentLayout = branding.page_layout_settings || {};
-                          onBrandingChange('page_layout_settings', { ...currentLayout, theme_variety: theme });
-                        }}
-                        className={`py-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${branding.page_layout_settings?.theme_variety === theme ? 'border-indigo-400 bg-indigo-500/10 text-white shadow-lg' : 'border-slate-800 bg-slate-800/50 text-slate-500 hover:border-slate-700'}`}
-                      >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${branding.page_layout_settings?.theme_variety === theme ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
-                           {theme === 'modern' && <RefreshCw className="w-5 h-5" />}
-                           {theme === 'minimal' && <Settings className="w-5 h-5" />}
-                           {theme === 'bold' && <Building2 className="w-5 h-5" />}
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">{theme}</span>
-                      </button>
-                    ))}
-                 </div>
-               </div>
-            </div>
+          {/* Main Visual Control Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <div className="flex justify-end pt-8">
-              <button
-                onClick={onSaveBranding}
-                className="px-10 py-5 bg-indigo-600 text-white rounded-2xl text-sm font-black uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all flex items-center space-x-3 shadow-2xl shadow-indigo-200 active:scale-95"
-              >
-                <Save className="w-5 h-5" />
-                <span>{lang === 'tr' ? 'GÜNCELLEMELERİ YAYINLA' : 'PUBLISH UPDATES'}</span>
-              </button>
+            {/* 1. Showcase & Layout Controls */}
+            <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-indigo-500" />
+                  {lang === 'tr' ? 'VİTRİN VE TASARIM' : 'SHOWCASE & DESIGN'}
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                {[
+                  { key: 'show_announcement', label: lang === 'tr' ? 'Duyuru Bandı' : 'Announcement Bar', icon: <RefreshCw className="w-3.5 h-3.5" /> },
+                  { key: 'show_stories', label: lang === 'tr' ? 'Hikayeler' : 'Stories', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                  { key: 'show_campaigns', label: lang === 'tr' ? 'Kampanyalar' : 'Campaigns', icon: <ShoppingBag className="w-3.5 h-3.5" /> },
+                  { key: 'show_testimonials', label: lang === 'tr' ? 'Müşteri Yorumları' : 'Testimonials', icon: <User className="w-3.5 h-3.5" /> },
+                  { key: 'show_newsletter', label: lang === 'tr' ? 'Haber Bülteni' : 'Newsletter', icon: <Mail className="w-3.5 h-3.5" /> },
+                  { key: 'enable_live_activity', label: lang === 'tr' ? 'Canlı Aktivite' : 'Live Activity', icon: <Smartphone className="w-3.5 h-3.5" /> },
+                  { key: 'show_featured_only', label: lang === 'tr' ? 'Fiyatı Düşenler (Fırsat)' : 'Featured Deals', icon: <Star className="w-3.5 h-3.5" />, color: 'text-amber-500' },
+                ].map((section) => (
+                  <div key={section.key} className="flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-white transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 bg-white rounded-lg shadow-sm border border-slate-100 ${section.color || 'text-slate-400'}`}>
+                        {section.icon}
+                      </div>
+                      <span className="text-xs font-bold text-slate-600">{section.label}</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const currentLayout = branding.page_layout_settings || {};
+                        onBrandingChange('page_layout_settings', { ...currentLayout, [section.key]: currentLayout[section.key as keyof typeof currentLayout] === false ? true : false });
+                      }}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${branding.page_layout_settings?.[section.key] !== false ? (section.color ? 'bg-amber-500' : 'bg-indigo-600') : 'bg-slate-300'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.page_layout_settings?.[section.key] !== false ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'TEMA KONSEPTİ' : 'THEME CONCEPT'}</p>
+                <div className="flex gap-2">
+                  {['modern', 'minimal', 'bold'].map((theme) => (
+                    <button
+                      key={theme}
+                      onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), theme_variety: theme })}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${branding.page_layout_settings?.theme_variety === theme ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}
+                    >
+                      {theme}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Logo & Favicon (Compact Side-by-Side) */}
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 flex flex-col">
+               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-amber-500" />
+                  {lang === 'tr' ? 'MARKA KİMLİĞİ' : 'BRAND ASSETS'}
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {/* Logo Upload */}
+                  <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-indigo-400 hover:bg-white transition-all cursor-pointer">
+                    {branding.logo_url ? (
+                      <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain mb-1" />
+                    ) : (
+                      <Plus className="w-6 h-6 text-slate-300" />
+                    )}
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">LOGO</span>
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onLogoUpload} />
+                  </div>
+
+                  {/* Favicon Upload */}
+                  <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-amber-400 hover:bg-white transition-all cursor-pointer">
+                    {branding.favicon_url ? (
+                      <img src={branding.favicon_url} alt="Favicon" className="w-10 h-10 object-contain mb-1" />
+                    ) : (
+                      <Plus className="w-6 h-6 text-slate-300" />
+                    )}
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">FAVICON</span>
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onFaviconUpload} />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
+                    <p className="text-[8px] font-black text-slate-400 mb-1">LOGO URL</p>
+                    <input className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono" value={branding.logo_url || ''} onChange={(e) => onBrandingChange('logo_url', e.target.value)} placeholder="https://..." />
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
+                    <p className="text-[8px] font-black text-slate-400 mb-1">FAVICON URL</p>
+                    <input className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono" value={branding.favicon_url || ''} onChange={(e) => onBrandingChange('favicon_url', e.target.value)} placeholder="https://..." />
+                  </div>
+                </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <ImageIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.showcaseSettings}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">{t.showcaseSettingsDesc}</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Mağaza Ünvanı' : 'Store Name'}</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                  value={branding.name || ""}
-                  onChange={(e) => onBrandingChange('name', e.target.value)}
-                  placeholder={lang === 'tr' ? 'Mağaza Ünvanı' : 'Store Name'}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.heroTitle}</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                  value={branding.hero_title || ""}
-                  onChange={(e) => onBrandingChange('hero_title', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.heroSubtitle}</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-sm text-slate-900"
-                  value={branding.hero_subtitle || ""}
-                  onChange={(e) => onBrandingChange('hero_subtitle', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.heroImageUrl || (lang === 'tr' ? 'Banner Görseli' : 'Banner Image')}</label>
-                <div className="relative group w-full h-48 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center overflow-hidden hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-300">
-                  {branding.hero_image_url ? (
-                    <div className="relative w-full h-full flex items-center justify-center">
-                      <img src={branding.hero_image_url} alt="Banner" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                        <Upload className="h-8 w-8 text-white animate-bounce" />
-                      </div>
+          {/* Banner & Text Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">{lang === 'tr' ? 'AFİŞ VE BAŞLIKLAR' : 'BANNER & TITLES'}</h3>
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'MAĞAZA ADI' : 'STORE NAME'}</label>
+                      <input className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" value={branding.name || ''} onChange={(e) => onBrandingChange('name', e.target.value)} />
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-                        <Upload className="h-6 w-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                      </div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover:text-indigo-600 transition-colors">{lang === 'tr' ? 'Banner Yükle' : 'Upload Banner'}</p>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'HERO BAŞLIK' : 'HERO TITLE'}</label>
+                      <input className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" value={branding.hero_title || ''} onChange={(e) => onBrandingChange('hero_title', e.target.value)} />
                     </div>
-                  )}
-                  <input 
-                    type="file" 
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                    accept="image/*"
-                    onChange={onBannerUpload}
-                  />
-                </div>
-                <div className="mt-2 text-center">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">VEYA URL GİRİN:</span>
-                </div>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-mono text-xs text-slate-500 mt-2"
-                  placeholder="https://..."
-                  value={branding.hero_image_url || ""}
-                  onChange={(e) => onBrandingChange('hero_image_url', e.target.value)}
-                />
-              </div>
-              <div className="space-y-4 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İletişim Bilgileri' : 'Contact Information'}</label>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* EMAILS */}
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-400">{lang === 'tr' ? 'E-posta Adresleri' : 'Email Addresses'}</p>
-                    {emails.map((email, index) => (
-                      <div key={index} className="flex gap-2">
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => updateEmail(index, e.target.value)}
-                          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-                          placeholder="email@example.com"
-                        />
-                        {emails.length > 1 && (
-                          <button onClick={() => removeEmail(index)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
-                        )}
-                      </div>
-                    ))}
-                    <button onClick={addEmail} className="text-xs font-bold text-indigo-600 flex items-center gap-1">+ {lang === 'tr' ? 'E-posta Ekle' : 'Add Email'}</button>
                   </div>
                   
-                  {/* PHONES */}
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-400">{lang === 'tr' ? 'Telefon Numaraları' : 'Phone Numbers'}</p>
-                    {phones.map((phone, index) => (
-                      <div key={index} className="flex gap-2">
-                        <input
-                          type="text"
-                          value={phone}
-                          onChange={(e) => updatePhone(index, e.target.value)}
-                          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-                          placeholder="+905XXXXXXXXX"
-                        />
-                        {phones.length > 1 && (
-                          <button onClick={() => removePhone(index)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
-                        )}
+                  <div className="relative group w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center">
+                    {branding.hero_image_url ? (
+                      <img src={branding.hero_image_url} alt="Banner" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <Upload className="w-6 h-6 text-slate-300 mb-1" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">BANNER</span>
                       </div>
-                    ))}
-                    <button onClick={addPhone} className="text-xs font-bold text-indigo-600 flex items-center gap-1">+ {lang === 'tr' ? 'Telefon Ekle' : 'Add Phone'}</button>
+                    )}
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onBannerUpload} />
                   </div>
-                </div>
-              </div>
+                  <input className="w-full px-4 py-2 bg-slate-100/50 border-none rounded-lg text-[10px] font-mono text-slate-400" value={branding.hero_image_url || ''} onChange={(e) => onBrandingChange('hero_image_url', e.target.value)} placeholder="Banner URL..." />
+               </div>
+            </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.aboutText}</label>
-                <div className="relative">
-                  <Info className="absolute left-4 top-4 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <textarea 
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 min-h-[120px]"
-                    value={branding.about_text || ""}
-                    onChange={(e) => onBrandingChange('about_text', e.target.value)}
-                  />
-                </div>
-              </div>
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">{lang === 'tr' ? 'HAKKIMIZDA METNİ' : 'ABOUT TEXT'}</h3>
+               <textarea 
+                  className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none"
+                  value={branding.about_text || ''}
+                  onChange={(e) => onBrandingChange('about_text', e.target.value)}
+                  placeholder={lang === 'tr' ? 'Mağazanız hakkında kısa bir bilgi yazın...' : 'Write some info about your store...'}
+               />
             </div>
           </div>
 
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <CreditCard className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Methods'}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">{lang === 'tr' ? 'Iyzico ve Fiziksel POS ayarları için yukarıdaki POS Ayarları sekmesini kullanın.' : 'Use the POS Settings tab above for Iyzico and Physical POS settings.'}</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="text-sm font-bold text-slate-900 cursor-pointer">PayPal</label>
-                <button 
-                  type="button"
-                  onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_enabled: !branding.payment_settings?.paypal_enabled })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.paypal_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.paypal_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-              {branding.payment_settings?.paypal_enabled && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 p-4 bg-white rounded-xl border border-indigo-100">
-                  <div className="flex items-center justify-between md:col-span-2 mb-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'PayPal Sandbox Modu' : 'PayPal Sandbox Mode'}</span>
-                    <button 
-                      type="button"
-                      onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_sandbox: !branding.payment_settings?.paypal_sandbox })}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.paypal_sandbox ? 'bg-amber-500' : 'bg-slate-200'}`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.payment_settings?.paypal_sandbox ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">PayPal Client ID</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.payment_settings?.paypal_client_id || ""}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_client_id: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">PayPal Secret</label>
-                    <input 
-                      type="password" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.payment_settings?.paypal_secret || ""}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, paypal_secret: e.target.value })}
-                    />
-                  </div>
+          {/* Contact & Social Compact */}
+          <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                {/* Contact */}
+                <div className="space-y-6">
+                   <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'İLETİŞİM BİLGİLERİ' : 'CONTACT INFO'}</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'E-POSTALARI YÖNET' : 'MANAGE EMAILS'}</p>
+                         {emails.map((email, idx) => (
+                            <div key={idx} className="flex gap-2">
+                               <input className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs" value={email} onChange={(e) => updateEmail(idx, e.target.value)} />
+                               {emails.length > 1 && <button onClick={() => removeEmail(idx)} className="text-rose-500"><X /></button>}
+                            </div>
+                         ))}
+                         <button onClick={addEmail} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">+ {lang === 'tr' ? 'EKLE' : 'ADD'}</button>
+                      </div>
+                      <div className="space-y-3">
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'TELEFONLARI YÖNET' : 'MANAGE PHONES'}</p>
+                         {phones.map((phone, idx) => (
+                            <div key={idx} className="flex gap-2">
+                               <input className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs" value={phone} onChange={(e) => updatePhone(idx, e.target.value)} />
+                               {phones.length > 1 && <button onClick={() => removePhone(idx)} className="text-rose-500"><X /></button>}
+                            </div>
+                         ))}
+                         <button onClick={addPhone} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">+ {lang === 'tr' ? 'EKLE' : 'ADD'}</button>
+                      </div>
+                   </div>
                 </div>
-              )}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="text-sm font-bold text-slate-900 cursor-pointer">Payoneer</label>
-                <button 
-                  type="button"
-                  onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_enabled: !branding.payment_settings?.payoneer_enabled })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.payoneer_enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.payoneer_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-              {branding.payment_settings?.payoneer_enabled && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 p-4 bg-white rounded-xl border border-indigo-100">
-                  <div className="flex items-center justify-between md:col-span-2 mb-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Payoneer Sandbox Modu' : 'Payoneer Sandbox Mode'}</span>
-                    <button 
-                      type="button"
-                      onClick={() => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_sandbox: !branding.payment_settings?.payoneer_sandbox })}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${branding.payment_settings?.payoneer_sandbox ? 'bg-amber-500' : 'bg-slate-200'}`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${branding.payment_settings?.payoneer_sandbox ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Payoneer API Username</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.payment_settings?.payoneer_username || ""}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_username: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Payoneer API Password</label>
-                    <input 
-                      type="password" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.payment_settings?.payoneer_password || ""}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_password: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Payoneer Store Code (Entity ID)</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.payment_settings?.payoneer_store_code || ""}
-                      onChange={(e) => onBrandingChange('payment_settings', { ...branding.payment_settings, payoneer_store_code: e.target.value })}
-                    />
-                  </div>
+
+                {/* Social */}
+                <div className="space-y-6">
+                   <h4 className="text-[10px] font-black text-pink-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'SOSYAL MEDYA' : 'SOCIAL MEDIA'}</h4>
+                   <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { icon: <Instagram className="w-4 h-4" />, key: 'instagram_url', placeholder: '@username' },
+                        { icon: <Facebook className="w-4 h-4" />, key: 'facebook_url', placeholder: 'facebook.com/...' },
+                        { icon: <Twitter className="w-4 h-4" />, key: 'twitter_url', placeholder: '@twitter' },
+                        { icon: <MessageCircle className="w-4 h-4" />, key: 'whatsapp_number', placeholder: '+90...' },
+                      ].map((social) => (
+                        <div key={social.key} className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                           <div className="text-slate-400">{social.icon}</div>
+                           <input 
+                              className="w-full bg-transparent text-xs font-bold outline-none placeholder:text-slate-300" 
+                              placeholder={social.placeholder} 
+                              value={branding[social.key as keyof typeof branding] || ''} 
+                              onChange={(e) => onBrandingChange(social.key as any, e.target.value)} 
+                           />
+                        </div>
+                      ))}
+                   </div>
                 </div>
-              )}
-            </div>
+             </div>
           </div>
 
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                <Globe className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.socialMedia}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">{t.socialMediaDesc}</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.instagramUrl}</label>
-                <div className="relative">
-                  <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <input 
-                    type="text" 
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    placeholder="https://instagram.com/..."
-                    value={branding.instagram_url || ""}
-                    onChange={(e) => onBrandingChange('instagram_url', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.facebookUrl}</label>
-                <div className="relative">
-                  <Facebook className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <input 
-                    type="text" 
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    placeholder="https://facebook.com/..."
-                    value={branding.facebook_url || ""}
-                    onChange={(e) => onBrandingChange('facebook_url', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.twitterUrl}</label>
-                <div className="relative">
-                  <Twitter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <input 
-                    type="text" 
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    placeholder="https://twitter.com/..."
-                    value={branding.twitter_url || ""}
-                    onChange={(e) => onBrandingChange('twitter_url', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.whatsappNumber}</label>
-                <div className="relative">
-                  <MessageCircle className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <input 
-                    type="text" 
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    placeholder="+905XXXXXXXXX"
-                    value={branding.whatsapp_number || ""}
-                    onChange={(e) => onBrandingChange('whatsapp_number', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-slate-100 rounded-xl text-slate-600 border border-slate-200">
-                  <User className="h-5 w-5" />
-                </div>
+          {/* User Management Section (Keep it simple here) */}
+          <div className="bg-slate-900 p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[100px] -mr-48 -mt-48 group-hover:bg-white/10 transition-all duration-1000"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.users}</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">{t.teamManagementDesc}</p>
+                  <h3 className="text-xl font-black text-white tracking-widest uppercase mb-1">{lang === 'tr' ? 'EKİP YÖNETİMİ' : 'TEAM MANAGEMENT'}</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em]">{lang === 'tr' ? 'MAĞAZA ERİŞİM YETKİLERİ' : 'STORE ACCESS CONTROL'}</p>
                 </div>
+                {(currentUser?.role === 'admin' || currentUser?.role === 'storeadmin' || currentUser?.role === 'superadmin') && (
+                  <button onClick={onAddUser} className="px-6 py-3 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-xl shadow-black/20">
+                    + {lang === 'tr' ? 'YENİ ÜYE' : 'NEW MEMBER'}
+                  </button>
+                )}
               </div>
-              {(currentUser?.role === 'admin' || currentUser?.role === 'storeadmin' || currentUser?.role === 'superadmin') && (
-                <button 
-                  onClick={onAddUser}
-                  className="px-4 py-2 bg-slate-100 text-slate-900 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all border border-slate-200"
-                >
-                  + {t.addUser}
-                </button>
-              )}
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {users.map((u) => (
-                <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200 group hover:bg-white hover:shadow-md transition-all">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-slate-900 font-bold border border-slate-200 shadow-sm group-hover:scale-110 transition-transform">
-                      {(u.email?.[0] || 'U').toUpperCase()}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {users.map((u) => (
+                  <div key={u.id} className="p-5 bg-slate-800/50 rounded-3xl border border-slate-700/50 flex items-center justify-between group/user hover:bg-slate-800 transition-all">
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 bg-slate-700 rounded-2xl flex items-center justify-center text-white font-black">
+                          {u.email?.[0].toUpperCase()}
+                       </div>
+                       <div>
+                          <p className="text-xs font-bold text-white leading-none mb-1">{u.email.split('@')[0]}</p>
+                          <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{u.role}</p>
+                       </div>
                     </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-sm">{u.email}</div>
-                      <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-0.5">{u.role}</div>
-                    </div>
+                    {((currentUser?.role === 'admin' || currentUser?.role === 'storeadmin' || currentUser?.role === 'superadmin') && u.id !== currentUser?.id) && (
+                       <button onClick={() => onDeleteUser(u.id)} className="p-2 text-slate-500 hover:text-rose-500 transition-colors">
+                          <Lock className="w-4 h-4" />
+                       </button>
+                    )}
                   </div>
-                  {(currentUser?.role === 'admin' || currentUser?.role === 'storeadmin' || currentUser?.role === 'superadmin') && u.id !== currentUser?.id && (
-                    <button 
-                      onClick={() => onDeleteUser(u.id)}
-                      className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100"
-                    >
-                      <Lock className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-2">
-                <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
-                {t.logo}
-              </h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">PNG / SVG / JPG</span>
-            </div>
-            
-            <div className="flex flex-col items-center">
-              <div className="relative group mb-8">
-                <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
-                <div className="relative w-40 h-40 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-6 text-center group hover:border-indigo-400 hover:bg-white transition-all duration-500 cursor-pointer shadow-inner">
-                  {branding.logo_url ? (
-                    <div className="relative w-full h-full flex items-center justify-center">
-                      <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center backdrop-blur-[2px]">
-                        <Upload className="h-6 w-6 text-white animate-bounce" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-                        <Upload className="h-6 w-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                      </div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover:text-indigo-600 transition-colors">{t.uploadLogo}</p>
-                    </div>
-                  )}
-                  <input 
-                    type="file" 
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                    accept="image/*"
-                    onChange={onLogoUpload}
-                  />
-                </div>
-              </div>
-
-              <div className="w-full space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.logoUrl}</label>
-                  <Globe className="h-3 w-3 text-slate-300" />
-                </div>
-                <div className="relative group">
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white transition-all text-xs font-mono text-slate-500 group-hover:border-slate-300"
-                    placeholder="https://your-cdn.com/logo.png"
-                    value={branding.logo_url || ""}
-                    onChange={(e) => onBrandingChange('logo_url', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-8 w-full p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
-                <p className="text-[10px] text-indigo-600/70 text-center leading-relaxed font-bold uppercase tracking-wider">
-                  {t.logoUploadDesc}
-                </p>
+                ))}
               </div>
             </div>
           </div>
-
-          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-2">
-                <div className="w-1.5 h-4 bg-amber-500 rounded-full" />
-                {t.favicon}
-              </h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">ICO / PNG</span>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="relative group mb-8">
-                <div className="absolute -inset-4 bg-gradient-to-tr from-amber-500/10 to-orange-500/10 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
-                <div className="relative w-24 h-24 bg-slate-50 rounded-[1.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center group hover:border-amber-400 hover:bg-white transition-all duration-500 cursor-pointer shadow-inner">
-                  {branding.favicon_url ? (
-                    <div className="relative w-full h-full flex items-center justify-center">
-                      <img src={branding.favicon_url} alt="Favicon" className="w-12 h-12 object-contain drop-shadow-xl transition-transform duration-500 group-hover:scale-110" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center backdrop-blur-[2px]">
-                        <Upload className="h-4 w-4 text-white animate-bounce" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center mb-2 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500">
-                        <Upload className="h-4 w-4 text-slate-400 group-hover:text-amber-600 transition-colors" />
-                      </div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover:text-amber-600 transition-colors">{t.uploadFavicon}</p>
-                    </div>
-                  )}
-                  <input 
-                    type="file" 
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                    accept="image/*"
-                    onChange={onFaviconUpload}
-                  />
-                </div>
-              </div>
-
-              <div className="w-full space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.faviconUrl}</label>
-                  <Globe className="h-3 w-3 text-slate-300" />
-                </div>
-                <div className="relative group">
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-amber-500/5 focus:border-amber-400 focus:bg-white transition-all text-xs font-mono text-slate-500 group-hover:border-slate-300"
-                    placeholder="https://your-cdn.com/favicon.ico"
-                    value={branding.favicon_url || ""}
-                    onChange={(e) => onBrandingChange('favicon_url', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
         </motion.div>
       )}
 

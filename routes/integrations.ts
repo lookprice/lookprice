@@ -999,24 +999,28 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
     let pazaramaResponseData: any = null;
 
     try {
-      if (!settings.merchantId) {
+      const apiKey = (settings.apiKey || "").trim();
+      const apiSecret = (settings.apiSecret || "").trim();
+      const merchantId = (settings.merchantId || "").trim();
+
+      if (!merchantId) {
         throw new Error("Pazarama Satıcı ID (Merchant ID) ayarı eksik. Lütfen ayarlar bölümünden kaydedin.");
       }
 
       // Pazarama API integration typically uses Basic Auth with Key and Secret
-      const authHeader = Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64');
+      const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
       
-      // The endpoint for Pazarama often includes the merchantId or uses it as seller identifier
-      // Base URL: https://isortagimapi.pazarama.com/api/v1/product/upsert
-      // Some versions might use: https://isortagimapi.pazarama.com/api/v1/product/upsert/${settings.merchantId}
-      // Let's use the one that is known to work for modern integrations
       const pzResponse = await axios.post(`https://isortagimapi.pazarama.com/api/v1/product/upsert`, payload, {
         headers: {
           'Authorization': `Basic ${authHeader}`,
-          'SellerId': settings.merchantId, // Some integrations pass it as header
-          'Content-Type': 'application/json'
+          'SellerId': merchantId,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Origin': 'https://isortagim.pazarama.com',
+          'Referer': 'https://isortagim.pazarama.com/'
         },
-        timeout: 15000 // 15 seconds timeout
+        timeout: 20000 // 20 seconds timeout for upsert
       });
 
       pazaramaResponseData = pzResponse.data;
@@ -1073,45 +1077,167 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
 
 // 4. Get Pazarama Categories
 router.get("/pazarama/categories", authenticate, async (req: any, res) => {
+  console.log("HIT: /api/integrations/pazarama/categories", { storeId: req.query.storeId, user: req.user.id });
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
     const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.pazarama_settings || {};
     
-    if (!settings.apiKey || !settings.apiSecret) {
+    const apiKey = (settings.apiKey || "").trim();
+    const apiSecret = (settings.apiSecret || "").trim();
+    const merchantId = (settings.merchantId || "").trim();
+
+    if (!apiKey || !apiSecret) {
       return res.status(400).json({ error: "Pazarama API ayarları eksik." });
     }
 
-    const authHeader = Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64');
-    const pzRes = await axios.get("https://isortagimapi.pazarama.com/api/v1/product/category/all", {
-      headers: { 'Authorization': `Basic ${authHeader}` }
-    });
+    const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+    
+    // Attempt with fallbacks for endpoints
+    let pzRes;
+    let lastError;
 
-    res.json(pzRes.data);
+    const endpoints = [
+      "https://isortagimapi.pazarama.com/api/v1/product/category/all",
+      "https://isortagimapi.pazarama.com/api/v1/Category/all",
+      "https://isortagimapi.pazarama.com/api/v1/category/all",
+      "https://api.pazarama.com/isortagim/api/v1/Category/all",
+      "https://api.pazarama.com/isortagim/api/v1/category/all",
+      "https://isortagimapi.pazarama.com/api/v1/Marketplace/Category/all",
+      "https://api.pazarama.com/v1/Marketplace/Category/all"
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying Pazarama Categories Endpoint: ${endpoint}`);
+        pzRes = await axios.get(endpoint, {
+          headers: { 
+            'Authorization': `Basic ${authHeader}`,
+            'SellerId': merchantId,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Origin': 'https://isortagim.pazarama.com',
+            'Referer': 'https://isortagim.pazarama.com/'
+          },
+          timeout: 15000
+        });
+        if (pzRes.status === 200) {
+          if (pzRes.data && pzRes.data.isSuccess === false) {
+             lastError = new Error(pzRes.data.message || pzRes.data.error || "Pazarama API error (isSuccess: false)");
+             continue;
+          }
+          break;
+        }
+      } catch (e: any) {
+        console.error(`Pazarama Category Endpoint Fail: ${endpoint}`, {
+          status: e.response?.status,
+          message: e.message,
+          data: e.response?.data && typeof e.response.data === 'string' ? "HTML content received" : e.response?.data
+        });
+        lastError = e;
+      }
+    }
+
+    if (!pzRes || (pzRes.data && pzRes.data.isSuccess === false)) {
+       throw lastError || new Error("Endpoint connection failed or API returned error");
+    }
+
+    // Pazarama usually returns { isSuccess: true, data: [...], message: "..." }
+    const data = pzRes.data.data || (Array.isArray(pzRes.data) ? pzRes.data : []);
+    res.json(data);
   } catch (error: any) {
-    res.status(500).json({ error: "Kategoriler çekilemedi: " + (error.response?.data?.message || error.message) });
+    console.error("Pazarama Categories Fetch Error Body:", error.response?.data);
+    console.error("Pazarama Categories Fetch Error Message:", error.message);
+    let status = error.response?.status || 500;
+    // Map 403 to 400 to avoid Nginx intercepting our custom error response
+    if (status === 403) status = 400;
+    
+    const rawMsg = error.response?.data?.message || error.response?.data?.error || error.message;
+    const msg = typeof rawMsg === 'string' ? rawMsg : JSON.stringify(rawMsg);
+    res.status(status).json({ error: "Pazarama Kategorileri çekilemedi: " + msg.substring(0, 200) });
   }
 });
 
 // 5. Get Pazarama Brands
 router.get("/pazarama/brands", authenticate, async (req: any, res) => {
+  console.log("HIT: /api/integrations/pazarama/brands", { storeId: req.query.storeId, user: req.user.id });
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
     const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.pazarama_settings || {};
     
-    if (!settings.apiKey || !settings.apiSecret) {
+    const apiKey = (settings.apiKey || "").trim();
+    const apiSecret = (settings.apiSecret || "").trim();
+    const merchantId = (settings.merchantId || "").trim();
+
+    if (!apiKey || !apiSecret) {
       return res.status(400).json({ error: "Pazarama API ayarları eksik." });
     }
 
-    const authHeader = Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64');
-    const pzRes = await axios.get("https://isortagimapi.pazarama.com/api/v1/brands", {
-      headers: { 'Authorization': `Basic ${authHeader}` }
-    });
+    const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+    
+    let pzRes;
+    let lastError;
 
-    res.json(pzRes.data);
+    const endpoints = [
+      "https://isortagimapi.pazarama.com/api/v1/product/brand/all",
+      "https://isortagimapi.pazarama.com/api/v1/brand/all",
+      "https://isortagimapi.pazarama.com/api/v1/Brand/all",
+      "https://api.pazarama.com/isortagim/api/v1/Brand/all",
+      "https://api.pazarama.com/isortagim/api/v1/brand/all",
+      "https://isortagimapi.pazarama.com/api/v1/brand/brands",
+      "https://api.pazarama.com/v1/brand/all"
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying Pazarama Brands Endpoint: ${endpoint}`);
+        pzRes = await axios.get(endpoint, {
+          headers: { 
+            'Authorization': `Basic ${authHeader}`,
+            'SellerId': merchantId,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Origin': 'https://isortagim.pazarama.com',
+            'Referer': 'https://isortagim.pazarama.com/'
+          },
+          timeout: 15000
+        });
+        if (pzRes.status === 200) {
+          if (pzRes.data && pzRes.data.isSuccess === false) {
+             lastError = new Error(pzRes.data.message || pzRes.data.error || "Pazarama API error (isSuccess: false)");
+             continue;
+          }
+          break;
+        }
+      } catch (e: any) {
+        console.error(`Pazarama Brand Endpoint Fail: ${endpoint}`, {
+          status: e.response?.status,
+          message: e.message,
+          data: e.response?.data && typeof e.response.data === 'string' ? "HTML content received" : e.response?.data
+        });
+        lastError = e;
+      }
+    }
+
+    if (!pzRes || (pzRes.data && pzRes.data.isSuccess === false)) {
+       throw lastError || new Error("Endpoint connection failed or API returned error");
+    }
+
+    const data = pzRes.data.data || (Array.isArray(pzRes.data) ? pzRes.data : []);
+    res.json(data);
   } catch (error: any) {
-    res.status(500).json({ error: "Markalar çekilemedi: " + (error.response?.data?.message || error.message) });
+    console.error("Pazarama Brands Fetch Error Body:", error.response?.data);
+    console.error("Pazarama Brands Fetch Error Message:", error.message);
+    let status = error.response?.status || 500;
+    // Map 403 to 400 to avoid Nginx intercepting our custom error response
+    if (status === 403) status = 400;
+
+    const rawMsg = error.response?.data?.message || error.response?.data?.error || error.message;
+    const msg = typeof rawMsg === 'string' ? rawMsg : JSON.stringify(rawMsg);
+    res.status(status).json({ error: "Pazarama Markaları çekilemedi: " + msg.substring(0, 200) });
   }
 });
 
