@@ -302,7 +302,7 @@ const ProductsTab = ({
                     <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group cursor-default">
                       <td className="px-6 py-4">
                         <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
-                          {p.barcode?.toString().padStart(14, '0').slice(-14)}
+                          {p.barcode}
                         </span>
                       </td>
                     <td className="px-6 py-4">

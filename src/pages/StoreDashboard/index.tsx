@@ -41,6 +41,8 @@ import {
   Languages,
   Menu,
   X,
+  PanelLeftClose,
+  PanelLeft,
   Eye,
   FileDown,
   Printer,
@@ -309,6 +311,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [users, setUsers] = useState<any[]>([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('desktopSidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('desktopSidebarCollapsed', desktopSidebarCollapsed.toString());
+  }, [desktopSidebarCollapsed]);
+
   const [showQrModal, setShowQrModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
@@ -790,15 +800,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/40 z-40 lg:hidden backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900/40 z-40 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>
 
       {/* Sidebar - Modern Rail */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 w-72 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        fixed ${!desktopSidebarCollapsed ? 'lg:static' : ''} inset-y-0 left-0 w-72 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+        ${!desktopSidebarCollapsed && !sidebarOpen ? 'lg:translate-x-0' : ''}
       `}>
         <div className="flex flex-col h-full">
           <div className="p-8 border-b border-indigo-500/10">
@@ -897,12 +908,26 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Mobile Sidebar Toggle (Floating) */}
+        {/* Mobile/Desktop Sidebar Toggle (Floating) */}
         <button 
-          onClick={() => setSidebarOpen(true)} 
-          className="lg:hidden fixed bottom-6 left-5 z-[60] p-4 bg-indigo-600 text-white rounded-2xl shadow-2xl shadow-indigo-500/30 active:scale-90 transition-all border border-indigo-500/20"
+          onClick={() => {
+            if (window.innerWidth >= 1024) {
+              setDesktopSidebarCollapsed(!desktopSidebarCollapsed);
+            } else {
+              setSidebarOpen(!sidebarOpen);
+            }
+          }} 
+          className={`fixed bottom-6 ${!desktopSidebarCollapsed ? 'max-lg:left-5 lg:left-[calc(18rem+1.25rem)]' : 'left-5'} z-[60] p-4 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-500/30 active:scale-90 transition-all duration-300 border border-indigo-500/20`}
+          title="Toggle Menu"
         >
-          <Menu className="h-6 w-6" />
+          {!desktopSidebarCollapsed ? (
+            <>
+              <X className="h-6 w-6 lg:hidden" />
+              <PanelLeftClose className="h-6 w-6 hidden lg:block" />
+            </>
+          ) : (
+            <Menu className="h-6 w-6" />
+          )}
         </button>
 
         {/* Content Area */}
@@ -1492,7 +1517,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             <td className="px-4 py-3 text-gray-900">
                               <div className="font-bold">{item.product_name}</div>
                               <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                                {item.barcode ? item.barcode.toString().padStart(14, '0').slice(-14) : `#${item.product_id}`}
+                                {item.barcode ? item.barcode : `#${item.product_id}`}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-center">
@@ -1549,7 +1574,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <div>
                             <div className="font-bold text-gray-900 leading-tight">{item.product_name}</div>
                             <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                              {item.barcode ? item.barcode.toString().padStart(14, '0').slice(-14) : `#${item.product_id}`}
+                              {item.barcode ? item.barcode : `#${item.product_id}`}
                             </div>
                           </div>
                           {selectedSale.status === 'pending' && (

@@ -106,6 +106,14 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   };
 
   const handleAddProduct = (product: any) => {
+    const productCurrency = product.currency || branding?.default_currency || 'TRY';
+    const targetCurrency = items.length === 0 ? productCurrency : currency;
+
+    if (items.length === 0 && productCurrency !== currency) {
+      setCurrency(productCurrency);
+      setExchangeRate("1");
+    }
+
     setItems((prevItems) => {
       const existingItem = prevItems.find(item => item.product_id === product.id);
       if (existingItem) {
@@ -118,14 +126,27 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20");
         const taxRate = Number(taxRateStr);
         const kdvDahilPrice = Number(product.cost_price || product.price) || 0;
-        const kdvHaricPrice = kdvDahilPrice / (1 + taxRate / 100);
+        let unitPrice = kdvDahilPrice / (1 + taxRate / 100);
+
+        if (productCurrency !== targetCurrency) {
+          const rates = branding?.currency_rates || {};
+          const fromRate = rates[productCurrency] || 1;
+          const toRate = rates[targetCurrency] || 1;
+          if (targetCurrency === 'TRY') {
+            unitPrice = unitPrice * fromRate;
+          } else if (productCurrency === 'TRY') {
+            unitPrice = unitPrice / toRate;
+          } else {
+            unitPrice = (unitPrice * fromRate) / toRate;
+          }
+        }
 
         return [...prevItems, {
           product_id: product.id,
           product_name: product.name,
           barcode: product.barcode,
           quantity: "1",
-          unit_price: kdvHaricPrice.toFixed(2),
+          unit_price: unitPrice.toFixed(2),
           tax_rate: taxRateStr
         }];
       }

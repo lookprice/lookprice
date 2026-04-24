@@ -2327,7 +2327,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-4 mb-8">
                 {store?.logo_url ? (
-                  <img src={store.logo_url} alt={store.name} className="h-12 w-auto brightness-0 invert" />
+                  <img src={store.logo_url} alt={store.name} className="h-12 w-auto object-contain" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white bg-blue-600 shadow-xl shadow-blue-500/20">
                     <ShoppingBag className="w-6 h-6" />

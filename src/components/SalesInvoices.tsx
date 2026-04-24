@@ -195,6 +195,14 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   };
 
   const handleAddProduct = (product: any) => {
+    const productCurrency = product.currency || branding?.default_currency || 'TRY';
+    const targetCurrency = items.length === 0 ? productCurrency : currency;
+
+    if (items.length === 0 && productCurrency !== currency) {
+      setCurrency(productCurrency);
+      setExchangeRate("1");
+    }
+
     setItems((prevItems) => {
       const existingItem = prevItems.find(item => item.product_id === product.id);
       if (existingItem) {
@@ -213,6 +221,19 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         } else {
           const kdvDahilPrice = Number(product.price) || 0;
           unitPrice = kdvDahilPrice / (1 + taxRate / 100);
+        }
+
+        if (productCurrency !== targetCurrency) {
+          const rates = branding?.currency_rates || {};
+          const fromRate = rates[productCurrency] || 1;
+          const toRate = rates[targetCurrency] || 1;
+          if (targetCurrency === 'TRY') {
+            unitPrice = unitPrice * fromRate;
+          } else if (productCurrency === 'TRY') {
+            unitPrice = unitPrice / toRate;
+          } else {
+            unitPrice = (unitPrice * fromRate) / toRate;
+          }
         }
 
         return [...prevItems, {
@@ -680,46 +701,44 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Durum' : 'Status'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'İrsaliye No' : 'Waybill No'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Vergi No' : 'Tax No'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Durum' : 'Status'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
+                <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-3 py-12 text-center">
                     <div className="flex justify-center"><div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>
                   </td>
                 </tr>
               ) : paginatedInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-400 text-sm font-medium">
+                  <td colSpan={9} className="px-3 py-12 text-center text-slate-400 text-sm font-medium">
                     {isTr ? "Fatura bulunamadı" : "No invoices found"}
                   </td>
                 </tr>
               ) : (
                 paginatedInvoices.map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                    <td className="px-3 py-4 text-xs font-bold text-slate-500">
                       {new Date(inv.invoice_date).toLocaleDateString('tr-TR')}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-4">
                       <div className="text-sm font-bold text-slate-900">#{inv.invoice_number}</div>
                       {inv.document_number && (
                          <div className="text-[10px] text-indigo-600 font-black tracking-widest mt-0.5">{inv.document_number}</div>
                       )}
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-4 w-[120px]">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                         inv.status === 'draft' ? 'bg-amber-100 text-amber-700' :
                         inv.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
@@ -743,7 +762,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                              <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
                                inv.integration_status === 'QUEUED' ? 'border-amber-200 bg-amber-50 text-amber-700' :
                                inv.integration_status === 'APPROVED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
-                               inv.integration_status === 'REJECTED' ? 'border-rose-200 bg-rose-50 text-rose-700' :
+                               inv.integration_status === 'REJECTED' ? 'border-rose-200 bg-rose-700 text-rose-700' :
                                'border-slate-200 bg-slate-50 text-slate-700'
                              }`}>
                                {inv.integration_status === 'QUEUED' ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
@@ -755,37 +774,31 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                          </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                      {inv.waybill_number || '-'}
-                    </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-4">
                       <div className="flex items-center gap-2">
                         {inv.company_id ? <Building2 className="h-3.5 w-3.5 text-indigo-500" /> : <UserIcon className="h-3.5 w-3.5 text-slate-400" />}
                         <div className="text-sm font-bold text-slate-700">{inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-xs font-bold text-slate-500">
-                      {inv.tax_number || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-3 py-4 text-right">
                       <div className="text-sm font-bold text-slate-700">
                         {Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-3 py-4 text-right">
                       <div className="text-sm font-bold text-slate-600">
                         {Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-3 py-4 text-right">
                       <div className="text-sm font-black text-slate-900">
                         {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center text-xs font-black text-slate-400">
+                    <td className="px-3 py-4 text-center text-xs font-black text-slate-400">
                       {inv.currency}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-3 py-4 text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
                         {/* E-Invoice / E-Archive Send Action */}
                         {!['QUEUED', 'APPROVED'].includes(inv.integration_status) && branding?.einvoice_settings?.is_active && inv.status !== 'draft' && (
@@ -1175,7 +1188,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                                     </div>
                                   </div>
                                   <div className="text-right">
-                                    <div className="text-sm font-black text-indigo-600">{Number(p.price).toLocaleString('tr-TR')} {branding?.default_currency}</div>
+                                    <div className="text-sm font-black text-indigo-600">{Number(p.price).toLocaleString('tr-TR')} {p.currency || branding?.default_currency || 'TRY'}</div>
                                     <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Stok' : 'Stock'}: {p.stock}</div>
                                   </div>
                                 </button>
