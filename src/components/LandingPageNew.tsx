@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout, Settings, Activity, Users, Shield, Download, CreditCard, RefreshCw, Smartphone } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout, Settings, Activity, Users, Shield, Download, CreditCard, RefreshCw, Smartphone, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
 import { api } from "../services/api";
+import SEO from "./SEO";
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export const LandingPage = () => {
   }, [location]);
   const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "" });
   const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
+  const [selectedInsight, setSelectedInsight] = useState<any>(null);
   const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
@@ -56,8 +58,38 @@ export const LandingPage = () => {
     }
   };
 
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "LookPrice Nexus",
+    "operatingSystem": "Web, iOS, Android",
+    "applicationCategory": "BusinessApplication",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "ratingCount": "124"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0.00",
+      "priceCurrency": "USD"
+    },
+    "description": lang === 'tr' 
+      ? "Şirketinizin tüm süreçlerini tek bir akılla yönetin. Entegre POS, E-Ticaret ve Servis yönetimi."
+      : "Manage all your company processes with a single mind. Integrated POS, E-Commerce, and Service management."
+  };
+
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30">
+      <SEO 
+        title={lang === 'tr' ? "LookPrice Nexus | Şirketinizin Merkezi Sinir Sistemi" : "LookPrice Nexus | The Central Nervous System for Businesses"}
+        description={lang === 'tr' 
+          ? "LookPrice Nexus ile kağıt kalemi bırakın. Entegre POS, stok takibi, teknik servis ve filo yönetimi ile şirketinizi tek merkezden yönetin." 
+          : "End paper management with LookPrice Nexus. Manage your company from a single center with integrated POS, stock tracking, and technical service."
+        }
+        keywords="pos, ecommerce, stock tracking, technical service management, fleet management, business software, erp, lookprice"
+        schemaData={schemaData}
+      />
       {/* Top Navigation */}
       <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 lg:px-12 py-2 md:py-6 flex items-center justify-between bg-black/40 backdrop-blur-xl border-b border-white/5">
         <div className="flex items-center space-x-2 md:space-x-3 cursor-pointer group" onClick={() => navigate("/")}>
@@ -71,6 +103,9 @@ export const LandingPage = () => {
         </div>
 
         <div className="flex items-center space-x-2 md:space-x-4">
+          <a href="#blog" className="hidden md:block text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest transition-colors px-4">
+            {lang === 'tr' ? 'ÖNGÖRÜLER' : 'INSIGHTS'}
+          </a>
           {/* Language Switcher */}
           <div className="flex items-center bg-white/5 p-0.5 md:p-1 rounded-full border border-white/10 backdrop-blur-md">
             {['tr', 'en', 'de'].map((l) => (
@@ -685,6 +720,73 @@ export const LandingPage = () => {
         </motion.div>
       </section>
 
+      {/* Content Enrichment: Insights / Blog Section */}
+      <section className="px-6 md:px-12 lg:px-24 py-32 border-t border-white/5 bg-[#080808]">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-indigo-400 text-xs font-black uppercase tracking-[0.3em] mb-4">
+                <Sparkles className="w-4 h-4" />
+                <span>{lang === 'tr' ? 'BİLGİ & STRATEJİ' : 'KNOWLEDGE & STRATEGY'}</span>
+              </div>
+              <h2 className="text-4xl md:text-6xl font-medium tracking-tight leading-tight">
+                {lang === 'tr' ? 'Sektörel Öngörüler & Blog' : 'Industry Insights & Blog'}
+              </h2>
+            </div>
+            <p className="text-white/40 text-lg font-light max-w-sm">
+              {lang === 'tr' 
+                ? 'İşinizi bir adım öteye taşıyacak teknoloji ve perakende stratejileri.' 
+                : 'Technology and retail strategies to take your business one step further.'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                id: 1,
+                title: lang === 'tr' ? 'Perakende 4.0: Fiziksel Mağaza Nereye Gidiyor?' : 'Retail 4.0: Where are Physical Stores Heading?',
+                excerpt: lang === 'tr' ? 'Hibrit satış modelleri ve dijitalleşen müşteri deneyimi üzerine derinlemesine analiz.' : 'In-depth analysis of hybrid sales models and digitalizing customer experience.',
+                content: lang === 'tr' ? 'Perakende sektörü büyük bir değişimden geçiyor... (Detaylı içerik burada yer alacak)' : 'The retail sector is undergoing a major change... (Detailed content will be here)',
+                image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=60',
+                date: '25.04.2026'
+              },
+              {
+                id: 2,
+                title: lang === 'tr' ? 'SEO Optimizasyonu: Ürünleriniz Aramalarda Üstte Çıksın' : 'SEO Optimization: Rank Higher in Search Results',
+                excerpt: lang === 'tr' ? 'E-Ticaret sitenizi Google aramaları için nasıl optimize edersiniz? 10 Kritik adım.' : 'How to optimize your E-Commerce site for Google searches? 10 Critical steps.',
+                content: lang === 'tr' ? 'İçerik zenginleştirme perakende için vazgeçilmezdir... (Detaylı içerik burada yer alacak)' : 'Content enrichment is indispensable for retail... (Detailed content will be here)',
+                image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=60',
+                date: '20.04.2026'
+              },
+              {
+                id: 3,
+                title: lang === 'tr' ? 'Omni-Channel Satışın Gizli Gücü: Tek Havuz Stok' : 'Hidden Power of Omni-Channel: Single Pool Inventory',
+                excerpt: lang === 'tr' ? 'Stok yönetiminde entegrasyonun finansal verimliliğe olan %40\'lık etkisi.' : 'The 40% impact of integration on financial efficiency in inventory management.',
+                content: lang === 'tr' ? 'Eşzamanlı stok takibi hem maliyetleri düşürür... (Detaylı içerik burada yer alacak)' : 'Simultaneous stock tracking lowers costs... (Detailed content will be here)',
+                image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=60',
+                date: '15.04.2026'
+              }
+            ].map(insight => (
+              <motion.div 
+                key={insight.id}
+                whileHover={{ y: -10 }}
+                onClick={() => setSelectedInsight(insight)}
+                className="group cursor-pointer p-2 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition-all duration-500"
+              >
+                <div className="h-60 rounded-[2rem] overflow-hidden mb-6">
+                  <img src={insight.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                </div>
+                <div className="p-6">
+                  <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">{insight.date}</div>
+                  <h3 className="text-xl font-medium mb-3 group-hover:text-indigo-400 transition-colors">{insight.title}</h3>
+                  <p className="text-white/40 font-light text-sm line-clamp-2">{insight.excerpt}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="px-6 md:px-12 lg:px-24 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex flex-col items-center md:items-start space-y-2">
@@ -829,6 +931,63 @@ export const LandingPage = () => {
                     </button>
                   </form>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Insight Detail Modal */}
+      <AnimatePresence>
+        {selectedInsight && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedInsight(null)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl bg-[#111] rounded-[3rem] shadow-2xl overflow-hidden border border-white/10 max-h-[90vh] flex flex-col"
+            >
+              <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-indigo-400" />
+                  <span className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">{lang === 'tr' ? 'BİLGİ PAYLAŞIMI' : 'KNOWLEDGE SHARING'}</span>
+                </div>
+                <button 
+                  onClick={() => setSelectedInsight(null)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/50 hover:text-white"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                <div className="max-w-2xl mx-auto space-y-10">
+                   <div className="h-80 md:h-96 rounded-[2.5rem] overflow-hidden">
+                      <img src={selectedInsight.image} className="w-full h-full object-cover" />
+                   </div>
+                   <div className="space-y-4">
+                      <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{selectedInsight.date}</div>
+                      <h2 className="text-4xl md:text-5xl font-medium text-white leading-tight tracking-tight">{selectedInsight.title}</h2>
+                   </div>
+                   <div className="text-white/60 text-lg font-light leading-relaxed whitespace-pre-wrap space-y-6">
+                      {selectedInsight.content}
+                   </div>
+
+                   <div className="pt-10 border-t border-white/5">
+                      <button 
+                        onClick={() => setShowDemoModal(true)}
+                        className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20"
+                      >
+                         {lang === 'tr' ? 'BU SİSTEMİ İŞLETMENİZE KURUN' : 'SET UP THIS SYSTEM FOR YOUR BUSINESS'}
+                      </button>
+                   </div>
+                </div>
               </div>
             </motion.div>
           </div>

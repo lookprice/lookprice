@@ -38,7 +38,10 @@ import {
   ArrowUpDown,
   Tag,
   ShoppingBag,
-  Mail
+  Mail,
+  Share2,
+  Check,
+  Link2
 } from "lucide-react";
 import { CreditCard, User, LogOut, Edit3, Building2, Home } from "lucide-react";
 import { api } from "../services/api";
@@ -47,6 +50,7 @@ import { translations } from "../translations";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { PageBuilder } from "../components/PageBuilder";
 import { Product, Store as StoreInfo, FAQEntry, BlogPost, LegalPage } from "../types";
+import SEO from "../components/SEO";
 
 interface BasketItem extends Product {
   quantity: number;
@@ -206,10 +210,66 @@ const ProductDetailModal: React.FC<{
     }
   }, [product?.barcode, store?.slug]);
 
+  const [isCopied, setIsCopied] = useState(false);
+
+  const shareProduct = async () => {
+    const shareData = {
+      title: product.name,
+      text: `${product.name} - ${product.price} ${store?.currency || 'TRY'}`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error('Share failed:', err);
+      }
+    } else {
+      copyLink();
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const shareOnWhatsApp = () => {
+    const text = encodeURIComponent(`${product.name}\nFiyat: ${product.price} ${store?.currency || 'TRY'}\n\nİncelemek için: ${window.location.href}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
+
   if (!product) return null;
+
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": product.name,
+    "description": product.description || `Buy ${product.name} at ${store?.name}`,
+    "image": product.image_url,
+    "sku": product.barcode,
+    "brand": {
+      "@type": "Brand",
+      "name": product.brand || store?.name || "FastPOS"
+    },
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": store?.currency || product.currency || "USD",
+      "price": product.price,
+      "availability": "https://schema.org/InStock"
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <SEO 
+        title={`${product.name} | ${store?.name}`}
+        description={product.description?.substring(0, 160)}
+        ogImage={product.image_url}
+        schemaData={productSchema}
+      />
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -231,6 +291,46 @@ const ProductDetailModal: React.FC<{
         </button>
 
         <div className="md:w-1/2 bg-gray-50 relative overflow-hidden h-80 md:h-auto">
+          {/* Share Buttons Overlay */}
+          <div className="absolute top-6 left-6 flex flex-col gap-2 z-20">
+            <button 
+              onClick={shareProduct}
+              className="p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white transition-all active:scale-90 group"
+              title={lang === 'tr' ? 'Paylaş' : 'Share'}
+            >
+              <Share2 className="w-5 h-5 text-indigo-600" />
+            </button>
+            <button 
+              onClick={shareOnWhatsApp}
+              className="p-3 bg-emerald-500/90 backdrop-blur-md rounded-full shadow-lg hover:bg-emerald-500 transition-all active:scale-90"
+              title="WhatsApp"
+            >
+              <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+            </button>
+            <button 
+              onClick={copyLink}
+              className="p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white transition-all active:scale-90 flex items-center gap-2 group overflow-hidden"
+              title={lang === 'tr' ? 'Linki Kopyala' : 'Copy Link'}
+            >
+              <div className="flex items-center gap-2">
+                {isCopied ? <Check className="w-5 h-5 text-emerald-600" /> : <Link2 className="w-5 h-5 text-slate-600" />}
+                <AnimatePresence>
+                  {isCopied && (
+                    <motion.span 
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      className="text-[10px] font-black uppercase text-emerald-600 tracking-widest whitespace-nowrap"
+                    >
+                      {lang === 'tr' ? 'Kopyalandı' : 'Copied'}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+            </button>
+          </div>
           {product.image_url ? (
             <img 
               src={product.image_url} 
@@ -767,6 +867,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const bestSellers = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 8), [products]);
 
   const primaryColor = store?.primary_color || "#2563eb"; // Default blue-600
+  const storeSchema = store ? {
+    "@context": "https://schema.org",
+    "@type": "OnlineStore",
+    "name": store.name,
+    "description": store.description,
+    "url": window.location.href,
+    "logo": store.logo_url,
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": store.address
+    }
+  } : undefined;
 
   const addToBasket = (product: Product) => {
     setBasket(prev => {
@@ -988,6 +1100,20 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   return (
     <ErrorBoundary lang={lang}>
       <div className="min-h-screen bg-white pb-24 font-sans selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
+      <SEO 
+        title={selectedBlogPost ? `${selectedBlogPost.title} | ${store.name}` : store.name}
+        description={selectedBlogPost ? selectedBlogPost.excerpt : store.description}
+        ogImage={selectedBlogPost ? selectedBlogPost.image_url : store.logo_url}
+        ogType={selectedBlogPost ? "article" : "website"}
+        schemaData={selectedBlogPost ? {
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          "headline": selectedBlogPost.title,
+          "image": selectedBlogPost.image_url,
+          "datePublished": selectedBlogPost.date,
+          "description": selectedBlogPost.excerpt
+        } : storeSchema}
+      />
       
       {/* Announcement Bar */}
       {layoutSettings.show_announcement && (
@@ -1603,14 +1729,52 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       );
                     case 'blog':
                       return (
-                        <section key={section.id}>
-                          <h2 className="text-3xl font-black text-gray-900 mb-10">Blog</h2>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <section key={section.id} id="blog" className="py-12">
+                          <div className="flex items-center justify-between mb-10">
+                            <h2 className="text-4xl font-black text-gray-900 tracking-tight">{isTr ? 'Blog Yazıları' : 'Blog Posts'}</h2>
+                            <div className="hidden md:flex items-center space-x-2 text-sm font-black text-indigo-600 uppercase tracking-widest">
+                              <Sparkles className="w-4 h-4" />
+                              <span>{isTr ? 'YENİ İÇERİKLER' : 'NEW CONTENT'}</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {store.blog_posts?.map(post => (
-                              <div key={post.id} className="bg-gray-50 p-6 rounded-3xl">
-                                <h4 className="font-black text-gray-900 mb-2">{post.title}</h4>
-                                <p className="text-gray-500 text-sm">{post.excerpt}</p>
-                              </div>
+                              <motion.div 
+                                key={post.id} 
+                                whileHover={{ y: -8 }}
+                                onClick={() => setSelectedBlogPost(post)}
+                                className="group cursor-pointer bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500"
+                              >
+                                <div className="relative h-64 overflow-hidden">
+                                  <img 
+                                    src={post.image_url || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60'} 
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                  <div className="absolute bottom-6 left-6 right-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                                    <span className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-full text-xs font-black text-indigo-600 uppercase tracking-widest">
+                                      {isTr ? 'Okumaya Devam Et' : 'Read More'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="p-8">
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] bg-indigo-50 px-2 py-1 rounded-md">
+                                      {post.date}
+                                    </span>
+                                    <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                                      {Math.ceil((post.content?.length || 0) / 1000)} {isTr ? 'DAKİKA' : 'MIN READ'}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-xl font-black text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
+                                    {post.title}
+                                  </h4>
+                                  <p className="text-gray-500 text-sm leading-relaxed font-medium line-clamp-3">
+                                    {post.excerpt}
+                                  </p>
+                                </div>
+                              </motion.div>
                             ))}
                           </div>
                         </section>
@@ -2680,30 +2844,103 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">{lang === 'tr' ? 'Blog' : 'Blog'}</h2>
                 <button onClick={() => setShowBlog(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
               </div>
-              <div className="p-8 overflow-y-auto">
+              <div className="p-8 overflow-y-auto custom-scrollbar">
                 {selectedBlogPost ? (
-                  <div className="space-y-6">
-                    <button onClick={() => setSelectedBlogPost(null)} className="text-blue-600 font-bold flex items-center gap-2 mb-4">
-                      <ChevronLeft className="w-4 h-4" /> {lang === 'tr' ? 'Geri Dön' : 'Back'}
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <button 
+                      onClick={() => setSelectedBlogPost(null)} 
+                      className="group mb-8 flex items-center gap-2 text-sm font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-700 transition-colors"
+                    >
+                      <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
+                      {lang === 'tr' ? 'TÜM YAZILAR' : 'ALL POSTS'}
                     </button>
-                    {selectedBlogPost.image_url && <img src={selectedBlogPost.image_url} alt={selectedBlogPost.title} className="w-full h-64 object-cover rounded-3xl" />}
-                    <h3 className="text-3xl font-black text-gray-900">{selectedBlogPost.title}</h3>
-                    <div className="prose prose-blue max-w-none text-gray-600 leading-relaxed">
-                      {selectedBlogPost.content}
+                    
+                    {selectedBlogPost.image_url && (
+                      <div className="relative h-96 rounded-[2.5rem] overflow-hidden mb-10 shadow-2xl">
+                        <img 
+                          src={selectedBlogPost.image_url} 
+                          alt={selectedBlogPost.title} 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="max-w-2xl mx-auto">
+                      <div className="flex items-center gap-3 mb-6">
+                        <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest leading-none">
+                          {selectedBlogPost.date}
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          {Math.ceil((selectedBlogPost.content?.length || 0) / 1000)} {isTr ? 'DAKİKA OKUMA' : 'MIN READ'}
+                        </span>
+                      </div>
+                      
+                      <h3 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-10 tracking-tight">
+                        {selectedBlogPost.title}
+                      </h3>
+                      
+                      <div className="whitespace-pre-wrap text-gray-600 text-lg leading-relaxed font-normal space-y-6">
+                        {selectedBlogPost.content}
+                      </div>
+
+                      {/* Social Share for Blog */}
+                      <div className="mt-16 pt-10 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{isTr ? 'PAYLAŞ:' : 'SHARE:'}</span>
+                          <div className="flex items-center gap-2">
+                             <button className="p-3 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all"><Facebook className="w-5 h-5" /></button>
+                             <button className="p-3 bg-gray-50 hover:bg-sky-50 hover:text-sky-600 rounded-2xl transition-all"><Twitter className="w-5 h-5" /></button>
+                             <button className="p-3 bg-gray-50 hover:bg-emerald-50 hover:text-emerald-600 rounded-2xl transition-all"><MessageSquare className="w-5 h-5" /></button>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            alert(isTr ? 'Bağlantı kopyalandı!' : 'Link copied!');
+                          }}
+                          className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-800 transition-all active:scale-95"
+                        >
+                          <Link2 className="w-4 h-4" />
+                          <span>{isTr ? 'BAĞLANTIYI KOPYALA' : 'COPY LINK'}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {store?.blog_posts?.length ? store.blog_posts.map((post, i) => (
-                      <div key={i} onClick={() => setSelectedBlogPost(post)} className="group cursor-pointer bg-gray-50 rounded-3xl overflow-hidden hover:shadow-xl transition-all">
-                        {post.image_url && <img src={post.image_url} alt={post.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />}
-                        <div className="p-6">
-                          <h4 className="font-black text-gray-900 mb-2 line-clamp-2">{post.title}</h4>
-                          <p className="text-gray-500 text-sm line-clamp-3">{post.content}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {store?.blog_posts?.length ? store.blog_posts.map((post) => (
+                      <motion.div 
+                        key={post.id} 
+                        whileHover={{ y: -4 }}
+                        onClick={() => setSelectedBlogPost(post)} 
+                        className="group cursor-pointer bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="relative h-56 overflow-hidden">
+                          {post.image_url ? (
+                            <img src={post.image_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : (
+                            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                               <BookOpen className="w-12 h-12 text-slate-300" />
+                            </div>
+                          )}
                         </div>
-                      </div>
+                        <div className="p-8">
+                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 block">
+                            {post.date}
+                          </span>
+                          <h4 className="text-xl font-black text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</h4>
+                          <p className="text-gray-500 text-sm font-medium line-clamp-3 leading-relaxed">{post.excerpt || post.content}</p>
+                        </div>
+                      </motion.div>
                     )) : (
-                      <p className="col-span-full text-center text-gray-400 py-10">{lang === 'tr' ? 'Henüz blog yazısı eklenmemiş.' : 'No blog posts added yet.'}</p>
+                      <div className="col-span-full text-center py-20 px-8">
+                        <div className="p-6 bg-slate-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 text-slate-300">
+                           <BookOpen className="w-10 h-10" />
+                        </div>
+                        <p className="text-xl font-black text-slate-900 mb-2">{isTr ? 'Henüz Yazı Yok' : 'No Posts Yet'}</p>
+                        <p className="text-slate-500 font-medium">{isTr ? 'Yakında yeni içeriklerimizle burada olacağız.' : 'We will be here with new content soon.'}</p>
+                      </div>
                     )}
                   </div>
                 )}

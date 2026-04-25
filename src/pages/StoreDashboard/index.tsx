@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue, Suspense } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { GoogleGenAI } from "@google/genai";
 import { useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { 
@@ -59,7 +60,9 @@ import {
   Truck,
   Wrench,
   Building2,
-  Facebook
+  Facebook,
+  BookOpen,
+  Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -87,6 +90,7 @@ const PosTab = React.lazy(() => import("./PosTab"));
 const FastPosTab = React.lazy(() => import("../../components/FastPosTab"));
 const AuditLogTab = React.lazy(() => import("../../components/AuditLogTab"));
 const SettingsTab = React.lazy(() => import("./SettingsTab"));
+const BlogTab = React.lazy(() => import("./BlogTab"));
 const ProcurementTab = React.lazy(() => import("./ProcurementTab").then(m => ({ default: m.ProcurementTab })));
 const ServiceTab = React.lazy(() => import("./ServiceTab").then(m => ({ default: m.ServiceTab })));
 const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
@@ -769,6 +773,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
     { id: "companies", label: t.companies, icon: Store },
     { id: "fleet", label: t.fleet, icon: Car, badge: notifications.fleet },
+    { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
     { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
     { id: "fast-pos", label: t.fastPos, icon: Scan },
     { id: "audit-logs", label: t.auditLogs, icon: History },
@@ -1139,6 +1144,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           storeId={currentStoreId!}
                           isViewer={isViewer}
                         />
+                      </Suspense>
+                    )}
+                    {activeTab === "blog" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <BlogTab branding={branding} setBranding={setBranding} isTr={isTr} />
                       </Suspense>
                     )}
                     {activeTab === "companies" && (
@@ -3090,7 +3100,33 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.description}</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.description}</label>
+                    <button 
+                      type="button" 
+                      onClick={async () => {
+                        const name = (document.querySelector('input[name="name"]') as HTMLInputElement).value;
+                        const category = (document.querySelector('input[name="category"]') as HTMLInputElement).value;
+                        if(!name) { alert(isTr ? 'Lütfen önce ürün adını girin.' : 'Please enter product name first.'); return; }
+                        
+                        try {
+                          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                          const response = await ai.models.generateContent({
+                            model: "gemini-3-flash-preview",
+                            contents: `Create a short, professional, and appealing product description for "${name}" in category "${category}". Language: ${isTr ? "Turkish" : "English"}. Max 200 characters.`
+                          });
+                          const textarea = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+                          if(textarea) textarea.value = response.text || "";
+                        } catch(err) {
+                          console.error("AI Error:", err);
+                        }
+                      }}
+                      className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-700 transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      {isTr ? 'AI ile Oluştur' : 'AI Generate'}
+                    </button>
+                  </div>
                   <textarea 
                     name="description" 
                     rows={2}
