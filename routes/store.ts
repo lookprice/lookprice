@@ -6,6 +6,7 @@ import path from "path";
 import bcrypt from "bcryptjs";
 import { pool, logAction, addStockMovement } from "../models/db";
 import { authenticate } from "../middleware/auth";
+import { GoogleGenAI } from "@google/genai";
 
 import { promises as dnsPromises } from "dns";
 
@@ -13,6 +14,122 @@ const router = express.Router();
 const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
 router.use(authenticate);
+
+router.post("/generate-description", async (req: any, res) => {
+  const { name, category, lang } = req.body;
+  if (!name) return res.status(400).json({ error: "Name is required" });
+
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: "AI API key not configured on server" });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const isTr = lang === 'tr' || req.headers['accept-language']?.includes('tr');
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Create a short, professional, and appealing product description for "${name}" in category "${category || 'General'}". Language: ${isTr ? "Turkish" : "English"}. Max 200 characters.`
+    });
+
+    let text = response.text || "";
+    // Clean up potential markdown code blocks
+    if (text.includes("```")) {
+      text = text.replace(/```[a-z]*\n?/g, "").replace(/```/g, "").trim();
+    }
+
+    res.json({ text });
+  } catch (error: any) {
+    console.error("Server Description AI Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/generate-blog", async (req: any, res) => {
+  const { topic, storeName, lang } = req.body;
+  if (!topic) return res.status(400).json({ error: "Topic is required" });
+
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: "AI API key not configured on server" });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const isTr = lang === 'tr' || req.headers['accept-language']?.includes('tr');
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Create a professional blog post about "${topic}" for a store named "${storeName || 'the store'}". 
+      The response must be in valid JSON format with the following keys:
+      - title: A compelling title
+      - excerpt: A short summary (max 150 chars)
+      - content: The full blog post content in markdown
+      
+      Language: ${isTr ? "Turkish" : "English"}.`
+    });
+
+    let text = response.text || "";
+    // Clean up potential markdown code blocks
+    if (text.includes("```")) {
+      text = text.replace(/```[a-z]*\n?/g, "").replace(/```/g, "").trim();
+    }
+
+    res.json(JSON.parse(text));
+  } catch (error: any) {
+    console.error("Server Blog AI Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/products/reformat-names", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  
+  try {
+    const result = await pool.query("SELECT id, name FROM products WHERE store_id = $1", [storeId]);
+    
+    const updates = result.rows.map(async (product: any) => {
+      // Improved Turkish-friendly Title Case logic
+      const trTitleCase = (str: string) => {
+        return str
+          .replace(/İ/g, "i")
+          .replace(/I/g, "ı")
+          .toLowerCase()
+          .split(' ')
+          .map((word) => {
+            if (!word) return "";
+            const first = word.charAt(0);
+            const rest = word.slice(1);
+            
+            // Re-uppercase first character correctly for Turkish
+            let upperFirst = first.toUpperCase();
+            if (first === "i") upperFirst = "İ";
+            if (first === "ı") upperFirst = "I";
+            
+            return upperFirst + rest;
+          })
+          .join(' ');
+      };
+
+      const newName = trTitleCase(product.name);
+      
+      if (newName !== product.name) {
+        return pool.query("UPDATE products SET name = $1 WHERE id = $2", [newName, product.id]);
+      }
+      return Promise.resolve();
+    });
+
+    await Promise.all(updates);
+    
+    await logAction(storeId, req.user.id, 'UPDATE_PRODUCTS_REFORMAT', 'products', undefined, `Reformatted ${result.rows.length} product names to title case.`);
+    
+    res.json({ success: true, message: "Product names reformatted successfully" });
+  } catch (e: any) {
+    console.error("Reformat error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 router.use((req, res, next) => {
   console.log(`Store route accessed: ${req.method} ${req.originalUrl}`);

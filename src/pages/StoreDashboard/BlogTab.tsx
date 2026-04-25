@@ -12,7 +12,6 @@ import {
   BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { GoogleGenAI, Type } from "@google/genai";
 import { BlogPost, Store } from "../../types";
 import { api } from "../../services/api";
 
@@ -94,41 +93,11 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
     if (!topic) return;
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Create a professional blog post about "${topic}" for a store named "${branding.name}". 
-        Return a JSON object with: 
-        - title: engaging headline
-        - excerpt: brief summary
-        - content: full detailed article
-        Language: ${isTr ? "Turkish" : "English"}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              excerpt: { type: Type.STRING },
-              content: { type: Type.STRING }
-            },
-            required: ["title", "excerpt", "content"]
-          }
-        }
-      });
-
-      let text = response.text || "";
-      // Clean up potential markdown code blocks
-      if (text.includes("```")) {
-        text = text.replace(/```[a-z]*\n?/g, "").replace(/```/g, "").trim();
-      }
-
-      const result = JSON.parse(text);
+      const result = await api.generateBlog(topic, branding.name, isTr ? 'tr' : 'en');
       setFormState(prev => ({
         ...prev,
         ...result
       }));
-      
     } catch (error) {
       console.error("AI Generation Error:", error);
       alert(isTr ? "Yapay zeka ile içerik üretilirken bir hata oluştu." : "Error generating content with AI.");

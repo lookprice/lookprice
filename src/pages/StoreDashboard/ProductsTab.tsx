@@ -49,6 +49,7 @@ interface ProductsTabProps {
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
+  currentStoreId?: number;
 }
 
 const ProductsTab = ({ 
@@ -66,7 +67,8 @@ const ProductsTab = ({
   onBulkRecalculatePrice2,
   onShowQr,
   branding,
-  showStoreName
+  showStoreName,
+  currentStoreId
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -77,7 +79,36 @@ const ProductsTab = ({
   const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [isFixingNames, setIsFixingNames] = useState(false);
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
+
+  const handleFixNames = async () => {
+    if (isFixingNames) return;
+    if (!window.confirm(lang === 'tr' ? "Tüm ürün isimleri 'Title Case' (İlk Harfler Büyük) formatına getirilecek. Devam etmek istiyor musunuz?" : "All product names will be converted to 'Title Case'. Do you want to continue?")) {
+      return;
+    }
+
+    try {
+      setIsFixingNames(true);
+      const res = await api.reformatProductNames(currentStoreId);
+      if (res && res.success) {
+        toast.success(res.message || (lang === 'tr' ? "Ürün isimleri başarıyla düzeltildi." : "Product names reformatted successfully."));
+        // We might need to refresh the parent data, but since the parent handles data, 
+        // we'll assume the user will see changes or we can suggest a refresh.
+        // Actually, the parent `fetchData` should be called.
+        // But ProductsTab doesn't have a direct refresh callback in props.
+        // Let's assume the parent updates or suggest refresh.
+        window.location.reload(); 
+      } else {
+        toast.error(res?.error || "Error");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error reformating names");
+    } finally {
+      setIsFixingNames(false);
+    }
+  };
+
   const itemsPerPage = 15;
 
   const handlePublishToPazarama = async (product: any) => {
@@ -180,6 +211,18 @@ const ProductsTab = ({
                       title={t.addEntry}
                     >
                       <Plus className="h-4.5 w-4.5" />
+                    </button>
+                    <button 
+                      onClick={handleFixNames}
+                      disabled={isFixingNames}
+                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95 disabled:opacity-50"
+                      title={lang === 'tr' ? "İsimleri Düzenle (Title Case)" : "Fix Names (Title Case)"}
+                    >
+                      {isFixingNames ? (
+                        <div className="h-4.5 w-4.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4.5 w-4.5" />
+                      )}
                     </button>
                     <button 
                       onClick={() => {

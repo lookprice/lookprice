@@ -446,8 +446,54 @@ router.get("/store/:slug/catalog", async (req, res) => {
 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { GoogleGenAI } from "@google/genai";
 
 const JWT_SECRET = process.env.JWT_SECRET || "customer-secret-key";
+
+// Public: AI Chat for Store Showcase
+router.post("/store/:slug/chat-ai", async (req, res) => {
+  const { slug } = req.params;
+  const { message, history } = req.body;
+
+  try {
+    const storeRes = await pool.query("SELECT name, default_currency FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const store = storeRes.rows[0];
+
+    const productsRes = await pool.query("SELECT name, category, price, currency FROM products WHERE store_id = (SELECT id FROM stores WHERE slug = $1) LIMIT 50", [slug]);
+    const productsContext = productsRes.rows.map(p => `- ${p.name} (${p.category}): ${p.price} ${p.currency}`).join('\n');
+
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "AI API key not configured on server" });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    const isTr = req.headers['accept-language']?.includes('tr') || false;
+
+    const systemInstruction = `You are an expert product consultant for "${store.name}". 
+    Here is the list of our available products:
+    ${productsContext}
+    
+    Answer questions professionally and concisely. If you don't know the answer, politely suggest contacting support via WhatsApp.
+    Language: ${isTr ? 'Turkish' : 'English'}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        { role: 'user', parts: [{ text: "Context for help: " + systemInstruction }] },
+        { role: 'model', parts: [{ text: isTr ? `Merhaba! Ben ${store.name} akıllı asistanıyım. Size ürünlerimiz hakkında nasıl yardımcı olabilirim?` : `Hello! I am the ${store.name} smart assistant. How can I help you with our products?` }] },
+        ...(history || []),
+        { role: 'user', parts: [{ text: message }] }
+      ]
+    });
+
+    res.json({ text: response.text || "" });
+  } catch (error: any) {
+    console.error("Server AI Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Customer: Register
 router.post("/customers/register", async (req, res) => {

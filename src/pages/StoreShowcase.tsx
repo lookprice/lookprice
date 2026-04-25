@@ -46,7 +46,6 @@ import {
   BookOpen
 } from "lucide-react";
 import { CreditCard, User, LogOut, Edit3, Building2, Home } from "lucide-react";
-import { GoogleGenAI } from "@google/genai";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
@@ -537,29 +536,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     setIsAiTyping(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const productsContext = products.slice(0, 50).map(p => `- ${p.name} (${p.category}): ${p.price} ${store?.currency || 'TRY'}`).join('\n');
-      
-      const systemInstruction = `You are an expert product consultant for "${store?.name}". 
-      Here is the list of our available products:
-      ${productsContext}
-      
-      Answer questions professionally and concisely. If you don't know the answer, politely suggest contacting support via WhatsApp.
-      Language: ${isTr ? 'Turkish' : 'English'}`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          { role: 'user', parts: [{ text: "Context for help: " + systemInstruction }] },
-          { role: 'model', parts: [{ text: isTr ? `Merhaba! Ben ${store?.name} akıllı asistanıyım. Size ürünlerimiz hakkında nasıl yardımcı olabilirim?` : `Hello! I am the ${store?.name} smart assistant. How can I help you with our products?` }] },
-          ...aiHistory,
-          { role: 'user', parts: [{ text: userMsg }] }
-        ]
-      });
-
-      const text = response.text || "";
-      setAiHistory(prev => [...prev, { role: 'model', parts: [{ text }] }]);
+      const text = await api.chatWithAiConsultant(store?.slug || '', userMsg, aiHistory);
+      setAiHistory(prev => [...prev, { role: 'model', parts: [{ text: text.text }] }]);
     } catch (error) {
       console.error("AI Error:", error);
       setAiHistory(prev => [...prev, { role: 'model', parts: [{ text: isTr ? "Üzgünüm, şu an yanıt veremiyorum. Lütfen daha sonra tekrar deneyin." : "I'm sorry, I can't respond right now. Please try again later." }] }]);

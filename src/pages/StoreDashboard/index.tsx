@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue, Suspense } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { GoogleGenAI } from "@google/genai";
 import { useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { 
@@ -1047,6 +1046,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onShowQr={() => setShowQrModal(true)}
                           branding={branding}
                           showStoreName={includeBranches}
+                          currentStoreId={currentStoreId}
                         />
                       </Suspense>
                     )}
@@ -3117,17 +3117,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             }
                             
                             try {
-                              const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-                              const response = await ai.models.generateContent({
-                                model: "gemini-3-flash-preview",
-                                contents: `Create a short, professional, and appealing product description for "${name}" in category "${category}". Language: ${isTr ? "Turkish" : "English"}. Max 200 characters.`
-                              });
-                              
-                              let text = response.text || "";
-                              // Clean up potential markdown code blocks
-                              if (text.includes("```")) {
-                                text = text.replace(/```[a-z]*\n?/g, "").replace(/```/g, "").trim();
-                              }
+                              const response = await api.generateProductDescription(name, category, isTr ? 'tr' : 'en');
+                              const text = response.text || "";
 
                               const textarea = form?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
                               if(textarea) {
