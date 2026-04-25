@@ -4170,4 +4170,18 @@ router.get("/public/store/:slug/products/:barcode/stock", async (req, res) => {
   }
 });
 
+router.get("/notifications", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM notifications WHERE store_id = $1 ORDER BY created_at DESC LIMIT 50",
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (e: any) {
+    // If table doesn't exist, return empty array to avoid frontend errors
+    res.json([]);
+  }
+});
+
 export default router;

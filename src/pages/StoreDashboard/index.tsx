@@ -3104,23 +3104,42 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.description}</label>
                     <button 
                       type="button" 
-                      onClick={async () => {
-                        const name = (document.querySelector('input[name="name"]') as HTMLInputElement).value;
-                        const category = (document.querySelector('input[name="category"]') as HTMLInputElement).value;
-                        if(!name) { alert(isTr ? 'Lütfen önce ürün adını girin.' : 'Please enter product name first.'); return; }
-                        
-                        try {
-                          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-                          const response = await ai.models.generateContent({
-                            model: "gemini-3-flash-preview",
-                            contents: `Create a short, professional, and appealing product description for "${name}" in category "${category}". Language: ${isTr ? "Turkish" : "English"}. Max 200 characters.`
-                          });
-                          const textarea = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
-                          if(textarea) textarea.value = response.text || "";
-                        } catch(err) {
-                          console.error("AI Error:", err);
-                        }
-                      }}
+                          onClick={async (e) => {
+                            const form = (e.currentTarget as HTMLElement).closest('form');
+                            const nameEl = form?.querySelector('input[name="name"]') as HTMLInputElement;
+                            const catEl = form?.querySelector('input[name="category"]') as HTMLInputElement;
+                            const name = nameEl?.value;
+                            const category = catEl?.value;
+                            
+                            if(!name) { 
+                              alert(isTr ? 'Lütfen önce ürün adını girin.' : 'Please enter product name first.'); 
+                              return; 
+                            }
+                            
+                            try {
+                              const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                              const response = await ai.models.generateContent({
+                                model: "gemini-3-flash-preview",
+                                contents: `Create a short, professional, and appealing product description for "${name}" in category "${category}". Language: ${isTr ? "Turkish" : "English"}. Max 200 characters.`
+                              });
+                              
+                              let text = response.text || "";
+                              // Clean up potential markdown code blocks
+                              if (text.includes("```")) {
+                                text = text.replace(/```[a-z]*\n?/g, "").replace(/```/g, "").trim();
+                              }
+
+                              const textarea = form?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+                              if(textarea) {
+                                textarea.value = text;
+                                // Trigger input event so React/Form picks up the change
+                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                              }
+                            } catch(err) {
+                              console.error("AI Error:", err);
+                              alert(isTr ? "Yapaya zeka ile açıklama üretilemedi." : "AI failed to generate description.");
+                            }
+                          }}
                       className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-700 transition-colors"
                     >
                       <Sparkles className="w-3 h-3" />

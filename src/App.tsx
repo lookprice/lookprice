@@ -53,7 +53,10 @@ export default function App() {
         "onrender.com"
       ];
 
-      const isMainDomain = mainDomains.some(d => hostname.includes(d));
+      const isMainDomain = mainDomains.some(d => hostname.includes(d)) || 
+                          hostname.includes(".run.app") || 
+                          hostname.includes(".google.com") ||
+                          hostname.includes("webcontainer");
       
       if (!isMainDomain && hostname !== "") {
         try {

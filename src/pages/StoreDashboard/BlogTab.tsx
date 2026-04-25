@@ -28,23 +28,29 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [formState, setFormState] = useState({
+    title: "",
+    excerpt: "",
+    content: "",
+    image_url: ""
+  });
+
   const blogPosts = branding.blog_posts || [];
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
     
     const newPost: BlogPost = {
       id: editingPost?.id || Math.random().toString(36).substr(2, 9),
-      title: formData.get("title") as string,
-      excerpt: formData.get("excerpt") as string,
-      content: formData.get("content") as string,
-      image_url: formData.get("image_url") as string || "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60",
+      title: formState.title,
+      excerpt: formState.excerpt,
+      content: formState.content,
+      image_url: formState.image_url || "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60",
       date: editingPost?.date || new Date().toISOString().split('T')[0]
     };
 
     let updatedPosts;
-    if (editingPost) {
+    if (editingPost && editingPost.id) {
       updatedPosts = blogPosts.map(p => p.id === editingPost.id ? newPost : p);
     } else {
       updatedPosts = [newPost, ...blogPosts];
@@ -62,6 +68,28 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
     }
   };
 
+  const handleEdit = (post: BlogPost) => {
+    setEditingPost(post);
+    setFormState({
+      title: post.title,
+      excerpt: post.excerpt,
+      content: post.content,
+      image_url: post.image_url || ""
+    });
+    setShowModal(true);
+  };
+
+  const handleNew = () => {
+    setEditingPost(null);
+    setFormState({
+      title: "",
+      excerpt: "",
+      content: "",
+      image_url: ""
+    });
+    setShowModal(true);
+  };
+
   const generateWithAI = async (topic: string) => {
     if (!topic) return;
     setIsGenerating(true);
@@ -73,7 +101,7 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
         Return a JSON object with: 
         - title: engaging headline
         - excerpt: brief summary
-        - content: full detailed article (HTML formatted strings allowed)
+        - content: full detailed article
         Language: ${isTr ? "Turkish" : "English"}`,
         config: {
           responseMimeType: "application/json",
@@ -89,16 +117,17 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
         }
       });
 
-      const result = JSON.parse(response.text);
-      
-      // We can't easily auto-fill the form if we use native FormData on submit, 
-      // so we'll need to use state for the form values or just set the editingPost.
-      
-      setEditingPost({
-        id: editingPost?.id || "",
-        date: editingPost?.date || new Date().toISOString().split('T')[0],
+      let text = response.text || "";
+      // Clean up potential markdown code blocks
+      if (text.includes("```")) {
+        text = text.replace(/```[a-z]*\n?/g, "").replace(/```/g, "").trim();
+      }
+
+      const result = JSON.parse(text);
+      setFormState(prev => ({
+        ...prev,
         ...result
-      });
+      }));
       
     } catch (error) {
       console.error("AI Generation Error:", error);
@@ -125,10 +154,7 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
           </p>
         </div>
         <button 
-          onClick={() => {
-            setEditingPost(null);
-            setShowModal(true);
-          }}
+          onClick={handleNew}
           className="flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
         >
           <Plus className="w-5 h-5" />
@@ -161,10 +187,7 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
               />
               <div className="absolute top-4 right-4 flex space-x-2">
                 <button 
-                  onClick={() => {
-                    setEditingPost(post);
-                    setShowModal(true);
-                  }}
+                  onClick={() => handleEdit(post)}
                   className="p-2 bg-white/90 backdrop-blur-md rounded-xl text-indigo-600 hover:bg-white transition-colors"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -272,7 +295,8 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
                         <input 
                           name="title"
                           required
-                          defaultValue={editingPost?.title}
+                          value={formState.title}
+                          onChange={(e) => setFormState({ ...formState, title: e.target.value })}
                           placeholder={isTr ? "Yazı başlığı..." : "Post title..."}
                           className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all font-bold text-slate-900"
                         />
@@ -283,7 +307,8 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
                           name="excerpt"
                           required
                           rows={3}
-                          defaultValue={editingPost?.excerpt}
+                          value={formState.excerpt}
+                          onChange={(e) => setFormState({ ...formState, excerpt: e.target.value })}
                           placeholder={isTr ? "Kısa bir özet yazın..." : "Write a short summary..."}
                           className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all font-medium text-slate-600 resize-none"
                         />
@@ -293,7 +318,8 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
                         <div className="flex gap-2">
                           <input 
                             name="image_url"
-                            defaultValue={editingPost?.image_url}
+                            value={formState.image_url}
+                            onChange={(e) => setFormState({ ...formState, image_url: e.target.value })}
                             placeholder="https://..."
                             className="flex-1 px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all font-mono text-xs text-slate-500"
                           />
@@ -309,7 +335,8 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
                       <textarea 
                         name="content"
                         required
-                        defaultValue={editingPost?.content}
+                        value={formState.content}
+                        onChange={(e) => setFormState({ ...formState, content: e.target.value })}
                         placeholder={isTr ? "Yazı içeriğini buraya girin..." : "Enter post content here..."}
                         className="flex-1 w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all font-medium text-slate-600 min-h-[300px]"
                       />
