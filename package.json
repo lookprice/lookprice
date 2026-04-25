@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build:server": "esbuild server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js --format=esm --resolve-extensions=.ts,.js --external:express --external:pg --external:bcryptjs --external:jsonwebtoken --external:multer --external:xlsx --external:dotenv --external:vite --external:axios --external:@supabase/supabase-js --external:iyzipay",
+    "build:server": "esbuild server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js --format=esm --packages=external",
     "start": "NODE_ENV=production node dist/server.js",
     "build": "rm -rf src/firebase.ts src/firebase-applet-config.json src/contexts/FirebaseContext.tsx && npm run clean && npx vite build && npm run build:server",
     "preview": "vite preview",

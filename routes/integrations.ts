@@ -1098,13 +1098,12 @@ router.get("/pazarama/categories", authenticate, async (req: any, res) => {
     let lastError;
 
     const endpoints = [
-      "https://isortagimapi.pazarama.com/api/v1/product/category/all",
-      "https://isortagimapi.pazarama.com/api/v1/Category/all",
-      "https://isortagimapi.pazarama.com/api/v1/category/all",
       "https://api.pazarama.com/isortagim/api/v1/Category/all",
-      "https://api.pazarama.com/isortagim/api/v1/category/all",
-      "https://isortagimapi.pazarama.com/api/v1/Marketplace/Category/all",
-      "https://api.pazarama.com/v1/Marketplace/Category/all"
+      "https://isortagimapi.pazarama.com/api/v1/product/category/all",
+      "https://isortagimapi.pazarama.com/api/v1.0/Category/all",
+      "https://isortagimapi.pazarama.com/api/v1/Category/all",
+      "https://api.pazarama.com/v1/Marketplace/Category/all",
+      "https://isortagimapi.pazarama.com/api/v2/product/category/all"
     ];
 
     for (const endpoint of endpoints) {
@@ -1114,6 +1113,9 @@ router.get("/pazarama/categories", authenticate, async (req: any, res) => {
           headers: { 
             'Authorization': `Basic ${authHeader}`,
             'SellerId': merchantId,
+            'MerchantId': merchantId,
+            'Version': '1.0',
+            'X-Version': '1.0',
             'Content-Type': 'application/json',
             'Accept': 'application/json, text/plain, */*',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -1181,11 +1183,10 @@ router.get("/pazarama/brands", authenticate, async (req: any, res) => {
     let lastError;
 
     const endpoints = [
+      "https://api.pazarama.com/isortagim/api/v1/Brand/all",
       "https://isortagimapi.pazarama.com/api/v1/product/brand/all",
       "https://isortagimapi.pazarama.com/api/v1/brand/all",
-      "https://isortagimapi.pazarama.com/api/v1/Brand/all",
-      "https://api.pazarama.com/isortagim/api/v1/Brand/all",
-      "https://api.pazarama.com/isortagim/api/v1/brand/all",
+      "https://isortagimapi.pazarama.com/api/v1.0/Brand/all",
       "https://isortagimapi.pazarama.com/api/v1/brand/brands",
       "https://api.pazarama.com/v1/brand/all"
     ];
@@ -1197,6 +1198,9 @@ router.get("/pazarama/brands", authenticate, async (req: any, res) => {
           headers: { 
             'Authorization': `Basic ${authHeader}`,
             'SellerId': merchantId,
+            'MerchantId': merchantId,
+            'Version': '1.0',
+            'X-Version': '1.0',
             'Content-Type': 'application/json',
             'Accept': 'application/json, text/plain, */*',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

@@ -85,12 +85,85 @@ router.post("/generate-blog", async (req: any, res) => {
 
 router.post("/products/reformat-names", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
   
   try {
     const result = await pool.query("SELECT id, name FROM products WHERE store_id = $1", [storeId]);
-    
+    if (result.rows.length === 0) return res.json({ success: true, message: "No products to reformat." });
+
+    if (apiKey) {
+      const ai = new GoogleGenAI({ apiKey });
+
+      // Process in batches of 50 for efficiency and accuracy
+      const BATCH_SIZE = 50;
+      let totalUpdated = 0;
+
+      for (let i = 0; i < result.rows.length; i += BATCH_SIZE) {
+        const batch = result.rows.slice(i, i + BATCH_SIZE);
+        const namesToFix = batch.map(p => p.name);
+
+        const prompt = `Convert the following product names to Title Case.
+        CRITICAL RULES:
+        1. Distinguish between English/Technical terms and Turkish words.
+        2. English/Tech Terms: Use English character rules (e.g. LIGHTNING -> Lightning, DIGITAL -> Digital, SMART -> Smart). NEVER use Turkish dotted 'i' (ı/İ) for English words.
+        3. Turkish Words: Use Turkish character rules (e.g. YAZICI -> Yazıcı, ŞARJ -> Şarj, KULAKLIK -> Kulaklık).
+        4. Acronyms: Preserve typical acronyms in ALL CAPS (HDMI, SSD, TV, USB, RAM).
+        5. Proper Nouns: Brands like Apple, Samsung, Sony should stay capitalized.
+        6. Return ONLY a JSON object where the key is the exact original string and the value is the corrected string.
+
+        Names: ${JSON.stringify(namesToFix)}`;
+
+        try {
+          const aiResponse = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+          });
+          
+          let text = aiResponse.text || "";
+          if (text.includes("```")) {
+            text = text.replace(/```[a-z]*\n?/g, "").replace(/```/g, "").trim();
+          }
+          
+          const corrections = JSON.parse(text);
+
+          for (const product of batch) {
+            const correctedName = corrections[product.name];
+            if (correctedName && correctedName !== product.name) {
+              await pool.query("UPDATE products SET name = $1 WHERE id = $2", [correctedName, product.id]);
+              totalUpdated++;
+            }
+          }
+        } catch (aiErr) {
+          console.error("Batch reformat failed, falling back to local for this batch:", aiErr);
+          // Improved local fallback that tries to avoid Turkish-I for English-looking words
+          const safeTitleCase = (str: string) => {
+            return str.split(' ').map(word => {
+              if (!word) return "";
+              // If word is mostly ASCII (A-Z), treat as English title case
+              if (/^[A-Z]+$/.test(word)) {
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+              }
+              // Basic title case
+              return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }).join(' ');
+          };
+
+          for (const product of batch) {
+            const newName = safeTitleCase(product.name);
+            if (newName !== product.name) {
+               await pool.query("UPDATE products SET name = $1 WHERE id = $2", [newName, product.id]);
+               totalUpdated++;
+            }
+          }
+        }
+      }
+      
+      await logAction(storeId, req.user.id, 'UPDATE_PRODUCTS_REFORMAT_AI', 'products', undefined, `Smart-reformatted ${totalUpdated} product names using AI.`);
+      return res.json({ success: true, message: `Ürün isimleri yapay zeka ile akıllıca düzeltildi. (${totalUpdated} ürün güncellendi)` });
+    }
+
+    // Original fallback logic if no API key is present
     const updates = result.rows.map(async (product: any) => {
-      // Improved Turkish-friendly Title Case logic
       const trTitleCase = (str: string) => {
         return str
           .replace(/İ/g, "i")
@@ -101,19 +174,14 @@ router.post("/products/reformat-names", async (req: any, res) => {
             if (!word) return "";
             const first = word.charAt(0);
             const rest = word.slice(1);
-            
-            // Re-uppercase first character correctly for Turkish
             let upperFirst = first.toUpperCase();
             if (first === "i") upperFirst = "İ";
             if (first === "ı") upperFirst = "I";
-            
             return upperFirst + rest;
           })
           .join(' ');
       };
-
       const newName = trTitleCase(product.name);
-      
       if (newName !== product.name) {
         return pool.query("UPDATE products SET name = $1 WHERE id = $2", [newName, product.id]);
       }
@@ -121,10 +189,8 @@ router.post("/products/reformat-names", async (req: any, res) => {
     });
 
     await Promise.all(updates);
-    
-    await logAction(storeId, req.user.id, 'UPDATE_PRODUCTS_REFORMAT', 'products', undefined, `Reformatted ${result.rows.length} product names to title case.`);
-    
-    res.json({ success: true, message: "Product names reformatted successfully" });
+    await logAction(storeId, req.user.id, 'UPDATE_PRODUCTS_REFORMAT', 'products', undefined, `Reformatted ${result.rows.length} product names to title case (Standard).`);
+    res.json({ success: true, message: "Ürün isimleri standart yöntemle düzeltildi." });
   } catch (e: any) {
     console.error("Reformat error:", e);
     res.status(500).json({ error: e.message });
