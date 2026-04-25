@@ -10,6 +10,7 @@ import ResetPasswordPage from "./pages/ResetPassword";
 import SuperAdminDashboard from "./pages/SuperAdmin";
 import PublicQuotation from "./pages/PublicQuotation";
 import CheckoutStatus from "./pages/CheckoutStatus";
+import DirectCheckoutRedirect from "./pages/DirectCheckoutRedirect";
 import PaymentGatewayPage from "./pages/PaymentGatewayPage";
 import StoreShowcase from "./pages/StoreShowcase";
 import Logo from "./components/Logo";
@@ -158,11 +159,14 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/scan/:slug" element={<CustomerScanPage />} />
           <Route path="/s/:slug" element={<StoreShowcase />} />
+          <Route path="/s/:slug/p/:barcode" element={<StoreShowcase />} />
           <Route path="/store/:slug" element={<StoreShowcase />} />
           <Route path="/checkout/success" element={<CheckoutStatus />} />
           <Route path="/checkout/cancel" element={<CheckoutStatus />} />
           <Route path="/payment-gateway" element={<PaymentGatewayPage />} />
           <Route path="/quotation/:id" element={<PublicQuotation />} />
+          <Route path="/guest-checkout-public" element={<GuestCheckoutPage />} />
+          <Route path="/s/:slug/direct-checkout" element={<DirectCheckoutRedirect />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           

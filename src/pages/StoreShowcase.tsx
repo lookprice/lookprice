@@ -425,7 +425,7 @@ const ProductDetailModal: React.FC<{
 };
 
 const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
-  const { slug: urlSlug } = useParams<{ slug: string }>();
+  const { slug: urlSlug, barcode: urlBarcode } = useParams<{ slug: string, barcode?: string }>();
   const slug = customSlug || urlSlug;
   const navigate = useNavigate();
   const location = useLocation();
@@ -522,30 +522,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
   const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal' | 'iyzico'>('credit_card');
-  const [isAiOpen, setIsAiOpen] = useState(false);
-  const [aiMessage, setAiMessage] = useState("");
-  const [aiHistory, setAiHistory] = useState<any[]>([]);
-  const [isAiTyping, setIsAiTyping] = useState(false);
-
-  const handleAskAi = async () => {
-    if (!aiMessage.trim() || isAiTyping) return;
-    
-    const userMsg = aiMessage.trim();
-    setAiMessage("");
-    setAiHistory(prev => [...prev, { role: 'user', parts: [{ text: userMsg }] }]);
-    setIsAiTyping(true);
-
-    try {
-      const text = await api.chatWithAiConsultant(store?.slug || '', userMsg, aiHistory);
-      setAiHistory(prev => [...prev, { role: 'model', parts: [{ text: text.text }] }]);
-    } catch (error) {
-      console.error("AI Error:", error);
-      setAiHistory(prev => [...prev, { role: 'model', parts: [{ text: isTr ? "Üzgünüm, şu an yanıt veremiyorum. Lütfen daha sonra tekrar deneyin." : "I'm sorry, I can't respond right now. Please try again later." }] }]);
-    } finally {
-      setIsAiTyping(false);
-    }
-  };
-
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -667,6 +643,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         document.title = storeRes.name || 'Store';
         setProducts(productsRes.filter((p: Product) => p.is_web_sale !== false));
         
+        // If we have a barcode in the URL and haven't selected a product yet, try to find it
+        if (urlBarcode) {
+          const product = productsRes.find((p: Product) => (p.barcode === urlBarcode) || (p.id.toString() === urlBarcode));
+          if (product) {
+            setSelectedProduct(product);
+          }
+        }
+
         // If customer is logged in, sync their info to checkout
         if (customer) {
           setCustomerInfo(prev => ({
@@ -3643,96 +3627,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       </a>
     )}
 
-    {/* AI Consultant */}
-    <div className="fixed bottom-8 right-4 md:right-8 z-[101]">
-      <AnimatePresence>
-        {isAiOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="absolute bottom-16 right-0 w-[90vw] md:w-[350px] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col"
-            style={{ maxHeight: '500px' }}
-          >
-            <div className="p-4 bg-gray-900 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-white/10 rounded-lg">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-black uppercase tracking-widest">{isTr ? 'AI DANIŞMAN' : 'AI CONSULTANT'}</span>
-                  <span className="text-[10px] text-white/50">{isTr ? 'Ürünler hakkında sorun' : 'Ask about products'}</span>
-                </div>
-              </div>
-              <button onClick={() => setIsAiOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px] bg-gray-50/50">
-              {aiHistory.length === 0 && (
-                <div className="text-center py-8">
-                  <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center mx-auto mb-4">
-                    <Sparkles className="w-6 h-6 text-primary" />
-                  </div>
-                  <p className="text-sm text-gray-500 font-medium px-6">
-                    {isTr 
-                      ? `${store?.name} ürünleri hakkında her şeyi sorabilirsiniz!` 
-                      : `You can ask anything about ${store?.name} products!`}
-                  </p>
-                </div>
-              )}
-              {aiHistory.map((chat, idx) => (
-                <div key={idx} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-3 rounded-2xl text-xs font-medium ${
-                    chat.role === 'user' 
-                      ? 'bg-gray-900 text-white rounded-tr-none' 
-                      : 'bg-white text-gray-700 shadow-sm border border-gray-100 rounded-tl-none'
-                  }`}>
-                    {chat.parts[0].text}
-                  </div>
-                </div>
-              ))}
-              {isAiTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-white text-gray-400 p-3 rounded-2xl shadow-sm border border-gray-100 rounded-tl-none">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-white border-t border-gray-100">
-              <div className="flex items-center gap-2">
-                <input 
-                  type="text"
-                  value={aiMessage}
-                  onChange={(e) => setAiMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAskAi()}
-                  placeholder={isTr ? 'Mesajınızı yazın...' : 'Type your message...'}
-                  className="flex-1 bg-gray-50 border-none rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-primary outline-none transition-all"
-                />
-                <button 
-                  onClick={handleAskAi}
-                  disabled={!aiMessage.trim() || isAiTyping}
-                  className="p-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-all disabled:opacity-50"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <button 
-        onClick={() => setIsAiOpen(!isAiOpen)}
-        className="bg-gray-900 hover:bg-black text-white p-4 rounded-full shadow-2xl flex items-center gap-3 transition-all active:scale-95 group border-2 border-primary/20"
-      >
-        <Sparkles className={`w-7 h-7 group-hover:rotate-12 transition-transform ${isAiOpen ? 'rotate-45' : ''}`} />
-        <span className="text-sm font-black uppercase tracking-widest hidden md:block">{isTr ? 'AI ASİSTAN' : 'AI ASSISTANT'}</span>
-      </button>
-    </div>
     </ErrorBoundary>
   );
 };

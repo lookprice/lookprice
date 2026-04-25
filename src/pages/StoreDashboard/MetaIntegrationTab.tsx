@@ -14,7 +14,8 @@ import {
   ShoppingBag,
   Target
 } from 'lucide-react';
-import axios from 'axios';
+import { useParams } from 'react-router-dom';
+import { api } from '@/services/api';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { translations } from '@/translations';
 
@@ -26,6 +27,7 @@ interface MetaSettings {
 
 const MetaIntegration = () => {
   const { lang } = useLanguage();
+  const { slug: urlSlug } = useParams();
   const t = translations[lang].dashboard;
   const [settings, setSettings] = useState<MetaSettings>({
     enabled: false,
@@ -37,6 +39,7 @@ const MetaIntegration = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [storeSlug, setStoreSlug] = useState('');
+  const [customDomain, setCustomDomain] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -45,11 +48,12 @@ const MetaIntegration = () => {
   const fetchSettings = async () => {
     try {
       const [settingsRes, storeRes] = await Promise.all([
-        axios.get('/api/integrations/meta/settings'),
-        axios.get('/api/store/info')
+        api.getMetaSettings(),
+        api.getBranding()
       ]);
-      setSettings(settingsRes.data);
-      setStoreSlug(storeRes.data.slug);
+      setSettings(settingsRes || { enabled: false, pixel_id: '', catalog_id: '' });
+      setStoreSlug(storeRes?.slug || '');
+      setCustomDomain(storeRes?.custom_domain || '');
     } catch (err: any) {
       setError(t.metaIntegration.loadingError);
     } finally {
@@ -62,17 +66,29 @@ const MetaIntegration = () => {
     setError(null);
     setSuccess(false);
     try {
-      await axios.post('/api/integrations/meta/settings', settings);
+      await api.saveMetaSettings(settings);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || t.metaIntegration.error);
+      setError(err.message || t.metaIntegration.error);
     } finally {
       setSaving(false);
     }
   };
 
-  const catalogUrl = `${window.location.origin}/api/public/store/${storeSlug}/catalog`;
+  const effectiveSlug = storeSlug || urlSlug || '';
+  
+  // Create a more robust catalog URL
+  const getCatalogUrl = () => {
+    if (!effectiveSlug) return '';
+    
+    // If we are on a custom domain dashboard, origin already points to the custom domain
+    // If we are on the main platform, origin is lookprice.net
+    const origin = window.location.origin;
+    return `${origin}/api/public/store/${effectiveSlug}/catalog.xml`;
+  };
+
+  const catalogUrl = getCatalogUrl();
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -171,25 +187,83 @@ const MetaIntegration = () => {
               </div>
 
               {settings.enabled && (
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <ShoppingBag className="w-4 h-4 text-orange-500" /> {t.metaIntegration.feedUrl}
-                    </label>
-                    <button
-                      onClick={() => copyToClipboard(catalogUrl)}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                    >
-                      <Copy className="w-3 h-3" /> {t.metaIntegration.copy}
-                    </button>
+                <div className="mt-6 flex flex-col gap-4">
+                  {/* Catalog URL */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4 text-orange-500" /> {t.metaIntegration.feedUrl}
+                      </label>
+                      <button
+                        onClick={() => copyToClipboard(catalogUrl)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3" /> {t.metaIntegration.copy}
+                      </button>
+                    </div>
+                    <div className="bg-white p-3 border border-gray-200 rounded text-xs font-mono text-gray-600 break-all">
+                      {catalogUrl}
+                    </div>
+                    <div className="mt-3 flex items-start gap-2 text-xs text-gray-500 bg-blue-50 p-2 rounded border border-blue-100">
+                      <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <p>
+                        {t.metaIntegration.feedUrlDesc}
+                      </p>
+                    </div>
                   </div>
-                  <div className="bg-white p-3 border border-gray-200 rounded text-xs font-mono text-gray-600 break-all">
-                    {catalogUrl}
+
+                  {/* Information Box indicating LookPrice is the Website for Ads */}
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                    <h4 className="text-sm font-medium text-green-900 mb-2 flex items-center gap-2">
+                      <ExternalLink className="w-4 h-4" /> Web Sitelerindeki Ürünlerin URL'leri Hakkında
+                    </h4>
+                    <p className="text-xs text-green-800 leading-relaxed">
+                      Sistemimize yüklediğiniz ürünlerin kendilerine ait bir web sayfasının veya linkinin olmasına gerek yoktur! LookPrice, ürünleriniz için otomatik olarak dışarıya açık bir E-ticaret vitrini (web sayfası) oluşturur.
+                    </p>
+                    <p className="text-xs text-green-800 leading-relaxed mt-2">
+                      Meta (Facebook/Instagram), oluşturulan kataloğunuzu okuduğunda, her bir ürünün URL'si olarak otomatik olarak sizin <strong>LookPrice vitrininizdeki ürün sayfasını</strong> kaydeder. Böylece reklamlara tıklayan müşteriler doğrudan LookPrice vitrininize yönlendirilir.
+                    </p>
                   </div>
-                  <div className="mt-3 flex items-start gap-2 text-xs text-gray-500 bg-blue-50 p-2 rounded border border-blue-100">
-                    <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                    <p>
-                      {t.metaIntegration.feedUrlDesc}
+
+                  {/* Privacy Policy URL for Meta */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Info className="w-4 h-4 text-indigo-500" /> Gizlilik URL'si (Privacy Policy)
+                      </label>
+                      <button
+                        onClick={() => copyToClipboard(`${window.location.origin}/api/public/store/${effectiveSlug}/privacy`)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3" /> {t.metaIntegration.copy}
+                      </button>
+                    </div>
+                    <div className="bg-white p-3 border border-gray-200 rounded text-xs font-mono text-gray-600 break-all">
+                      {`${window.location.origin}/api/public/store/${effectiveSlug}/privacy`}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Meta Commerce Manager mağazanızı onaylamak için bir "Gizlilik Politikası (Privacy Policy)" linkine ihtiyaç duyar. Yukarıdaki size özel statik bağlantıyı, Meta Formunda "Privacy Policy URL" alanına yapıştırabilirsiniz. (Düzeltmek isterseniz Mağaza Ayarları &gt; Yasal Sayfalar bölümünden KVKK içeriğini düzenleyebilirsiniz).
+                    </p>
+                  </div>
+
+                  {/* Checkout URL for Meta */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4 text-emerald-600" /> Web Sitesi Ödeme URL'si (Checkout URL Template)
+                      </label>
+                      <button
+                        onClick={() => copyToClipboard(`${window.location.origin}/s/${effectiveSlug}/direct-checkout?id={{product.id}}&qty={{quantity}}`)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3" /> {t.metaIntegration.copy}
+                      </button>
+                    </div>
+                    <div className="bg-white p-3 border border-gray-200 rounded text-xs font-mono text-gray-600 break-all">
+                      {`${window.location.origin}/s/${effectiveSlug}/direct-checkout?id={{product.id}}&qty={{quantity}}`}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Eğer Meta Commerce Manager kurulumunda Facebook mağazanızdan doğrudan "Web Sitesinde Ödemeyi" seçip, bir <strong>"Ödeme URL'si (Checkout URL)"</strong> ayarlamanız gerekiyorsa, yukarıdaki metni kopyalayıp ilgili alana yapıştırabilirsiniz. Değişkenleri değiştirmeyin.
                     </p>
                   </div>
                 </div>

@@ -167,7 +167,6 @@ export const api = {
   updatePurchaseInvoiceTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED', storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
   generateProductDescription: (name: string, category: string, lang: string) => api.post("/api/store/generate-description", { name, category, lang }),
   generateBlog: (topic: string, storeName: string, lang: string) => api.post("/api/store/generate-blog", { topic, storeName, lang }),
-  chatWithAiConsultant: (slug: string, message: string, history: any[]) => api.post(`/api/public/store/${slug}/chat-ai`, { message, history }),
 
   getUsers: (storeId?: number) => api.get(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addUser: (data: any, storeId?: number) => api.post(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
@@ -319,6 +318,10 @@ export const api = {
   publishPazaramaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/pazarama/publish", { productId, storeId }),
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
   getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
+
+  // Meta Integration
+  getMetaSettings: (storeId?: number) => api.get(`/api/integrations/meta/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveMetaSettings: (data: { enabled: boolean, pixel_id: string, catalog_id: string, storeId?: number }) => api.post("/api/integrations/meta/settings", data),
 
   // Transactions
   deleteTransaction: (id: number) => api.delete(`/api/store/transactions/${id}`),
