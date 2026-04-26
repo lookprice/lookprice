@@ -23,6 +23,7 @@ interface MetaSettings {
   enabled: boolean;
   pixel_id: string;
   catalog_id: string;
+  catalog_currency?: string;
 }
 
 const MetaIntegration = () => {
@@ -153,7 +154,7 @@ const MetaIntegration = () => {
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Target className="w-4 h-4" /> {t.metaIntegration.pixelId}
@@ -182,6 +183,24 @@ const MetaIntegration = () => {
                   />
                   <p className="text-xs text-gray-500">
                     {t.metaIntegration.catalogIdDesc}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span className="font-bold">₺</span> Katalog Para Birimi
+                  </label>
+                  <select
+                    value={settings.catalog_currency || 'TRY'}
+                    onChange={(e) => setSettings({ ...settings, catalog_currency: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="TRY">TRY - Türk Lirası</option>
+                    <option value="USD">USD - Amerikan Doları</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="GBP">GBP - İngiliz Sterlini</option>
+                  </select>
+                  <p className="text-xs text-red-500 mt-1">
+                    Önemli: Facebook Mağazanızın para birimi ne ise onu seçin. Aksi takdirde "Para Birimi Uyuşmazlığı" hatası alırsınız!
                   </p>
                 </div>
               </div>
@@ -335,6 +354,36 @@ const MetaIntegration = () => {
 
         {/* Sidebar Info */}
         <div className="space-y-6">
+
+          {/* Facebook Pain Relief Box */}
+          <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-6 shadow-sm">
+            <h3 className="font-bold text-indigo-900 flex items-center gap-2 mb-4">
+              <AlertCircle className="w-5 h-5 text-indigo-600" />
+              Meta (Facebook) Karmaşasına Rehber
+            </h3>
+            <div className="space-y-4">
+              <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-yellow-400">
+                <span className="font-bold text-gray-800 block mb-1">1. "Ürün Para Birimi Uyuşmazlığı" Hatası:</span>
+                <p className="text-gray-600 text-xs">Facebook Commerce Manager'da mağaza açarken seçtiğiniz para birimi ile XML içindeki para birimi farklı olduğunda çıkar. <strong>Çözüm:</strong> Sol taraftaki ayarlardan "Katalog Para Birimi"ni Facebook'ta seçtiğiniz para birimi ile aynı yapın (Örn: TRY) ve XML'i Facebook'tan tekrar çektirin.</p>
+              </div>
+
+              <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-blue-400">
+                <span className="font-bold text-gray-800 block mb-1">2. Pixel ID'mi Nerede Bulacağım?</span>
+                <p className="text-gray-600 text-xs">Meta Business Suite &gt; Ayarlar (Sol alt dişli) &gt; İşletme Ayarları &gt; Veri Kaynakları &gt; Pikseller (veya Veri Setleri) bölümüne girin. Oradaki 15 haneli numaradır.</p>
+              </div>
+
+              <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-green-400">
+                <span className="font-bold text-gray-800 block mb-1">3. Katalog ID'mi Nerede Bulacağım?</span>
+                <p className="text-gray-600 text-xs">Commerce Manager'a girin. Sol üstte kataloğunuzun adına tıklayın. Veya Ayarlar &gt; Katalog sekmesine gidin. Orada "Katalog Kimliği" (Catalog ID) yazar.</p>
+              </div>
+
+              <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-purple-400">
+                <span className="font-bold text-gray-800 block mb-1">4. XML URL'sini Nereye Ekleyeceğim?</span>
+                <p className="text-gray-600 text-xs">Commerce Manager &gt; Katalog &gt; Veri Kaynakları (Data Sources) &gt; "Data Feed Ekle" seçin. "Planlanmış Akış (Scheduled feed)" diyerek LookPrice XML linkini oraya yapıştırın. Saatlik veya günlük güncellemeyi seçin.</p>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-[#1877F2]/5 rounded-xl border border-[#1877F2]/10 p-6 space-y-4">
             <h3 className="font-semibold text-[#1877F2] flex items-center gap-2">
               <Instagram className="w-5 h-5" /> {t.metaIntegration.instagramShopping}

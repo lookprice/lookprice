@@ -1250,13 +1250,14 @@ router.get("/pazarama/brands", authenticate, async (req: any, res) => {
 // 1. Save Meta Settings
 router.post("/meta/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { enabled, pixel_id, catalog_id } = req.body;
+  const { enabled, pixel_id, catalog_id, catalog_currency } = req.body;
 
   try {
     const settings = {
       enabled: !!enabled,
       pixel_id: pixel_id || "",
-      catalog_id: catalog_id || ""
+      catalog_id: catalog_id || "",
+      catalog_currency: catalog_currency || "TRY"
     };
 
     await pool.query("UPDATE stores SET meta_settings = $1 WHERE id = $2", [settings, storeId]);

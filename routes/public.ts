@@ -370,30 +370,43 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
     const host = store.custom_domain || req.get('host');
     const baseUrl = `${protocol}://${host}`;
     
-    const defaultCurrency = store.default_currency || 'TRY';
+    const catalogCurrency = metaSettings.catalog_currency || store.default_currency || 'TRY';
     const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+
+    const escapeXml = (unsafe: string) => {
+      return unsafe.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
+        }
+      });
+    };
 
     let xml = `<?xml version="1.0"?>
 <rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
   <channel>
-    <title>${store.name}</title>
-    <link>${baseUrl}</link>
-    <description>${store.description || store.name + " Ürün Kataloğu"}</description>\n`;
+    <title>${escapeXml(store.name)}</title>
+    <link>${escapeXml(baseUrl)}</link>
+    <description>${escapeXml(store.description || store.name + " Ürün Kataloğu")}</description>\n`;
 
     products.forEach(p => {
       // Currency conversion
       let convertedPrice = p.price;
       const fromCurrency = p.currency || 'TRY';
-      if (fromCurrency !== defaultCurrency) {
-        if (defaultCurrency === 'TRY') {
+      if (fromCurrency !== catalogCurrency) {
+        if (catalogCurrency === 'TRY') {
           const rate = rates[fromCurrency] || 1;
           convertedPrice = p.price * rate;
         } else if (fromCurrency === 'TRY') {
-          const rate = rates[defaultCurrency] || 1;
+          const rate = rates[catalogCurrency] || 1;
           convertedPrice = p.price / rate;
         } else {
           const fromRate = rates[fromCurrency] || 1;
-          const toRate = rates[defaultCurrency] || 1;
+          const toRate = rates[catalogCurrency] || 1;
           convertedPrice = (p.price * fromRate) / toRate;
         }
       }
@@ -402,35 +415,21 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       const productUrl = `${baseUrl}/s/${store.slug}/p/${p.barcode || p.id}`;
       const imageUrl = p.image_url || '';
       const brand = p.brand || store.name;
-      const description = (p.description || p.name).replace(/[<&">]/g, (c: string) => {
-        switch (c) {
-          case '<': return '&lt;';
-          case '>': return '&gt;';
-          case '&': return '&amp;';
-          case '"': return '&quot;';
-          default: return c;
-        }
-      });
+      const description = escapeXml(p.description || p.name);
+      
+      const category = p.category ? escapeXml(p.category) : 'Apparel &amp; Accessories';
 
       xml += `    <item>
-      <g:id>${p.barcode || p.id}</g:id>
-      <g:title>${p.name.replace(/[<&">]/g, (c: string) => {
-        switch (c) {
-          case '<': return '&lt;';
-          case '>': return '&gt;';
-          case '&': return '&amp;';
-          case '"': return '&quot;';
-          default: return c;
-        }
-      })}</g:title>
+      <g:id>${escapeXml(String(p.barcode || p.id))}</g:id>
+      <g:title>${escapeXml(p.name)}</g:title>
       <g:description>${description}</g:description>
-      <g:link>${productUrl}</g:link>
-      <g:image_link>${imageUrl}</g:image_link>
-      <g:brand>${brand}</g:brand>
+      <g:link>${escapeXml(productUrl)}</g:link>
+      <g:image_link>${escapeXml(imageUrl)}</g:image_link>
+      <g:brand>${escapeXml(brand)}</g:brand>
       <g:condition>new</g:condition>
       <g:availability>${availability}</g:availability>
-      <g:price>${convertedPrice.toFixed(2)} ${defaultCurrency}</g:price>
-      <g:google_product_category>${p.category || 'Apparel &amp; Accessories'}</g:google_product_category>
+      <g:price>${convertedPrice.toFixed(2)} ${catalogCurrency}</g:price>
+      <g:google_product_category>${category}</g:google_product_category>
     </item>\n`;
     });
 

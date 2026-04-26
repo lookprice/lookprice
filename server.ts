@@ -17,6 +17,7 @@ import { domainMiddleware } from "./middleware/domain";
 import { pool } from "./models/db";
 import multer from "multer";
 import fs from "fs";
+import { generateMetaTags } from "./src/utils/metaTags";
 
 dotenv.config();
 
@@ -239,6 +240,8 @@ async function startServer() {
             NODE_ENV: process.env.NODE_ENV || "development"
           };
 
+          const customMetaTags = await generateMetaTags(url, req);
+
           console.log("Injecting API Keys into HTML (Dev):", {
             keys: Object.keys(envVars),
             hasValues: Object.values(envVars).map(v => !!v)
@@ -254,7 +257,7 @@ async function startServer() {
               });
               console.log("Runtime env injection complete. Keys:", Object.keys(globalThis.process.env));
             })();
-          </script>`;
+          </script>${customMetaTags}`;
           template = template.replace("</head>", `${injection}</head>`);
           
           res.status(200).set({ "Content-Type": "text/html" }).end(template);
@@ -295,6 +298,8 @@ async function startServer() {
           NODE_ENV: process.env.NODE_ENV || "production"
         };
 
+        const customMetaTags = await generateMetaTags(req.originalUrl, req);
+
         console.log("Injecting API Keys into HTML (Prod):", {
           keys: Object.keys(envVars),
           hasValues: Object.values(envVars).map(v => !!v)
@@ -309,7 +314,7 @@ async function startServer() {
               globalThis.process.env[key] = globalThis.process.env[key] || env[key];
             });
           })();
-        </script>`;
+        </script>${customMetaTags}`;
         template = template.replace("</head>", `${injection}</head>`);
         
         res.status(200).set({ "Content-Type": "text/html" }).end(template);
