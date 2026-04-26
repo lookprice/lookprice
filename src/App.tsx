@@ -146,6 +146,9 @@ export default function App() {
           <Route path="/checkout/cancel" element={<CheckoutStatus />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+          <Route path="/s/:slug/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
+          <Route path="/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
+          <Route path="/s/:slug" element={<StoreShowcase customSlug={detectedSlug} />} />
           <Route path="*" element={<StoreShowcase customSlug={detectedSlug} />} />
         </Routes>
       </div>

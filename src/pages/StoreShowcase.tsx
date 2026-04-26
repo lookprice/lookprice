@@ -645,7 +645,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         
         // If we have a barcode in the URL and haven't selected a product yet, try to find it
         if (urlBarcode) {
-          const product = productsRes.find((p: Product) => (p.barcode === urlBarcode) || (p.id.toString() === urlBarcode));
+          const cleanBarcode = urlBarcode.toString().trim().toLowerCase();
+          const product = productsRes.find((p: Product) => 
+            (p.barcode && p.barcode.toString().trim().toLowerCase() === cleanBarcode) || 
+            (p.id.toString() === cleanBarcode)
+          );
           if (product) {
             setSelectedProduct(product);
           }

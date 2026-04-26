@@ -8,11 +8,11 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
   const barcode = match[2];
 
   try {
-    const storeRes = await pool.query("SELECT id, name, default_currency, currency_rates, meta_settings, custom_domain FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, name, default_currency, currency_rates, meta_settings, custom_domain FROM stores WHERE slug ILIKE $1", [slug]);
     if (storeRes.rows.length === 0) return "";
     const store = storeRes.rows[0];
 
-    const prodRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND (barcode = $2 OR id::text = $2) LIMIT 1", [store.id, barcode]);
+    const prodRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND (TRIM(LOWER(barcode)) = TRIM(LOWER($2)) OR id::text = TRIM($2)) LIMIT 1", [store.id, barcode]);
     if (prodRes.rows.length === 0) return "";
     const product = prodRes.rows[0];
 
