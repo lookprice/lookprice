@@ -1,14 +1,26 @@
 import { pool } from "../../models/db";
 
 export async function generateMetaTags(url: string, req: any): Promise<string> {
-  const match = url.match(/^\/s\/([^\/]+)\/p\/([^\/\?]+)/);
-  if (!match) return "";
+  const sMatch = url.match(/^\/s\/([^\/]+)\/p\/([^\/\?]+)/);
+  const pMatch = url.match(/^\/p\/([^\/\?]+)/);
+  
+  if (!sMatch && !pMatch) return "";
 
-  const slug = match[1];
-  const barcode = match[2];
+  let barcode = "";
+  if (sMatch) barcode = sMatch[2];
+  else if (pMatch) barcode = pMatch[1];
 
   try {
-    const storeRes = await pool.query("SELECT id, name, default_currency, currency_rates, meta_settings, custom_domain FROM stores WHERE slug ILIKE $1", [slug]);
+    let storeRes;
+    if (sMatch) {
+      const slug = sMatch[1];
+      storeRes = await pool.query("SELECT id, name, default_currency, currency_rates, meta_settings, custom_domain FROM stores WHERE slug ILIKE $1", [slug]);
+    } else {
+      const host = req.get('host') || "";
+      const normalizedHost = host.startsWith("www.") ? host.substring(4) : host;
+      storeRes = await pool.query("SELECT id, name, default_currency, currency_rates, meta_settings, custom_domain FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1", [host, normalizedHost]);
+    }
+
     if (storeRes.rows.length === 0) return "";
     const store = storeRes.rows[0];
 

@@ -366,7 +366,7 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
     const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 ORDER BY name ASC", [store.id]);
     const products = productsRes.rows;
     
-    const protocol = req.secure ? 'https' : 'http';
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
     const host = store.custom_domain || req.get('host');
     const baseUrl = `${protocol}://${host}`;
     
@@ -412,7 +412,7 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       }
 
       const availability = (p.stock_quantity > 0) ? 'in stock' : 'out of stock';
-      const productUrl = `${baseUrl}/s/${store.slug}/p/${p.barcode || p.id}`;
+      const productUrl = store.custom_domain ? `${baseUrl}/p/${p.barcode || p.id}` : `${baseUrl}/s/${store.slug}/p/${p.barcode || p.id}`;
       const imageUrl = p.image_url || '';
       const brand = p.brand || store.name;
       const description = escapeXml(p.description || p.name);
