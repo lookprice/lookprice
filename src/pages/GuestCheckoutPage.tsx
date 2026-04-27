@@ -20,6 +20,7 @@ export default function GuestCheckoutPage() {
   const storeId = location.state?.storeId;
   const total = location.state?.total || 0;
   const currency = location.state?.currency || 'TRY';
+  const storeName = location.state?.storeName || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +64,11 @@ export default function GuestCheckoutPage() {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-2xl mx-auto bg-[#111] p-8 rounded-3xl border border-white/10"
       >
+        {storeName && (
+          <div className="text-center mb-6">
+            <h1 className="text-xl font-bold text-white/90">{storeName}</h1>
+          </div>
+        )}
         <h2 className="text-2xl font-medium mb-6">{lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Checkout'}</h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">

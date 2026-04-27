@@ -12,8 +12,30 @@ export default function DirectCheckoutRedirect() {
   useEffect(() => {
     const initCheckout = async () => {
       try {
-        const id = searchParams.get('id') || searchParams.get('barcode');
-        const quantityStr = searchParams.get('quantity') || searchParams.get('qty') || '1';
+        let id = searchParams.get('id') || searchParams.get('barcode');
+        let quantityStr = searchParams.get('quantity') || searchParams.get('qty') || '1';
+
+        // Check if Facebook dynamic variables weren't replaced
+        if (id && (id.includes('product.id') || id.includes('{{'))) id = null;
+        if (quantityStr && (quantityStr.includes('quantity') || quantityStr.includes('{{'))) quantityStr = '1';
+
+        const fbProducts = searchParams.get('products');
+        if (fbProducts) {
+          const firstProduct = fbProducts.split(',')[0];
+          const parts = firstProduct.split(':');
+          
+          let parsedId = parts[0];
+          // Strip quotes or special characters if any
+          if (parsedId) {
+            parsedId = parsedId.replace(/['"]/g, '').trim();
+          }
+
+          // ALWAYS prioritize the ID from Facebook's `products` query param if present
+          if (parsedId) id = parsedId;
+          
+          if (parts.length > 1) quantityStr = parts[1];
+        }
+
         const quantity = parseInt(quantityStr, 10) || 1;
 
         if (!id) {
@@ -46,7 +68,7 @@ export default function DirectCheckoutRedirect() {
         const total = priceToUse * quantity;
 
         // Redirect to public guest checkout
-        navigate('/guest-checkout-public', {
+        navigate(`/s/${slug}/checkout`, {
           state: {
             basket: [basketItem],
             storeId: store.id,

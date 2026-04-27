@@ -226,7 +226,7 @@ router.get("/store/:slug", async (req, res) => {
       instagram_url, facebook_url, twitter_url, whatsapp_number,
       address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles
     FROM stores 
-    WHERE slug = $1
+    WHERE LOWER(slug) = LOWER($1)
   `, [slug]);
   let store = storeRes.rows[0];
 
@@ -295,7 +295,7 @@ router.get("/store/:slug", async (req, res) => {
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
   const { slug } = req.params;
-  const storeRes = await pool.query("SELECT id, default_currency, currency_rates FROM stores WHERE slug = $1", [slug]);
+  const storeRes = await pool.query("SELECT id, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
   let store = storeRes.rows[0];
 
   if (!store && (slug === 'demo-store' || slug === 'demo')) {
