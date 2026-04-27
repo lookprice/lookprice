@@ -168,6 +168,14 @@ export const api = {
   generateProductDescription: (name: string, category: string, lang: string) => api.post("/api/store/generate-description", { name, category, lang }),
   generateBlog: (topic: string, storeName: string, lang: string) => api.post("/api/store/generate-blog", { topic, storeName, lang }),
 
+  getBlogPosts: (storeId?: number) => api.get(`/api/store/blog-posts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getBlogPost: (id: number, storeId?: number) => api.get(`/api/blog-posts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addBlogPost: (data: any, storeId?: number) => api.post(`/api/store/blog-posts`, { ...data, storeId }),
+  updateBlogPost: (id: number, data: any, storeId?: number) => api.put(`/api/store/blog-posts/${id}`, { ...data, storeId }),
+  deleteBlogPost: (id: number, storeId?: number) => api.delete(`/api/store/blog-posts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getPublicBlogPosts: (slug: string) => api.get(`/api/public/stores/${slug}/blog-posts`),
+  getPublicBlogPost: (slug: string, id: number) => api.get(`/api/public/stores/${slug}/blog-posts/${id}`),
+
   getUsers: (storeId?: number) => api.get(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addUser: (data: any, storeId?: number) => api.post(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteUser: (id: number, storeId?: number) => api.delete(`/api/store/users/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

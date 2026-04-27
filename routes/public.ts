@@ -4,6 +4,41 @@ import crypto from "crypto";
 
 const router = express.Router();
 
+router.get("/stores/:slug/blog-posts", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const storeId = storeRes.rows[0].id;
+
+    const result = await pool.query(
+      "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC",
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/stores/:slug/blog-posts/:id", async (req, res) => {
+  const { slug, id } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const storeId = storeRes.rows[0].id;
+
+    const result = await pool.query(
+      "SELECT * FROM blog_posts WHERE id = $1 AND store_id = $2 AND status = 'published'",
+      [id, storeId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Post not found" });
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Helper for Iyzico Signature
 function generateIyzicoSignature(apiKey: string, secretKey: string, randomString: string, payload: any) {
   let pkiString = `[apiKey=${apiKey}][randomString=${randomString}]`;
@@ -289,6 +324,14 @@ router.get("/store/:slug", async (req, res) => {
   }
   
   if (!store) return res.status(404).json({ error: "Store not found" });
+
+  // Fetch blog posts from the new table
+  const blogRes = await pool.query(
+    "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", 
+    [store.id]
+  );
+  store.blog_posts = blogRes.rows;
+
   res.json(store);
 });
 

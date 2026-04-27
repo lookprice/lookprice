@@ -1178,7 +1178,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                     {activeTab === "blog" && (
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <BlogTab branding={branding} setBranding={setBranding} isTr={isTr} />
+                        <BlogTab storeId={currentStoreId} storeName={branding.name} isTr={isTr} />
                       </Suspense>
                     )}
                     {activeTab === "companies" && (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Search, 
   Plus, 
@@ -16,14 +16,16 @@ import { BlogPost, Store } from "../../types";
 import { api } from "../../services/api";
 
 interface BlogTabProps {
-  branding: Store;
-  setBranding: (branding: Store) => void;
+  storeId: number;
+  storeName: string;
   isTr: boolean;
 }
 
-export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
+export default function BlogTab({ storeId, storeName, isTr }: BlogTabProps) {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [editingPost, setEditingPost] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -34,40 +36,60 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
     image_url: ""
   });
 
-  const blogPosts = branding.blog_posts || [];
+  useEffect(() => {
+    fetchPosts();
+  }, [storeId]);
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const fetchPosts = async () => {
+    setLoading(true);
+    try {
+      const res = await api.getBlogPosts(storeId);
+      setPosts(Array.isArray(res) ? res : []);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    const newPost: BlogPost = {
-      id: editingPost?.id || Math.random().toString(36).substr(2, 9),
+    const payload = {
       title: formState.title,
       excerpt: formState.excerpt,
       content: formState.content,
       image_url: formState.image_url || "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60",
-      date: editingPost?.date || new Date().toISOString().split('T')[0]
+      status: 'published'
     };
 
-    let updatedPosts;
-    if (editingPost && editingPost.id) {
-      updatedPosts = blogPosts.map(p => p.id === editingPost.id ? newPost : p);
-    } else {
-      updatedPosts = [newPost, ...blogPosts];
+    try {
+      if (editingPost) {
+        await api.updateBlogPost(editingPost.id, payload, storeId);
+      } else {
+        await api.addBlogPost(payload, storeId);
+      }
+      setShowModal(false);
+      setEditingPost(null);
+      fetchPosts();
+    } catch (error) {
+      console.error("Error saving blog post:", error);
+      alert(isTr ? "Kaydedilirken bir hata oluştu." : "Error saving post.");
     }
-
-    setBranding({ ...branding, blog_posts: updatedPosts });
-    setShowModal(false);
-    setEditingPost(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm(isTr ? "Bu yazıyı silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this post?")) {
-      const updatedPosts = blogPosts.filter(p => p.id !== id);
-      setBranding({ ...branding, blog_posts: updatedPosts });
+      try {
+        await api.deleteBlogPost(id, storeId);
+        fetchPosts();
+      } catch (error) {
+        console.error("Error deleting post:", error);
+      }
     }
   };
 
-  const handleEdit = (post: BlogPost) => {
+  const handleEdit = (post: any) => {
     setEditingPost(post);
     setFormState({
       title: post.title,
@@ -93,7 +115,7 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
     if (!topic) return;
     setIsGenerating(true);
     try {
-      const result = await api.generateBlog(topic, branding.name, isTr ? 'tr' : 'en');
+      const result = await api.generateBlog(topic, storeName, isTr ? 'tr' : 'en');
       setFormState(prev => ({
         ...prev,
         ...result
@@ -106,9 +128,9 @@ export default function BlogTab({ branding, setBranding, isTr }: BlogTabProps) {
     }
   };
 
-  const filteredPosts = blogPosts.filter(post => 
+  const filteredPosts = posts.filter(post => 
     post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
+    (post.excerpt && post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (

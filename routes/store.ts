@@ -15,6 +15,71 @@ const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
 router.use(authenticate);
 
+// Blog Posts
+router.get("/blog-posts", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM blog_posts WHERE store_id = $1 ORDER BY created_at DESC",
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/blog-posts", async (req: any, res) => {
+  const { title, excerpt, content, image_url, status } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  
+  try {
+    const result = await pool.query(
+      `INSERT INTO blog_posts (store_id, title, excerpt, content, image_url, status) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [storeId, title, excerpt, content, image_url, status || 'published']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/blog-posts/:id", async (req: any, res) => {
+  const { id } = req.params;
+  const { title, excerpt, content, image_url, status } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+
+  try {
+    const result = await pool.query(
+      `UPDATE blog_posts 
+       SET title = $1, excerpt = $2, content = $3, image_url = $4, status = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6 AND store_id = $7 RETURNING *`,
+      [title, excerpt, content, image_url, status, id, storeId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Post not found" });
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/blog-posts/:id", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM blog_posts WHERE id = $1 AND store_id = $2 RETURNING *",
+      [id, storeId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Post not found" });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/generate-description", async (req: any, res) => {
   const { name, category, lang } = req.body;
   if (!name) return res.status(400).json({ error: "Name is required" });
@@ -573,6 +638,12 @@ router.get("/info", async (req: any, res) => {
       store.parent_slug = parentRes.rows[0].slug;
       store.parent_name = parentRes.rows[0].name;
     }
+  }
+
+  // Fetch blog posts from separate table
+  const blogRes = await pool.query("SELECT * FROM blog_posts WHERE store_id = $1 ORDER BY created_at DESC", [store.id]);
+  if (blogRes.rows.length > 0) {
+    store.blog_posts = blogRes.rows;
   }
 
   res.json(store);

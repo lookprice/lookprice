@@ -111,6 +111,19 @@ export async function initDb() {
       ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate REAL DEFAULT 20;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_profile_id TEXT;
 
+      CREATE TABLE IF NOT EXISTS blog_posts (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        excerpt TEXT,
+        content TEXT NOT NULL,
+        image_url TEXT,
+        status TEXT DEFAULT 'published',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+      );
+
       CREATE TABLE IF NOT EXISTS scan_logs (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,
