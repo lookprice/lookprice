@@ -271,6 +271,34 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     getConvertedPrice
   } = useSales(user, currentStoreId, branding, lang, fetchProductsData);
 
+  const [invoiceInitialData, setInvoiceInitialData] = useState<any>(null);
+
+  const handleConvertToInvoice = (sale: any) => {
+    const initialData = {
+      sale_id: sale.id,
+      customer_id: sale.customer_id,
+      company_id: sale.company_id,
+      customer_name: sale.customer_name,
+      company_title: sale.customer_name,
+      items: sale.items?.map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        tax_rate: item.tax_rate || 20,
+        total_price: item.total_price
+      })) || [],
+      currency: sale.currency || branding?.default_currency || 'TRY',
+      payment_method: sale.payment_method === 'iyzico' ? 'credit_card' : (['cash', 'credit_card', 'bank', 'term'].includes(sale.payment_method) ? sale.payment_method : 'cash'),
+      notes: sale.notes ? `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}\n${sale.notes}` : `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}`
+    };
+    
+    setInvoiceInitialData(initialData);
+    setShowSaleDetailsModal(false);
+    setActiveTab('sales_invoices');
+  };
+
   const {
     companies, setCompanies,
     showCompanyModal, setShowCompanyModal,
@@ -1106,6 +1134,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           api={api} 
                           branding={branding}
                           onSave={fetchData}
+                          initialData={invoiceInitialData}
+                          onCloseInitialData={() => setInvoiceInitialData(null)}
                         />
                       </Suspense>
                     )}
@@ -1727,6 +1757,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 )}
               </div>
               <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3">
+                {!isViewer && (
+                  <button 
+                    onClick={() => handleConvertToInvoice(selectedSale)}
+                    className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
+                    title={isTr ? "Faturalandır (Resmi Fatura)" : "Create Official Invoice"}
+                  >
+                    <FileText className="h-6 w-6" />
+                  </button>
+                )}
                 {['pending', 'processing', 'shipped'].includes(selectedSale.status) && !isViewer ? (
                   <>
                     <button 

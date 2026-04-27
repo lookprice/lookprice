@@ -7,7 +7,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useReactToPrint } from 'react-to-print';
 
-export default function SalesInvoices({ storeId, role, lang, api, branding, onSave }: any) {
+export default function SalesInvoices({ storeId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -69,6 +69,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [saleId, setSaleId] = useState<number | null>(null);
 
   // New states for customer/company info update
   const [editTaxNumber, setEditTaxNumber] = useState("");
@@ -143,6 +144,25 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
     return result;
   };
+
+  useEffect(() => {
+    if (initialData) {
+      // Clear forms
+      setEditingInvoiceId(null);
+      setSaleId(initialData.sale_id || null);
+      setCustomerId(initialData.customer_id || "");
+      setCompanyId(initialData.company_id || "");
+      setCustomerSearch(initialData.customer_name || initialData.company_title || "");
+      setInvoiceNumber(initialData.invoice_number || `SATIŞ-${new Date().getTime().toString().slice(-6)}`);
+      setNotes(initialData.notes || "");
+      setItems(initialData.items || []);
+      setCurrency(initialData.currency || branding?.default_currency || 'TRY');
+      setPaymentMethod(initialData.payment_method || 'cash');
+      setIsNewCustomer(false);
+      setShowModal(true);
+      if (onCloseInitialData) onCloseInitialData();
+    }
+  }, [initialData, branding]);
 
   useEffect(() => {
     if (selectedCompany) {
@@ -386,6 +406,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
       const payload = {
         storeId: targetStoreId,
+        sale_id: saleId,
         customer_id: finalCustomerId || null,
         company_id: finalCompanyId || null,
         invoice_number: currentInvoiceNumber,
@@ -446,6 +467,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       if (data.error) throw new Error(data.error);
       
       setEditingInvoiceId(id);
+      setSaleId(data.sale_id || null);
       setCustomerId(data.customer_id || "");
       setCompanyId(data.company_id || "");
       setCustomerSearch(data.customer_name || data.company_title || "");

@@ -71,6 +71,30 @@ export default function GuestCheckoutPage() {
         )}
         <h2 className="text-2xl font-medium mb-6">{lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Checkout'}</h2>
         
+        {basket.length > 0 && (
+          <div className="mb-8 p-5 bg-white/5 border border-white/10 rounded-2xl">
+            <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4">
+              {lang === 'tr' ? 'Sipariş Özeti' : 'Order Summary'}
+            </h3>
+            <div className="space-y-4">
+              {basket.map((item: any, index: number) => (
+                <div key={index} className="flex justify-between items-start text-sm">
+                  <div className="flex">
+                    <span className="font-medium">{item.quantity} {item.name}</span>
+                  </div>
+                  <span className="whitespace-nowrap ml-4">
+                    {Number(item.price * item.quantity).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: item.currency || 'TRY' })}
+                  </span>
+                </div>
+              ))}
+              <div className="pt-4 border-t border-white/10 flex justify-between font-bold text-lg mt-2">
+                <span>{lang === 'tr' ? 'Toplam' : 'Total'}</span>
+                <span>{Number(total).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency || 'TRY' })}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -114,6 +138,20 @@ export default function GuestCheckoutPage() {
               onChange={(e) => setAddress(e.target.value)}
               className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:border-white/30 transition-all outline-none h-24 resize-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs text-white/50 uppercase mb-2">{lang === 'tr' ? 'Promosyon Kodu / İndirim' : 'Promo Code / Discount'}</label>
+            <div className="flex gap-2">
+              <input 
+                type="text"
+                placeholder={lang === 'tr' ? 'Kupon kodunu girin...' : 'Enter coupon code...'}
+                className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:border-white/30 transition-all outline-none"
+              />
+              <button type="button" className="px-6 py-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all font-medium text-sm">
+                {lang === 'tr' ? 'Ata' : 'Apply'}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">

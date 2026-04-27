@@ -8,7 +8,8 @@ import {
   ChevronRight, 
   Download,
   CreditCard,
-  Trash2
+  Trash2,
+  FileText
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -180,6 +181,14 @@ const PosTab = ({
                           }`} />
                         {t[s.status] || s.status}
                       </span>
+                      {s.sales_invoice_id && (
+                        <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1 bg-white border border-emerald-100 rounded-lg shadow-sm">
+                          <FileText className="h-3 w-3 text-emerald-500" />
+                          <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
+                            {lang === 'tr' ? 'Faturalandı' : 'Invoiced'}: {s.sales_invoice_number}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex justify-end items-center space-x-2">

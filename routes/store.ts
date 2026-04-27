@@ -2342,23 +2342,28 @@ router.get("/sales", async (req: any, res) => {
   const startDate = req.query.startDate;
   const endDate = req.query.endDate;
 
-  let query = "SELECT * FROM sales WHERE store_id = $1";
+  let query = `
+    SELECT s.*, si.id as sales_invoice_id, si.invoice_number as sales_invoice_number 
+    FROM sales s
+    LEFT JOIN sales_invoices si ON si.sale_id = s.id
+    WHERE s.store_id = $1
+  `;
   const params: any[] = [storeId];
 
   if (status && status !== 'all') {
     params.push(status);
-    query += ` AND status = $${params.length}`;
+    query += ` AND s.status = $${params.length}`;
   }
   if (startDate) {
     params.push(startDate);
-    query += ` AND created_at >= $${params.length}`;
+    query += ` AND s.created_at >= $${params.length}`;
   }
   if (endDate) {
     params.push(endDate + ' 23:59:59');
-    query += ` AND created_at <= $${params.length}`;
+    query += ` AND s.created_at <= $${params.length}`;
   }
 
-  query += " ORDER BY created_at DESC";
+  query += " ORDER BY s.created_at DESC";
 
   try {
     const sales = await pool.query(query, params);

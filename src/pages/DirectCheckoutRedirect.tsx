@@ -62,6 +62,8 @@ export default function DirectCheckoutRedirect() {
 
         const basketItem = {
           ...product,
+          price: priceToUse,
+          currency: currencyToUse,
           quantity: quantity
         };
 

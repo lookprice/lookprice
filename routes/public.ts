@@ -313,7 +313,7 @@ router.get("/store/:slug/products", async (req, res) => {
     ]);
   }
 
-  const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 ORDER BY name ASC", [store.id]);
+  const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL) ORDER BY name ASC", [store.id]);
   
   // Convert prices to store's default currency
   const defaultCurrency = store.default_currency || 'TRY';
@@ -363,7 +363,7 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       return res.status(403).send("Meta Catalog is not enabled for this store.");
     }
 
-    const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 ORDER BY name ASC", [store.id]);
+    const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL) ORDER BY name ASC", [store.id]);
     const products = productsRes.rows;
     
     const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
@@ -643,7 +643,7 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
     const store = storeRes.rows[0];
     const storeId = store.id;
 
-    let query = "SELECT * FROM products WHERE store_id = $1";
+    let query = "SELECT * FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL)";
     let params: any[] = [storeId];
 
     if (type === 'new') {

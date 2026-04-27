@@ -214,11 +214,22 @@ const ProductDetailModal: React.FC<{
 
   const [isCopied, setIsCopied] = useState(false);
 
+  const productUrl = useMemo(() => {
+    if (!product) return window.location.href;
+    const baseUrl = window.location.origin;
+    const isCustomDomain = !window.location.pathname.startsWith('/s/');
+    if (isCustomDomain) {
+      return `${baseUrl}/p/${product.barcode || product.id}`;
+    } else {
+      return `${baseUrl}/s/${store?.slug}/p/${product.barcode || product.id}`;
+    }
+  }, [product, store?.slug]);
+
   const shareProduct = async () => {
     const shareData = {
       title: product.name,
       text: `${product.name} - ${product.price} ${store?.currency || 'TRY'}`,
-      url: window.location.href,
+      url: productUrl,
     };
 
     if (navigator.share) {
@@ -233,13 +244,13 @@ const ProductDetailModal: React.FC<{
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+    navigator.clipboard.writeText(productUrl);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
 
   const shareOnWhatsApp = () => {
-    const text = encodeURIComponent(`${product.name}\nFiyat: ${product.price} ${store?.currency || 'TRY'}\n\nİncelemek için: ${window.location.href}`);
+    const text = encodeURIComponent(`${product.name}\nFiyat: ${product.price} ${store?.currency || 'TRY'}\n\nİncelemek için: ${productUrl}`);
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
