@@ -8,6 +8,7 @@ export class MySoftService {
   private token: string | null = null;
   private credentials: {
     username?: string;
+    password?: string;
     api_token?: string;
     tenant_id?: string;
     sender_alias?: string;
@@ -16,7 +17,7 @@ export class MySoftService {
   };
 
   constructor(credentials: any) {
-    this.baseUrl = "https://edocument.mysoft.com.tr/api"; // Replace with exact base URL from documentation later
+    this.baseUrl = credentials.api_url || "https://edocumentapi.mysoft.com.tr/api";
     this.credentials = credentials;
   }
 
@@ -28,8 +29,21 @@ export class MySoftService {
        return this.token;
     }
     
-    // Otherwise fallback to OAuth2 logic if they used a password... (legacy)
-    throw new Error("MySoft API Token (Statik Token) bulunamadı. Lütfen mağaza ayarlarından token giriniz.");
+    // Some MySoft services use Username/Password for token generation
+    if (this.credentials.username && this.credentials.password) {
+       try {
+         const response = await axios.post(`${this.baseUrl}/Login/Authentication`, {
+           Username: this.credentials.username,
+           Password: this.credentials.password
+         });
+         this.token = response.data.Data || response.data.token || response.data;
+         return this.token;
+       } catch (error) {
+         console.error("MySoft Auth Error:", error);
+       }
+    }
+    
+    throw new Error("MySoft API Token veya kullanıcı bilgileri bulunamadı. Lütfen mağaza ayarlarından bilgileri kontrol ediniz.");
   }
 
   // 2. Taxpayer Query (Mükellef Sorgulama)
@@ -37,26 +51,25 @@ export class MySoftService {
     try {
       const token = await this.authenticate();
       
-      const response = await axios.get(`${this.baseUrl}/taxpayer/${vknTckn}`, {
+      const response = await axios.get(`${this.baseUrl}/Contact/GetContactByVkn?vkn=${vknTckn}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      // Based on MySoft response (if user exists in e-invoice list)
-      const isTaxpayer = response.data.isEInvoiceUser || false;
+      // Based on MySoft response (Data.IsEInvoiceUser)
+      const data = response.data.Data || response.data;
+      const isTaxpayer = data.IsEInvoiceUser || data.isEInvoiceUser || false;
 
       return {
         isTaxpayer,
-        title: response.data.title,
+        title: data.Title || data.title,
         documentType: isTaxpayer ? 'E-FATURA' : 'E-ARSIV'
       };
     } catch (error: any) {
-      // If 404, usually means not a taxpayer
       if (error.response?.status === 404) {
          return { isTaxpayer: false, documentType: 'E-ARSIV' };
       }
-      
       console.error("MySoft Taxpayer Check Error:", error.response?.data || error.message);
       throw new Error("Mükellef sorgulaması başarısız oldu.");
     }
@@ -67,8 +80,7 @@ export class MySoftService {
     try {
       const token = await this.authenticate();
       
-      // Sending UBL-TR JSON or XML. Most new APIs accept a JSON DTO that they construct into UBL internally.
-      const response = await axios.post(`${this.baseUrl}/invoice/send`, invoiceData, {
+      const response = await axios.post(`${this.baseUrl}/Invoice/SendInvoice`, invoiceData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -77,12 +89,12 @@ export class MySoftService {
 
       return {
         isSuccess: true,
-        ettn: response.data.ettn || invoiceData.Uuid,
-        message: "Fatura başarıyla GİB'e iletilmek üzere kuyruğa eklendi."
+        ettn: response.data.Data?.Uuid || response.data.ettn || invoiceData.Uuid,
+        message: response.data.Message || "Fatura başarıyla iletildi."
       };
     } catch (error: any) {
       console.error("MySoft Send Invoice Error:", error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || "Fatura gönderimi başarısız oldu.");
+      throw new Error(error.response?.data?.Message || "Fatura gönderimi başarısız oldu.");
     }
   }
 
@@ -91,16 +103,17 @@ export class MySoftService {
      try {
       const token = await this.authenticate();
       
-      const response = await axios.get(`${this.baseUrl}/invoice/status/${ettn}`, {
+      const response = await axios.get(`${this.baseUrl}/Invoice/GetInvoiceStatus?uuid=${ettn}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
+      const data = response.data.Data || response.data;
       return {
-        status: response.data.status, // e.g. "APPROVED", "REJECTED", "QUEUED"
-        message: response.data.message,
-        gibStatusCode: response.data.gibStatusCode
+        status: data.StatusName || data.status,
+        message: data.StatusDescription || data.message,
+        gibStatusCode: data.GibStatusCode
       };
     } catch (error: any) {
       console.error("MySoft Invoice Status Error:", error.response?.data || error.message);
@@ -113,21 +126,35 @@ export class MySoftService {
     try {
       const token = await this.authenticate();
       
-      // Standard endpoint for Inbox querying, dates usually in ISO format
-      // Note: Endpoint varies by provider, this maps a common structure
-      const response = await axios.get(`${this.baseUrl}/invoice/inbox`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-           startDate,
-           endDate,
-           receiverAlias: this.credentials.receiver_alias,
-           tenantId: this.credentials.tenant_id
-        }
+      // MySoft Inbox endpoint often prefers POST for searches
+      const response = await axios.post(`${this.baseUrl}/Invoice/GetInboxInvoices`, {
+        StartDate: startDate,
+        EndDate: endDate
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Assume the response returns an array of simple invoice summaries
-      // Typically: [{ ettn, documentNumber, issueDate, senderTitle, senderVkn, payableAmount, currency, documentType }]
-      return response.data.data || [];
+      console.log(`MySoft Inbox Sync response status: ${response.status}`);
+      if (response.data) {
+         console.log(`MySoft Inbox Sync response data keys: ${Object.keys(response.data)}`);
+      }
+      
+      let rawData = response.data.Data || response.data.data;
+      if (!Array.isArray(rawData)) {
+        rawData = Array.isArray(response.data) ? response.data : [];
+      }
+      
+      // Map to normalized camelCase format for our route logic
+      return rawData.map((item: any) => ({
+        ettn: item.Uuid || item.uuid || item.ettn || item.Ettn,
+        documentNumber: item.Id || item.id || item.documentNumber || item.DocumentNumber,
+        issueDate: item.IssueDate || item.issueDate || item.Date || item.date,
+        senderTitle: item.SenderTitle || item.senderTitle || item.Title || item.title,
+        senderVkn: item.SenderVkn || item.senderVkn || item.Vkn || item.vkn,
+        payableAmount: item.PayableAmount || item.payableAmount || item.Amount || item.amount,
+        currency: item.CurrencyCode || item.currencyCode || item.Currency || item.currency,
+        documentType: item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type
+      }));
     } catch (error: any) {
       console.error("MySoft Inbox Sync Error:", error.response?.data || error.message);
       throw new Error("Gelen faturalar senkronize edilemedi.");

@@ -423,7 +423,7 @@ export async function initDb() {
       CREATE TABLE IF NOT EXISTS purchase_invoices (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,
-        company_id INTEGER NOT NULL,
+        company_id INTEGER,
         invoice_number TEXT NOT NULL,
         waybill_number TEXT,
         tax_number TEXT,
@@ -431,15 +431,48 @@ export async function initDb() {
         address TEXT,
         invoice_date DATE NOT NULL,
         total_amount DECIMAL(12,2) NOT NULL,
-        tax_amount DECIMAL(12,2) NOT NULL,
-        grand_total DECIMAL(12,2) NOT NULL,
+        tax_amount DECIMAL(12,2) DEFAULT 0,
+        grand_total DECIMAL(12,2) DEFAULT 0,
         currency TEXT DEFAULT 'TRY',
         exchange_rate DECIMAL(12,4) DEFAULT 1,
         notes TEXT,
+        supplier_name TEXT,
+        status TEXT DEFAULT 'pending',
+        integration_status TEXT,
+        integration_message TEXT,
+        ettn TEXT,
+        document_number TEXT,
+        e_document_type TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
-        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
+        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
       );
+
+      ALTER TABLE purchase_invoices ALTER COLUMN company_id DROP NOT NULL;
+      ALTER TABLE purchase_invoices ALTER COLUMN tax_amount DROP NOT NULL;
+      ALTER TABLE purchase_invoices ALTER COLUMN grand_total DROP NOT NULL;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS supplier_name TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS grand_total DECIMAL(12,2) DEFAULT 0;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(12,2) DEFAULT 0;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'TRY';
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS exchange_rate DECIMAL(12,4) DEFAULT 1;
+      
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS ettn TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS document_number TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS e_document_type TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS integration_status TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS integration_message TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS tax_number TEXT;
+      
+      -- Update foreign key to SET NULL
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='purchase_invoices_company_id_fkey') THEN
+          ALTER TABLE purchase_invoices DROP CONSTRAINT purchase_invoices_company_id_fkey;
+        END IF;
+        ALTER TABLE purchase_invoices ADD CONSTRAINT purchase_invoices_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
+      END $$;
 
       DO $$ 
       BEGIN 

@@ -983,23 +983,46 @@ const SettingsTab = ({
                       <h4 className="text-sm font-bold text-slate-700 mb-4">{lang === 'tr' ? 'MySoft Kimlik Bilgileri' : 'MySoft Credentials'}</h4>
                     </div>
                     
-                    {/* User & Token */}
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Kullanıcı ID (URN/Tax Identity)</label>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">MySoft API URL (Opsiyonel)</label>
                       <input 
                         type="text" 
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
-                        placeholder="Örn: 210"
+                        placeholder="https://edocumentapi.mysoft.com.tr/api"
+                        value={branding.einvoice_settings.api_url || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, api_url: e.target.value })}
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">Özel bir API adresiniz yoksa boş bırakın. (Varsayılan: edocumentapi.mysoft.com.tr)</p>
+                    </div>
+
+                    {/* User & Auth */}
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'MySoft Kullanıcı Adı' : 'MySoft Username'}</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="Kullanıcı adınızı girin"
                         value={branding.einvoice_settings.username || ''}
                         onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, username: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Token / API Key</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'MySoft Şifre' : 'MySoft Password'}</label>
                       <input 
                         type="password" 
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
-                        placeholder="tPerKc0mws..."
+                        placeholder="••••••••"
+                        value={branding.einvoice_settings.password || ''}
+                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, password: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Token / API Key (Statik)</label>
+                      <input 
+                        type="password" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                        placeholder="Statik bir tokeniniz varsa girin (Opsiyonel)"
                         value={branding.einvoice_settings.api_token || ''}
                         onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, api_token: e.target.value })}
                       />

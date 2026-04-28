@@ -255,17 +255,30 @@ router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) =>
 // 4. Sync Incoming Invoices
 router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.user.store_id;
+    let storeIdRaw = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId) : req.user.store_id;
+    const storeId = storeIdRaw ? parseInt(String(storeIdRaw)) : null;
     const { startDate, endDate } = req.body;
     
+    console.log(`[SYNC-INBOX] Store: ${storeId}, Dates: ${startDate} to ${endDate}`);
+    
+    if (!storeId || isNaN(storeId)) return res.status(400).json({ error: "Geçerli bir Mağaza ID bulunamadı." });
     if (!startDate || !endDate) {
        return res.status(400).json({ error: "Başlangıç ve bitiş tarihi gereklidir." });
     }
 
     const service = await getEInvoiceService(storeId);
+    if (!service) return res.status(400).json({ error: "E-Fatura servisi başlatılamadı." });
     
     // Fetch raw incoming invoices from MySoft
-    const incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
+    let incomingInvoices = [];
+    try {
+      console.log(`[SYNC-INBOX] Calling integrator service...`);
+      incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
+      console.log(`[SYNC-INBOX] Received ${incomingInvoices.length} invoices from integrator.`);
+    } catch (apiErr: any) {
+      console.error("[SYNC-INBOX] MySoft API call failed:", apiErr.message);
+      return res.status(500).json({ error: `Entegratör hatası: ${apiErr.message}` });
+    }
     
     let importedCount = 0;
 
@@ -282,8 +295,8 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           // In a real scenario, UBL JSON would be fully parsed into purchase_invoice_items
           await pool.query(
             `INSERT INTO purchase_invoices 
-            (store_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, currency, status, integration_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            (store_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, grand_total, currency, status, integration_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
             [
               storeId, 
               inv.documentNumber || `IN-${Date.now()}`, // fallback invoice num
@@ -293,7 +306,8 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               inv.senderTitle || 'Bilinmeyen Tedarikçi',
               inv.senderVkn,
               inv.issueDate || new Date().toISOString(),
-              inv.payableAmount || 0,
+              inv.payableAmount || 0, // total_amount (base) fallback
+              inv.payableAmount || 0, // grand_total
               inv.currency || 'TRY',
               'approved', // Comes from integrator, so it's already official
               'RECEIVED'

@@ -65,7 +65,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       const s = start.toISOString().split('T')[0];
       const e = end.toISOString().split('T')[0];
       
-      const res = await api.syncIncomingEInvoices(s, e);
+      const targetStoreId = role === 'superadmin' ? storeId : undefined;
+      const res = await api.syncIncomingEInvoices(s, e, targetStoreId);
       if (res.error) throw new Error(res.error);
       
       const msg = isTr 
