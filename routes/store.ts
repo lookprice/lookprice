@@ -3477,18 +3477,18 @@ router.post("/purchase-invoices", async (req: any, res) => {
     // Add transaction to current account (Supplier credit)
     await client.query(
       `INSERT INTO current_account_transactions 
-        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [storeId, company_id, invoiceId, 'credit', grand_total, currency || 'TRY', exchange_rate || 1, `Alış Faturası: ${invoice_number}`]
+        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [storeId, company_id, invoiceId, 'credit', grand_total, currency || 'TRY', exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
     );
 
     // If payment method is provided, add a debt transaction to offset the credit
     if (payment_method && payment_method !== 'term') {
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, company_id, invoiceId, 'debt', grand_total, currency || 'TRY', exchange_rate || 1, `Alış Faturası Ödemesi: ${invoice_number} (${payment_method})`, payment_method]
+          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [storeId, company_id, invoiceId, 'debt', grand_total, currency || 'TRY', exchange_rate || 1, `Alış Faturası Ödemesi: ${invoice_number} (${payment_method})`, payment_method, invoice_date || new Date()]
       );
     }
     
@@ -3605,17 +3605,17 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
 
     await client.query(
       `INSERT INTO current_account_transactions 
-        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [storeId, company_id, req.params.id, 'credit', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Alış Faturası Revizyonu: ${invoice_number}`]
+        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [storeId, company_id, req.params.id, 'credit', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Alış Faturası Revizyonu: ${invoice_number}`, invoice_date || new Date()]
     );
 
     if (payment_method && payment_method !== 'term') {
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, company_id, req.params.id, 'debt', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Alış Faturası Ödemesi Revizyonu: ${invoice_number} (${payment_method})`, payment_method]
+          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [storeId, company_id, req.params.id, 'debt', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Alış Faturası Ödemesi Revizyonu: ${invoice_number} (${payment_method})`, payment_method, invoice_date || new Date()]
       );
     }
 

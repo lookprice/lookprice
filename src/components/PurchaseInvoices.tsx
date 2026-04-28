@@ -41,7 +41,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [showQuickCompanyModal, setShowQuickCompanyModal] = useState(false);
   const [quickCompanyForm, setQuickCompanyForm] = useState({ title: "", phone: "", tax_number: "" });
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: "", price: "", barcode: "", tax_rate: String(branding?.default_tax_rate ?? 20) });
+  const [quickProductForm, setQuickProductForm] = useState({ 
+    name: "", 
+    price: "", 
+    barcode: "", 
+    tax_rate: String(branding?.default_tax_rate ?? 20),
+    currency: branding?.default_currency || 'TRY'
+  });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
@@ -487,7 +493,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       }
 
       const price = Number(quickProductForm.price);
-      const currency = branding?.default_currency || 'TRY';
+      const currency = quickProductForm.currency || branding?.default_currency || 'TRY';
       const price_2 = price / (1 + taxRate / 100);
 
       const newProduct = await api.addProduct({
@@ -505,7 +511,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setProducts(prev => [...prev, newProduct]);
       handleAddProduct(newProduct);
       setShowQuickProductModal(false);
-      setQuickProductForm({ name: "", price: "", barcode: "", tax_rate: String(branding?.default_tax_rate ?? 20) });
+      setQuickProductForm({ 
+        name: "", 
+        price: "", 
+        barcode: "", 
+        tax_rate: String(branding?.default_tax_rate ?? 20),
+        currency: branding?.default_currency || 'TRY'
+      });
     } catch (error) {
       alert(isTr ? "Hata oluştu" : "An error occurred");
     }
@@ -1572,16 +1584,28 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Satış Fiyatı" : "Selling Price"} *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={quickProductForm.price}
-                    onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Alış Fiyatı" : "Purchase Price"} *</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={quickProductForm.price}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                    <select
+                      value={quickProductForm.currency}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, currency: e.target.value })}
+                      className="w-24 px-2 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-bold"
+                    >
+                      <option value="TRY">TL</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button

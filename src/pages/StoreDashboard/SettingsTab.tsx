@@ -1001,15 +1001,16 @@ const SettingsTab = ({
 
                     {/* User & Auth */}
                     <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'MySoft Kullanıcı Adı' : 'MySoft Username'}</label>
-                      <input 
-                        type="text" 
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
-                        placeholder="Kullanıcı adınızı girin"
-                        value={branding.einvoice_settings.username || ''}
-                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, username: e.target.value })}
-                      />
-                    </div>
+                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'MySoft Kullanıcı Adı' : 'MySoft Username'}</label>
+                       <input 
+                         type="text" 
+                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                         placeholder="Kullanıcı adınızı girin"
+                         value={branding.einvoice_settings.username || ''}
+                         onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, username: e.target.value })}
+                       />
+                     </div>
+
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'MySoft Şifre' : 'MySoft Password'}</label>
                       <input 
@@ -1021,6 +1022,29 @@ const SettingsTab = ({
                       />
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Kullanıcı ID (Tenant ID)</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                          placeholder="Örn: 210"
+                          value={branding.einvoice_settings.tenant_id || ''}
+                          onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, tenant_id: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Arşiv UUID (GİB)</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                          value={branding.einvoice_settings.earchive_uuid || ''}
+                          onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, earchive_uuid: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Token / API Key (Statik)</label>
                       <input 
@@ -1029,16 +1053,6 @@ const SettingsTab = ({
                         placeholder="Statik bir tokeniniz varsa girin (Opsiyonel)"
                         value={branding.einvoice_settings.api_token || ''}
                         onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, api_token: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Tenant (Vergi Numarası)</label>
-                      <input 
-                        type="text" 
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
-                        placeholder="11111111111"
-                        value={branding.einvoice_settings.tenant_id || ''}
-                        onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, tenant_id: e.target.value })}
                       />
                     </div>
 

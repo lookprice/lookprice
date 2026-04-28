@@ -332,14 +332,22 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           const newInvoiceId = invInsertRes.rows[0].id;
 
           // 3. Attempt to parse lines if present in raw data
-          // Typical MySoft structure for detailed info if included: Data[i].InvoiceLines
-          const rawLines = inv.raw?.InvoiceLines || inv.raw?.lines || [];
+          // MySoft returns items in different fields depending on the response depth.
+          const rawData = inv.raw || {};
+          const rawLines = rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || [];
+          
           if (Array.isArray(rawLines)) {
             for (const line of rawLines) {
-              const productName = line.Name || line.itemName || line.name || 'Bilinmeyen Ürün';
-              const qty = Number(line.Quantity || line.quantity) || 0;
-              const up = Number(line.Price || line.unitPrice || line.unit_price) || 0;
-              const tr = Number(line.TaxRate || line.taxRate || line.tax_rate) || 0;
+              const productName = line.Name || line.itemName || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
+              const qtyRaw = line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
+              const qty = Number(qtyRaw) || 0;
+              
+              const upRaw = line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+              const up = Number(upRaw) || 0;
+              
+              const trRaw = line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 0;
+              const tr = Number(trRaw) || 0;
+              
               const lineTotal = qty * up;
               const taxAmount = (lineTotal * tr) / 100;
 
@@ -356,9 +364,9 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           if (companyId) {
             await pool.query(
               `INSERT INTO current_account_transactions 
-                (store_id, company_id, purchase_invoice_id, type, amount, currency, description) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-              [storeId, companyId, newInvoiceId, 'credit', inv.payableAmount || 0, inv.currency || 'TRY', `E-Fatura İçe Aktarma: ${inv.documentNumber}`]
+                (store_id, company_id, purchase_invoice_id, type, amount, currency, description, transaction_date) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [storeId, companyId, newInvoiceId, 'credit', inv.payableAmount || 0, inv.currency || 'TRY', `E-Fatura İçe Aktarma: ${inv.documentNumber}`, inv.issueDate || new Date()]
             );
           }
 

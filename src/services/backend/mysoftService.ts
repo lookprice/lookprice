@@ -14,6 +14,7 @@ export class MySoftService {
     sender_alias?: string;
     receiver_alias?: string;
     earchive_username?: string;
+    earchive_uuid?: string;
   };
 
   constructor(credentials: any) {
@@ -34,7 +35,8 @@ export class MySoftService {
        try {
          const response = await axios.post(`${this.baseUrl}/Login/Authentication`, {
            Username: this.credentials.username,
-           Password: this.credentials.password
+           Password: this.credentials.password,
+           TenantId: this.credentials.tenant_id
          });
          this.token = response.data.Data || response.data.token || response.data;
          return this.token;
