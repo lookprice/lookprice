@@ -281,7 +281,6 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
     }
     
     let importedCount = 0;
-
     // Process and insert them into purchase_invoices
     for (const inv of incomingInvoices) {
        // Check if invoice already exists via ETTN or Document Number
@@ -289,30 +288,80 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
          "SELECT id FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
          [storeId, inv.ettn, inv.documentNumber]
        );
-
+ 
        if (existing.rows.length === 0) {
-          // If not exists, insert as a new incoming invoice.
-          // In a real scenario, UBL JSON would be fully parsed into purchase_invoice_items
-          await pool.query(
+          // 1. Find or create company
+          let companyId = null;
+          if (inv.senderVkn) {
+            const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, inv.senderVkn]);
+            if (compRes.rows.length > 0) {
+              companyId = compRes.rows[0].id;
+            } else {
+              // Create company
+              const newComp = await pool.query(
+                "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
+                [storeId, inv.senderTitle || 'Bilinmeyen Tedarikçi', inv.senderVkn, 'Otomatik Oluşturuldu']
+              );
+              companyId = newComp.rows[0].id;
+            }
+          }
+
+          // 2. Insert invoice
+          const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
-            (store_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, grand_total, currency, status, integration_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, grand_total, currency, status, integration_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
             [
               storeId, 
-              inv.documentNumber || `IN-${Date.now()}`, // fallback invoice num
+              companyId,
+              inv.documentNumber || `IN-${Date.now()}`, 
               inv.documentNumber, 
               inv.ettn, 
               inv.documentType || 'E-FATURA', 
               inv.senderTitle || 'Bilinmeyen Tedarikçi',
               inv.senderVkn,
               inv.issueDate || new Date().toISOString(),
-              inv.payableAmount || 0, // total_amount (base) fallback
-              inv.payableAmount || 0, // grand_total
+              inv.payableAmount || 0,
+              inv.payableAmount || 0,
               inv.currency || 'TRY',
-              'approved', // Comes from integrator, so it's already official
+              'approved', 
               'RECEIVED'
             ]
           );
+          
+          const newInvoiceId = invInsertRes.rows[0].id;
+
+          // 3. Attempt to parse lines if present in raw data
+          // Typical MySoft structure for detailed info if included: Data[i].InvoiceLines
+          const rawLines = inv.raw?.InvoiceLines || inv.raw?.lines || [];
+          if (Array.isArray(rawLines)) {
+            for (const line of rawLines) {
+              const productName = line.Name || line.itemName || line.name || 'Bilinmeyen Ürün';
+              const qty = Number(line.Quantity || line.quantity) || 0;
+              const up = Number(line.Price || line.unitPrice || line.unit_price) || 0;
+              const tr = Number(line.TaxRate || line.taxRate || line.tax_rate) || 0;
+              const lineTotal = qty * up;
+              const taxAmount = (lineTotal * tr) / 100;
+
+              await pool.query(
+                `INSERT INTO purchase_invoice_items 
+                 (purchase_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [newInvoiceId, productName, qty, up, tr, taxAmount, lineTotal + taxAmount]
+              );
+            }
+          }
+
+          // 4. Create Transaction
+          if (companyId) {
+            await pool.query(
+              `INSERT INTO current_account_transactions 
+                (store_id, company_id, purchase_invoice_id, type, amount, currency, description) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [storeId, companyId, newInvoiceId, 'credit', inv.payableAmount || 0, inv.currency || 'TRY', `E-Fatura İçe Aktarma: ${inv.documentNumber}`]
+            );
+          }
+
           importedCount++;
        }
     }

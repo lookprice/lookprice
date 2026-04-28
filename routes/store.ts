@@ -3394,7 +3394,7 @@ router.post("/purchase-invoices", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items, notes, currency, exchange_rate, payment_method } = req.body;
+    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items: bodyItems, notes, currency, exchange_rate, payment_method } = req.body;
     
     // For superadmins, prioritize bodyStoreId. If not provided, fallback to req.user.store_id.
     // If both are null/undefined, storeId will be null/undefined.
@@ -3409,14 +3409,20 @@ router.post("/purchase-invoices", async (req: any, res) => {
       throw new Error("Store ID is required");
     }
     
+    const items = Array.isArray(bodyItems) ? bodyItems : [];
+    
     // Calculate totals
     let total_amount = 0;
     let tax_amount = 0;
     let grand_total = 0;
     
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      const qty = Number(item.quantity) || 0;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 0;
+      
+      const itemTotal = qty * up;
+      const itemTax = itemTotal * (tr / 100);
       
       total_amount += itemTotal;
       tax_amount += itemTax;
@@ -3439,30 +3445,31 @@ router.post("/purchase-invoices", async (req: any, res) => {
 
     // Insert items and update stock
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      const qty = Number(item.quantity) || 0;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 0;
+      const itemTotal = qty * up;
+      const itemTax = itemTotal * (tr / 100);
       
       await client.query(
         `INSERT INTO purchase_invoice_items 
           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [invoiceId, item.product_id, item.product_name, item.barcode, item.quantity, item.unit_price, item.tax_rate, itemTax, itemTotal]
+        [invoiceId, item.product_id, item.product_name, item.barcode, qty, up, tr, itemTax, itemTotal]
       );
       
       // Update stock and cost if product_id is provided
       if (item.product_id) {
-        // Fetch product type to check if it's a service
         const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.product_id]);
         const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
-
+ 
         if (productType !== 'service') {
           await client.query(
             "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
-            [item.quantity, item.unit_price, currency || 'TRY', item.product_id, storeId]
+            [qty, up, currency || 'TRY', item.product_id, storeId]
           );
           
-          // Log stock movement
-          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, item.unit_price, companyName, currency);
+          await addStockMovement(client, storeId, item.product_id, 'in', qty, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, up, companyName, currency);
         }
       }
     }
@@ -3546,8 +3553,12 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     let grand_total = 0;
     
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      const qty = Number(item.quantity) || 0;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 0;
+      
+      const itemTotal = qty * up;
+      const itemTax = itemTotal * (tr / 100);
       
       total_amount += itemTotal;
       tax_amount += itemTax;
@@ -3564,24 +3575,27 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
 
     // 6. Insert new items and update stock
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      const qty = Number(item.quantity) || 0;
+      const up = Number(item.unit_price) || 0;
+      const tr = Number(item.tax_rate) || 0;
+      const itemTotal = qty * up;
+      const itemTax = itemTotal * (tr / 100);
       
       await client.query(
         `INSERT INTO purchase_invoice_items 
           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [req.params.id, item.product_id, item.product_name, item.barcode, item.quantity, item.unit_price, item.tax_rate, itemTax, itemTotal]
+        [req.params.id, item.product_id, item.product_name, item.barcode, qty, up, tr, itemTax, itemTotal]
       );
       
       if (item.product_id) {
         await client.query(
           "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
-          [item.quantity, item.unit_price, currency || 'TRY', item.product_id, storeId]
+          [qty, up, currency || 'TRY', item.product_id, storeId]
         );
         
         // Log stock movement (in)
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'purchase_invoice', `Alış Faturası (Güncellendi): ${invoice_number}`, item.unit_price, companyName, currency);
+        await addStockMovement(client, storeId, item.product_id, 'in', qty, 'purchase_invoice', `Alış Faturası (Güncellendi): ${invoice_number}`, up, companyName, currency);
       }
     }
 

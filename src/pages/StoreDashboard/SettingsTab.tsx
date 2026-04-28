@@ -984,7 +984,7 @@ const SettingsTab = ({
                     </div>
                     
                     <div className="space-y-2 md:col-span-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">MySoft API URL (Opsiyonel)</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">MySoft E-Fatura API URL (Opsiyonel)</label>
                       <input 
                         type="text" 
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
@@ -992,7 +992,11 @@ const SettingsTab = ({
                         value={branding.einvoice_settings.api_url || ''}
                         onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, api_url: e.target.value })}
                       />
-                      <p className="text-[10px] text-slate-400 mt-1">Özel bir API adresiniz yoksa boş bırakın. (Varsayılan: edocumentapi.mysoft.com.tr)</p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {lang === 'tr' 
+                          ? 'Önemli: iysapi.mysoft.com.tr adresi IYS izinleri içindir, e-fatura için kullanılamaz. Özel bir adresiniz yoksa boş bırakın.' 
+                          : 'Important: iysapi.mysoft.com.tr is for IYS permissions, not for e-invoice. Leave blank if you don\'t have a custom address.'}
+                      </p>
                     </div>
 
                     {/* User & Auth */}

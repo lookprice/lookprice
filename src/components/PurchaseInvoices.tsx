@@ -258,9 +258,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         notes: currentNotes,
         items: currentItems.map(item => ({
           ...item,
-          quantity: Number(item.quantity) || 0,
-          unit_price: Number(item.unit_price) || 0,
-          tax_rate: Number(item.tax_rate) || 0
+          quantity: Number(String(item.quantity).replace(',', '.')) || 0,
+          unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
+          tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
         })),
         payment_method: currentPaymentMethod,
         currency: currentCurrency,
@@ -330,9 +330,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         product_id: item.product_id,
         product_name: item.product_name,
         barcode: item.barcode,
-        quantity: String(Math.floor(Number(item.quantity) || 0)),
+        quantity: String(item.quantity || 0),
         unit_price: String(item.unit_price),
-        tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
+        tax_rate: String(item.tax_rate || 0)
       })));
       setShowModal(true);
     } catch (error: any) {

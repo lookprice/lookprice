@@ -153,7 +153,8 @@ export class MySoftService {
         senderVkn: item.SenderVkn || item.senderVkn || item.Vkn || item.vkn,
         payableAmount: item.PayableAmount || item.payableAmount || item.Amount || item.amount,
         currency: item.CurrencyCode || item.currencyCode || item.Currency || item.currency,
-        documentType: item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type
+        documentType: item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type,
+        raw: item
       }));
     } catch (error: any) {
       console.error("MySoft Inbox Sync Error:", error.response?.data || error.message);
