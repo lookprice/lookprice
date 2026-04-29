@@ -23,6 +23,7 @@ import { useLanguage } from "../../contexts/LanguageContext";
 interface QuotationsTabProps {
   quotations: any[];
   isViewer: boolean;
+  storeSlug?: string;
   onViewDetails: (quotation: any) => void;
   onGeneratePDF: (quotation: any) => void;
   onApprove: (quotation: any) => void;
@@ -40,6 +41,7 @@ interface QuotationsTabProps {
 const QuotationsTab = ({ 
   quotations, 
   isViewer, 
+  storeSlug,
   onViewDetails, 
   onGeneratePDF, 
   onApprove, 
@@ -196,7 +198,9 @@ const QuotationsTab = ({
                           </button>
                           <button 
                             onClick={() => {
-                              const url = `${window.location.origin}/quotation/${q.id}`;
+                              const url = storeSlug 
+                                ? `${window.location.origin}/s/${storeSlug}/quotation/${q.id}`
+                                : `${window.location.origin}/quotation/${q.id}`;
                               window.open(url, '_blank');
                             }}
                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100"
@@ -206,7 +210,9 @@ const QuotationsTab = ({
                           </button>
                           <button 
                             onClick={() => {
-                              const url = `${window.location.origin}/quotation/${q.id}`;
+                              const url = storeSlug 
+                                ? `${window.location.origin}/s/${storeSlug}/quotation/${q.id}`
+                                : `${window.location.origin}/quotation/${q.id}`;
                               navigator.clipboard.writeText(url);
                               toast.success(t.quotationLinkCopied || (lang === 'tr' ? "Bağlantı kopyalandı" : "Link copied"));
                             }}

@@ -167,6 +167,7 @@ export default function App() {
           <Route path="/checkout/success" element={<CheckoutStatus />} />
           <Route path="/checkout/cancel" element={<CheckoutStatus />} />
           <Route path="/payment-gateway" element={<PaymentGatewayPage />} />
+          <Route path="/s/:slug/quotation/:id" element={<PublicQuotation />} />
           <Route path="/quotation/:id" element={<PublicQuotation />} />
           <Route path="/s/:slug/checkout" element={<GuestCheckoutPage />} />
           <Route path="/guest-checkout-public" element={<GuestCheckoutPage />} />

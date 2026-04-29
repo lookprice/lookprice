@@ -117,7 +117,7 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
   const { slug, barcode } = req.params;
   const storeRes = await pool.query(`
     SELECT 
-      id, name, logo_url, primary_color, default_currency, background_image_url,
+      id, name, slug, logo_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
       address, phone, parent_id, currency_rates
@@ -256,10 +256,10 @@ router.get("/store/:slug", async (req, res) => {
   const { slug } = req.params;
   const storeRes = await pool.query(`
     SELECT 
-      id, name, logo_url, favicon_url, primary_color, default_currency, background_image_url,
+      id, name, slug, logo_url, favicon_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text, description,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles
+      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles, custom_domain
     FROM stores 
     WHERE LOWER(slug) = LOWER($1)
   `, [slug]);
@@ -338,7 +338,7 @@ router.get("/store/:slug", async (req, res) => {
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
   const { slug } = req.params;
-  const storeRes = await pool.query("SELECT id, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+  const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
   let store = storeRes.rows[0];
 
   if (!store && (slug === 'demo-store' || slug === 'demo')) {
@@ -667,7 +667,7 @@ router.get("/store/:slug/content", async (req, res) => {
   const { slug } = req.params;
   try {
     const result = await pool.query(
-      "SELECT faq, blog_posts, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE slug = $1",
+      "SELECT id, slug, faq, blog_posts, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE slug = $1",
       [slug]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Store not found" });
@@ -681,7 +681,7 @@ router.get("/store/:slug/content", async (req, res) => {
 router.get("/store/:slug/collections/:type", async (req, res) => {
   const { slug, type } = req.params; // type: 'new', 'bestseller', 'discounted' or category name
   try {
-    const storeRes = await pool.query("SELECT id, default_currency, currency_rates FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE slug = $1", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
     const store = storeRes.rows[0];
     const storeId = store.id;
@@ -964,7 +964,7 @@ router.get("/sales/:id/status", async (req, res) => {
 router.get("/quotations/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("SELECT q.*, s.name as store_name, s.logo_url, s.address as store_address, s.phone as store_phone, s.email as store_email FROM quotations q JOIN stores s ON q.store_id = s.id WHERE q.id = $1", [id]);
+    const result = await pool.query("SELECT q.*, s.name as store_name, s.slug as store_slug, s.logo_url, s.address as store_address, s.phone as store_phone, s.email as store_email FROM quotations q JOIN stores s ON q.store_id = s.id WHERE q.id = $1", [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Quotation not found" });

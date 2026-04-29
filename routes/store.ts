@@ -1824,7 +1824,7 @@ router.post("/quotations", async (req: any, res) => {
   const client = await pool.connect();
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive } = req.body;
+    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive, exchange_rate } = req.body;
     
     await client.query("BEGIN");
 
@@ -1848,8 +1848,8 @@ router.post("/quotations", async (req: any, res) => {
     }
     
     const quotRes = await client.query(
-      "INSERT INTO quotations (store_id, customer_name, customer_title, total_amount, currency, notes, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-      [storeId, customer_name, customer_title, total_amount, currency, notes, finalCompanyId || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false]
+      "INSERT INTO quotations (store_id, customer_name, customer_title, total_amount, currency, notes, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+      [storeId, customer_name, customer_title, total_amount, currency, notes, finalCompanyId || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false, exchange_rate || 1]
     );
     const quotationId = quotRes.rows[0].id;
     
@@ -1875,13 +1875,13 @@ router.put("/quotations/:id", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
     const { id } = req.params;
-    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive } = req.body;
+    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive, exchange_rate } = req.body;
     
     await client.query("BEGIN");
     
     const quotRes = await client.query(
-      "UPDATE quotations SET customer_name = $1, customer_title = $2, total_amount = $3, currency = $4, notes = $5, company_id = $6, expiry_date = $7, payment_method = $8, due_date = $9, tax_number = $10, tax_office = $11, tax_inclusive = $12 WHERE id = $13 AND store_id = $14 RETURNING id",
-      [customer_name, customer_title, total_amount, currency, notes, company_id || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false, id, storeId]
+      "UPDATE quotations SET customer_name = $1, customer_title = $2, total_amount = $3, currency = $4, notes = $5, company_id = $6, expiry_date = $7, payment_method = $8, due_date = $9, tax_number = $10, tax_office = $11, tax_inclusive = $12, exchange_rate = $13 WHERE id = $14 AND store_id = $15 RETURNING id",
+      [customer_name, customer_title, total_amount, currency, notes, company_id || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false, exchange_rate || 1, id, storeId]
     );
     
     if (quotRes.rows.length === 0) {
@@ -2073,7 +2073,7 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
               [item.quantity, item.product_id]
             );
 
-            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'quotation', `Satış #${saleId} (Teklif #${quotation.id})`, kdvHariçPrice, quotation.customer_name);
+            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'quotation', `Satış #${saleId} (Teklif #${quotation.id})`, kdvHaricPrice, quotation.customer_name);
           }
         }
       }

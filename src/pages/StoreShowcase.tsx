@@ -182,10 +182,11 @@ const ProductDetailModal: React.FC<{
   product: Product | null;
   store: StoreInfo | null;
   t: any;
+  slug: string;
   onClose: () => void;
   addToBasket: (p: Product) => void;
   primaryColor: string;
-}> = ({ product, store, t, onClose, addToBasket, primaryColor }) => {
+}> = ({ product, store, t, slug, onClose, addToBasket, primaryColor }) => {
   const { lang } = useLanguage();
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -202,15 +203,16 @@ const ProductDetailModal: React.FC<{
   }, [product?.price, product?.currency, store?.currency]);
 
   useEffect(() => {
-    if (product?.barcode && store?.slug) {
+    const effectiveSlug = store?.slug || slug;
+    if (product?.barcode && effectiveSlug) {
       setLoadingBranches(true);
-      api.getPublicProductBranchStock(store.slug, product.barcode)
+      api.getPublicProductBranchStock(effectiveSlug, product.barcode)
         .then(res => {
           if (!res.error) setBranchStocks(res);
         })
         .finally(() => setLoadingBranches(false));
     }
-  }, [product?.barcode, store?.slug]);
+  }, [product?.barcode, store?.slug, slug]);
 
   const [isCopied, setIsCopied] = useState(false);
 
@@ -221,9 +223,10 @@ const ProductDetailModal: React.FC<{
     if (isCustomDomain) {
       return `${baseUrl}/p/${product.barcode || product.id}`;
     } else {
-      return `${baseUrl}/s/${store?.slug}/p/${product.barcode || product.id}`;
+      const effectiveStoreSlug = store?.slug || slug;
+      return `${baseUrl}/s/${effectiveStoreSlug}/p/${product.barcode || product.id}`;
     }
-  }, [product, store?.slug]);
+  }, [product, store?.slug, slug]);
 
   const shareProduct = async () => {
     const shareData = {
@@ -3300,6 +3303,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             product={selectedProduct} 
             store={store} 
             t={t} 
+            slug={slug}
             onClose={() => setSelectedProduct(null)} 
             addToBasket={addToBasket} 
             primaryColor={primaryColor}

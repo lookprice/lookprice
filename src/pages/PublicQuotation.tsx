@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { 
   FileText, 
@@ -23,7 +23,8 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const PublicQuotation = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string, slug?: string }>();
+  const navigate = useNavigate();
   const [quotation, setQuotation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +118,10 @@ const PublicQuotation = () => {
       if (data.payment_method) setPaymentMethod(data.payment_method);
       if (data.due_date) setDueDate(new Date(data.due_date).toISOString().split('T')[0]);
       
+      if (!slug && data.store_slug) {
+        navigate(`/s/${data.store_slug}/quotation/${id}`, { replace: true });
+      }
+
       // Default to TR if store name suggests it, or if no clear indicator
       if (data.store_name?.toLowerCase().includes('market') || 
           data.store_name?.toLowerCase().includes('ticaret') ||
@@ -265,10 +270,15 @@ const PublicQuotation = () => {
     doc.text(fixTr(customerInfo), 18, yPos + 12);
     yPos += 25;
 
+    const subtotal = quotation.items.reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
+    const totalTax = quotation.tax_inclusive ? 0 : quotation.items.reduce((sum: number, item: any) => sum + (Number(item.total_price) * Number(item.tax_rate || 20) / 100), 0);
+    const grandTotal = subtotal + totalTax;
+
     const tableData = quotation.items.map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
       `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
+      `${item.tax_rate || 20}%`,
       `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
     ]);
 
@@ -278,6 +288,7 @@ const PublicQuotation = () => {
         fixTr(isTr ? "Ürün Açıklaması" : "Product Description"), 
         fixTr(isTr ? "Miktar" : "Qty"), 
         fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
+        fixTr(isTr ? "KDV" : "Tax"),
         fixTr(isTr ? "Toplam" : "Total")
       ]],
       body: tableData,
@@ -286,8 +297,9 @@ const PublicQuotation = () => {
       styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
       columnStyles: {
         1: { halign: 'center', cellWidth: 12 },
-        2: { halign: 'right', cellWidth: 25 },
-        3: { halign: 'right', cellWidth: 25 }
+        2: { halign: 'right', cellWidth: 20 },
+        3: { halign: 'center', cellWidth: 12 },
+        4: { halign: 'right', cellWidth: 25 }
       },
       margin: { left: 14, right: 14, top: 30, bottom: 15 },
       didDrawPage: (data) => {
@@ -314,15 +326,46 @@ const PublicQuotation = () => {
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
-    doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
     
-    finalY += 5;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+    if (quotation.tax_inclusive) {
+      doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
+      doc.text(`${Number(subtotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      finalY += 5;
+      doc.setFontSize(6);
+      doc.text(fixTr(isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."), 196, finalY, { align: 'right' });
+    } else {
+      doc.text(fixTr(isTr ? "Matrah (Ara Toplam)" : "Subtotal (Base)"), 130, finalY);
+      doc.text(`${Number(subtotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      
+      const taxGroups: { [key: string]: number } = {};
+      (quotation.items || []).forEach((item: any) => {
+        const rate = Number(item.tax_rate || 20);
+        const tax = (Number(item.total_price) * rate) / 100;
+        taxGroups[rate] = (taxGroups[rate] || 0) + tax;
+      });
+
+      Object.keys(taxGroups).sort((a, b) => Number(a) - Number(b)).forEach(rate => {
+        finalY += 5;
+        const taxAmount = taxGroups[rate];
+        doc.text(fixTr(`${isTr ? 'KDV' : 'Tax'} %${rate}`), 130, finalY);
+        doc.text(`${taxAmount.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      });
+      
+      finalY += 7;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
+      doc.text(`${Number(grandTotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+    }
+
+    if (quotation.exchange_rate && Number(quotation.exchange_rate) !== 1) {
+      finalY += 5;
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(150);
+      doc.text(fixTr(`${isTr ? 'Kur' : 'Rate'}: 1 ${quotation.currency?.slice(0, 3)} = ${Number(quotation.exchange_rate).toLocaleString('tr-TR')} TRY`), 196, finalY, { align: 'right' });
+    }
 
     // Notes Section
     if (quotation.notes) {
@@ -602,6 +645,7 @@ const PublicQuotation = () => {
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.product}</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.qty}</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t.price}</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">KDV</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t.total}</th>
                       </tr>
                     </thead>
@@ -623,6 +667,9 @@ const PublicQuotation = () => {
                           <td className="px-8 py-6 text-right text-slate-600 font-bold text-sm">
                             {Number(item.unit_price).toLocaleString(isTr ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 ml-0.5">{quotation.currency?.slice(0, 3)}</span>
                           </td>
+                          <td className="px-8 py-6 text-center text-slate-500 font-bold text-xs">
+                            {item.tax_rate || 20}%
+                          </td>
                           <td className="px-8 py-6 text-right font-black text-slate-900">
                             {Number(item.total_price).toLocaleString(isTr ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 ml-0.5">{quotation.currency?.slice(0, 3)}</span>
                           </td>
@@ -633,13 +680,35 @@ const PublicQuotation = () => {
                 </div>
                 
                 <div className="bg-slate-900 p-8 sm:p-12 text-white flex flex-col sm:flex-row justify-between items-center gap-8">
-                  <div className="space-y-1 text-center sm:text-left">
+                  <div className="space-y-3 text-center sm:text-left flex-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{t.totalAmount}</p>
-                    <p className="text-slate-300 text-xs font-medium max-w-xs">{isTr ? 'Tüm fiyatlara KDV dahildir.' : 'All prices include VAT.'}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between sm:justify-start sm:gap-8 text-xs">
+                        <span className="text-slate-400 uppercase font-bold tracking-wider">{isTr ? 'ARA TOPLAM' : 'SUBTOTAL'}</span>
+                        <span className="font-black">{Number((quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0)).toLocaleString(isTr ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</span>
+                      </div>
+                      {!quotation.tax_inclusive && (
+                        <div className="flex justify-between sm:justify-start sm:gap-8 text-xs">
+                          <span className="text-slate-400 uppercase font-bold tracking-wider">{isTr ? 'TOPLAM KDV' : 'TOTAL TAX'}</span>
+                          <span className="font-black">{Number((quotation.items||[]).reduce((s: any, i: any) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0)).toLocaleString(isTr ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest pt-2">
+                      {quotation.tax_inclusive ? (isTr ? '* Tüm fiyatlara KDV dahildir.' : '* All prices include VAT.') : (isTr ? '* Fiyatlara KDV dahil değildir.' : '* Prices exclude VAT.')}
+                    </p>
+                    {quotation.exchange_rate && Number(quotation.exchange_rate) !== 1 && (
+                      <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">
+                        {isTr ? 'Uygulanan Kur' : 'Exchange Rate'}: 1 {quotation.currency?.slice(0, 3)} = {Number(quotation.exchange_rate).toLocaleString(isTr ? 'tr-TR' : 'en-US')} TRY
+                      </p>
+                    )}
                   </div>
                   <div className="text-center sm:text-right">
                     <div className="text-4xl sm:text-5xl font-black tracking-tighter flex items-baseline gap-2">
-                      {Number(quotation.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
+                      {Number(
+                        (quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0) + 
+                        (!quotation.tax_inclusive ? (quotation.items||[]).reduce((s: any, i: any) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0) : 0)
+                      ).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
                       <span className="text-lg text-indigo-400 uppercase tracking-widest">{quotation.currency?.slice(0, 3)}</span>
                     </div>
                   </div>

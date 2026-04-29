@@ -385,7 +385,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [reportLoading, setReportLoading] = useState(false);
 
   const isViewer = user.role === 'viewer';
-  const effectiveSlug = branding.parent_slug || slug;
+  const effectiveSlug = branding.parent_slug || slug || user.store_slug;
   const publicUrl = `${window.location.origin}/s/${effectiveSlug}`;
   const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
 
@@ -748,6 +748,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     doc.setTextColor(79, 70, 229);
     doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
     doc.text(`${grandTotal.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+
+    if (quotation.exchange_rate && Number(quotation.exchange_rate) !== 1) {
+      finalY += 5;
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(150);
+      doc.text(fixTr(`${isTr ? 'Kur' : 'Rate'}: 1 ${quotation.currency?.slice(0, 3)} = ${Number(quotation.exchange_rate).toLocaleString('tr-TR')} TRY`), 196, finalY, { align: 'right' });
+    }
 
     // Total in Words
     finalY += 8;
@@ -1156,6 +1164,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <QuotationsTab 
                           quotations={quotationList}
                           isViewer={isViewer}
+                          storeSlug={effectiveSlug}
                           onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
                           onGeneratePDF={(q) => handleDownloadQuotationPDF(q)}
                           onApprove={(q) => handleApproveQuotation(q)}

@@ -71,7 +71,7 @@ export const useQuotationActions = (
       customer_title: data.customer_title,
       total_amount: quotationItems.reduce((sum: number, item: any) => sum + Number(item.total_price), 0),
       currency: data.currency,
-      exchange_rate: Number(data.exchange_rate),
+      exchange_rate: data.exchange_rate ? Number(String(data.exchange_rate).replace(',', '.')) : 1,
       notes: data.notes,
       items: quotationItems,
       company_id: data.company_id ? parseInt(String(data.company_id)) : null,
