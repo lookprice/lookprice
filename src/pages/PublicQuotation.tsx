@@ -203,7 +203,7 @@ const PublicQuotation = () => {
       // Logo (if exists) - Top Left
       if (logoBase64) {
         try {
-          doc.addImage(logoBase64, 'PNG', 14, 8, 15, 15);
+          doc.addImage(logoBase64, 'PNG', 14, 5, 12, 12);
         } catch (e) {
           console.error("Logo addImage error:", e);
         }
@@ -212,63 +212,63 @@ const PublicQuotation = () => {
       doc.setTextColor(0, 0, 0);
       
       // Title - Top Center
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text(fixTr(isTr ? "TEKLİF FORMU" : "QUOTATION FORM"), 105, 12, { align: 'center' });
+      doc.text(fixTr(isTr ? "TEKLİF FORMU" : "QUOTATION FORM"), 105, 10, { align: 'center' });
       
       // Store Name - Below Title
-      doc.setFontSize(10);
+      doc.setFontSize(8);
       const storeName = fixTr(quotation.store_name || "LookPrice");
       const splitStoreName = doc.splitTextToSize(storeName, 100);
-      doc.text(splitStoreName, 105, 18, { align: 'center' });
+      doc.text(splitStoreName, 105, 15, { align: 'center' });
       
       // Quotation Info - Top Right
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100);
-      doc.text(fixTr(`${isTr ? "Teklif No" : "Quotation No"}: #${quotation.id}`), 196, 12, { align: 'right' });
-      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 17, { align: 'right' });
+      doc.text(fixTr(`${isTr ? "Teklif" : "Quote"} No: #${quotation.id}`), 196, 10, { align: 'right' });
+      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 14, { align: 'right' });
 
       // Contact Info - Small below store name
-      doc.setFontSize(7);
+      doc.setFontSize(6);
       const contactInfo = [
         quotation.store_address,
         quotation.store_phone,
         quotation.store_email
       ].filter(Boolean).map(fixTr).join(" | ");
       if (contactInfo) {
-        doc.text(contactInfo, 105, 25, { align: 'center' });
+        doc.text(contactInfo, 105, 20, { align: 'center' });
       }
       
       // Separator Line
       doc.setDrawColor(230);
-      doc.line(14, 28, 196, 28);
+      doc.line(14, 23, 196, 23);
     };
 
     const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(7);
+      doc.setFontSize(6);
       doc.setTextColor(150);
-      doc.text(fixTr(`${quotation.store_name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 290);
-      doc.text(`${pageNumber} / ${totalPages}`, 196, 290, { align: 'right' });
+      doc.text(fixTr(`${quotation.store_name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 292);
+      doc.text(`${pageNumber} / ${totalPages}`, 196, 292, { align: 'right' });
     };
 
     addHeader(doc);
-    let yPos = 35;
+    let yPos = 28;
 
-    // Customer Info Box - More compact
+    // Customer Info Box - Very compact
     doc.setFillColor(249, 250, 251);
-    doc.roundedRect(14, yPos, 182, 18, 1, 1, 'F');
-    doc.setFontSize(9);
+    doc.roundedRect(14, yPos, 182, 14, 1, 1, 'F');
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 6);
+    doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 5);
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(50);
     const customerInfo = [quotation.customer_name, quotation.customer_title].filter(Boolean).join(" - ");
-    doc.text(fixTr(customerInfo), 18, yPos + 12);
-    yPos += 25;
+    doc.text(fixTr(customerInfo), 18, yPos + 10);
+    yPos += 18;
 
     const subtotal = quotation.items.reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
     const totalTax = quotation.tax_inclusive ? 0 : quotation.items.reduce((sum: number, item: any) => sum + (Number(item.total_price) * Number(item.tax_rate || 20) / 100), 0);
@@ -277,8 +277,8 @@ const PublicQuotation = () => {
     const tableData = quotation.items.map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
-      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
       `${item.tax_rate || 20}%`,
+      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
       `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
     ]);
 
@@ -286,22 +286,22 @@ const PublicQuotation = () => {
       startY: yPos,
       head: [[
         fixTr(isTr ? "Ürün Açıklaması" : "Product Description"), 
-        fixTr(isTr ? "Miktar" : "Qty"), 
-        fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
+        fixTr(isTr ? "Adet" : "Qty"), 
         fixTr(isTr ? "KDV" : "Tax"),
+        fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
         fixTr(isTr ? "Toplam" : "Total")
       ]],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
-      styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
+      styles: { fontSize: 6, cellPadding: 1, font: "helvetica" },
       columnStyles: {
-        1: { halign: 'center', cellWidth: 12 },
-        2: { halign: 'right', cellWidth: 20 },
-        3: { halign: 'center', cellWidth: 12 },
-        4: { halign: 'right', cellWidth: 25 }
+        1: { halign: 'center', cellWidth: 10 },
+        2: { halign: 'center', cellWidth: 12 },
+        3: { halign: 'right', cellWidth: 22 },
+        4: { halign: 'right', cellWidth: 22 }
       },
-      margin: { left: 14, right: 14, top: 30, bottom: 15 },
+      margin: { left: 14, right: 14, top: 25, bottom: 10 },
       didDrawPage: (data) => {
         if (data.pageNumber > 1) {
           addHeader(doc);
@@ -309,79 +309,61 @@ const PublicQuotation = () => {
       }
     });
 
-    let finalY = (doc as any).lastAutoTable.finalY + 5;
+    let finalY = (doc as any).lastAutoTable.finalY + 3;
     
-    // Check if summary fits on page
-    if (finalY > 260) {
-      doc.addPage();
-      addHeader(doc);
-      finalY = 35;
-    }
+    const subtotal = (quotation.items || []).reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
+    const grandTotal = subtotal;
 
     // Summary Section
-    doc.setDrawColor(230);
-    doc.line(130, finalY, 196, finalY);
-    finalY += 5;
-    
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    
     if (quotation.tax_inclusive) {
-      doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-      doc.text(`${Number(subtotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
-      finalY += 5;
-      doc.setFontSize(6);
-      doc.text(fixTr(isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."), 196, finalY, { align: 'right' });
-    } else {
-      doc.text(fixTr(isTr ? "Matrah (Ara Toplam)" : "Subtotal (Base)"), 130, finalY);
-      doc.text(`${Number(subtotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      doc.setDrawColor(230);
+      doc.line(130, finalY, 196, finalY);
+      finalY += 4;
       
-      const taxGroups: { [key: string]: number } = {};
-      (quotation.items || []).forEach((item: any) => {
-        const rate = Number(item.tax_rate || 20);
-        const tax = (Number(item.total_price) * rate) / 100;
-        taxGroups[rate] = (taxGroups[rate] || 0) + tax;
-      });
-
-      Object.keys(taxGroups).sort((a, b) => Number(a) - Number(b)).forEach(rate => {
-        finalY += 5;
-        const taxAmount = taxGroups[rate];
-        doc.text(fixTr(`${isTr ? 'KDV' : 'Tax'} %${rate}`), 130, finalY);
-        doc.text(`${taxAmount.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
-      });
-      
-      finalY += 7;
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(79, 70, 229);
       doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-      doc.text(`${Number(grandTotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      doc.text(`${Number(subtotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      finalY += 3;
+      doc.setFontSize(5);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(100);
+      doc.text(fixTr(isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."), 196, finalY, { align: 'right' });
+    } else {
+      // For Tax Excluded, just show total
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(`${isTr ? 'TOPLAM (Vergi Haric):' : 'TOTAL (Excl. Tax):'} ${Number(subtotal).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
     }
 
     if (quotation.exchange_rate && Number(quotation.exchange_rate) !== 1) {
-      finalY += 5;
-      doc.setFontSize(6);
+      finalY += 4;
+      doc.setFontSize(5);
       doc.setFont("helvetica", "italic");
       doc.setTextColor(150);
       doc.text(fixTr(`${isTr ? 'Kur' : 'Rate'}: 1 ${quotation.currency?.slice(0, 3)} = ${Number(quotation.exchange_rate).toLocaleString('tr-TR')} TRY`), 196, finalY, { align: 'right' });
     }
 
+    // Total in Words
+    finalY += 5;
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100);
+    const words = numberToTurkishWords(grandTotal, quotation.currency || 'TRY');
+    doc.text(fixTr(`${isTr ? 'Yazıyla' : 'In Words'}: ${words}`), 196, finalY, { align: 'right' });
+
     // Notes Section
     if (quotation.notes) {
-      finalY += 10;
-      if (finalY > 270) {
-        doc.addPage();
-        addHeader(doc);
-        finalY = 35;
-      }
-      doc.setFontSize(8);
+      finalY += 6;
+      doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(50);
-      doc.text(fixTr(isTr ? "Notlar / Açıklamalar:" : "Notes / Descriptions:"), 14, finalY);
-      finalY += 5;
+      doc.text(fixTr(isTr ? "Notlar:" : "Notes:"), 14, finalY);
+      finalY += 3;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
+      doc.setFontSize(6);
       doc.setTextColor(100);
       const splitNotes = doc.splitTextToSize(fixTr(quotation.notes), 182);
       doc.text(splitNotes, 14, finalY);
@@ -463,6 +445,44 @@ const PublicQuotation = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 grid-pattern print:bg-white print:py-0 print:px-0">
+      <style>
+        {`
+          @media print {
+            @page {
+              size: A4;
+              margin: 10mm;
+            }
+            body {
+              -webkit-print-color-adjust: exact;
+              background: white !important;
+            }
+            .grid-pattern {
+              background-image: none !important;
+            }
+            .print\\:max-w-none {
+              max-width: 100% !important;
+              width: 100% !important;
+            }
+            .print\\:shadow-none {
+              box-shadow: none !important;
+            }
+            .print\\:border-none {
+              border: none !important;
+            }
+            .print\\:rounded-none {
+              border-radius: 0 !important;
+            }
+            /* Force content scaling to fit on one page */
+            main, .max-w-4xl {
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            h1, h2, h3, p, span, div, table {
+              page-break-inside: avoid;
+            }
+          }
+        `}
+      </style>
       <div className="max-w-4xl mx-auto print:max-w-none">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -679,40 +699,30 @@ const PublicQuotation = () => {
                   </table>
                 </div>
                 
-                <div className="bg-slate-900 p-8 sm:p-12 text-white flex flex-col sm:flex-row justify-between items-center gap-8">
-                  <div className="space-y-3 text-center sm:text-left flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{t.totalAmount}</p>
-                    <div className="space-y-1">
-                      <div className="flex justify-between sm:justify-start sm:gap-8 text-xs">
-                        <span className="text-slate-400 uppercase font-bold tracking-wider">{isTr ? 'ARA TOPLAM' : 'SUBTOTAL'}</span>
-                        <span className="font-black">{Number((quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0)).toLocaleString(isTr ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</span>
-                      </div>
-                      {!quotation.tax_inclusive && (
-                        <div className="flex justify-between sm:justify-start sm:gap-8 text-xs">
-                          <span className="text-slate-400 uppercase font-bold tracking-wider">{isTr ? 'TOPLAM KDV' : 'TOTAL TAX'}</span>
-                          <span className="font-black">{Number((quotation.items||[]).reduce((s: any, i: any) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0)).toLocaleString(isTr ? 'tr-TR' : 'en-US')} {quotation.currency?.slice(0, 3)}</span>
-                        </div>
+                {quotation.tax_inclusive && (
+                  <div className="bg-slate-900 p-8 sm:p-12 text-white flex flex-col sm:flex-row justify-between items-center gap-8">
+                    <div className="space-y-3 text-center sm:text-left flex-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{t.totalAmount}</p>
+                      <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest pt-2">
+                        {isTr ? '* Tüm fiyatlara KDV dahildir.' : '* All prices include VAT.'}
+                      </p>
+                      <p className="text-indigo-300 text-[9px] font-bold italic pt-1">
+                        {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number((quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0)), quotation.currency)}
+                      </p>
+                      {quotation.exchange_rate && Number(quotation.exchange_rate) !== 1 && (
+                        <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">
+                          {isTr ? 'Uygulanan Kur' : 'Exchange Rate'}: 1 {quotation.currency?.slice(0, 3)} = {Number(quotation.exchange_rate).toLocaleString(isTr ? 'tr-TR' : 'en-US')} TRY
+                        </p>
                       )}
                     </div>
-                    <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest pt-2">
-                      {quotation.tax_inclusive ? (isTr ? '* Tüm fiyatlara KDV dahildir.' : '* All prices include VAT.') : (isTr ? '* Fiyatlara KDV dahil değildir.' : '* Prices exclude VAT.')}
-                    </p>
-                    {quotation.exchange_rate && Number(quotation.exchange_rate) !== 1 && (
-                      <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">
-                        {isTr ? 'Uygulanan Kur' : 'Exchange Rate'}: 1 {quotation.currency?.slice(0, 3)} = {Number(quotation.exchange_rate).toLocaleString(isTr ? 'tr-TR' : 'en-US')} TRY
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-center sm:text-right">
-                    <div className="text-4xl sm:text-5xl font-black tracking-tighter flex items-baseline gap-2">
-                      {Number(
-                        (quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0) + 
-                        (!quotation.tax_inclusive ? (quotation.items||[]).reduce((s: any, i: any) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0) : 0)
-                      ).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
-                      <span className="text-lg text-indigo-400 uppercase tracking-widest">{quotation.currency?.slice(0, 3)}</span>
+                    <div className="text-center sm:text-right">
+                      <div className="text-4xl sm:text-5xl font-black tracking-tighter flex items-baseline gap-2">
+                        {Number((quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0)).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
+                        <span className="text-lg text-indigo-400 uppercase tracking-widest">{quotation.currency?.slice(0, 3)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 

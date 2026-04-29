@@ -118,6 +118,7 @@ export const api = {
   getCustomDomainStatus: (storeId?: number) => api.get(`/api/store/domain${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   
   getQuotations: (search = "", status = "all", storeId?: number) => api.get(`/api/store/quotations?search=${search}&status=${status}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  getQuotation: (id: number, storeId?: number) => api.get(`/api/store/quotations/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addQuotation: (data: any, storeId?: number) => api.post(`/api/store/quotations${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   approveQuotation: (id: number, data: any = {}, storeId?: number) => api.post(`/api/store/quotations/${id}/approve${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   cancelQuotation: (id: number, storeId?: number) => api.post(`/api/store/quotations/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),

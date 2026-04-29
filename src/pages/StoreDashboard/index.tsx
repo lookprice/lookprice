@@ -545,6 +545,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const quotationPrintRef = useRef<HTMLDivElement>(null);
   const handleDownloadQuotationPDF = async (quotation: any) => {
+    let qData = quotation;
+    if (!quotation.items || quotation.items.length === 0) {
+      try {
+        qData = await api.getQuotation(quotation.id, currentStoreId);
+      } catch (error) {
+        console.error("Fetch quotation error for PDF:", error);
+      }
+    }
+
     const doc = new jsPDF();
     const isTr = lang === 'tr';
     
@@ -590,7 +599,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       // Logo (if exists) - Top Left
       if (logoBase64) {
         try {
-          doc.addImage(logoBase64, 'PNG', 14, 8, 15, 15);
+          doc.addImage(logoBase64, 'PNG', 14, 5, 12, 12);
         } catch (e) {
           console.error("Logo addImage error:", e);
         }
@@ -599,77 +608,77 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       doc.setTextColor(0, 0, 0);
       
       // Title - Top Center
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text(fixTr(isTr ? "TEKLİF FORMU" : "QUOTATION FORM"), 105, 12, { align: 'center' });
+      doc.text(fixTr(isTr ? "TEKLİF FORMU" : "QUOTATION FORM"), 105, 10, { align: 'center' });
       
       // Store Name - Below Title
-      doc.setFontSize(10);
+      doc.setFontSize(8);
       const storeName = fixTr(branding.store_name || branding.name || "LookPrice");
       const splitStoreName = doc.splitTextToSize(storeName, 100);
-      doc.text(splitStoreName, 105, 18, { align: 'center' });
+      doc.text(splitStoreName, 105, 15, { align: 'center' });
       
       // Quotation Info - Top Right
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100);
-      doc.text(fixTr(`${isTr ? "Teklif No" : "Quotation No"}: #${quotation.id}`), 196, 12, { align: 'right' });
-      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 17, { align: 'right' });
+      doc.text(fixTr(`${isTr ? "Teklif" : "Quote"} No: #${quotation.id}`), 196, 10, { align: 'right' });
+      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 14, { align: 'right' });
 
       // Contact Info - Small below store name
-      doc.setFontSize(7);
+      doc.setFontSize(6);
       const contactInfo = [
         branding.address,
         branding.phone,
         branding.email
       ].filter(Boolean).map(fixTr).join(" | ");
       if (contactInfo) {
-        doc.text(contactInfo, 105, 25, { align: 'center' });
+        doc.text(contactInfo, 105, 20, { align: 'center' });
       }
       
       // Separator Line
       doc.setDrawColor(230);
-      doc.line(14, 28, 196, 28);
+      doc.line(14, 23, 196, 23);
     };
 
     const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(7);
+      doc.setFontSize(6);
       doc.setTextColor(150);
-      doc.text(fixTr(`${branding.store_name || branding.name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 290);
-      doc.text(`${pageNumber} / ${totalPages}`, 196, 290, { align: 'right' });
+      doc.text(fixTr(`${branding.store_name || branding.name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 292);
+      doc.text(`${pageNumber} / ${totalPages}`, 196, 292, { align: 'right' });
     };
 
     addHeader(doc);
-    let yPos = 35;
+    let yPos = 28;
 
-    // Customer Info Box - More compact
+    // Customer Info Box - Very compact
     doc.setFillColor(249, 250, 251);
-    doc.roundedRect(14, yPos, 182, 18, 1, 1, 'F');
-    doc.setFontSize(9);
+    doc.roundedRect(14, yPos, 182, 14, 1, 1, 'F');
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 6);
+    doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 5);
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(50);
-    const customerInfo = [quotation.customer_name, quotation.customer_title].filter(Boolean).join(" - ");
-    doc.text(fixTr(customerInfo), 18, yPos + 12);
-    yPos += 25;
+    const customerInfo = [qData.customer_name, qData.customer_title].filter(Boolean).join(" - ");
+    doc.text(fixTr(customerInfo), 18, yPos + 10);
+    yPos += 18;
 
-    const tableData = (quotation.items || []).map((item: any) => [
+    const tableData = (qData.items || []).map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
-      !quotation.tax_inclusive ? `${item.tax_rate}%` : (isTr ? "Dahil" : "Incl."),
-      `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
-      `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
+      `${item.tax_rate || 20}%`,
+      `${Number(item.unit_price).toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`,
+      `${Number(item.total_price).toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`
     ]);
 
     autoTable(doc, {
       startY: yPos,
       head: [[
         fixTr(isTr ? "Ürün Açıklaması" : "Product Description"), 
-        fixTr(isTr ? "Miktar" : "Qty"), 
+        fixTr(isTr ? "Adet" : "Qty"), 
         fixTr(isTr ? "KDV" : "Tax"),
         fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
         fixTr(isTr ? "Toplam" : "Total")
@@ -677,14 +686,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
-      styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
+      styles: { fontSize: 6, cellPadding: 1, font: "helvetica" },
       columnStyles: {
-        1: { halign: 'center', cellWidth: 12 },
-        2: { halign: 'center', cellWidth: 15 },
-        3: { halign: 'right', cellWidth: 25 },
-        4: { halign: 'right', cellWidth: 25 }
+        1: { halign: 'center', cellWidth: 10 },
+        2: { halign: 'center', cellWidth: 12 },
+        3: { halign: 'right', cellWidth: 22 },
+        4: { halign: 'right', cellWidth: 22 }
       },
-      margin: { left: 14, right: 14, top: 30, bottom: 15 },
+      margin: { left: 14, right: 14, top: 25, bottom: 10 },
       didDrawPage: (data) => {
         if (data.pageNumber > 1) {
           addHeader(doc);
@@ -692,82 +701,57 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
     });
 
-    let finalY = (doc as any).lastAutoTable.finalY + 5;
+    let finalY = (doc as any).lastAutoTable.finalY + 3;
     
-    // Check if summary fits on page
-    if (finalY > 230) {
-      doc.addPage();
-      addHeader(doc);
-      finalY = 35;
-    }
-
-    // Summary Section
-    doc.setDrawColor(230);
-    doc.line(130, finalY, 196, finalY);
-    finalY += 5;
-    
-    const subtotal = Number(quotation.total_amount);
+    const subtotal = (qData.items || []).reduce((s: number, i: any) => s + Number(i.total_price), 0);
     let grandTotal = subtotal;
 
-    if (!quotation.tax_inclusive) {
-      // Calculate Tax breakdown
-      const taxGroups: { [key: string]: number } = {};
-      (quotation.items || []).forEach((item: any) => {
-        const rate = Number(item.tax_rate || 20);
-        const tax = (Number(item.total_price) * rate) / 100;
-        taxGroups[rate] = (taxGroups[rate] || 0) + tax;
-      });
-
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100);
-      doc.text(fixTr(isTr ? "Matrah (Ara Toplam)" : "Subtotal (Base)"), 130, finalY);
-      doc.text(`${subtotal.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+    // Summary Section
+    if (qData.tax_inclusive) {
+      doc.setDrawColor(230);
+      doc.line(130, finalY, 196, finalY);
+      finalY += 4;
       
-      let totalTax = 0;
-      Object.keys(taxGroups).sort((a, b) => Number(a) - Number(b)).forEach(rate => {
-        finalY += 5;
-        const taxAmount = taxGroups[rate];
-        totalTax += taxAmount;
-        doc.text(fixTr(`${isTr ? 'KDV' : 'Tax'} %${rate}`), 130, finalY);
-        doc.text(`${taxAmount.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
-      });
-
-      grandTotal = subtotal + totalTax;
-    } else {
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
+      doc.text(`${subtotal.toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      
+      finalY += 3;
+      doc.setFontSize(5);
+      doc.setFont("helvetica", "italic");
       doc.setTextColor(100);
-      doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
-      doc.text(`${subtotal.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      doc.text(fixTr(isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."), 196, finalY, { align: 'right' });
+      
+      grandTotal = subtotal;
+    } else {
+      // For Tax Excluded, just show a small note or total
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(`${isTr ? 'TOPLAM (Vergi Haric):' : 'TOTAL (Excl. Tax):'} ${subtotal.toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      grandTotal = subtotal;
     }
-    
-    finalY += 7;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-    doc.text(`${grandTotal.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
 
-    if (quotation.exchange_rate && Number(quotation.exchange_rate) !== 1) {
-      finalY += 5;
-      doc.setFontSize(6);
+    if (qData.exchange_rate && Number(qData.exchange_rate) !== 1) {
+      finalY += 4;
+      doc.setFontSize(5);
       doc.setFont("helvetica", "italic");
       doc.setTextColor(150);
-      doc.text(fixTr(`${isTr ? 'Kur' : 'Rate'}: 1 ${quotation.currency?.slice(0, 3)} = ${Number(quotation.exchange_rate).toLocaleString('tr-TR')} TRY`), 196, finalY, { align: 'right' });
+      doc.text(fixTr(`${isTr ? 'Kur' : 'Rate'}: 1 ${qData.currency?.slice(0, 3)} = ${Number(qData.exchange_rate).toLocaleString('tr-TR')} TRY`), 196, finalY, { align: 'right' });
     }
 
     // Total in Words
-    finalY += 8;
-    doc.setFontSize(7);
+    finalY += 5;
+    doc.setFontSize(6);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100);
-    const words = numberToTurkishWords(grandTotal, quotation.currency || 'TRY');
+    const words = numberToTurkishWords(grandTotal, qData.currency || 'TRY');
     doc.text(fixTr(`${isTr ? 'Yazıyla' : 'In Words'}: ${words}`), 196, finalY, { align: 'right' });
 
-
     // Notes Section
-    if (quotation.notes) {
+    if (qData.notes) {
       finalY += 10;
       if (finalY > 270) {
         doc.addPage();
@@ -782,7 +766,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
       doc.setTextColor(100);
-      const splitNotes = doc.splitTextToSize(fixTr(quotation.notes), 182);
+      const splitNotes = doc.splitTextToSize(fixTr(qData.notes), 182);
       doc.text(splitNotes, 14, finalY);
     }
 
@@ -793,7 +777,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       addFooter(doc, i, totalPages);
     }
 
-    doc.save(`Quotation_${quotation.id}.pdf`);
+    doc.save(`Quotation_${qData.id}.pdf`);
   };
 
   const handlePrintQuotation = useReactToPrint({
@@ -1978,6 +1962,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{t.product || "Ürün"}</th>
                         <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{t.quantity || "Miktar"}</th>
                         <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.unitPrice || "Birim Fiyat"}</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">KDV</th>
                         <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.total || "Toplam"}</th>
                       </tr>
                     </thead>
@@ -1991,6 +1976,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
                           <td className="px-4 py-3 text-sm text-slate-600 text-right">
                             {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-500 text-center">
+                            %{item.tax_rate || 20}
                           </td>
                           <td className="px-4 py-3 text-sm font-bold text-slate-900 text-right">
                             {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
@@ -2009,19 +1997,28 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <p className="text-sm text-slate-700">{selectedQuotationDetails.notes}</p>
                       </div>
                     )}
-                    <div className="text-xs text-slate-400 font-bold italic">
-                      {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number(selectedQuotationDetails.total_amount), selectedQuotationDetails.currency)}
-                    </div>
                   </div>
-                  <div className="w-full md:w-64 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">{t.subtotal || "Ara Toplam"}</span>
-                      <span className="font-medium">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold border-t border-slate-200 pt-2">
-                      <span>{t.grandTotal || "Genel Toplam"}</span>
-                      <span className="text-indigo-600">{Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}</span>
-                    </div>
+                  <div className="w-full md:w-80 space-y-3">
+                    {selectedQuotationDetails.tax_inclusive ? (
+                      <>
+                        <div className="flex justify-between text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+                          <span>{t.grandTotal || "Genel Toplam"}</span>
+                          <span className="text-indigo-600 text-lg font-black">
+                            {Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-right text-slate-400 font-bold italic">
+                          {isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."}
+                        </div>
+                        <div className="text-[10px] text-right text-slate-500 font-bold italic pt-2">
+                          {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number(selectedQuotationDetails.total_amount), selectedQuotationDetails.currency)}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-indigo-700 text-xs font-bold text-center">
+                        {isTr ? "Fiyatlara KDV dahil değildir. Vergi oranları ürün satırlarında belirtilmiştir." : "Prices exclude VAT. Tax rates are specified in product rows."}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3819,31 +3816,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                 </div>
 
-                <div className="bg-indigo-50/50 rounded-2xl p-4 space-y-2">
-                  <div className="flex justify-between items-center text-xs font-bold text-gray-500">
-                    <span>{isTaxInclusive ? (lang === 'tr' ? 'Brüt Toplam' : 'Gross Total') : (lang === 'tr' ? 'Ara Toplam' : 'Subtotal')}</span>
-                    <span>{quotationItems.reduce((s, i) => s + Number(i.total_price), 0).toLocaleString('tr-TR')} {editingQuotation?.currency || branding?.default_currency || 'TRY'}</span>
-                  </div>
-                  {!isTaxInclusive && (
-                    <div className="flex justify-between items-center text-xs font-bold text-gray-500">
-                      <span>{lang === 'tr' ? 'Toplam KDV' : 'Total Tax'}</span>
-                      <span>{quotationItems.reduce((s, i) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0).toLocaleString('tr-TR')} {editingQuotation?.currency || branding?.default_currency || 'TRY'}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center text-sm font-black text-indigo-600 pt-2 border-t border-indigo-100">
-                    <span>{lang === 'tr' ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
-                    <span className="text-lg">
-                      {(quotationItems.reduce((s, i) => s + Number(i.total_price), 0) + (!isTaxInclusive ? quotationItems.reduce((s, i) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0) : 0)).toLocaleString('tr-TR')} {editingQuotation?.currency || branding?.default_currency || 'TRY'}
-                    </span>
-                  </div>
-                  {isTaxInclusive && (
-                    <p className="text-[10px] text-center font-bold text-indigo-400 uppercase tracking-widest pt-1">
-                      {lang === 'tr' ? '* Fiyatlarımıza vergiler dahildir' : '* Prices include taxes'}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-3">
+                <div className="p-6 space-y-4">
                   <button 
                     type="button"
                     onClick={() => setShowNotes(!showNotes)}
@@ -3861,6 +3834,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       placeholder={t.notesPlaceholder}
                     />
                   </div>
+                </div>
                   </div>
                 </div>
 
