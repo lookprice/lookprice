@@ -2675,6 +2675,56 @@ const SettingsTab = ({
              </div>
           </div>
 
+          {/* Tracking & Analytics */}
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+             <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-500" />
+                {lang === 'tr' ? 'İZLEME VE ANALİTİK' : 'TRACKING & ANALYTICS'}
+             </h3>
+             <p className="text-xs text-slate-500 mb-6 font-medium">
+               {lang === 'tr' ? 'Google Analytics veya Google Tag Manager (GTM) aracılığıyla mağazanızı dijital olarak analiz edin.' : 'Analyze your store digitally through Google Analytics or Google Tag Manager (GTM).'}
+             </p>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Google Analytics (gtag) ID
+                  </label>
+                  <input 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold font-mono placeholder:text-slate-300" 
+                    placeholder="G-XXXXXXXXXX" 
+                    value={(branding.meta_settings && typeof branding.meta_settings === 'object' && !Array.isArray(branding.meta_settings)) ? branding.meta_settings.ga_measurement_id || '' : ''} 
+                    onChange={(e) => {
+                      const newSettings = { ...(branding.meta_settings || {}) };
+                      newSettings.ga_measurement_id = e.target.value;
+                      onBrandingChange('meta_settings', newSettings);
+                    }} 
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">
+                    Örn: G-XXXXXXXXXX. Sadece ID'yi girin.
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Google Tag Manager (GTM) ID
+                  </label>
+                  <input 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold font-mono placeholder:text-slate-300" 
+                    placeholder="GTM-XXXXXXX" 
+                    value={(branding.meta_settings && typeof branding.meta_settings === 'object' && !Array.isArray(branding.meta_settings)) ? branding.meta_settings.gtm_id || '' : ''} 
+                    onChange={(e) => {
+                      const newSettings = { ...(branding.meta_settings || {}) };
+                      newSettings.gtm_id = e.target.value;
+                      onBrandingChange('meta_settings', newSettings);
+                    }} 
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">
+                    Örn: GTM-XXXXXXX. Sadece ID'yi girin.
+                  </p>
+                </div>
+             </div>
+          </div>
+
           {/* User Management Section (Keep it simple here) */}
           <div className="bg-slate-900 p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[100px] -mr-48 -mt-48 group-hover:bg-white/10 transition-all duration-1000"></div>

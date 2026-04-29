@@ -619,7 +619,7 @@ router.get("/info", async (req: any, res) => {
   const store = storeRes.rows[0];
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings', 'page_layout', 'menu_links', 'shipping_profiles', 'emails', 'phones', 'footer_links'];
+  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings', 'page_layout', 'menu_links', 'shipping_profiles', 'emails', 'phones', 'footer_links', 'meta_settings', 'einvoice_settings'];
   jsonFields.forEach(field => {
     if (typeof store[field] === 'string') {
       try {
@@ -663,7 +663,7 @@ router.post("/branding", async (req: any, res) => {
       category_tax_rules, faq, blog_posts, legal_pages, social_links, custom_domain, payment_settings,
       amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings,
       page_layout, menu_links, shipping_profiles, emails, phones, description, footer_links,
-      einvoice_settings
+      einvoice_settings, meta_settings
     } = req.body;
 
     await pool.query(
@@ -680,8 +680,8 @@ router.post("/branding", async (req: any, res) => {
         amazon_settings = $32, n11_settings = $33, hepsiburada_settings = $34,
         trendyol_settings = $35, pazarama_settings = $36, page_layout = $37, menu_links = $38, 
         shipping_profiles = $39, emails = $40, phones = $41, description = $42, email = $43, footer_links = $44,
-        einvoice_settings = $45
-      WHERE id = $46`, 
+        einvoice_settings = $45, meta_settings = $46
+      WHERE id = $47`, 
       [
         name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
         background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -710,6 +710,7 @@ router.post("/branding", async (req: any, res) => {
         email,
         JSON.stringify(footer_links || []),
         JSON.stringify(einvoice_settings || { is_active: false, provider: 'none' }),
+        JSON.stringify(meta_settings || {}),
         storeId
       ]
     );
@@ -3077,18 +3078,18 @@ router.post("/sales-invoices", async (req: any, res) => {
 
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [storeId, company_id, invoiceId, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`]
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, company_id, invoiceId, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date()]
       );
 
       // If payment method is provided, add a credit transaction to offset the debt
       if (payment_method && payment_method !== 'term') {
         await client.query(
           `INSERT INTO current_account_transactions 
-            (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [storeId, company_id, invoiceId, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method]
+            (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [storeId, company_id, invoiceId, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method, invoice_date || new Date()]
         );
       }
     }
@@ -3239,17 +3240,17 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
 
       await client.query(
         `INSERT INTO current_account_transactions 
-          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [storeId, company_id, req.params.id, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`]
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, company_id, req.params.id, 'debt', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası: ${invoice_number}`, invoice_date || new Date()]
       );
 
       if (payment_method && payment_method !== 'term') {
         await client.query(
           `INSERT INTO current_account_transactions 
-            (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, company_id, req.params.id, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method]
+            (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [storeId, company_id, req.params.id, 'credit', grand_total, currency || defaultCurrency, exchange_rate || 1, `Satış Faturası Tahsilatı: ${invoice_number} (${payment_method})`, payment_method, invoice_date || new Date()]
         );
       }
     }

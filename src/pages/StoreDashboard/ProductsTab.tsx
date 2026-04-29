@@ -140,10 +140,17 @@ const ProductsTab = ({
     const salesRate = getRate(p.currency);
     const costRate = getRate(p.cost_currency);
 
-    const salesInTry = p.price * salesRate;
+    // Sales price is tax-inclusive, cost price is tax-exclusive
+    // We must extract the tax from the sales price to calculate true profit.
+    const taxRate = p.tax_rate ?? (branding?.default_tax_rate ?? 20);
+    const taxMultiplier = 1 + (Number(taxRate) / 100);
+
+    const rawSalesInTry = p.price * salesRate;
+    const taxExclusiveSalesInTry = rawSalesInTry / taxMultiplier;
+
     const costInTry = p.cost_price * costRate;
 
-    const profit = salesInTry - costInTry;
+    const profit = taxExclusiveSalesInTry - costInTry;
     const margin = (profit / costInTry) * 100;
     
     return {
