@@ -750,6 +750,9 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='exchange_rate') THEN
           ALTER TABLE quotations ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='tax_inclusive') THEN
+          ALTER TABLE quotations ADD COLUMN tax_inclusive BOOLEAN DEFAULT FALSE;
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='tax_number') THEN
           ALTER TABLE quotations ADD COLUMN tax_number TEXT;
         END IF;

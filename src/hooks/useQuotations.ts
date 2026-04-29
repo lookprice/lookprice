@@ -8,7 +8,8 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
   const actions = useQuotationActions(
     currentStoreId, lang, branding, fetchProductsData, data.fetchQuotations,
     ui.setQuotationItems, ui.setShowQuotationModal, ui.setEditingQuotation,
-    ui.setQuickProductForm, ui.setShowQuickProductModal, ui.setSelectedQuotationDetails, ui.selectedQuotationDetails
+    ui.setQuickProductForm, ui.setShowQuickProductModal, ui.setSelectedQuotationDetails, ui.selectedQuotationDetails,
+    ui.isTaxInclusive
   );
 
   return {

@@ -1824,7 +1824,7 @@ router.post("/quotations", async (req: any, res) => {
   const client = await pool.connect();
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office } = req.body;
+    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive } = req.body;
     
     await client.query("BEGIN");
 
@@ -1848,8 +1848,8 @@ router.post("/quotations", async (req: any, res) => {
     }
     
     const quotRes = await client.query(
-      "INSERT INTO quotations (store_id, customer_name, customer_title, total_amount, currency, notes, company_id, expiry_date, payment_method, due_date, tax_number, tax_office) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
-      [storeId, customer_name, customer_title, total_amount, currency, notes, finalCompanyId || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null]
+      "INSERT INTO quotations (store_id, customer_name, customer_title, total_amount, currency, notes, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+      [storeId, customer_name, customer_title, total_amount, currency, notes, finalCompanyId || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false]
     );
     const quotationId = quotRes.rows[0].id;
     
@@ -1875,13 +1875,13 @@ router.put("/quotations/:id", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
     const { id } = req.params;
-    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office } = req.body;
+    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive } = req.body;
     
     await client.query("BEGIN");
     
     const quotRes = await client.query(
-      "UPDATE quotations SET customer_name = $1, customer_title = $2, total_amount = $3, currency = $4, notes = $5, company_id = $6, expiry_date = $7, payment_method = $8, due_date = $9, tax_number = $10, tax_office = $11 WHERE id = $12 AND store_id = $13 RETURNING id",
-      [customer_name, customer_title, total_amount, currency, notes, company_id || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, id, storeId]
+      "UPDATE quotations SET customer_name = $1, customer_title = $2, total_amount = $3, currency = $4, notes = $5, company_id = $6, expiry_date = $7, payment_method = $8, due_date = $9, tax_number = $10, tax_office = $11, tax_inclusive = $12 WHERE id = $13 AND store_id = $14 RETURNING id",
+      [customer_name, customer_title, total_amount, currency, notes, company_id || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false, id, storeId]
     );
     
     if (quotRes.rows.length === 0) {
@@ -1996,12 +1996,6 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
         throw new Error("Quotation must be linked to a company for 'Term' payment");
       }
 
-      const saleRes = await client.query(
-        "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, due_date, quotation_id, notes, company_id, customer_id) VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7, $8, $9, $10, $11) RETURNING id",
-        [storeId, quotation.total_amount, quotation.currency || 'TRY', quotation.exchange_rate || 1, quotation.customer_name, paymentMethod, dueDate, quotation.id, notes || quotation.notes, quotation.company_id, quotation.customer_id]
-      );
-      const saleId = saleRes.rows[0].id;
-
       const itemsRes = await client.query(
         "SELECT qi.*, p.stock_quantity FROM quotation_items qi LEFT JOIN products p ON qi.product_id = p.id WHERE qi.quotation_id = $1", 
         [quotation.id]
@@ -2010,16 +2004,50 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
       const branding = storeRes.rows[0]?.branding || {};
 
+      const taxInclusive = quotation.tax_inclusive;
+      
+      // Calculate total tax and grand total for sale/invoice
+      let totalQuotationTax = 0;
       for (const item of itemsRes.rows) {
-        // Recalculate unit_price to KDV Hariç if it's KDV Dahil
+        const rate = (item.tax_rate !== undefined && item.tax_rate !== null) ? Number(item.tax_rate) : (branding?.default_tax_rate !== undefined ? Number(branding.default_tax_rate) : 20);
+        if (taxInclusive) {
+          // If inclusive, total_amount already includes tax. Calculate tax portion.
+          const kdvHaricTotal = Number(item.total_price) / (1 + rate / 100);
+          totalQuotationTax += Number(item.total_price) - kdvHaricTotal;
+        } else {
+          // If exclusive, total_amount is base total. Calculate tax to add.
+          totalQuotationTax += (Number(item.total_price) * rate) / 100;
+        }
+      }
+
+      const grandTotalAmount = taxInclusive ? Number(quotation.total_amount) : (Number(quotation.total_amount) + totalQuotationTax);
+
+      const saleRes = await client.query(
+        "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, due_date, quotation_id, notes, company_id, customer_id) VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+        [storeId, grandTotalAmount, quotation.currency || 'TRY', quotation.exchange_rate || 1, quotation.customer_name, paymentMethod, dueDate, quotation.id, notes || quotation.notes, quotation.company_id, quotation.customer_id]
+      );
+      const saleId = saleRes.rows[0].id;
+
+      for (const item of itemsRes.rows) {
         const taxRate = (item.tax_rate !== undefined && item.tax_rate !== null) ? Number(item.tax_rate) : (branding?.default_tax_rate !== undefined ? Number(branding.default_tax_rate) : 20);
-        const kdvHariçPrice = Number(item.unit_price) / (1 + taxRate / 100);
-        const kdvHariçTotal = Number(item.quantity) * kdvHariçPrice;
-        const taxAmount = (Number(item.quantity) * Number(item.unit_price)) - kdvHariçTotal;
+        
+        let kdvHaricPrice: number;
+        let taxAmount: number;
+        let kdvHaricTotal: number;
+
+        if (taxInclusive) {
+          kdvHaricPrice = Number(item.unit_price) / (1 + taxRate / 100);
+          kdvHaricTotal = Number(item.total_price) / (1 + taxRate / 100);
+          taxAmount = Number(item.total_price) - kdvHaricTotal;
+        } else {
+          kdvHaricPrice = Number(item.unit_price);
+          kdvHaricTotal = Number(item.total_price);
+          taxAmount = (kdvHaricTotal * taxRate) / 100;
+        }
 
         await client.query(
           "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-          [saleId, item.product_id, item.product_name, item.barcode, item.quantity, kdvHariçPrice, taxRate, taxAmount, kdvHariçTotal]
+          [saleId, item.product_id, item.product_name, item.barcode, item.quantity, kdvHaricPrice, taxRate, taxAmount, kdvHaricTotal]
         );
         
         if (item.product_id) {
@@ -2083,20 +2111,6 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       // NEW: Automatically create a DRAFT Sales Invoice
       const invoiceNumber = `INV-${Date.now()}`;
       
-      // Calculate base amounts (Matrah) and tax amounts backwards since quotation total is KDV Dahil
-      let totalBaseAmount = 0;
-      let totalTaxAmount = 0;
-      
-      for (const item of itemsRes.rows) {
-        const taxRate = (item.tax_rate !== undefined && item.tax_rate !== null) ? Number(item.tax_rate) : 20;
-        const kdvDahilTotal = Number(item.total_price);
-        const kdvHaricTotal = kdvDahilTotal / (1 + taxRate / 100);
-        const taxAmount = kdvDahilTotal - kdvHaricTotal;
-        
-        totalBaseAmount += kdvHaricTotal;
-        totalTaxAmount += taxAmount;
-      }
-
       const invoiceNotes = quotation.service_id 
         ? `Teknik Servis #${quotation.service_id} - Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`
         : `Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`;
@@ -2105,18 +2119,26 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
         `INSERT INTO sales_invoices 
           (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
-        [storeId, saleId, quotation.company_id || null, quotation.customer_id || null, invoiceNumber, new Date(), totalBaseAmount, totalTaxAmount, quotation.total_amount, quotation.currency || 'TRY', quotation.exchange_rate || 1, invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
+        [storeId, saleId, quotation.company_id || null, quotation.customer_id || null, invoiceNumber, new Date(), grandTotalAmount - totalQuotationTax, totalQuotationTax, grandTotalAmount, quotation.currency || 'TRY', quotation.exchange_rate || 1, invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
       );
       const invoiceId = invRes.rows[0].id;
 
       for (const item of itemsRes.rows) {
         const taxRate = (item.tax_rate !== undefined && item.tax_rate !== null) ? Number(item.tax_rate) : 20;
-        const kdvDahilPrice = Number(item.unit_price);
-        const kdvHaricPrice = kdvDahilPrice / (1 + taxRate / 100);
         
-        const kdvDahilTotal = Number(item.total_price);
-        const kdvHaricTotal = kdvDahilTotal / (1 + taxRate / 100);
-        const itemTax = kdvDahilTotal - kdvHaricTotal;
+        let kdvHaricPrice: number;
+        let kdvHaricTotal: number;
+        let itemTax: number;
+
+        if (taxInclusive) {
+          kdvHaricPrice = Number(item.unit_price) / (1 + taxRate / 100);
+          kdvHaricTotal = Number(item.total_price) / (1 + taxRate / 100);
+          itemTax = Number(item.total_price) - kdvHaricTotal;
+        } else {
+          kdvHaricPrice = Number(item.unit_price);
+          kdvHaricTotal = Number(item.total_price);
+          itemTax = (kdvHaricTotal * taxRate) / 100;
+        }
 
         await client.query(
           `INSERT INTO sales_invoice_items 

@@ -13,7 +13,8 @@ export const useQuotationActions = (
   setQuickProductForm: any,
   setShowQuickProductModal: (val: boolean) => void,
   setSelectedQuotationDetails: any,
-  selectedQuotationDetails: any
+  selectedQuotationDetails: any,
+  isTaxInclusive: boolean
 ) => {
 
   const handleQuickAddProduct = async (e: React.FormEvent, quickProductForm: any) => {
@@ -78,7 +79,8 @@ export const useQuotationActions = (
       tax_office: data.tax_office,
       expiry_date: data.expiry_date,
       payment_method: data.payment_method,
-      due_date: data.due_date
+      due_date: data.due_date,
+      tax_inclusive: isTaxInclusive
     };
 
     const savePromise = (async () => {

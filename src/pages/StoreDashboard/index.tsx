@@ -230,6 +230,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     quotationStatusFilter, setQuotationStatusFilter,
     selectedQuotationDetails, setSelectedQuotationDetails,
     showQuotationDetailsModal, setShowQuotationDetailsModal,
+    isTaxInclusive, setIsTaxInclusive,
     fetchQuotations,
     handleQuickAddProduct,
     handleAddQuotation,
@@ -349,6 +350,31 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   useEffect(() => {
     localStorage.setItem('desktopSidebarCollapsed', desktopSidebarCollapsed.toString());
   }, [desktopSidebarCollapsed]);
+
+  useEffect(() => {
+    if (editingQuotation) {
+      setIsTaxInclusive(!!editingQuotation.tax_inclusive);
+    } else {
+      setIsTaxInclusive(false);
+    }
+  }, [editingQuotation]);
+
+  useEffect(() => {
+    if (showQuotationModal && !editingQuotation) {
+      if (isTaxInclusive) {
+        // Find if notes is default and update
+        const notesTextArea = document.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
+        if (notesTextArea && (notesTextArea.value === '' || notesTextArea.value.includes('Vergi Oranı Boş Bırakılmıştır'))) {
+          notesTextArea.value = lang === 'tr' ? '*Fiyatlarımıza Vergiler Dahildir!' : '*Prices Include Taxes!';
+        }
+      } else {
+        const notesTextArea = document.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
+        if (notesTextArea && (notesTextArea.value === '' || notesTextArea.value.includes('Vergiler Dahildir'))) {
+          notesTextArea.value = lang === 'tr' ? '*Fiyatlarımıza KDV Dahil Değildir. Vergi Oranı Ürün Satırında Belirtilmiştir.' : '*Prices Exclude VAT. Tax Rates are Specified in Product Lines.';
+        }
+      }
+    }
+  }, [isTaxInclusive, showQuotationModal, editingQuotation, lang]);
 
   const [showQrModal, setShowQrModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -634,6 +660,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const tableData = (quotation.items || []).map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
+      !quotation.tax_inclusive ? `${item.tax_rate}%` : (isTr ? "Dahil" : "Incl."),
       `${Number(item.unit_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`,
       `${Number(item.total_price).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`
     ]);
@@ -643,6 +670,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       head: [[
         fixTr(isTr ? "Ürün Açıklaması" : "Product Description"), 
         fixTr(isTr ? "Miktar" : "Qty"), 
+        fixTr(isTr ? "KDV" : "Tax"),
         fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
         fixTr(isTr ? "Toplam" : "Total")
       ]],
@@ -652,8 +680,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
       columnStyles: {
         1: { halign: 'center', cellWidth: 12 },
-        2: { halign: 'right', cellWidth: 25 },
-        3: { halign: 'right', cellWidth: 25 }
+        2: { halign: 'center', cellWidth: 15 },
+        3: { halign: 'right', cellWidth: 25 },
+        4: { halign: 'right', cellWidth: 25 }
       },
       margin: { left: 14, right: 14, top: 30, bottom: 15 },
       didDrawPage: (data) => {
@@ -666,7 +695,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     let finalY = (doc as any).lastAutoTable.finalY + 5;
     
     // Check if summary fits on page
-    if (finalY > 260) {
+    if (finalY > 230) {
       doc.addPage();
       addHeader(doc);
       finalY = 35;
@@ -677,18 +706,57 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     doc.line(130, finalY, 196, finalY);
     finalY += 5;
     
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+    const subtotal = Number(quotation.total_amount);
+    let grandTotal = subtotal;
+
+    if (!quotation.tax_inclusive) {
+      // Calculate Tax breakdown
+      const taxGroups: { [key: string]: number } = {};
+      (quotation.items || []).forEach((item: any) => {
+        const rate = Number(item.tax_rate || 20);
+        const tax = (Number(item.total_price) * rate) / 100;
+        taxGroups[rate] = (taxGroups[rate] || 0) + tax;
+      });
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      doc.text(fixTr(isTr ? "Matrah (Ara Toplam)" : "Subtotal (Base)"), 130, finalY);
+      doc.text(`${subtotal.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      
+      let totalTax = 0;
+      Object.keys(taxGroups).sort((a, b) => Number(a) - Number(b)).forEach(rate => {
+        finalY += 5;
+        const taxAmount = taxGroups[rate];
+        totalTax += taxAmount;
+        doc.text(fixTr(`${isTr ? 'KDV' : 'Tax'} %${rate}`), 130, finalY);
+        doc.text(`${taxAmount.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+      });
+
+      grandTotal = subtotal + totalTax;
+    } else {
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      doc.text(fixTr(isTr ? "Ara Toplam" : "Subtotal"), 130, finalY);
+      doc.text(`${subtotal.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+    }
     
-    finalY += 5;
+    finalY += 7;
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
     doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-    doc.text(`${Number(quotation.total_amount).toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+    doc.text(`${grandTotal.toLocaleString('tr-TR')} ${quotation.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
+
+    // Total in Words
+    finalY += 8;
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100);
+    const words = numberToTurkishWords(grandTotal, quotation.currency || 'TRY');
+    doc.text(fixTr(`${isTr ? 'Yazıyla' : 'In Words'}: ${words}`), 196, finalY, { align: 'right' });
+
 
     // Notes Section
     if (quotation.notes) {
@@ -3524,6 +3592,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       </select>
                     </div>
                     <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi Senaryosu' : 'Tax Scenario'}</label>
+                      <select 
+                        value={isTaxInclusive ? 'dahil' : 'haric'}
+                        onChange={(e) => setIsTaxInclusive(e.target.value === 'dahil')}
+                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-gray-700"
+                      >
+                        <option value="haric">{lang === 'tr' ? 'Vergi Hariç' : 'Tax Excluded'}</option>
+                        <option value="dahil">{lang === 'tr' ? 'Vergi Dahil' : 'Tax Included'}</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Döviz Kuru' : 'Exchange Rate'}</label>
                       <input 
                         name="exchange_rate" 
@@ -3585,11 +3666,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             const taxRate = Math.round(Number(p.tax_rate ?? (branding?.default_tax_rate !== undefined ? branding.default_tax_rate : 20)));
                             
                             let unitPrice: number;
-                            if (p.price_2 && Number(p.price_2) > 0) {
-                              // If price_2 is set, it's KDV Hariç. Convert to KDV Dahil for quotation display.
-                              unitPrice = Number(p.price_2) * (1 + taxRate / 100);
-                            } else {
+                            if (isTaxInclusive) {
+                              // If Tax Included scenario, use price (which is Dahil)
                               unitPrice = Number(p.price);
+                            } else {
+                              // If Tax Excluded scenario, use price_2 if available (which is Hariç)
+                              // otherwise calculate Hariç from price
+                              if (p.price_2 && Number(p.price_2) > 0) {
+                                unitPrice = Number(p.price_2);
+                              } else {
+                                unitPrice = Number(p.price) / (1 + taxRate / 100);
+                              }
                             }
 
                             if (existingIdx > -1) {
@@ -3721,6 +3808,30 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="bg-indigo-50/50 rounded-2xl p-4 space-y-2">
+                  <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                    <span>{isTaxInclusive ? (lang === 'tr' ? 'Brüt Toplam' : 'Gross Total') : (lang === 'tr' ? 'Ara Toplam' : 'Subtotal')}</span>
+                    <span>{quotationItems.reduce((s, i) => s + Number(i.total_price), 0).toLocaleString('tr-TR')} {editingQuotation?.currency || branding?.default_currency || 'TRY'}</span>
+                  </div>
+                  {!isTaxInclusive && (
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                      <span>{lang === 'tr' ? 'Toplam KDV' : 'Total Tax'}</span>
+                      <span>{quotationItems.reduce((s, i) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0).toLocaleString('tr-TR')} {editingQuotation?.currency || branding?.default_currency || 'TRY'}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-sm font-black text-indigo-600 pt-2 border-t border-indigo-100">
+                    <span>{lang === 'tr' ? 'GENEL TOPLAM' : 'GRAND TOTAL'}</span>
+                    <span className="text-lg">
+                      {(quotationItems.reduce((s, i) => s + Number(i.total_price), 0) + (!isTaxInclusive ? quotationItems.reduce((s, i) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0) : 0)).toLocaleString('tr-TR')} {editingQuotation?.currency || branding?.default_currency || 'TRY'}
+                    </span>
+                  </div>
+                  {isTaxInclusive && (
+                    <p className="text-[10px] text-center font-bold text-indigo-400 uppercase tracking-widest pt-1">
+                      {lang === 'tr' ? '* Fiyatlarımıza vergiler dahildir' : '* Prices include taxes'}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
