@@ -271,8 +271,7 @@ const PublicQuotation = () => {
     yPos += 18;
 
     const subtotal = (quotation.items || []).reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
-    const totalTax = quotation.tax_inclusive ? 0 : (quotation.items || []).reduce((sum: number, item: any) => sum + (Number(item.total_price) * Number(item.tax_rate || 20) / 100), 0);
-    const grandTotal = subtotal + totalTax;
+    const grandTotal = subtotal;
 
     const tableData = (quotation.items || []).map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
@@ -414,8 +413,8 @@ const PublicQuotation = () => {
 
   const isExpired = quotation.expiry_date && new Date(quotation.expiry_date) < new Date() && quotation.status === 'pending';
   const subtotal = (quotation.items || []).reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
-  const totalTax = quotation.tax_inclusive ? 0 : (quotation.items || []).reduce((sum: number, item: any) => sum + (Number(item.total_price) * Number(item.tax_rate || 20) / 100), 0);
-  const grandTotal = subtotal + totalTax;
+  // Do NOT add tax to grand total if it's not tax inclusive (per user request to match PDF style)
+  const grandTotal = subtotal;
 
   const t = {
     from: lang === 'tr' ? 'Gönderen' : 'From',
@@ -425,7 +424,9 @@ const PublicQuotation = () => {
     qty: lang === 'tr' ? 'Miktar' : 'Qty',
     price: lang === 'tr' ? 'Fiyat' : 'Price',
     total: lang === 'tr' ? 'Toplam' : 'Total',
-    totalAmount: lang === 'tr' ? 'Toplam Tutar' : 'Total Amount',
+    totalAmount: quotation.tax_inclusive 
+      ? (lang === 'tr' ? 'Genel Toplam' : 'Grand Total')
+      : (lang === 'tr' ? 'Toplam (Vergi Hariç)' : 'Total (Excl. Tax)'),
     notes: lang === 'tr' ? 'Notlar' : 'Notes',
     messageLabel: lang === 'tr' ? 'Mesajınız (Opsiyonel)' : 'Your Message (Optional)',
     messagePlaceholder: lang === 'tr' ? 'Bir not veya özel istek ekleyin...' : 'Add a note or special request...',
