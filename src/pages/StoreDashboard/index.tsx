@@ -2010,12 +2010,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                   <div className="w-full md:w-80 space-y-3">
                     <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                      <span>{t.grandTotal || "Genel Toplam"}</span>
+                      <span>{selectedQuotationDetails.tax_inclusive ? (t.grandTotal || "Genel Toplam") : (isTr ? "Toplam (Vergi Hariç)" : "Total (Excl. Tax)")}</span>
                       <span className="text-indigo-600 text-lg font-black">
                         {(() => {
                           const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
-                          const tax = selectedQuotationDetails.tax_inclusive ? 0 : (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0);
-                          return (sub + tax).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+                          return sub.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
                         })()} {selectedQuotationDetails.currency?.slice(0, 3)}
                       </span>
                     </div>
@@ -2031,8 +2030,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <div className="text-[10px] text-right text-slate-500 font-bold italic pt-2">
                        {isTr ? 'Yalnızca:' : 'Only:'} {(() => {
                          const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
-                         const tax = selectedQuotationDetails.tax_inclusive ? 0 : (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + (Number(i.total_price) * Number(i.tax_rate || 20) / 100), 0);
-                         return numberToTurkishWords(sub + tax, selectedQuotationDetails.currency);
+                         return numberToTurkishWords(sub, selectedQuotationDetails.currency);
                        })()}
                     </div>
                   </div>
