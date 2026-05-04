@@ -14,6 +14,7 @@ export const useQuotationUI = (branding: any) => {
   const [selectedQuotationDetails, setSelectedQuotationDetails] = useState<Quotation | null>(null);
   const [showQuotationDetailsModal, setShowQuotationDetailsModal] = useState(false);
   const [isTaxInclusive, setIsTaxInclusive] = useState(false); // Default to Tax Exclusive (Hariç)
+  const [quotationNotes, setQuotationNotes] = useState("");
 
   return {
     showQuotationModal, setShowQuotationModal,
@@ -27,6 +28,7 @@ export const useQuotationUI = (branding: any) => {
     quotationStatusFilter, setQuotationStatusFilter,
     selectedQuotationDetails, setSelectedQuotationDetails,
     showQuotationDetailsModal, setShowQuotationDetailsModal,
-    isTaxInclusive, setIsTaxInclusive
+    isTaxInclusive, setIsTaxInclusive,
+    quotationNotes, setQuotationNotes
   };
 };

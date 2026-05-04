@@ -270,11 +270,10 @@ const PublicQuotation = () => {
     doc.text(fixTr(customerInfo), 18, yPos + 10);
     yPos += 18;
 
-    const subtotal = quotation.items.reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
-    const totalTax = quotation.tax_inclusive ? 0 : quotation.items.reduce((sum: number, item: any) => sum + (Number(item.total_price) * Number(item.tax_rate || 20) / 100), 0);
-    const grandTotal = subtotal + totalTax;
+    const subtotal = (quotation.items || []).reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
+    const grandTotal = subtotal;
 
-    const tableData = quotation.items.map((item: any) => [
+    const tableData = (quotation.items || []).map((item: any) => [
       fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
       item.quantity,
       `${item.tax_rate || 20}%`,
@@ -311,11 +310,8 @@ const PublicQuotation = () => {
 
     let finalY = (doc as any).lastAutoTable.finalY + 3;
     
-    const subtotal = (quotation.items || []).reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
-    const grandTotal = subtotal;
-
     // Summary Section
-    if (quotation.tax_inclusive) {
+    if (quotation.is_tax_inclusive) {
       doc.setDrawColor(230);
       doc.line(130, finalY, 196, finalY);
       finalY += 4;
@@ -416,6 +412,9 @@ const PublicQuotation = () => {
   }
 
   const isExpired = quotation.expiry_date && new Date(quotation.expiry_date) < new Date() && quotation.status === 'pending';
+  const subtotal = (quotation.items || []).reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
+  // Do NOT add tax to grand total if it's not tax inclusive (per user request to match PDF style)
+  const grandTotal = subtotal;
 
   const t = {
     from: lang === 'tr' ? 'Gönderen' : 'From',
@@ -425,7 +424,9 @@ const PublicQuotation = () => {
     qty: lang === 'tr' ? 'Miktar' : 'Qty',
     price: lang === 'tr' ? 'Fiyat' : 'Price',
     total: lang === 'tr' ? 'Toplam' : 'Total',
-    totalAmount: lang === 'tr' ? 'Toplam Tutar' : 'Total Amount',
+    totalAmount: quotation.is_tax_inclusive 
+      ? (lang === 'tr' ? 'Genel Toplam' : 'Grand Total')
+      : (lang === 'tr' ? 'Toplam (Vergi Hariç)' : 'Total (Excl. Tax)'),
     notes: lang === 'tr' ? 'Notlar' : 'Notes',
     messageLabel: lang === 'tr' ? 'Mesajınız (Opsiyonel)' : 'Your Message (Optional)',
     messagePlaceholder: lang === 'tr' ? 'Bir not veya özel istek ekleyin...' : 'Add a note or special request...',
@@ -472,15 +473,31 @@ const PublicQuotation = () => {
             .print\\:rounded-none {
               border-radius: 0 !important;
             }
-            /* Force content scaling to fit on one page */
-            main, .max-w-4xl {
-              padding: 0 !important;
-              margin: 0 !important;
-            }
-            h1, h2, h3, p, span, div, table {
-              page-break-inside: avoid;
-            }
-          }
+      /* Force content scaling to fit on one page */
+      main, .max-w-4xl {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .grid-pattern {
+        display: none !important;
+      }
+      * {
+        overflow: visible !important;
+      }
+      h1, h2, h3, p, span, div, table {
+        page-break-inside: avoid;
+      }
+      .min-h-screen {
+        min-height: auto !important;
+        height: auto !important;
+      }
+      /* Scale everything down slightly if needed */
+      body {
+        zoom: 0.95;
+      }
+    }
         `}
       </style>
       <div className="max-w-4xl mx-auto print:max-w-none">
@@ -699,30 +716,34 @@ const PublicQuotation = () => {
                   </table>
                 </div>
                 
-                {quotation.tax_inclusive && (
-                  <div className="bg-slate-900 p-8 sm:p-12 text-white flex flex-col sm:flex-row justify-between items-center gap-8">
-                    <div className="space-y-3 text-center sm:text-left flex-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{t.totalAmount}</p>
+                <div className="bg-slate-900 p-8 sm:p-12 text-white flex flex-col sm:flex-row justify-between items-center gap-8">
+                  <div className="space-y-3 text-center sm:text-left flex-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{t.totalAmount}</p>
+                    {quotation.is_tax_inclusive ? (
                       <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest pt-2">
                         {isTr ? '* Tüm fiyatlara KDV dahildir.' : '* All prices include VAT.'}
                       </p>
-                      <p className="text-indigo-300 text-[9px] font-bold italic pt-1">
-                        {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number((quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0)), quotation.currency)}
+                    ) : (
+                      <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest pt-2">
+                        {isTr ? '* Fiyatlara KDV dahil değildir.' : '* Prices exclude VAT.'}
                       </p>
-                      {quotation.exchange_rate && Number(quotation.exchange_rate) !== 1 && (
-                        <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">
-                          {isTr ? 'Uygulanan Kur' : 'Exchange Rate'}: 1 {quotation.currency?.slice(0, 3)} = {Number(quotation.exchange_rate).toLocaleString(isTr ? 'tr-TR' : 'en-US')} TRY
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-center sm:text-right">
-                      <div className="text-4xl sm:text-5xl font-black tracking-tighter flex items-baseline gap-2">
-                        {Number((quotation.items||[]).reduce((s: any, i: any) => s + Number(i.total_price), 0)).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
-                        <span className="text-lg text-indigo-400 uppercase tracking-widest">{quotation.currency?.slice(0, 3)}</span>
-                      </div>
+                    )}
+                    <p className="text-indigo-300 text-[9px] font-bold italic pt-1">
+                      {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number(grandTotal), quotation.currency)}
+                    </p>
+                    {quotation.exchange_rate && Number(quotation.exchange_rate) !== 1 && (
+                      <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">
+                        {isTr ? 'Uygulanan Kur' : 'Exchange Rate'}: 1 {quotation.currency?.slice(0, 3)} = {Number(quotation.exchange_rate).toLocaleString(isTr ? 'tr-TR' : 'en-US')} TRY
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-center sm:text-right">
+                    <div className="text-4xl sm:text-5xl font-black tracking-tighter flex items-baseline gap-2">
+                      {Number(grandTotal).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
+                      <span className="text-lg text-indigo-400 uppercase tracking-widest">{quotation.currency?.slice(0, 3)}</span>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
 

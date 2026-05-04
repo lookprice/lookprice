@@ -70,6 +70,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [saleId, setSaleId] = useState<number | null>(null);
+  const [isTaxInclusive, setIsTaxInclusive] = useState(true);
 
   // New states for customer/company info update
   const [editTaxNumber, setEditTaxNumber] = useState("");
@@ -165,10 +166,22 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setCurrency(initialData.currency || branding?.default_currency || 'TRY');
       setPaymentMethod(initialData.payment_method || 'cash');
       setIsNewCustomer(false);
+      setIsTaxInclusive(initialData.is_tax_inclusive !== undefined ? initialData.is_tax_inclusive : true);
       setShowModal(true);
       if (onCloseInitialData) onCloseInitialData();
     }
-  }, [initialData, branding]);
+  }, [initialData, branding, onCloseInitialData]);
+
+  useEffect(() => {
+    const taxNote = isTr 
+      ? (isTaxInclusive ? "Fiyatlara KDV dahildir." : "Fiyatlara KDV dahil değildir.")
+      : (isTaxInclusive ? "Prices include VAT." : "Prices exclude VAT.");
+    
+    setNotes(prev => {
+      const cleanNotes = prev.replace(/Fiyatlara KDV dahil(dir| değildir)\.?/g, '').replace(/Prices include VAT\.?/g, '').replace(/Prices exclude VAT\.?/g, '').trim();
+      return cleanNotes ? `${cleanNotes}\n${taxNote}` : taxNote;
+    });
+  }, [isTaxInclusive, isTr]);
 
   useEffect(() => {
     if (selectedCompany) {
@@ -303,10 +316,18 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       const price = Number(String(item.unit_price).replace(',', '.')) || 0;
       const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
       
-      const itemTotal = qty * price;
-      const itemTax = itemTotal * (tax / 100);
-      subtotal += itemTotal;
-      taxTotal += itemTax;
+      if (isTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        const itemTotalExcl = itemTotalIncl / (1 + (tax / 100));
+        const itemTax = itemTotalIncl - itemTotalExcl;
+        subtotal += itemTotalExcl;
+        taxTotal += itemTax;
+      } else {
+        const itemTotal = qty * price;
+        const itemTax = itemTotal * (tax / 100);
+        subtotal += itemTotal;
+        taxTotal += itemTax;
+      }
     });
     
     return {
@@ -343,6 +364,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     const currentStatus = status;
     const currentEditingId = editingInvoiceId;
     const currentIsNew = isNewCustomer;
+    const currentIsTaxInclusive = isTaxInclusive;
 
     // Validation: If status is 'approved' and currency is not default, exchange rate is mandatory
     if (currentStatus === 'approved' && currentCurrency !== (branding?.default_currency || 'TRY')) {
@@ -376,6 +398,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     setExchangeRate("1");
     setStatus('draft');
     setIsNewCustomer(false);
+    setIsTaxInclusive(true);
     setEditTaxNumber("");
     setEditTaxOffice("");
     setEditAddress("");
@@ -428,7 +451,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         payment_method: currentPaymentMethod,
         currency: currentCurrency,
         exchange_rate: Number(currentExchangeRate) || 1,
-        status: currentStatus
+        status: currentStatus,
+        is_tax_inclusive: currentIsTaxInclusive
       };
 
       const res = currentEditingId 
@@ -611,12 +635,14 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
   const filteredCustomers = customers.filter((c: any) => 
     c.name?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
-    c.phone?.toLowerCase().includes(deferredCustomerSearch.toLowerCase())
+    c.phone?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
+    c.email?.toLowerCase().includes(deferredCustomerSearch.toLowerCase())
   );
 
   const filteredCompanies = companies.filter((c: any) => 
     c.title?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
-    c.tax_number?.toLowerCase().includes(deferredCustomerSearch.toLowerCase())
+    c.tax_number?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
+    c.email?.toLowerCase().includes(deferredCustomerSearch.toLowerCase())
   );
 
   const filteredProducts = products.filter((p: any) => 
@@ -1129,6 +1155,25 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                              className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isReturn ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 text-slate-500'}`}
                            >
                              {isTr ? "İade" : "Return"}
+                           </button>
+                         </div>
+                      </div>
+                      <div className="space-y-4">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Vergi Durumu' : 'Tax Status'}</label>
+                         <div className="flex items-center gap-4 py-4">
+                           <button
+                             type="button"
+                             onClick={() => setIsTaxInclusive(true)}
+                             className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
+                           >
+                             {isTr ? "KDV Dahil" : "VAT Incl."}
+                           </button>
+                           <button
+                             type="button"
+                             onClick={() => setIsTaxInclusive(false)}
+                             className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
+                           >
+                             {isTr ? "KDV Hariç" : "VAT Excl."}
                            </button>
                          </div>
                       </div>

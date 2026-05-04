@@ -139,6 +139,47 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const formattedDate = docDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
     const formattedTime = docDate.toISOString().split('T')[1].substring(0, 8); // "HH:mm:ss"
 
+    // LINES
+    const isTaxInclusive = !!invoice.is_tax_inclusive;
+    const Lines = items.map((item, index) => {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      let lineExtensionAmount: number; // tax exclusive total
+      let unitPrice: number; // tax exclusive unit price
+      let taxAmount: number;
+
+      if (isTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        lineExtensionAmount = itemTotalIncl / (1 + (taxRate / 100));
+        unitPrice = lineExtensionAmount / qty;
+        taxAmount = itemTotalIncl - lineExtensionAmount;
+      } else {
+        lineExtensionAmount = qty * price;
+        unitPrice = price;
+        taxAmount = (lineExtensionAmount * taxRate) / 100;
+      }
+
+      return {
+        Id: (index + 1).toString(),
+        Name: item.product_name,
+        Quantity: qty,
+        UnitCode: item.unit_code || UNIT_CODES.PIECE,
+        Price: unitPrice,
+        LineExtensionAmount: lineExtensionAmount,
+        Taxes: [
+          {
+            TaxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxRate: taxRate,
+            TaxAmount: taxAmount,
+            TaxableAmount: lineExtensionAmount,
+            WithholdingRate: item.tevkifat_rate ? item.tevkifat_rate : undefined
+          }
+        ]
+      };
+    });
+
     // Construct UBL JSON Data matching MySoft standard payload
     const ublData = {
        Id: invoice.document_number, 
@@ -150,14 +191,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        IssueTime: formattedTime,
        Notes: [(invoice.notes || ""), invoice.waybill_number ? `İrsaliye No: ${invoice.waybill_number}` : ""].filter(Boolean),
        
-       // SENDER ALIAS INFO
        SenderAlias: settings.sender_alias || 'urn:mail:defaultgb@default.com',
        ReceiverAlias: settings.receiver_alias || 'urn:mail:defaultpk@default.com',
        TenantId: settings.tenant_id,
        
-       // RECEIVER (CUSTOMER OR COMPANY)
        Receiver: {
-          VknTckn: taxNumber.replace(/\D/g, ''), // Digits only
+          VknTckn: taxNumber.replace(/\D/g, ''),
           Title: isCorporate ? customerTitle : undefined,
           Name: !isCorporate ? name : undefined,
           Surname: !isCorporate ? surname : undefined,
@@ -165,44 +204,17 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           Address: {
              Room: "",
              StreetName: address,
-             CityName: "Bilinmeyen", // Hardcoding basic requirement, UI doesn't explicitly store city often
+             CityName: "Bilinmeyen",
              CountryName: "Türkiye"
           }
        },
 
-       // TOTALS
-       LineExtensionAmount: Number(invoice.total_amount),
-       TaxExclusiveAmount: Number(invoice.total_amount),
-       TaxInclusiveAmount: Number(invoice.grand_total),
-       PayableAmount: Number(invoice.grand_total),
+       LineExtensionAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount, 0),
+       TaxExclusiveAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount, 0),
+       TaxInclusiveAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount + line.Taxes[0].TaxAmount, 0),
+       PayableAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount + line.Taxes[0].TaxAmount, 0),
        
-       // LINES
-       Lines: items.map((item, index) => {
-          const qty = Number(item.quantity) || 1;
-          const price = Number(item.unit_price) || 0;
-          const taxRate = Number(item.tax_rate) || 0;
-          const lineTotal = qty * price;
-          const taxAmount = (lineTotal * taxRate) / 100;
-
-          return {
-            Id: (index + 1).toString(),
-            Name: item.product_name,
-            Quantity: qty,
-            UnitCode: item.unit_code || UNIT_CODES.PIECE,
-            Price: price,
-            LineExtensionAmount: lineTotal,
-            Taxes: [
-              {
-                TaxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
-                TaxRate: item.tax_rate,
-                TaxAmount: taxAmount,
-                TaxableAmount: lineTotal,
-                // Tevkifat info if applicable
-                WithholdingRate: item.tevkifat_rate ? item.tevkifat_rate : undefined
-              }
-            ]
-          };
-       })
+       Lines: Lines
     };
 
     // Sending

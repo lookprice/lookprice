@@ -24,7 +24,9 @@ import {
   Share2,
   ExternalLink,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  CircleDot,
+  Zap
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "../../translations";
@@ -115,8 +117,7 @@ const ProductsTab = ({
     if (publishingId === product.id) return;
     try {
       setPublishingId(product.id);
-      const res = await api.publishPazaramaProduct(product.id);
-      // Fixed: api returns common JSON response directly, not wrapped in .data (unless axios was used)
+      const res = await api.publishPazaramaProduct(product.id, currentStoreId);
       if (res && res.success) {
         toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla Pazarama'ya aktarıldı." : "Product published to Pazarama successfully."));
       } else {
@@ -124,6 +125,57 @@ const ProductsTab = ({
       }
     } catch (e: any) {
       toast.error(e.message || "Pazarama aktarım hatası");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handlePublishToTrendyol = async (product: any) => {
+    if (publishingId === product.id) return;
+    try {
+      setPublishingId(product.id);
+      const res = await api.publishTrendyolProduct(product.id, currentStoreId);
+      if (res && res.success) {
+        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla Trendyol'a aktarıldı." : "Product published to Trendyol successfully."));
+      } else {
+        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Trendyol aktarım hatası");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handlePublishToN11 = async (product: any) => {
+    if (publishingId === product.id) return;
+    try {
+      setPublishingId(product.id);
+      const res = await api.publishN11Product(product.id, currentStoreId);
+      if (res && res.success) {
+        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla N11'e aktarıldı." : "Product published to N11 successfully."));
+      } else {
+        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+      }
+    } catch (e: any) {
+      toast.error(e.message || "N11 aktarım hatası");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handlePublishToHepsiburada = async (product: any) => {
+    if (publishingId === product.id) return;
+    try {
+      setPublishingId(product.id);
+      const res = await api.publishHepsiburadaProduct(product.id, currentStoreId);
+      if (res && res.success) {
+        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla Hepsiburada'ya aktarıldı." : "Product published to Hepsiburada successfully."));
+      } else {
+        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Hepsiburada aktarım hatası");
     } finally {
       setPublishingId(null);
     }
@@ -508,22 +560,96 @@ const ProductsTab = ({
                                       </div>
                                     </button>
 
-                                    {/* Placeholder for Trendyol */}
+                                    {/* Trendyol */}
                                     <button
-                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group opacity-50 cursor-not-allowed"
+                                      disabled={publishingId === p.id}
+                                      onClick={() => {
+                                        handlePublishToTrendyol(p);
+                                        setOpenMarketMenu(null);
+                                      }}
+                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
                                     >
                                       <div className="flex items-center gap-3">
-                                        <div className="p-1.5 bg-orange-100 text-orange-700 rounded-lg">
+                                        <div className={`p-1.5 rounded-lg transition-colors ${p.trendyol_id ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
                                           <Package className="h-4 w-4" />
                                         </div>
                                         <div className="text-left">
                                           <p className="text-xs font-bold text-slate-700">Trendyol</p>
-                                          <p className="text-[10px] text-slate-400">{lang === 'tr' ? 'Çok Yakında' : 'Coming Soon'}</p>
+                                          <p className={`text-[10px] ${p.trendyol_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                            {p.trendyol_last_error 
+                                              ? (lang === 'tr' ? `HATA: ${p.trendyol_last_error.substring(0, 30)}...` : `ERROR: ${p.trendyol_last_error.substring(0, 30)}...`)
+                                              : (p.trendyol_id 
+                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                          </p>
                                         </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {p.trendyol_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
                                       </div>
                                     </button>
 
-                                    {/* Placeholder for Amazon */}
+                                    {/* N11 */}
+                                    <button
+                                      disabled={publishingId === p.id}
+                                      onClick={() => {
+                                        handlePublishToN11(p);
+                                        setOpenMarketMenu(null);
+                                      }}
+                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className={`p-1.5 rounded-lg transition-colors ${p.n11_id ? 'bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                                          <CircleDot className="h-4 w-4" />
+                                        </div>
+                                        <div className="text-left">
+                                          <p className="text-xs font-bold text-slate-700">N11</p>
+                                          <p className={`text-[10px] ${p.n11_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                            {p.n11_last_error 
+                                              ? (lang === 'tr' ? `HATA: ${p.n11_last_error.substring(0, 30)}...` : `ERROR: ${p.n11_last_error.substring(0, 30)}...`)
+                                              : (p.n11_id 
+                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {p.n11_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
+                                        {p.n11_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                                      </div>
+                                    </button>
+
+                                    {/* Hepsiburada */}
+                                    <button
+                                      disabled={publishingId === p.id}
+                                      onClick={() => {
+                                        handlePublishToHepsiburada(p);
+                                        setOpenMarketMenu(null);
+                                      }}
+                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className={`p-1.5 rounded-lg transition-colors ${p.is_hepsiburada_active ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                                          <Zap className="h-4 w-4" />
+                                        </div>
+                                        <div className="text-left">
+                                          <p className="text-xs font-bold text-slate-700">Hepsiburada</p>
+                                          <p className={`text-[10px] ${p.hepsiburada_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                            {p.hepsiburada_last_error 
+                                              ? (lang === 'tr' ? `HATA: ${p.hepsiburada_last_error.substring(0, 30)}...` : `ERROR: ${p.hepsiburada_last_error.substring(0, 30)}...`)
+                                              : (p.is_hepsiburada_active 
+                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {p.hepsiburada_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
+                                        {p.is_hepsiburada_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                                      </div>
+                                    </button>
+
+                                    {/* Amazon */}
                                     <button
                                       className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group opacity-50 cursor-not-allowed"
                                     >

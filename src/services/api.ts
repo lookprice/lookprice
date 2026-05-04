@@ -325,6 +325,11 @@ export const api = {
   syncPazaramaOrders: (storeId?: number) => api.post("/api/integrations/pazarama/sync", { storeId }),
   disconnectPazarama: (storeId?: number) => api.post("/api/integrations/pazarama/disconnect", { storeId }),
   publishPazaramaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/pazarama/publish", { productId, storeId }),
+  publishTrendyolProduct: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/publish", { productId, storeId }),
+  publishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/publish", { productId, storeId }),
+  publishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/publish", { productId, storeId }),
+  getTrendyolCategories: () => api.get("/api/integrations/trendyol/categories"),
+  getTrendyolBrands: (page?: number, size?: number) => api.get(`/api/integrations/trendyol/brands${(page !== undefined || size !== undefined) ? `?${page !== undefined ? `page=${page}` : ''}${size !== undefined ? `&size=${size}` : ''}` : ''}`),
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
   getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
 

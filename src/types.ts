@@ -152,7 +152,7 @@ export interface Quotation {
   tax_office?: string;
   payment_method?: string;
   due_date?: string;
-  tax_inclusive?: boolean;
+  is_tax_inclusive?: boolean;
 }
 
 export interface QuotationItem {

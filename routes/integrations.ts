@@ -222,11 +222,22 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           );
           const saleId = saleRes.rows[0].id;
 
+          // Fetch Amazon Order Items
+          let orderItems = [];
+          try {
+            const itemsRes = await axios.get(`${AMAZON_API_ENDPOINT}/orders/v0/orders/${order.AmazonOrderId}/orderItems`, {
+              headers: { 'x-amz-access-token': accessToken }
+            });
+            orderItems = itemsRes.data.payload.OrderItems || [];
+          } catch (itemErr) {
+            console.error(`Failed to fetch items for Amazon order ${order.AmazonOrderId}:`, itemErr);
+          }
+
           // Create Sales Invoice
           const invoiceNumber = `AMZ-${order.AmazonOrderId}`;
-          const totalAmount = parseFloat(order.OrderTotal?.Amount || 0);
-          const taxAmount = totalAmount * 0.20; // Default 20% tax
-          const grandTotal = totalAmount;
+          const totalAmountFloat = parseFloat(order.OrderTotal?.Amount || 0);
+          const taxAmount = totalAmountFloat * 0.20; // Default 20% tax
+          const grandTotal = totalAmountFloat;
           const subtotal = grandTotal - taxAmount;
 
           const invoiceRes = await client.query(
@@ -235,10 +246,7 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          // Note: Amazon SP-API requires a separate call to get order items. 
-          // For now, we'll use a generic item unless order.items is populated.
-          const lines = order.items || [];
-          const mappedLines = lines.map((l: any) => ({
+          const mappedLines = orderItems.map((l: any) => ({
             name: l.Title || `Amazon Sipariş Kalemi (${order.AmazonOrderId})`,
             quantity: l.QuantityOrdered || 1,
             price: l.ItemPrice?.Amount ? parseFloat(l.ItemPrice.Amount) / (l.QuantityOrdered || 1) : subtotal,
@@ -345,6 +353,10 @@ router.get("/n11/settings", authenticate, async (req: any, res) => {
   }
 });
 
+import { parseStringPromise } from 'xml2js';
+
+// ... existing code ...
+
 // 3. Sync N11 Orders
 router.post("/n11/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
@@ -357,12 +369,12 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "N11 API bilgileri eksik" });
     }
 
-    // N11 SOAP Request for OrderList
+    // N11 SOAP Request for Detailed Order List
     const soapEnvelope = `
       <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/OrderService">
          <soapenv:Header/>
          <soapenv:Body>
-            <sch:OrderListRequest>
+            <sch:DetailedOrderListRequest>
                <auth>
                   <appKey>${settings.appKey}</appKey>
                   <appSecret>${settings.appSecret}</appSecret>
@@ -370,7 +382,7 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
                <searchData>
                   <status>New</status>
                </searchData>
-            </sch:OrderListRequest>
+            </sch:DetailedOrderListRequest>
          </soapenv:Body>
       </soapenv:Envelope>
     `;
@@ -380,13 +392,20 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
       headers: { 'Content-Type': 'text/xml;charset=UTF-8' }
     });
 
-    // XML Yanıtını ayrıştırma (Burada gerçek bir XML parser kullanılmalıdır)
-    // Örnek olarak gelen veriyi işlediğimizi varsayıyoruz
-    const n11Orders = []; // response.data'dan parse edilecek
+    const parsedResult = await parseStringPromise(response.data, { explicitArray: false, ignoreAttrs: true });
+    const orderListResponse = parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['DetailedOrderListResponse'];
+    
+    if (orderListResponse.result.status === 'failure') {
+      return res.status(400).json({ error: orderListResponse.result.errorMessage });
+    }
+
+    const n11OrdersRaw = orderListResponse.orderList?.order;
+    const n11Orders = Array.isArray(n11OrdersRaw) ? n11OrdersRaw : (n11OrdersRaw ? [n11OrdersRaw] : []);
 
     let syncedCount = 0;
     for (const order of n11Orders) {
-      const existing = await pool.query("SELECT id FROM n11_orders WHERE store_id = $1 AND n11_order_id = $2", [storeId, order.id]);
+      const orderId = order.id;
+      const existing = await pool.query("SELECT id FROM n11_orders WHERE store_id = $1 AND n11_order_id = $2", [storeId, orderId]);
       if (existing.rows.length === 0) {
         const client = await pool.connect();
         try {
@@ -394,59 +413,59 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
 
           // Find or create customer
           let customerId = null;
-          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
+          const buyer = order.buyer || {};
+          const customerEmail = buyer.email || `${orderId}@n11.com`;
+          const customerName = buyer.fullName || "N11 Müşterisi";
+
+          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
           if (custRes.rows.length > 0) {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
-              [storeId, order.email, 'marketplace_user', order.customer]
+              "INSERT INTO customers (store_id, email, password, full_name, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+              [storeId, customerEmail, 'marketplace_user', customerName, buyer.mobilePhone || '']
             );
             customerId = newCust.rows[0].id;
           }
 
+          const totalAmount = parseFloat(order.totalAmount || 0);
           const saleRes = await client.query(
             "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'N11 Satış', `N11 Siparişi: ${order.id}`]
+            [storeId, totalAmount, 'TRY', 'completed', customerName, customerId, 'N11 Satış', `N11 Siparişi: ${orderId}`]
           );
           const saleId = saleRes.rows[0].id;
 
           // Create Sales Invoice
-          const invoiceNumber = `N11-${order.id}`;
-          const totalAmount = parseFloat(order.total);
+          const invoiceNumber = `N11-${orderId}`;
           const taxAmount = totalAmount * 0.20;
           const grandTotal = totalAmount;
           const subtotal = grandTotal - taxAmount;
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', `N11 Siparişi: ${order.id}`, 'marketplace', 'completed']
+            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'N11 Satış', `N11 Siparişi: ${orderId}`, 'marketplace', 'completed']
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
           // Process order lines
-          const lines = order.itemList?.item || [];
-          const mappedLines = (Array.isArray(lines) ? lines : [lines]).map((l: any) => ({
-            name: l.productName || `N11 Sipariş Kalemi (${order.id})`,
-            quantity: l.quantity || 1,
-            price: l.price || subtotal,
-            barcode: l.sellerStockCode, // Using sellerStockCode as barcode fallback
+          const itemList = order.itemList?.item || [];
+          const lines = Array.isArray(itemList) ? itemList : [itemList];
+          const mappedLines = lines.map((l: any) => ({
+            name: l.productName || `N11 Sipariş Kalemi (${orderId})`,
+            quantity: parseInt(l.quantity) || 1,
+            price: parseFloat(l.price) || 0,
+            barcode: l.sellerStockCode, 
             sku: l.sellerStockCode,
             taxRate: 20
           }));
 
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', order.id);
-          } else {
-            await client.query(
-              "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-              [salesInvoiceId, `N11 Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
-            );
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId);
           }
 
           await client.query(
             "INSERT INTO n11_orders (store_id, n11_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
-            [storeId, order.id, saleId, salesInvoiceId, 'New', order]
+            [storeId, orderId, saleId, salesInvoiceId, 'New', order]
           );
 
           await client.query("COMMIT");
@@ -465,7 +484,75 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
     console.error("N11 Sync Error:", error.message);
-    res.status(500).json({ error: "N11 siparişleri senkronize edilemedi" });
+    res.status(500).json({ error: "N11 siparişleri senkronize edilemedi: " + error.message });
+  }
+});
+
+// 3.1 N11 Product Publishing
+router.post("/n11/publish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, categoryId, attributes } = req.body;
+
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) {
+      return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    }
+
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    if (prodRes.rows.length === 0) return res.status(404).json({ error: "Ürün bulunamadı" });
+    const product = prodRes.rows[0];
+
+    // SOAP request for SaveProduct
+    // This is a simplified version, N11 requires much more detail (stock items, images etc)
+    const soapEnvelope = `
+      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/ProductService">
+         <soapenv:Header/>
+         <soapenv:Body>
+            <sch:SaveProductRequest>
+               <auth>
+                  <appKey>${settings.appKey}</appKey>
+                  <appSecret>${settings.appSecret}</appSecret>
+               </auth>
+               <product>
+                  <productSellerCode>${product.sku || product.id}</productSellerCode>
+                  <title>${product.name}</title>
+                  <subtitle>${product.name.substring(0, 45)}</subtitle>
+                  <description><![CDATA[${product.description || product.name}]]></description>
+                  <category>
+                     <id>${categoryId || '1000001'}</id> 
+                  </category>
+                  <price>${product.sale_price}</price>
+                  <currencyType>1</currencyType>
+                  <stockItems>
+                     <stockItem>
+                        <sellerStockCode>${product.sku || product.id}</sellerStockCode>
+                        <quantity>${product.stock_quantity}</quantity>
+                     </stockItem>
+                  </stockItems>
+               </product>
+            </sch:SaveProductRequest>
+         </soapenv:Body>
+      </soapenv:Envelope>
+    `;
+
+    const response = await axios.post("https://api.n11.com/ws/ProductService.wsdl", soapEnvelope, {
+      headers: { 'Content-Type': 'text/xml;charset=UTF-8' }
+    });
+
+    const parsedResult = await parseStringPromise(response.data, { explicitArray: false, ignoreAttrs: true });
+    const saveRes = parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['SaveProductResponse'];
+
+    if (saveRes.result.status === 'success') {
+      await pool.query("UPDATE products SET n11_id = $1 WHERE id = $2", [saveRes.product.id, productId]);
+      res.json({ success: true, n11Id: saveRes.product.id });
+    } else {
+      res.status(400).json({ error: saveRes.result.errorMessage });
+    }
+  } catch (error: any) {
+    console.error("N11 Publish Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "N11'de ürün yayınlanamadı" });
   }
 });
 
@@ -629,6 +716,44 @@ router.post("/hepsiburada/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
+// 5. Publish Product to Hepsiburada
+router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey) return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    const payload = [{
+      HepsiburadaSku: p.hepsiburada_sku || "",
+      MerchantSku: p.barcode,
+      Price: parseFloat(p.price),
+      AvailableStock: parseInt(p.stock_quantity),
+      DispatchTime: 1
+    }];
+
+    try {
+      const response = await axios.post(`https://listing-external-v2-gw-prod.hepsiburada.com/inventory/import/${settings.merchantId}`, payload, {
+        headers: { 'Authorization': `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}` }
+      });
+      await pool.query("UPDATE products SET is_hepsiburada_active = true WHERE id = $1", [productId]);
+      res.json({ success: true, data: response.data });
+    } catch (e: any) {
+       const errMsg = e.response?.data?.message || e.message;
+       await pool.query("UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2", [errMsg, productId]);
+       res.status(400).json({ error: errMsg });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- Trendyol Integration ---
 
 // 1. Save Trendyol Settings
@@ -777,6 +902,79 @@ router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
+// 5. Publish Product to Trendyol
+router.post("/trendyol/publish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+
+  try {
+    const storeRes = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.trendyol_settings;
+    if (!settings || !settings.apiKey) return res.status(400).json({ error: "Trendyol API bilgileri eksik" });
+
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    const payload = {
+      items: [{
+        barcode: p.barcode,
+        title: p.name,
+        productMainId: p.barcode,
+        brandId: 1, 
+        categoryId: 1, 
+        quantity: parseInt(p.stock_quantity) || 0,
+        stockCode: p.barcode,
+        dimensionalWeight: 1,
+        description: p.description || p.name,
+        currencyType: "TRY",
+        listPrice: parseFloat(p.price) || 0,
+        salePrice: parseFloat(p.price) || 0,
+        vatRate: parseInt(p.tax_rate) || 20,
+        cargoCompanyId: 1,
+        images: p.image_url ? [{ url: p.image_url }] : [],
+        attributes: []
+      }]
+    };
+
+    try {
+      const response = await axios.post(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/v2/products`, payload, {
+        auth: { username: settings.apiKey, password: settings.apiSecret }
+      });
+      await pool.query("UPDATE products SET is_trendyol_active = true, trendyol_id = $1 WHERE id = $2", [response.data.batchRequestId, productId]);
+      res.json({ success: true, batchRequestId: response.data.batchRequestId });
+    } catch (e: any) {
+      const errMsg = e.response?.data?.errors?.[0]?.message || e.message;
+      await pool.query("UPDATE products SET trendyol_last_error = $1 WHERE id = $2", [errMsg, productId]);
+      res.status(400).json({ error: errMsg });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6. Get Trendyol Categories
+router.get("/trendyol/categories", authenticate, async (req: any, res) => {
+  try {
+    const response = await axios.get("https://api.trendyol.com/sapigw/product-categories");
+    res.json(response.data.categories || []);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 7. Get Trendyol Brands
+router.get("/trendyol/brands", authenticate, async (req: any, res) => {
+  const page = req.query.page || 0;
+  const size = req.query.size || 1000;
+  try {
+    const response = await axios.get(`https://api.trendyol.com/sapigw/brands?page=${page}&size=${size}`);
+    res.json(response.data.brands || []);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- Pazarama Integration ---
 
 // 1. Save Pazarama Settings
@@ -829,76 +1027,115 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Pazarama API bilgileri eksik" });
     }
 
-    // Mocking Pazarama response for demo purposes
-    if (settings.apiKey.includes("demo") || settings.apiKey.includes("test")) {
-      const mockOrders = [
-        { id: "PZ-" + Math.floor(Math.random() * 100000), total: 520.00, customer: "Mert Aksoy", email: "mert@example.com" },
-        { id: "PZ-" + Math.floor(Math.random() * 100000), total: 185.50, customer: "Ece Yılmaz", email: "ece@example.com" }
-      ];
+    // Real Pazarama API Call
+    let pzOrders = [];
+    const authHeader = `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
+    
+    try {
+      const pzRes = await axios.post("https://isortagimapi.pazarama.com/api/v1/Order/GetOrders", {
+        PageSize: 100,
+        PageIndex: 1,
+        // Optional: Filter by date if needed
+      }, {
+        headers: {
+          'Authorization': authHeader,
+          'MerchantId': settings.merchantId,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      let syncedCount = 0;
-      for (const order of mockOrders) {
-        const existing = await pool.query("SELECT id FROM pazarama_orders WHERE store_id = $1 AND pazarama_order_id = $2", [storeId, order.id]);
-        if (existing.rows.length === 0) {
-          const client = await pool.connect();
-          try {
-            await client.query("BEGIN");
+      if (pzRes.data && pzRes.data.isSuccess && pzRes.data.data && Array.isArray(pzRes.data.data.items)) {
+        pzOrders = pzRes.data.data.items;
+      }
+    } catch (e: any) {
+      console.error("Pazarama API Order Fetch Error:", e.response?.data || e.message);
+      // If API fails, we skip for now - or could throw error
+    }
 
-            // Find or create customer
-            let customerId = null;
-            const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
-            if (custRes.rows.length > 0) {
-              customerId = custRes.rows[0].id;
-            } else {
-              const newCust = await client.query(
-                "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
-                [storeId, order.email, 'marketplace_user', order.customer]
-              );
-              customerId = newCust.rows[0].id;
-            }
+    let syncedCount = 0;
+    for (const order of pzOrders) {
+      const orderId = order.orderNumber || order.id;
+      const existing = await pool.query("SELECT id FROM pazarama_orders WHERE store_id = $1 AND pazarama_order_id = $2", [storeId, orderId]);
+      if (existing.rows.length === 0) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
 
-            const saleRes = await client.query(
-              "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-              [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'pazarama', `Pazarama Siparişi: ${order.id}`]
+          // Find or create customer
+          let customerId = null;
+          const customerEmail = order.customerEmail || `${orderId}@pazarama.com`;
+          const customerName = order.customerName || order.recipientName || "Pazarama Müşterisi";
+
+          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
+          if (custRes.rows.length > 0) {
+            customerId = custRes.rows[0].id;
+          } else {
+            const newCust = await client.query(
+              "INSERT INTO customers (store_id, email, password, full_name, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+              [storeId, customerEmail, 'marketplace_user', customerName, order.customerPhone || '', order.deliveryAddress || '']
             );
-            const saleId = saleRes.rows[0].id;
+            customerId = newCust.rows[0].id;
+          }
 
-            // Create Sales Invoice
-            const invoiceNumber = `PZ-${order.id}`;
-            const totalAmount = order.total;
-            const taxAmount = totalAmount * 0.20;
-            const grandTotal = totalAmount;
-            const subtotal = grandTotal - taxAmount;
+          const totalAmount = parseFloat(order.totalAmount || order.grandTotal || 0);
+          const saleRes = await client.query(
+            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            [storeId, totalAmount, 'TRY', 'completed', customerName, customerId, 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`]
+          );
+          const saleId = saleRes.rows[0].id;
 
-            const invoiceRes = await client.query(
-              "INSERT INTO sales_invoices (store_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
-              [storeId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'pazarama', `Pazarama Siparişi: ${order.id}`]
-            );
-            const salesInvoiceId = invoiceRes.rows[0].id;
+          // Create Sales Invoice
+          const invoiceNumber = `PZ-${orderId}`;
+          const taxAmount = totalAmount * 0.20;
+          const grandTotal = totalAmount;
+          const subtotal = grandTotal - taxAmount;
 
+          const invoiceRes = await client.query(
+            "INSERT INTO sales_invoices (store_id, customer_id, sale_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+            [storeId, customerId, saleId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'Pazarama Satış', `Pazarama Siparişi: ${orderId}`, 'marketplace', 'completed']
+          );
+          const salesInvoiceId = invoiceRes.rows[0].id;
+
+          // Process order lines
+          const orderItems = order.orderItems || order.items || [];
+          const mappedLines = orderItems.map((l: any) => ({
+            name: l.productName,
+            quantity: l.quantity,
+            price: l.unitPrice || l.price,
+            barcode: l.barcode,
+            sku: l.merchantSku || l.sku,
+            taxRate: l.taxRate || 20
+          }));
+
+          if (mappedLines.length > 0) {
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Pazarama', orderId);
+          } else {
             await client.query(
               "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-              [salesInvoiceId, `Pazarama Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
+              [salesInvoiceId, `Pazarama Sipariş Kalemi (${orderId})`, 1, subtotal, 20, taxAmount, grandTotal]
             );
-
-            await client.query(
-              "INSERT INTO pazarama_orders (store_id, pazarama_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
-              [storeId, order.id, saleId, salesInvoiceId, 'New', order]
-            );
-
-            await client.query("COMMIT");
-            syncedCount++;
-          } catch (e) {
-            await client.query("ROLLBACK");
-            console.error("Pazarama Order Sync Error:", e);
-          } finally {
-            client.release();
           }
+
+          await client.query(
+            "INSERT INTO pazarama_orders (store_id, pazarama_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
+            [storeId, orderId, saleId, salesInvoiceId, 'New', order]
+          );
+
+          await client.query("COMMIT");
+          syncedCount++;
+        } catch (e) {
+          await client.query("ROLLBACK");
+          console.error("Pazarama Order Sync Error:", e);
+        } finally {
+          client.release();
         }
       }
+    }
       
-      const newSettings = { ...settings, last_sync: new Date().toISOString() };
-      await pool.query("UPDATE stores SET pazarama_settings = $1 WHERE id = $2", [newSettings, storeId]);
+    const newSettings = { ...settings, last_sync: new Date().toISOString() };
+    await pool.query("UPDATE stores SET pazarama_settings = $1 WHERE id = $2", [newSettings, storeId]);
+    
+    if (syncedCount > 0) {
       return res.json({ success: true, count: syncedCount });
     }
 

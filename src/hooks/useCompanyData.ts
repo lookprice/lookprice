@@ -10,12 +10,14 @@ export const useCompanyData = (currentStoreId: number | undefined, includeZeroBa
   const fetchCompanies = useCallback(async () => {
     if (!currentStoreId) return;
     try {
-      const res = await api.getCompanies(includeZeroBalance, currentStoreId);
+      // Always fetch all companies so that autocomplete in Quote/POS forms works for 0-balance customers.
+      // The Companies tab does client-side filtering based on includeZeroBalance anyway.
+      const res = await api.getCompanies(true, currentStoreId);
       setCompanies(Array.isArray(res) ? res : []);
     } catch (error) {
       console.error("Fetch companies error:", error);
     }
-  }, [currentStoreId, includeZeroBalance]);
+  }, [currentStoreId]);
 
   const handleFetchTransactions = async (companyId: number, targetStoreId: number | undefined) => {
     try {

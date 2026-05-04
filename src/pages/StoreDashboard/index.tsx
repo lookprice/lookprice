@@ -231,6 +231,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     selectedQuotationDetails, setSelectedQuotationDetails,
     showQuotationDetailsModal, setShowQuotationDetailsModal,
     isTaxInclusive, setIsTaxInclusive,
+    quotationNotes, setQuotationNotes,
     fetchQuotations,
     handleQuickAddProduct,
     handleAddQuotation,
@@ -353,28 +354,35 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   useEffect(() => {
     if (editingQuotation) {
-      setIsTaxInclusive(!!editingQuotation.tax_inclusive);
+      setIsTaxInclusive(!!editingQuotation.is_tax_inclusive);
+      setQuotationNotes(editingQuotation.notes || "");
     } else {
-      setIsTaxInclusive(false);
+      setIsTaxInclusive(true);
     }
   }, [editingQuotation]);
 
   useEffect(() => {
-    if (showQuotationModal && !editingQuotation) {
-      if (isTaxInclusive) {
-        // Find if notes is default and update
-        const notesTextArea = document.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
-        if (notesTextArea && (notesTextArea.value === '' || notesTextArea.value.includes('Vergi Oranı Boş Bırakılmıştır'))) {
-          notesTextArea.value = lang === 'tr' ? '*Fiyatlarımıza Vergiler Dahildir!' : '*Prices Include Taxes!';
-        }
-      } else {
-        const notesTextArea = document.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
-        if (notesTextArea && (notesTextArea.value === '' || notesTextArea.value.includes('Vergiler Dahildir'))) {
-          notesTextArea.value = lang === 'tr' ? '*Fiyatlarımıza KDV Dahil Değildir. Vergi Oranı Ürün Satırında Belirtilmiştir.' : '*Prices Exclude VAT. Tax Rates are Specified in Product Lines.';
+    if (showQuotationModal) {
+      const trDahil = '*Fiyatlarımıza Vergiler Dahildir!';
+      const trHaric = '*Fiyatlarımıza KDV Dahil Değildir. Vergi Oranı Ürün Satırında Belirtilmiştir.';
+      const enDahil = '*Prices Include Taxes!';
+      const enHaric = '*Prices Exclude VAT. Tax Rates are Specified in Product Lines.';
+      
+      const isDefault = quotationNotes === '' || 
+                        quotationNotes === trDahil || 
+                        quotationNotes === trHaric ||
+                        quotationNotes === enDahil ||
+                        quotationNotes === enHaric;
+
+      if (isDefault) {
+        if (isTaxInclusive) {
+          setQuotationNotes(lang === 'tr' ? trDahil : enDahil);
+        } else {
+          setQuotationNotes(lang === 'tr' ? trHaric : enHaric);
         }
       }
     }
-  }, [isTaxInclusive, showQuotationModal, editingQuotation, lang]);
+  }, [isTaxInclusive, showQuotationModal, lang, editingQuotation]);
 
   const [showQrModal, setShowQrModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -545,13 +553,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const quotationPrintRef = useRef<HTMLDivElement>(null);
   const handleDownloadQuotationPDF = async (quotation: any) => {
+    if (!quotation) return;
+    
     let qData = quotation;
+    // If quotation missing items, fetch it.
     if (!quotation.items || quotation.items.length === 0) {
       try {
-        qData = await api.getQuotation(quotation.id, currentStoreId);
+        const response = await api.getQuotation(quotation.id, currentStoreId);
+        // Handle both direct object and {data: object} patterns
+        qData = response.id ? response : (response.data || response);
       } catch (error) {
         console.error("Fetch quotation error for PDF:", error);
       }
+    }
+
+    if (!qData || !qData.id) {
+       alert(lang === 'tr' ? "Teklif verileri alınamadı." : "Could not fetch quotation data.");
+       return;
     }
 
     const doc = new jsPDF();
@@ -707,7 +725,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     let grandTotal = subtotal;
 
     // Summary Section
-    if (qData.tax_inclusive) {
+    if (qData.is_tax_inclusive) {
       doc.setDrawColor(230);
       doc.line(130, finalY, 196, finalY);
       finalY += 4;
@@ -1999,26 +2017,30 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                   </div>
                   <div className="w-full md:w-80 space-y-3">
-                    {selectedQuotationDetails.tax_inclusive ? (
-                      <>
-                        <div className="flex justify-between text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                          <span>{t.grandTotal || "Genel Toplam"}</span>
-                          <span className="text-indigo-600 text-lg font-black">
-                            {Number(selectedQuotationDetails.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-right text-slate-400 font-bold italic">
-                          {isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."}
-                        </div>
-                        <div className="text-[10px] text-right text-slate-500 font-bold italic pt-2">
-                          {isTr ? 'Yalnızca:' : 'Only:'} {numberToTurkishWords(Number(selectedQuotationDetails.total_amount), selectedQuotationDetails.currency)}
-                        </div>
-                      </>
+                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+                      <span>{selectedQuotationDetails.is_tax_inclusive ? (t.grandTotal || "Genel Toplam") : (isTr ? "Toplam (Vergi Hariç)" : "Total (Excl. Tax)")}</span>
+                      <span className="text-indigo-600 text-lg font-black">
+                        {(() => {
+                          const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
+                          return sub.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+                        })()} {selectedQuotationDetails.currency?.slice(0, 3)}
+                      </span>
+                    </div>
+                    {selectedQuotationDetails.is_tax_inclusive ? (
+                      <div className="text-[10px] text-right text-slate-400 font-bold italic">
+                        {isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."}
+                      </div>
                     ) : (
-                      <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-indigo-700 text-xs font-bold text-center">
-                        {isTr ? "Fiyatlara KDV dahil değildir. Vergi oranları ürün satırlarında belirtilmiştir." : "Prices exclude VAT. Tax rates are specified in product rows."}
+                      <div className="text-[10px] text-right text-indigo-500 font-bold italic">
+                        {isTr ? "* Fiyatlara KDV dahil değildir." : "* Prices exclude VAT."}
                       </div>
                     )}
+                    <div className="text-[10px] text-right text-slate-500 font-bold italic pt-2">
+                       {isTr ? 'Yalnızca:' : 'Only:'} {(() => {
+                         const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
+                         return numberToTurkishWords(sub, selectedQuotationDetails.currency);
+                       })()}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3815,8 +3837,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     ))}
                   </div>
                 </div>
+              </div>
 
-                <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4">
                   <button 
                     type="button"
                     onClick={() => setShowNotes(!showNotes)}
@@ -3829,12 +3852,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   <div className={`${showNotes ? 'block' : 'hidden'}`}>
                     <textarea 
                       name="notes" 
-                      defaultValue={editingQuotation?.notes || (lang === 'tr' ? '*Fiyatlarımıza Vergiler Dahildir!' : '*Prices Include Taxes!')} 
+                      value={quotationNotes}
+                      onChange={(e) => setQuotationNotes(e.target.value)}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all h-24 resize-none text-sm" 
                       placeholder={t.notesPlaceholder}
                     />
-                  </div>
-                </div>
                   </div>
                 </div>
 

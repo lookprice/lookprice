@@ -66,24 +66,42 @@ export const useQuotationActions = (
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
 
-    const quotationData = {
-      customer_name: data.customer_name,
-      customer_title: data.customer_title,
-      total_amount: quotationItems.reduce((sum: number, item: any) => sum + Number(item.total_price), 0),
-      currency: data.currency,
-      exchange_rate: data.exchange_rate ? Number(String(data.exchange_rate).replace(',', '.')) : 1,
-      notes: data.notes,
-      items: quotationItems,
-      company_id: data.company_id ? parseInt(String(data.company_id)) : null,
-      tax_number: data.tax_number,
-      tax_office: data.tax_office,
-      expiry_date: data.expiry_date,
-      payment_method: data.payment_method,
-      due_date: data.due_date,
-      tax_inclusive: isTaxInclusive
-    };
-
     const savePromise = (async () => {
+      let companyId = data.company_id ? parseInt(String(data.company_id)) : null;
+
+      // Auto-create company if not selected and name is provided
+      if (!companyId && data.customer_name) {
+        try {
+          const newCompany = await api.addCompany({
+            title: data.customer_name as string,
+            representative: data.customer_title as string,
+            tax_office: data.tax_office as string,
+            tax_number: data.tax_number as string,
+            currency: data.currency as string || 'TRY',
+          }, currentStoreId || undefined);
+          companyId = newCompany.id;
+        } catch (err) {
+          console.error("Failed to auto-create company:", err);
+        }
+      }
+
+      const quotationData = {
+        customer_name: data.customer_name,
+        customer_title: data.customer_title,
+        total_amount: quotationItems.reduce((sum: number, item: any) => sum + Number(item.total_price), 0),
+        currency: data.currency,
+        exchange_rate: data.exchange_rate ? Number(String(data.exchange_rate).replace(',', '.')) : 1,
+        notes: data.notes,
+        items: quotationItems,
+        company_id: companyId,
+        tax_number: data.tax_number,
+        tax_office: data.tax_office,
+        expiry_date: data.expiry_date,
+        payment_method: data.payment_method,
+        due_date: data.due_date,
+        is_tax_inclusive: isTaxInclusive
+      };
+
       let res;
       if (editingQuotation) {
         res = await api.updateQuotation(editingQuotation.id, quotationData, currentStoreId || undefined);

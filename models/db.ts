@@ -550,6 +550,8 @@ export async function initDb() {
       );
 
       -- Update stores table if needed
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;
+      ALTER TABLE quotations ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS phone TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS country TEXT;
       ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'TR';
@@ -749,9 +751,6 @@ export async function initDb() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='exchange_rate') THEN
           ALTER TABLE quotations ADD COLUMN exchange_rate DECIMAL(12,4) DEFAULT 1;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='tax_inclusive') THEN
-          ALTER TABLE quotations ADD COLUMN tax_inclusive BOOLEAN DEFAULT FALSE;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotations' AND column_name='tax_number') THEN
           ALTER TABLE quotations ADD COLUMN tax_number TEXT;
@@ -1026,6 +1025,20 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='author') THEN
           ALTER TABLE products ADD COLUMN author TEXT;
         END IF;
+
+        -- Marketplace Columns
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_id TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS is_pazarama_active BOOLEAN DEFAULT FALSE;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_last_error TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS trendyol_id TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS is_trendyol_active BOOLEAN DEFAULT FALSE;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS trendyol_last_error TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS hepsiburada_sku TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS is_hepsiburada_active BOOLEAN DEFAULT FALSE;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS hepsiburada_last_error TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS n11_id TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS is_n11_active BOOLEAN DEFAULT FALSE;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS n11_last_error TEXT;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='labels') THEN
           ALTER TABLE products ADD COLUMN labels JSONB DEFAULT '[]';
         END IF;

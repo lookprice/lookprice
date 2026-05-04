@@ -1824,7 +1824,7 @@ router.post("/quotations", async (req: any, res) => {
   const client = await pool.connect();
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive, exchange_rate } = req.body;
+    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, is_tax_inclusive, exchange_rate } = req.body;
     
     await client.query("BEGIN");
 
@@ -1848,8 +1848,8 @@ router.post("/quotations", async (req: any, res) => {
     }
     
     const quotRes = await client.query(
-      "INSERT INTO quotations (store_id, customer_name, customer_title, total_amount, currency, notes, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
-      [storeId, customer_name, customer_title, total_amount, currency, notes, finalCompanyId || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false, exchange_rate || 1]
+      "INSERT INTO quotations (store_id, customer_name, customer_title, total_amount, currency, notes, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, is_tax_inclusive, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
+      [storeId, customer_name, customer_title, total_amount, currency, notes, finalCompanyId || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, is_tax_inclusive !== undefined ? is_tax_inclusive : true, exchange_rate || 1]
     );
     const quotationId = quotRes.rows[0].id;
     
@@ -1875,13 +1875,13 @@ router.put("/quotations/:id", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
     const { id } = req.params;
-    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, tax_inclusive, exchange_rate } = req.body;
+    const { customer_name, customer_title, total_amount, currency, notes, items, company_id, expiry_date, payment_method, due_date, tax_number, tax_office, is_tax_inclusive, exchange_rate } = req.body;
     
     await client.query("BEGIN");
     
     const quotRes = await client.query(
-      "UPDATE quotations SET customer_name = $1, customer_title = $2, total_amount = $3, currency = $4, notes = $5, company_id = $6, expiry_date = $7, payment_method = $8, due_date = $9, tax_number = $10, tax_office = $11, tax_inclusive = $12, exchange_rate = $13 WHERE id = $14 AND store_id = $15 RETURNING id",
-      [customer_name, customer_title, total_amount, currency, notes, company_id || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, tax_inclusive || false, exchange_rate || 1, id, storeId]
+      "UPDATE quotations SET customer_name = $1, customer_title = $2, total_amount = $3, currency = $4, notes = $5, company_id = $6, expiry_date = $7, payment_method = $8, due_date = $9, tax_number = $10, tax_office = $11, is_tax_inclusive = $12, exchange_rate = $13 WHERE id = $14 AND store_id = $15 RETURNING id",
+      [customer_name, customer_title, total_amount, currency, notes, company_id || null, expiry_date || null, payment_method || 'cash', due_date || null, tax_number || null, tax_office || null, is_tax_inclusive !== undefined ? is_tax_inclusive : true, exchange_rate || 1, id, storeId]
     );
     
     if (quotRes.rows.length === 0) {
@@ -2004,7 +2004,7 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
       const branding = storeRes.rows[0]?.branding || {};
 
-      const taxInclusive = quotation.tax_inclusive;
+      const taxInclusive = quotation.is_tax_inclusive;
       
       // Calculate total tax and grand total for sale/invoice
       let totalQuotationTax = 0;
@@ -2982,7 +2982,8 @@ router.post("/sales-invoices", async (req: any, res) => {
       exchange_rate,
       payment_method,
       invoice_type,
-      status
+      status,
+      is_tax_inclusive
     } = req.body;
     
     let storeId = req.user.store_id;
@@ -2991,6 +2992,8 @@ router.post("/sales-invoices", async (req: any, res) => {
     }
 
     if (!storeId) throw new Error("Store ID is required");
+
+    const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
 
     const storeRes = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
     const branding = storeRes.rows[0]?.branding || {};
@@ -3025,24 +3028,40 @@ router.post("/sales-invoices", async (req: any, res) => {
     }
     
     // Calculate totals
-    let total_amount = 0;
+    let total_amount = 0; // tax exclusive total
     let tax_amount = 0;
     let grand_total = 0;
     
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
-      total_amount += itemTotal;
-      tax_amount += itemTax;
-      grand_total += (itemTotal + itemTax);
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      if (finalIsTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        const lineExtensionAmount = itemTotalIncl / (1 + (taxRate / 100));
+        const lineTax = itemTotalIncl - lineExtensionAmount;
+        
+        total_amount += lineExtensionAmount;
+        tax_amount += lineTax;
+        grand_total += itemTotalIncl;
+      } else {
+        const lineExtensionAmount = qty * price;
+        const lineTax = (lineExtensionAmount * taxRate) / 100;
+        const itemTotalIncl = lineExtensionAmount + lineTax;
+        
+        total_amount += lineExtensionAmount;
+        tax_amount += lineTax;
+        grand_total += itemTotalIncl;
+      }
     }
     
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
-      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash', quotation_id || null, e_document_type]
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, is_tax_inclusive) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
+      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash', quotation_id || null, e_document_type, finalIsTaxInclusive]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -3059,8 +3078,21 @@ router.post("/sales-invoices", async (req: any, res) => {
 
     // Insert items and update stock
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      let itemTax = 0;
+      let itemTotal = 0; // tax-exclusive line total for the items table
+
+      if (finalIsTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        itemTotal = itemTotalIncl / (1 + (taxRate / 100));
+        itemTax = itemTotalIncl - itemTotal;
+      } else {
+        itemTotal = qty * price;
+        itemTax = (itemTotal * taxRate) / 100;
+      }
       
       await client.query(
         `INSERT INTO sales_invoice_items 
@@ -3132,7 +3164,9 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate, invoice_type, status } = req.body;
+    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate, invoice_type, status, is_tax_inclusive } = req.body;
+
+    const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
 
     // 1. Get old invoice and items to revert stock
     const oldInvoiceResult = await client.query(
@@ -3181,16 +3215,32 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     }
 
     // 4. Calculate new totals
-    let total_amount = 0;
+    let total_amount = 0; // tax exclusive total
     let tax_amount = 0;
     let grand_total = 0;
     
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
-      total_amount += itemTotal;
-      tax_amount += itemTax;
-      grand_total += (itemTotal + itemTax);
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      if (finalIsTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        const lineExtensionAmount = itemTotalIncl / (1 + (taxRate / 100));
+        const lineTax = itemTotalIncl - lineExtensionAmount;
+        
+        total_amount += lineExtensionAmount;
+        tax_amount += lineTax;
+        grand_total += itemTotalIncl;
+      } else {
+        const lineExtensionAmount = qty * price;
+        const lineTax = (lineExtensionAmount * taxRate) / 100;
+        const itemTotalIncl = lineExtensionAmount + lineTax;
+        
+        total_amount += lineExtensionAmount;
+        tax_amount += lineTax;
+        grand_total += itemTotalIncl;
+      }
     }
     
     // Auto E-Invoice Check
@@ -3227,15 +3277,28 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     // 5. Update invoice
     await client.query(
       `UPDATE sales_invoices 
-       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15
-       WHERE id = $16 AND store_id = $17`,
-      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, e_document_type, req.params.id, storeId]
+       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15, is_tax_inclusive = $16
+       WHERE id = $17 AND store_id = $18`,
+      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, e_document_type, finalIsTaxInclusive, req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock
     for (const item of items) {
-      const itemTotal = Number(item.quantity) * Number(item.unit_price);
-      const itemTax = itemTotal * (Number(item.tax_rate) / 100);
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const taxRate = Number(item.tax_rate) || 0;
+      
+      let itemTax = 0;
+      let itemTotal = 0; // tax-exclusive line total for the items table
+
+      if (finalIsTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        itemTotal = itemTotalIncl / (1 + (taxRate / 100));
+        itemTax = itemTotalIncl - itemTotal;
+      } else {
+        itemTotal = qty * price;
+        itemTax = (itemTotal * taxRate) / 100;
+      }
       
       await client.query(
         `INSERT INTO sales_invoice_items 
