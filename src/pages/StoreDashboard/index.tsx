@@ -546,6 +546,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     try {
       await api.updateBranding(branding, targetStoreId);
+      await fetchData(); // Refresh data to sync state
       alert(t.saveSuccess || (lang === 'tr' ? "Başarıyla kaydedildi" : "Saved successfully"));
     } catch (error) {
       alert("Hata oluştu");
@@ -1336,7 +1337,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         <SettingsTab 
                           branding={branding}
                           products={products}
-                          onBrandingChange={(field, value) => setBranding({ ...branding, [field]: value })}
+                          onBrandingChange={(field, value) => setBranding(prev => ({ ...prev, [field]: value }))}
                           onSaveBranding={handleSaveBranding}
                           onLogoUpload={(e) => handleFileUpload(e, 'logo')}
                           onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}

@@ -112,6 +112,7 @@ export interface Store {
     show_testimonials?: boolean;
     show_newsletter?: boolean;
     enable_live_activity?: boolean;
+    announcement_text?: string;
     theme?: 'modern' | 'minimal' | 'bold';
     theme_variety?: 'modern' | 'minimal' | 'bold' | 'luxury';
     sector?: string;

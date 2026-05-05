@@ -1419,18 +1419,27 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <div className="bg-gray-900 overflow-hidden py-2">
         <div className="flex whitespace-nowrap animate-marquee">
           <div className="flex gap-12 text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] px-4">
-            <span className="flex items-center gap-2">
-              <Package className="w-3 h-3" />
-              {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
-            </span>
-            <span className="flex items-center gap-2">
-              <Globe className="w-3 h-3" />
-              {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
-            </span>
-            <span className="flex items-center gap-2">
-              <RotateCcw className="w-3 h-3" />
-              {lang === 'tr' ? 'Kolay İade' : 'Easy Returns'}
-            </span>
+            {layoutSettings.announcement_text ? (
+                <span className="flex items-center gap-2">
+                  <Package className="w-3 h-3" />
+                  {layoutSettings.announcement_text}
+                </span>
+            ) : (
+                <>
+                    <span className="flex items-center gap-2">
+                      <Package className="w-3 h-3" />
+                      {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Globe className="w-3 h-3" />
+                      {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <RotateCcw className="w-3 h-3" />
+                      {lang === 'tr' ? 'Kolay İade' : 'Easy Returns'}
+                    </span>
+                </>
+            )}
             {/* Repeat for continuous scroll */}
             <span className="flex items-center gap-2">
               <Package className="w-3 h-3" />

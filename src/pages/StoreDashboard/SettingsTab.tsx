@@ -2530,6 +2530,19 @@ const SettingsTab = ({
                   </div>
                 ))}
               </div>
+              
+              {branding.page_layout_settings?.show_announcement !== false && (
+                <div className="mb-6 p-4 bg-white border border-slate-200 rounded-2xl">
+                  <label className="text-xs font-bold text-slate-500 mb-2 block">{lang === 'tr' ? 'Duyuru Metni' : 'Announcement Text'}</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900"
+                    placeholder={lang === 'tr' ? 'Duyuru metnini buraya yazın...' : 'Enter announcement text here...'}
+                    value={branding.page_layout_settings?.announcement_text || ''}
+                    onChange={(e) => onBrandingChange('page_layout_settings', { ...branding.page_layout_settings, announcement_text: e.target.value })}
+                  />
+                </div>
+              )}
 
               <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'TEMA KONSEPTİ' : 'THEME CONCEPT'}</p>
