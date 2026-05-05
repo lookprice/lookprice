@@ -69,8 +69,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{t.email}</label>
+              <label htmlFor="email" className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{t.email}</label>
               <input 
+                id="email"
+                name="email"
                 type="email" 
                 required 
                 value={email}
@@ -81,7 +83,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-medium text-white/50 uppercase tracking-wider">{t.password}</label>
+                <label htmlFor="password" className="block text-xs font-medium text-white/50 uppercase tracking-wider">{t.password}</label>
                 <button 
                   type="button"
                   onClick={() => navigate("/forgot-password")}
@@ -91,6 +93,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 </button>
               </div>
               <input 
+                id="password"
+                name="password"
                 type="password" 
                 required 
                 value={password}

@@ -619,19 +619,28 @@ router.get("/info", async (req: any, res) => {
   const store = storeRes.rows[0];
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings', 'page_layout', 'menu_links', 'shipping_profiles', 'emails', 'phones', 'footer_links', 'meta_settings', 'einvoice_settings'];
+  const jsonFields = ['currency_rates', 'category_tax_rules', 'faq', 'blog_posts', 'legal_pages', 'social_links', 'payment_settings', 'amazon_settings', 'n11_settings', 'hepsiburada_settings', 'trendyol_settings', 'pazarama_settings', 'page_layout', 'menu_links', 'shipping_profiles', 'emails', 'phones', 'footer_links', 'meta_settings', 'einvoice_settings', 'branding'];
   jsonFields.forEach(field => {
     if (typeof store[field] === 'string') {
       try {
         store[field] = JSON.parse(store[field]);
       } catch (e) {
-        store[field] = field === 'currency_rates' ? { "USD": 1, "EUR": 1, "GBP": 1 } : (field === 'legal_pages' || field === 'social_links' || field.endsWith('_settings') ? {} : []);
+        store[field] = field === 'currency_rates' ? { "USD": 1, "EUR": 1, "GBP": 1 } : (field === 'legal_pages' || field === 'social_links' || field.endsWith('_settings') || field === 'branding' ? {} : []);
       }
     } else if (!store[field]) {
-      store[field] = field === 'currency_rates' ? { "USD": 1, "EUR": 1, "GBP": 1 } : (field === 'legal_pages' || field === 'social_links' || field.endsWith('_settings') ? {} : []);
+      store[field] = field === 'currency_rates' ? { "USD": 1, "EUR": 1, "GBP": 1 } : (field === 'legal_pages' || field === 'social_links' || field.endsWith('_settings') || field === 'branding' ? {} : []);
     }
   });
 
+  // Extract branding object to avoid self-overwrite
+  let brandingObj = null;
+  if (store.branding && typeof store.branding === 'object') {
+    brandingObj = { ...store.branding };
+    // DO NOT allow brandingObj to contain 'branding' key to prevent infinite nesting
+    delete brandingObj.branding;
+    Object.assign(store, brandingObj);
+  }
+  
   if (store.parent_id) {
     const parentRes = await pool.query("SELECT name, slug FROM stores WHERE id = $1", [store.parent_id]);
     if (parentRes.rows[0]) {
@@ -663,8 +672,24 @@ router.post("/branding", async (req: any, res) => {
       category_tax_rules, faq, blog_posts, legal_pages, social_links, custom_domain, payment_settings,
       amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings,
       page_layout, menu_links, shipping_profiles, emails, phones, description, footer_links,
-      einvoice_settings, meta_settings
+      einvoice_settings, meta_settings, ...restBranding
     } = req.body;
+
+    // Clean restBranding by removing top-level db columns that might have leaked in
+    delete restBranding.id;
+    delete restBranding.created_at;
+    delete restBranding.updated_at;
+    delete restBranding.store_id;
+    delete restBranding.cf_api_token;
+    delete restBranding.cf_account_id;
+    delete restBranding.cf_api_email;
+    delete restBranding.cf_zone_id;
+    delete restBranding.custom_domain_status;
+    delete restBranding.cf_name_servers;
+    delete restBranding.parent_id;
+    delete restBranding.branding; // Do not nest branding inside branding
+
+    const dynamicBranding = JSON.stringify(restBranding);
 
     await pool.query(
       `UPDATE stores SET 
@@ -680,8 +705,8 @@ router.post("/branding", async (req: any, res) => {
         amazon_settings = $32, n11_settings = $33, hepsiburada_settings = $34,
         trendyol_settings = $35, pazarama_settings = $36, page_layout = $37, menu_links = $38, 
         shipping_profiles = $39, emails = $40, phones = $41, description = $42, email = $43, footer_links = $44,
-        einvoice_settings = $45, meta_settings = $46
-      WHERE id = $47`, 
+        einvoice_settings = $45, meta_settings = $46, branding = COALESCE($47, '{}'::jsonb)
+      WHERE id = $48`, 
       [
         name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
         background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -711,6 +736,7 @@ router.post("/branding", async (req: any, res) => {
         JSON.stringify(footer_links || []),
         JSON.stringify(einvoice_settings || { is_active: false, provider: 'none' }),
         JSON.stringify(meta_settings || {}),
+        dynamicBranding,
         storeId
       ]
     );
@@ -720,7 +746,7 @@ router.post("/branding", async (req: any, res) => {
     if (error.code === '23505') {
       return res.status(400).json({ error: "Bu domain zaten başka bir mağaza tarafından kullanılıyor." });
     }
-    res.status(500).json({ error: "Ayarlar kaydedilirken bir hata oluştu." });
+    res.status(500).json({ error: "Ayarlar kaydedilirken bir hata oluştu: " + error.message });
   }
 });
 

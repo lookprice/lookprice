@@ -100,7 +100,7 @@ const ProductCard: React.FC<{
     layout
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className={`bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? 'font-sans tracking-tight' : ''}`}
+    className={`bg-white rounded-lg border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? 'font-sans tracking-tight' : ''}`}
   >
     <div className="aspect-[4/5] bg-slate-50 relative overflow-hidden">
       {product.image_url ? (
@@ -121,10 +121,10 @@ const ProductCard: React.FC<{
       {product.sector_data && (
         <div className="absolute top-24 left-4 flex flex-col gap-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
            {sector === 'automotive' && product.sector_data.hp && (
-             <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-black rounded backdrop-blur-sm border border-white/10 uppercase tracking-widest">{product.sector_data.hp} HP</span>
+             <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-white/10 tracking-wide">{product.sector_data.hp} HP</span>
            )}
            {sector === 'tech' && product.sector_data.ram && (
-             <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-black rounded backdrop-blur-sm border border-indigo-500/20 uppercase tracking-widest">{product.sector_data.ram} RAM</span>
+             <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-indigo-500/20 tracking-wide">{product.sector_data.ram} RAM</span>
            )}
         </div>
       )}
@@ -135,7 +135,7 @@ const ProductCard: React.FC<{
           {getLabels(product.labels).map((label, idx) => (
             <span 
               key={idx} 
-              className="px-3 py-1 bg-white/90 backdrop-blur-md text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm"
+              className="px-3 py-1 bg-white/90 backdrop-blur-md text-[10px] font-semibold tracking-wide rounded-lg shadow-sm"
               style={{ color: primaryColor }}
             >
               {label}
@@ -147,7 +147,7 @@ const ProductCard: React.FC<{
       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
         <button 
           onClick={() => addToBasket(product)}
-          className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
+          className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
         >
           <Plus className="w-4 h-4" />
           {t.dashboard.addToBasket}
@@ -158,13 +158,13 @@ const ProductCard: React.FC<{
       <div className="mb-3 flex items-center justify-between">
         <div className="flex flex-col">
           <span 
-            className="text-[10px] uppercase tracking-[0.15em] font-black"
+            className="text-[10px] uppercase tracking-[0.15em] font-semibold"
             style={{ color: primaryColor }}
           >
             {product.category || t.dashboard.uncategorized}
           </span>
           {product.brand && (
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+            <span className="text-[9px] font-bold text-gray-400 tracking-normal">
               {product.brand}
             </span>
           )}
@@ -176,7 +176,7 @@ const ProductCard: React.FC<{
       </div>
 
       <h3 
-        className={`font-display font-black text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-primary text-base leading-tight tracking-tight ${isLuxury ? '!font-sans !font-medium text-gray-800' : ''}`} 
+        className={`font-bold text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-xsrimary text-base leading-tight tracking-tight ${isLuxury ? '!font-sans !font-medium text-gray-800' : ''}`} 
         onClick={() => onView(product)}
       >
         {product.name}
@@ -184,8 +184,8 @@ const ProductCard: React.FC<{
       
       <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
         <div className="flex flex-col">
-          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mb-1">{t.dashboard.price}</span>
-          <span className="text-xl font-display font-black text-gray-900">
+          <span className="text-[10px] text-gray-400 font-bold tracking-wide leading-none mb-1">{t.dashboard.price}</span>
+          <span className="text-xsl font-bold text-gray-900">
             {convertedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {store?.currency || product.currency}
           </span>
         </div>
@@ -209,32 +209,32 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.hp && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'BEYGİR GÜCÜ' : 'HORSEPOWER'}</p>
-          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.hp} HP</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'BEYGİR GÜCÜ' : 'HORSEPOWER'}</p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.hp} HP</p>
         </div>
       )}
       {data.engine && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'MOTOR' : 'ENGINE'}</p>
-          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.engine}</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'MOTOR' : 'ENGINE'}</p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.engine}</p>
         </div>
       )}
       {data.transmission && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'ŞANZIMAN' : 'TRANSMISSION'}</p>
-          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.transmission}</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'ŞANZIMAN' : 'TRANSMISSION'}</p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.transmission}</p>
         </div>
       )}
       {data.fuel && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'YAKIT' : 'FUEL'}</p>
-          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.fuel}</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'YAKIT' : 'FUEL'}</p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.fuel}</p>
         </div>
       )}
       {data.acceleration && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? '0-100 KM/S' : '0-100 KM/H'}</p>
-          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.acceleration}s</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? '0-100 KM/S' : '0-100 KM/H'}</p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.acceleration}s</p>
         </div>
       )}
     </div>
@@ -244,20 +244,20 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 gap-3">
       {data.material && (
         <div className="p-4 bg-pink-50/50 rounded-2xl border border-pink-100 group hover:border-pink-300 transition-all">
-          <p className="text-[8px] font-black text-pink-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'KUMAŞ / MATERYAL' : 'MATERIAL'}</p>
-          <p className="text-sm font-black text-slate-900 group-hover:text-pink-600 transition-colors uppercase">{data.material}</p>
+          <p className="text-[8px] font-semibold text-xsink-400 tracking-wide mb-1">{lang === 'tr' ? 'KUMAŞ / MATERYAL' : 'MATERIAL'}</p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-xsink-600 transition-colors uppercase">{data.material}</p>
         </div>
       )}
       {data.fit && (
         <div className="p-4 bg-pink-50/50 rounded-2xl border border-pink-100 group hover:border-pink-300 transition-all">
-          <p className="text-[8px] font-black text-pink-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'KESİM / KALIP' : 'FIT'}</p>
-          <p className="text-sm font-black text-slate-900 group-hover:text-pink-600 transition-colors uppercase">{data.fit}</p>
+          <p className="text-[8px] font-semibold text-xsink-400 tracking-wide mb-1">{lang === 'tr' ? 'KESİM / KALIP' : 'FIT'}</p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-xsink-600 transition-colors uppercase">{data.fit}</p>
         </div>
       )}
       {data.collection && (
         <div className="col-span-2 p-4 bg-slate-900 rounded-2xl border border-slate-800 group hover:border-amber-500/30 transition-all">
-          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{lang === 'tr' ? 'KOLEKSİYON' : 'COLLECTION'}</p>
-          <p className="text-sm font-black text-amber-500 group-hover:text-amber-400 transition-colors uppercase">{data.collection}</p>
+          <p className="text-[8px] font-semibold text-slate-500 tracking-wide mb-1">{lang === 'tr' ? 'KOLEKSİYON' : 'COLLECTION'}</p>
+          <p className="text-sm font-semibold text-amber-500 group-hover:text-amber-400 transition-colors uppercase">{data.collection}</p>
         </div>
       )}
     </div>
@@ -267,20 +267,20 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.cpu && (
         <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'İŞLEMCİ' : 'CPU'}</p>
-          <p className="text-sm font-black text-indigo-900 transition-colors uppercase">{data.cpu}</p>
+          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">{lang === 'tr' ? 'İŞLEMCİ' : 'CPU'}</p>
+          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.cpu}</p>
         </div>
       )}
       {data.ram && (
         <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">RAM</p>
-          <p className="text-sm font-black text-indigo-900 transition-colors uppercase">{data.ram}</p>
+          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">RAM</p>
+          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.ram}</p>
         </div>
       )}
       {data.storage && (
         <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'DEPOLAMA' : 'STORAGE'}</p>
-          <p className="text-sm font-black text-indigo-900 transition-colors uppercase">{data.storage}</p>
+          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">{lang === 'tr' ? 'DEPOLAMA' : 'STORAGE'}</p>
+          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.storage}</p>
         </div>
       )}
     </div>
@@ -288,7 +288,7 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
 
   return (
     <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
+      <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
         {lang === 'tr' ? 'TEKNİK VERİ SAYFASI' : 'TECHNICAL DATA SHEET'}
         <div className="flex-1 h-[1px] bg-slate-100" />
       </h4>
@@ -299,8 +299,8 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {Object.entries(data).map(([key, value]: [string, any]) => (
             <div key={key} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
-              <p className="text-sm font-black text-slate-900 uppercase">{String(value)}</p>
+              <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{key.replace(/_/g, ' ')}</p>
+              <p className="text-sm font-semibold text-slate-900 uppercase">{String(value)}</p>
             </div>
           ))}
         </div>
@@ -316,17 +316,17 @@ const DigitalSignature: React.FC<{ storeName: string, lang: string }> = ({ store
     </div>
     <div className="relative z-10">
       <div className="flex items-center gap-2 mb-1">
-        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'DOĞRULANMIŞ ÜRÜN' : 'VERIFIED PRODUCT'}</span>
+        <div className="w-1.5 h-1.5 rounded-lg bg-green-500 animate-pulse" />
+        <span className="text-[10px] font-semibold text-slate-400 tracking-wide">{lang === 'tr' ? 'DOĞRULANMIŞ ÜRÜN' : 'VERIFIED PRODUCT'}</span>
       </div>
-      <p className="text-xs font-bold text-slate-600 leading-tight">
+      <p className="text-xss font-bold text-slate-600 leading-tight">
         {lang === 'tr' ? `Bu ürün ${storeName} tarafından kalite kontrolünden geçmiştir.` : `This product has been quality-checked by ${storeName}.`}
       </p>
     </div>
     <div className="relative z-10 text-right">
-       <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">SECURE_PASS_ID</span>
+       <span className="text-[10px] font-semibold text-slate-900 tracking-wide block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">SECURE_PASS_ID</span>
        <div className="flex gap-0.5 justify-end">
-          {[1,2,3,4,5,6].map(i => <div key={i} className="w-1 h-4 bg-slate-900/10 rounded-full" />)}
+          {[1,2,3,4,5,6].map(i => <div key={i} className="w-1 h-4 bg-slate-900/10 rounded-lg" />)}
        </div>
     </div>
   </div>
@@ -459,11 +459,11 @@ const ProductDetailModal: React.FC<{
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
+        className="bg-white w-full max-w-5xl rounded-xl shadow-lg relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
       >
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 p-2.5 bg-white/80 backdrop-blur-md hover:bg-white rounded-full transition-all z-20 shadow-lg active:scale-95"
+          className="absolute top-6 right-6 p-2.5 bg-white/80 backdrop-blur-md hover:bg-white rounded-lg transition-all z-20 shadow-lg active:scale-95"
         >
           <X className="w-6 h-6" />
         </button>
@@ -473,14 +473,14 @@ const ProductDetailModal: React.FC<{
           <div className="absolute top-6 left-6 flex flex-col gap-2 z-20">
             <button 
               onClick={shareProduct}
-              className="p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white transition-all active:scale-90 group"
+              className="p-3 bg-white/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-white transition-all active:scale-90 group"
               title={lang === 'tr' ? 'Paylaş' : 'Share'}
             >
               <Share2 className="w-5 h-5 text-indigo-600" />
             </button>
             <button 
               onClick={shareOnWhatsApp}
-              className="p-3 bg-emerald-500/90 backdrop-blur-md rounded-full shadow-lg hover:bg-emerald-500 transition-all active:scale-90"
+              className="p-3 bg-emerald-500/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-emerald-500 transition-all active:scale-90"
               title="WhatsApp"
             >
               <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
@@ -489,7 +489,7 @@ const ProductDetailModal: React.FC<{
             </button>
             <button 
               onClick={copyLink}
-              className="p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white transition-all active:scale-90 flex items-center gap-2 group overflow-hidden"
+              className="p-3 bg-white/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-white transition-all active:scale-90 flex items-center gap-2 group overflow-hidden"
               title={lang === 'tr' ? 'Linki Kopyala' : 'Copy Link'}
             >
               <div className="flex items-center gap-2">
@@ -500,7 +500,7 @@ const ProductDetailModal: React.FC<{
                       initial={{ opacity: 0, width: 0 }}
                       animate={{ opacity: 1, width: 'auto' }}
                       exit={{ opacity: 0, width: 0 }}
-                      className="text-[10px] font-black uppercase text-emerald-600 tracking-widest whitespace-nowrap"
+                      className="text-[10px] font-semibold uppercase text-emerald-600 tracking-widest whitespace-nowrap"
                     >
                       {lang === 'tr' ? 'Kopyalandı' : 'Copied'}
                     </motion.span>
@@ -523,21 +523,21 @@ const ProductDetailModal: React.FC<{
           )}
         </div>
 
-        <div className="md:w-1/2 p-10 md:p-14 overflow-y-auto no-scrollbar">
+        <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
           <div className="mb-6 flex flex-wrap gap-2 items-center">
             {getLabels(product.labels).map((label, idx) => (
               <span 
                 key={idx}
-                className="text-[10px] uppercase tracking-[0.2em] font-black px-4 py-1.5 rounded-full text-white shadow-sm"
+                className="text-[10px] tracking-wide font-semibold px-4 py-1.5 rounded-lg text-white shadow-sm"
                 style={{ backgroundColor: primaryColor }}
               >
                 {label}
               </span>
             ))}
             <div className="flex flex-col px-2">
-              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{categoryLabel}</span>
+              <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">{categoryLabel}</span>
               <span 
-                className="text-[10px] uppercase tracking-[0.2em] font-black px-3 py-1 rounded-full whitespace-nowrap"
+                className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg whitespace-nowrap"
                 style={{ color: primaryColor, backgroundColor: `${primaryColor}10` }}
               >
                 {product.category || t.dashboard.uncategorized}
@@ -545,9 +545,9 @@ const ProductDetailModal: React.FC<{
             </div>
             {product.brand && (
               <div className="flex flex-col px-2">
-                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{brandLabel}</span>
+                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">{brandLabel}</span>
                 <span 
-                  className="text-[10px] uppercase tracking-[0.2em] font-black px-3 py-1 rounded-full border border-gray-100 text-gray-500 whitespace-nowrap"
+                  className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap"
                 >
                   {product.brand}
                 </span>
@@ -555,21 +555,21 @@ const ProductDetailModal: React.FC<{
             )}
           </div>
           
-          <h2 className={`text-4xl md:text-5xl text-slate-900 mb-4 leading-[1.1] tracking-tighter ${isLuxury ? '!font-sans !font-medium' : 'font-display font-black'}`}>
+          <h2 className={`text-4xl md:text-4xl text-slate-900 mb-4 leading-[1.1] tracking-tighter ${isLuxury ? '!font-sans !font-medium' : 'font-bold'}`}>
             {product.name}
           </h2>
 
           <div className="flex items-baseline gap-3 mb-8">
-            <span className={`text-4xl text-slate-900 ${isLuxury ? '!font-sans !font-medium' : 'font-black font-display'}`}>
+            <span className={`text-4xl text-slate-900 ${isLuxury ? '!font-sans !font-medium' : 'font-semibold font-display'}`}>
               {convertedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {store?.currency || product.currency}
             </span>
             {product.unit && (
-              <span className="text-xl text-slate-400 font-medium">/ {product.unit}</span>
+              <span className="text-xsl text-slate-400 font-medium">/ {product.unit}</span>
             )}
           </div>
 
           <div className="prose prose-gray max-w-none mb-10">
-            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4">{t.dashboard.description}</h4>
+            <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-4">{t.dashboard.description}</h4>
             <p className="text-gray-500 leading-relaxed text-lg font-medium">
               {product.description || t.dashboard.noProductsDesc}
             </p>
@@ -581,17 +581,17 @@ const ProductDetailModal: React.FC<{
 
           {branchStocks.length > 0 && (
             <div className="mt-10 mb-10">
-              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6">{lang === 'tr' ? 'MAĞAZA STOKLARI' : 'STORE STOCKS'}</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-6">{lang === 'tr' ? 'MAĞAZA STOKLARI' : 'STORE STOCKS'}</h4>
               <div className="grid grid-cols-1 gap-3">
                 {branchStocks.map((branch, idx) => (
                   <div key={idx} className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-gray-100 group hover:border-primary transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                        <MapPin className="w-5 h-5 text-primary" />
+                        <MapPin className="w-5 h-5 text-xsrimary" />
                       </div>
                       <span className="font-bold text-gray-900">{branch.branch_name}</span>
                     </div>
-                    <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${branch.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`px-4 py-1.5 rounded-lg text-xss font-semibold tracking-wide ${branch.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {branch.stock > 0 ? `${branch.stock} ${t.dashboard.inStock || 'Stokta'}` : t.dashboard.outOfStock}
                     </span>
                   </div>
@@ -605,7 +605,7 @@ const ProductDetailModal: React.FC<{
               addToBasket(product);
               onClose();
             }}
-            className="w-full py-6 text-white rounded-[2rem] font-black text-xl transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-4 group"
+            className="w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-4 group"
             style={{ backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
           >
             <ShoppingBag className="w-7 h-7 group-hover:scale-110 transition-transform" />
@@ -628,7 +628,7 @@ const ProductDetailModal: React.FC<{
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[4rem] overflow-hidden shadow-2xl"
+              className="relative w-full max-w-2xl bg-white rounded-[4rem] overflow-hidden shadow-lg"
               onClick={e => e.stopPropagation()}
             >
               <div className="relative h-48 bg-slate-900 overflow-hidden">
@@ -638,17 +638,17 @@ const ProductDetailModal: React.FC<{
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
                 <button 
                   onClick={() => setShowAboutModal(false)}
-                  className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all"
+                  className="absolute top-6 right-6 w-10 h-10 rounded-lg bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all"
                 >
                   <X className="w-5 h-5" />
                 </button>
                 <div className="absolute bottom-6 left-10">
-                   <h2 className="text-4xl font-display font-black text-slate-900 tracking-tighter">
+                   <h2 className="text-4xl font-bold text-slate-900 tracking-tighter">
                      {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
                    </h2>
                 </div>
               </div>
-              <div className="p-10 md:p-12">
+              <div className="p-6 md:p-8">
                 <div className="prose prose-slate max-w-none">
                    <p className="text-slate-600 text-lg leading-relaxed font-semibold whitespace-pre-wrap">
                      {store?.about_text || (lang === 'tr' ? 'Henüz hakkımızda yazısı eklenmedi.' : 'No about text added yet.')}
@@ -660,7 +660,7 @@ const ProductDetailModal: React.FC<{
                   </div>
                   <div>
                     <h4 className="text-slate-900 font-bold text-sm tracking-tight">{lang === 'tr' ? 'Güvenilir Alışveriş' : 'Trusted Shopping'}</h4>
-                    <p className="text-slate-400 text-xs font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
+                    <p className="text-slate-400 text-xss font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
                   </div>
                 </div>
               </div>
@@ -1259,6 +1259,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     e.preventDefault();
     if (!store || basket.length === 0) return;
 
+    const formData = new FormData(e.target as HTMLFormElement);
+    const selectedLocation = formData.get('selected_store_location');
+
+    if (paymentMethod === 'store_reservation' && store?.locations && store.locations.length > 0 && !selectedLocation) {
+      setError(lang === 'tr' ? 'Lütfen bir mağaza seçin.' : 'Please select a store.');
+      return;
+    }
+
     // Iyzico zorunluluğu kontrolü
     if (store.payment_settings?.iyzico_enabled && paymentMethod !== 'iyzico') {
       setError(lang === 'tr' ? 'Lütfen ödeme yöntemi olarak iyzico seçin.' : 'Please select iyzico as payment method.');
@@ -1301,7 +1309,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         customerName: `${customerInfo.name} ${customerInfo.surname}`.trim(),
         customerPhone: customerInfo.phone,
         customerEmail: customerInfo.email,
-        customerAddress: customerInfo.address,
+        customerAddress: paymentMethod === 'store_reservation' ? `Mağazadan Teslim: ${selectedLocation}` : customerInfo.address,
         customerCity: customerInfo.city,
         customerCountry: customerInfo.country,
         customerTcId: customerInfo.tc_id,
@@ -1416,9 +1424,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       
       {/* Announcement Bar */}
       {layoutSettings.show_announcement && (
-      <div className="bg-gray-900 overflow-hidden py-2">
+      <div className="bg-gray-900 overflow-hidden py-1.5">
         <div className="flex whitespace-nowrap animate-marquee">
-          <div className="flex gap-12 text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] px-4">
+          <div className="flex gap-8 text-[10px] sm:text-xss font-semibold text-white/80 tracking-wide px-4">
             {layoutSettings.announcement_text ? (
                 <span className="flex items-center gap-2">
                   <Package className="w-3 h-3" />
@@ -1472,13 +1480,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <StoreIcon className="w-6 h-6" />
               </div>
             )}
-            <h1 className="text-xl font-display font-black text-gray-900 tracking-tighter hidden sm:block">{store?.name}</h1>
+            <h1 className="text-xsl font-bold text-gray-900 tracking-tighter hidden sm:block">{store?.name}</h1>
           </div>
           
           {/* Menu Links */}
           <div className="hidden md:flex items-center gap-6">
             {(store?.menu_links || []).map((link: any, index: number) => (
-              <a key={index} href={link.url} className="text-sm font-bold text-gray-600 hover:text-primary transition-colors">
+              <a key={index} href={link.url} className="text-sm font-bold text-gray-600 hover:text-xsrimary transition-colors">
                 {link.label}
               </a>
             ))}
@@ -1491,7 +1499,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               placeholder={t.dashboard.searchProducts}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-full transition-all outline-none text-sm font-medium"
+              className="w-full pl-12 pr-4 py-1.5.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-lg transition-all outline-none text-sm font-medium"
               style={{ '--tw-ring-color': primaryColor } as any}
             />
           </div>
@@ -1501,9 +1509,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               <div className="relative" ref={accountMenuRef}>
                 <button 
                   onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-                  className="px-3 py-1.5 hover:bg-gray-100 rounded-full transition-all flex items-center gap-2"
+                  className="px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
                 >
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md" style={{ backgroundColor: primaryColor }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xss font-bold shadow-md" style={{ backgroundColor: primaryColor }}>
                     {customer.name?.charAt(0).toUpperCase()}
                   </div>
                   <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Hesabım' : 'My Account'}</span>
@@ -1533,20 +1541,20 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             ) : (
               <button 
                 onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-full transition-all group"
+                className="flex items-center gap-2 px-4 py-1.5 hover:bg-gray-100 rounded-lg transition-all group"
               >
-                <User className="w-5 h-5 text-gray-700 group-hover:text-primary transition-colors" />
+                <User className="w-5 h-5 text-gray-700 group-hover:text-xsrimary transition-colors" />
                 <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Giriş Yap' : 'Login'}</span>
               </button>
             )}
             <button 
               onClick={() => setIsBasketOpen(true)}
-              className="relative p-2.5 hover:bg-gray-100 rounded-full transition-all active:scale-95 group"
+              className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
             >
-              <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
+              <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-xsrimary transition-colors" />
               {basketCount > 0 && (
                 <span 
-                  className="absolute top-1 right-1 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg"
+                  className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
                   style={{ backgroundColor: primaryColor }}
                 >
                   {basketCount}
@@ -1559,18 +1567,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
           {/* Premium Category Showcase */}
           {layoutSettings.show_stories && Array.from(categories.keys()).length > 0 && (
-            <section className="bg-white py-20 overflow-hidden">
+            <section className="bg-white py-1.50 overflow-hidden">
               <div className="max-w-7xl mx-auto px-4 md:px-8">
                 <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-12">
                   <div className="space-y-2">
-                    <h3 className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-indigo-600'}`}>
+                    <h3 className={`text-[10px] font-semibold uppercase tracking-[0.4em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-indigo-600'}`}>
                       {lang === 'tr' ? 'KOLEKSİYONLAR' : 'COLLECTIONS'}
                     </h3>
-                    <h2 className={`text-4xl md:text-6xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}>
+                    <h2 className={`text-4xl md:text-4xl md:text-4xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}>
                       {categoriesLabel}
                     </h2>
                   </div>
-                  <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <div className="flex items-center gap-4 text-xss font-bold text-slate-400 tracking-wide">
                     <div className="w-12 h-[1px] bg-slate-200"></div>
                     {lang === 'tr' ? 'Seçkin Seçkiler' : 'Curated Selections'}
                   </div>
@@ -1591,7 +1599,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           setSelectedCategory(cat);
                           document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
                         }}
-                        className={`group relative overflow-hidden rounded-[2.5rem] cursor-pointer bg-slate-50 transition-all duration-700 hover:shadow-2xl hover:-translate-y-2 ${isLarge ? 'md:col-span-2 md:row-span-1' : ''}`}
+                        className={`group relative overflow-hidden rounded-xl cursor-pointer bg-slate-50 transition-all duration-700 hover:shadow-lg hover:-translate-y-2 ${isLarge ? 'md:col-span-2 md:row-span-1' : ''}`}
                         style={{ height: isLarge ? '260px' : '260px' }}
                       >
                         <div className="absolute inset-0 z-0">
@@ -1611,14 +1619,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         </div>
                         
                         <div className="absolute inset-0 p-8 flex flex-col justify-end z-10">
-                          <span className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1 group-hover:text-white transition-colors">
+                          <span className="text-[10px] font-semibold text-white/60 tracking-wide mb-1 group-hover:text-white transition-colors">
                             {products.filter(p => p.category === cat).length} {productLabel}
                           </span>
-                          <h4 className={`text-xl md:text-2xl font-black text-white tracking-tight leading-tight group-hover:translate-x-2 transition-transform duration-500`}>
+                          <h4 className={`text-xsl md:text-2xl font-semibold text-white tracking-tight leading-tight group-hover:translate-x-2 transition-transform duration-500`}>
                             {cat}
                           </h4>
                           <div className="mt-4 pt-4 border-t border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-                             <div className="flex items-center gap-2 text-white text-[10px] font-black uppercase tracking-widest">
+                             <div className="flex items-center gap-2 text-white text-[10px] font-semibold tracking-wide">
                                {lang === 'tr' ? 'Keşfet' : 'Discover'}
                                <Plus className="w-3 h-3" />
                              </div>
@@ -1626,7 +1634,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         </div>
 
                         {selectedCategory === cat && (
-                          <div className="absolute top-6 right-6 z-20 w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-900 shadow-xl border border-white/50">
+                          <div className="absolute top-6 right-6 z-20 w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-900 shadow-xl border border-white/50">
                             <Check className="w-4 h-4" />
                           </div>
                         )}
@@ -1678,7 +1686,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   className="flex items-center gap-4 mb-8"
                 >
                   <div className="w-12 h-0.5 bg-white/40" />
-                  <span className="text-white/80 text-xs font-black uppercase tracking-[0.4em]">
+                  <span className="text-white/80 text-xss font-semibold uppercase tracking-[0.4em]">
                     {store?.name}
                   </span>
                 </motion.div>
@@ -1687,7 +1695,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7, duration: 0.8 }}
-                  className={`text-6xl md:text-9xl text-white mb-6 leading-[0.85] tracking-tight text-balance ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}
+                  className={`text-4xl md:text-4xl md:text-9xl text-white mb-6 leading-[0.85] tracking-tight text-balance ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}
                 >
                   {store?.hero_title || store?.name}
                 </motion.h2>
@@ -1697,7 +1705,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.9, duration: 0.8 }}
-                    className="text-xl md:text-3xl text-white/60 font-medium max-w-2xl leading-relaxed mb-12 text-balance"
+                    className="text-xsl md:text-3xl text-white/60 font-medium max-w-2xl leading-relaxed mb-12 text-balance"
                   >
                     {store.hero_subtitle}
                   </motion.p>
@@ -1711,14 +1719,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 >
                   <button 
                     onClick={() => document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="px-10 py-5 bg-white text-slate-950 rounded-full font-black text-sm uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-95 shadow-2xl hover:px-12"
+                    className="px-10 py-5 bg-white text-slate-950 rounded-lg font-semibold text-sm tracking-wide hover:bg-opacity-90 transition-all active:scale-95 shadow-lg hover:px-12"
                   >
                     {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
                   </button>
                   {store?.about_text && (
                     <button 
                       onClick={() => setShowAboutModal(true)}
-                      className="px-10 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-sm uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                      className="px-10 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-lg font-semibold text-sm tracking-wide hover:bg-white/20 transition-all active:scale-95"
                     >
                       {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
                     </button>
@@ -1734,30 +1742,30 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               transition={{ delay: 2 }}
               className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 hidden md:flex flex-col items-center gap-4 text-white/40"
             >
-              <span className="text-[10px] font-black uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kaydır' : 'Scroll'}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kaydır' : 'Scroll'}</span>
               <div className="w-[1px] h-12 bg-gradient-to-b from-white/40 to-transparent" />
             </motion.div>
           </section>
 
           {/* Featured / Campaign Section */}
           {layoutSettings.show_campaigns && (
-          <section className="max-w-7xl mx-auto px-4 md:px-8 py-20 md:py-32">
+          <section className="max-w-7xl mx-auto px-4 md:px-8 py-1.50 md:py-32">
             <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-16">
               <div className="space-y-3">
-                <h3 className={`text-[10px] font-black uppercase tracking-[0.5em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-blue-600'}`}>
+                <h3 className={`text-[10px] font-semibold uppercase tracking-[0.5em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-blue-600'}`}>
                   {lang === 'tr' ? 'HAFTANIN FIRSATLARI' : 'DEALS OF THE WEEK'}
                 </h3>
-                <h2 className={`text-4xl md:text-6xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}>
+                <h2 className={`text-4xl md:text-4xl md:text-4xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}>
                   {lang === 'tr' ? 'Kampanyalı Ürünler' : 'Special Campaigns'}
                 </h2>
               </div>
-              <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+              <div className="flex items-center gap-4 text-xss font-bold text-slate-400 tracking-wide">
                 <span className="w-16 h-[1px] bg-slate-100"></span>
-                <span className="text-slate-900 font-black">{products.length}</span> {lang === 'tr' ? 'Parça' : 'Items'}
+                <span className="text-slate-900 font-semibold">{products.length}</span> {lang === 'tr' ? 'Parça' : 'Items'}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {(products.some(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat')) 
                 ? products.filter(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat'))
                 : products
@@ -1771,10 +1779,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   className="group relative cursor-pointer"
                   onClick={() => setSelectedProduct(product)}
                 >
-                  <div className="aspect-[3/4] rounded-[3rem] overflow-hidden bg-slate-50 mb-8 relative shadow-sm group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-700 font-sans">
+                  <div className="aspect-[1/1] object-contain p-4 rounded-2xl overflow-hidden bg-slate-50 mb-8 relative shadow-sm group-hover:shadow-lg group-hover:-translate-y-2 transition-all duration-700 font-sans">
                     {/* Discount Badge */}
                     {product.old_price && (
-                      <div className="absolute top-8 right-8 z-10 w-14 h-14 bg-white rounded-full flex items-center justify-center text-red-600 text-xs font-black shadow-xl">
+                      <div className="absolute top-8 right-8 z-10 w-14 h-14 bg-white rounded-lg flex items-center justify-center text-red-600 text-xss font-semibold shadow-xl">
                         -{Math.round((1 - product.price / product.old_price) * 100)}%
                       </div>
                     )}
@@ -1789,18 +1797,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />
                     
                     <div className="absolute bottom-8 left-8 right-8 flex justify-center translate-y-20 group-hover:translate-y-0 transition-transform duration-700">
-                       <button className="w-full py-4 bg-white text-slate-950 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl">
+                       <button className="w-full py-4 bg-white text-slate-950 rounded-2xl font-semibold text-[10px] tracking-wide shadow-lg">
                          {lang === 'tr' ? 'İncele' : 'View Details'}
                        </button>
                     </div>
                   </div>
 
                   <div className="px-4 text-center">
-                    <h4 className={`text-xl text-slate-900 mb-2 truncate ${isLuxury ? '!font-sans !font-medium' : 'font-black'}`}>
+                    <h4 className={`text-xsl text-slate-900 mb-2 truncate ${isLuxury ? '!font-sans !font-medium' : 'font-semibold'}`}>
                       {product.name}
                     </h4>
                     <div className="flex items-center justify-center gap-3">
-                      <span className="text-xl font-black text-slate-900 font-sans tracking-tight">{formatPrice(product.price)}</span>
+                      <span className="text-xsl font-semibold text-slate-900 font-sans tracking-tight">{formatPrice(product.price)}</span>
                       {product.old_price && (
                         <span className="text-sm font-medium text-slate-400 line-through decoration-red-500/50 font-sans tracking-tight">{formatPrice(product.old_price)}</span>
                       )}
@@ -1819,17 +1827,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         <div className="mb-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
             <div>
-              <h2 className={`text-4xl md:text-6xl text-slate-900 tracking-tight mb-4 ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}>
+              <h2 className={`text-4xl md:text-4xl md:text-4xl text-slate-900 tracking-tight mb-4 ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}>
                 {selectedCategory || t.dashboard.allProducts}
               </h2>
-              <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+              <p className="text-slate-400 font-bold tracking-wide text-[10px]">
                 <span className="text-slate-900">{sortedAndFilteredProducts.length}</span> {t.dashboard.productsFound || 'ürün listeleniyor'}
               </p>
             </div>
 
             <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="relative flex-1 md:w-80 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-primary transition-colors" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-xsrimary transition-colors" />
                 <input 
                   type="text"
                   placeholder={t.dashboard.searchProducts}
@@ -1865,7 +1873,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 setSelectedSubCategory(null);
                 document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
             }}
-            className={`flex-shrink-0 px-6 py-2.5 rounded-full text-xs font-black transition-all border whitespace-nowrap ${
+            className={`flex-shrink-0 px-6 py-1.5.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
                 !selectedCategory 
                 ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
                 : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
@@ -1886,7 +1894,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     setSelectedSubCategory(null);
                 }
               }}
-              className={`flex-shrink-0 px-6 py-2.5 rounded-full text-xs font-black transition-all border whitespace-nowrap ${
+              className={`flex-shrink-0 px-6 py-1.5.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
                 selectedCategory === cat 
                 ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
                 : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
@@ -1898,7 +1906,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
           <button 
             onClick={() => setShowMobileFilters(true)}
-            className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-all ml-2 sticky right-0 shadow-lg"
+            className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-all ml-2 sticky right-0 shadow-lg"
           >
             <Filter className="w-4 h-4" />
           </button>
@@ -1910,7 +1918,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <div className="sticky top-32 space-y-12">
               {/* Categories */}
               <div>
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
+                <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
                   <Filter className="w-4 h-4" />
                   {categoriesLabel}
                 </h3>
@@ -1924,12 +1932,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       setSelectedSubCategory(null);
                       document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className={`w-full text-left px-5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${
+                    className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
                       !selectedCategory ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-gray-50"
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <div className={`w-1 h-1 rounded-full ${!selectedCategory ? "bg-primary" : "bg-gray-300"}`}></div>
+                      <div className={`w-1 h-1 rounded-lg ${!selectedCategory ? "bg-primary" : "bg-gray-300"}`}></div>
                       {t.dashboard.all}
                     </span>
                     <span className="text-[9px] opacity-50">{products.length}</span>
@@ -1953,12 +1961,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
                             }
                           }}
-                          className={`w-full text-left px-5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${
+                          className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
                             selectedCategory === cat ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-50"
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-1 h-1 rounded-full transition-colors ${selectedCategory === cat ? "bg-primary" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
+                            <div className={`w-1 h-1 rounded-lg transition-colors ${selectedCategory === cat ? "bg-primary" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
                             <span className="truncate">{cat}</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1983,11 +1991,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     setSelectedSubCategory(sub);
                                     document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
                                   }}
-                                  className={`w-full text-left px-4 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2 ${
-                                    selectedSubCategory === sub ? "text-primary bg-primary/5" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                  className={`w-full text-left px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2 ${
+                                    selectedSubCategory === sub ? "text-xsrimary bg-primary/5" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
                                   }`}
                                 >
-                                  <div className={`w-1 h-1 rounded-full ${selectedSubCategory === sub ? "bg-primary" : "bg-transparent"}`}></div>
+                                  <div className={`w-1 h-1 rounded-lg ${selectedSubCategory === sub ? "bg-primary" : "bg-transparent"}`}></div>
                                   <span className="truncate">{sub}</span>
                                 </button>
                               ))}
@@ -2000,7 +2008,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     {Array.from(categories.keys()).length > 5 && (
                       <button 
                         onClick={() => setShowAllCategories(!showAllCategories)}
-                        className="w-full text-center py-2 text-[10px] font-black text-primary uppercase tracking-widest hover:bg-primary/5 rounded-lg transition-all"
+                        className="w-full text-center py-1.5 text-[10px] font-semibold text-xsrimary tracking-wide hover:bg-primary/5 rounded-lg transition-all"
                       >
                         {showAllCategories ? (lang === 'tr' ? 'Daha Az' : 'Show Less') : (lang === 'tr' ? 'Tümünü Gör' : 'Show All')}
                       </button>
@@ -2012,7 +2020,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               {/* Brands */}
               {brands.length > 0 && (
                 <div>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
+                  <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
                     <Tag className="w-4 h-4" />
                     {brandsLabel}
                   </h3>
@@ -2026,7 +2034,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           placeholder={lang === 'tr' ? `${brandLabel} Ara...` : `Search ${brandLabel}...`}
                           value={brandSearch}
                           onChange={(e) => setBrandSearch(e.target.value)}
-                          className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          className="w-full pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                       </div>
                     </div>
@@ -2043,7 +2051,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               setSearchQuery("");
                               document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
                             }}
-                            className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border ${
                               selectedBrand === brand 
                                 ? "bg-gray-900 text-white border-gray-900 shadow-md" 
                                 : "bg-white text-gray-600 border-gray-100 hover:border-gray-300 hover:bg-gray-50"
@@ -2073,19 +2081,19 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   switch (section.type) {
                     case 'hero':
                       return (
-                        <section key={section.id} className="relative h-[600px] flex items-center justify-center rounded-[3rem] overflow-hidden">
+                        <section key={section.id} className="relative h-[600px] flex items-center justify-center rounded-2xl overflow-hidden">
                           <img src={store.hero_image_url} className="absolute inset-0 w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40" />
                           <div className="relative z-10 text-center text-white p-8">
-                            <h1 className="text-6xl font-black mb-4">{store.hero_title}</h1>
-                            <p className="text-xl">{store.hero_subtitle}</p>
+                            <h1 className="text-4xl md:text-4xl font-semibold mb-4">{store.hero_title}</h1>
+                            <p className="text-xsl">{store.hero_subtitle}</p>
                           </div>
                         </section>
                       );
                     case 'featured':
                       return (
                         <section key={section.id}>
-                          <h2 className="text-3xl font-black text-gray-900 mb-10">{t.dashboard.featuredProducts}</h2>
+                          <h2 className="text-3xl font-semibold text-gray-900 mb-10">{t.dashboard.featuredProducts}</h2>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                             {featuredProducts.map(p => (
                               <ProductCard 
@@ -2107,8 +2115,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       return (
                         <section key={section.id} id="blog" className="py-12">
                           <div className="flex items-center justify-between mb-10">
-                            <h2 className="text-4xl font-black text-gray-900 tracking-tight">{isTr ? 'Blog Yazıları' : 'Blog Posts'}</h2>
-                            <div className="hidden md:flex items-center space-x-2 text-sm font-black text-indigo-600 uppercase tracking-widest">
+                            <h2 className="text-4xl font-semibold text-gray-900 tracking-tight">{isTr ? 'Blog Yazıları' : 'Blog Posts'}</h2>
+                            <div className="hidden md:flex items-center space-x-2 text-sm font-semibold text-indigo-600 tracking-wide">
                               <Sparkles className="w-4 h-4" />
                               <span>{isTr ? 'YENİ İÇERİKLER' : 'NEW CONTENT'}</span>
                             </div>
@@ -2119,7 +2127,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 key={post.id} 
                                 whileHover={{ y: -8 }}
                                 onClick={() => setSelectedBlogPost(post)}
-                                className="group cursor-pointer bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500"
+                                className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-500"
                               >
                                 <div className="relative h-64 overflow-hidden">
                                   <img 
@@ -2128,22 +2136,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                   />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                   <div className="absolute bottom-6 left-6 right-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                                    <span className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-full text-xs font-black text-indigo-600 uppercase tracking-widest">
+                                    <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-lg text-xss font-semibold text-indigo-600 tracking-wide">
                                       {isTr ? 'Okumaya Devam Et' : 'Read More'}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="p-8">
                                   <div className="flex items-center gap-3 mb-4">
-                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] bg-indigo-50 px-2 py-1 rounded-md">
+                                    <span className="text-[10px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2 py-1 rounded-md">
                                       {post.date}
                                     </span>
-                                    <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                                    <span className="w-1 h-1 rounded-lg bg-gray-300" />
+                                    <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
                                       {Math.ceil((post.content?.length || 0) / 1000)} {isTr ? 'DAKİKA' : 'MIN READ'}
                                     </span>
                                   </div>
-                                  <h4 className="text-xl font-black text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
+                                  <h4 className="text-xsl font-semibold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
                                     {post.title}
                                   </h4>
                                   <p className="text-gray-500 text-sm leading-relaxed font-medium line-clamp-3">
@@ -2157,15 +2165,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       );
                     case 'about':
                       return (
-                        <section key={section.id} id="about" className="bg-gray-50 p-12 rounded-[3rem]">
-                          <h2 className="text-3xl font-black text-gray-900 mb-6">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</h2>
+                        <section key={section.id} id="about" className="bg-gray-50 p-8 rounded-2xl">
+                          <h2 className="text-3xl font-semibold text-gray-900 mb-6">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</h2>
                           <p className="text-gray-600 leading-relaxed">{store.about_text}</p>
                         </section>
                       );
                     case 'contact':
                       return (
-                        <section key={section.id} id="contact" className="bg-gray-900 text-white p-12 rounded-[3rem]">
-                          <h2 className="text-3xl font-black mb-6">{lang === 'tr' ? 'İletişim' : 'Contact'}</h2>
+                        <section key={section.id} id="contact" className="bg-gray-900 text-white p-8 rounded-2xl">
+                          <h2 className="text-3xl font-semibold mb-6">{lang === 'tr' ? 'İletişim' : 'Contact'}</h2>
                           <p>{store.address}</p>
                           <p>{store.email}</p>
                           <p>{store.phone}</p>
@@ -2180,7 +2188,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               // Fallback to original layout if no page_layout
               sortedAndFilteredProducts.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-10">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-6">
                     <AnimatePresence mode="popLayout">
                       {paginatedProducts.map((product) => (
                           <ProductCard 
@@ -2200,11 +2208,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   {/* ... pagination ... */}
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center py-32 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
-                  <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-xl mb-8">
+                <div className="flex flex-col items-center justify-center py-32 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                  <div className="w-24 h-24 bg-white rounded-lg flex items-center justify-center shadow-xl mb-8">
                     <Package className="w-12 h-12 text-gray-200" />
                   </div>
-                  <h3 className="text-2xl font-display font-black text-gray-900 mb-2">{t.dashboard.noProductsFound}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.dashboard.noProductsFound}</h3>
                   <p className="text-gray-400 font-medium max-w-xs">{t.dashboard.noProductsDesc}</p>
                 </div>
               )
@@ -2217,8 +2225,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           <section className="mt-32">
             <div className="flex items-center justify-between mb-10">
               <div>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">{t.dashboard.newArrivals}</h2>
-                <div className="h-1.5 w-20 mt-2 rounded-full" style={{ backgroundColor: primaryColor }}></div>
+                <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">{t.dashboard.newArrivals}</h2>
+                <div className="h-1.5 w-20 mt-2 rounded-lg" style={{ backgroundColor: primaryColor }}></div>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -2244,8 +2252,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           <section className="mt-32">
             <div className="flex items-center justify-between mb-10">
               <div>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">{t.dashboard.bestSellers}</h2>
-                <div className="h-1.5 w-20 mt-2 rounded-full" style={{ backgroundColor: primaryColor }}></div>
+                <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">{t.dashboard.bestSellers}</h2>
+                <div className="h-1.5 w-20 mt-2 rounded-lg" style={{ backgroundColor: primaryColor }}></div>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -2269,41 +2277,41 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       </main>
       </>
       ) : (
-        <main className="max-w-7xl mx-auto px-4 md:px-8 py-24">
+        <main className="max-w-7xl mx-auto px-4 md:px-8 py-1.54">
           {isProfileView && (
             <div className="max-w-5xl mx-auto">
-              <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-gray-50">
+              <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-50">
                 <div className="grid grid-cols-1 lg:grid-cols-3">
                   {/* Profile Sidebar */}
-                  <div className="bg-gray-50 p-10 md:p-12 border-r border-gray-100">
+                  <div className="bg-gray-50 p-6 md:p-8 border-r border-gray-100">
                     <div className="flex flex-col items-center text-center mb-10">
-                      <div className="w-24 h-24 bg-white rounded-[2.5rem] shadow-xl flex items-center justify-center mb-6 border-4 border-white">
+                      <div className="w-24 h-24 bg-white rounded-xl shadow-xl flex items-center justify-center mb-6 border-4 border-white">
                         <User className="w-10 h-10 text-gray-900" />
                       </div>
-                      <h2 className="text-2xl font-display font-black text-gray-900 tracking-tighter mb-1">
+                      <h2 className="text-2xl font-bold text-gray-900 tracking-tighter mb-1">
                         {customerProfile?.name} {customerProfile?.surname}
                       </h2>
-                      <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">{customerProfile?.email}</p>
+                      <p className="text-gray-400 text-xss font-bold tracking-wide">{customerProfile?.email}</p>
                     </div>
 
                     <nav className="space-y-2">
                       <button 
                         onClick={() => { setIsEditingProfile(false); navigate(`/s/${slug}/profile`); }}
-                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-sm transition-all ${isProfileView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
+                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isProfileView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
                       >
                         <User className="w-5 h-5" />
                         {lang === 'tr' ? 'Profil Bilgilerim' : 'My Profile'}
                       </button>
                       <button 
                         onClick={() => navigate(`/s/${slug}/orders`)}
-                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-sm transition-all ${isOrdersView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
+                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isOrdersView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
                       >
                         <ShoppingBag className="w-5 h-5" />
                         {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
                       </button>
                       <button 
                         onClick={() => navigate(`/s/${slug}/return`)}
-                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-sm transition-all ${isReturnView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
+                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isReturnView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
                       >
                         <RotateCcw className="w-5 h-5" />
                         {lang === 'tr' ? 'İade Taleplerim' : 'Return Requests'}
@@ -2311,7 +2319,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       <div className="pt-8">
                         <button 
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 transition-all"
+                          className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm text-red-500 hover:bg-red-50 transition-all"
                         >
                           <LogOut className="w-5 h-5" />
                           {lang === 'tr' ? 'Çıkış Yap' : 'Logout'}
@@ -2321,15 +2329,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   </div>
 
                   {/* Profile Content */}
-                  <div className="lg:col-span-2 p-10 md:p-16">
+                  <div className="lg:col-span-2 p-6 md:p-16">
                     <div className="flex items-center justify-between mb-12">
-                      <h3 className="text-3xl font-display font-black text-gray-900 tracking-tighter">
+                      <h3 className="text-3xl font-bold text-gray-900 tracking-tighter">
                         {isEditingProfile ? (lang === 'tr' ? 'Profili Düzenle' : 'Edit Profile') : (lang === 'tr' ? 'Hesap Detayları' : 'Account Details')}
                       </h3>
                       {!isEditingProfile && (
                         <button 
                           onClick={() => setIsEditingProfile(true)}
-                          className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-black text-xs transition-all"
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold text-xss transition-all"
                         >
                           <Edit3 className="w-4 h-4" />
                           {lang === 'tr' ? 'Düzenle' : 'Edit'}
@@ -2342,7 +2350,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         <form onSubmit={handleProfileUpdate} className="space-y-8">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
                               <input 
                                 required
                                 type="text"
@@ -2352,7 +2360,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
                               <input 
                                 required
                                 type="text"
@@ -2362,7 +2370,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-POSTA</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">E-POSTA</label>
                               <input 
                                 required
                                 type="email"
@@ -2372,7 +2380,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.phone}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.phone}</label>
                               <input 
                                 required
                                 type="tel"
@@ -2382,7 +2390,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
                               <input 
                                 required
                                 type="text"
@@ -2392,7 +2400,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
                               <input 
                                 required
                                 type="text"
@@ -2402,7 +2410,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
                               <input 
                                 type="text"
                                 value={profileEditForm.tc_id || ''}
@@ -2411,7 +2419,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               />
                             </div>
                             <div className="space-y-2 flex flex-col justify-center">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
                               <div className="flex gap-4">
                                 <label className="flex items-center gap-2 cursor-pointer">
                                   <input 
@@ -2419,7 +2427,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     name="edit_is_corporate" 
                                     checked={!profileEditForm.is_corporate} 
                                     onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: false }))}
-                                    className="w-4 h-4 text-primary focus:ring-primary"
+                                    className="w-4 h-4 text-xsrimary focus:ring-primary"
                                   />
                                   <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
                                 </label>
@@ -2429,14 +2437,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     name="edit_is_corporate" 
                                     checked={profileEditForm.is_corporate} 
                                     onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: true }))}
-                                    className="w-4 h-4 text-primary focus:ring-primary"
+                                    className="w-4 h-4 text-xsrimary focus:ring-primary"
                                   />
                                   <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
                                 </label>
                               </div>
                             </div>
                             <div className="md:col-span-2 space-y-2">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.address}</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.address}</label>
                               <textarea 
                                 required
                                 value={profileEditForm.address || ''}
@@ -2453,13 +2461,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 setIsEditingProfile(false);
                                 setProfileEditForm(customerProfile);
                               }}
-                              className="flex-1 py-5 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-2xl font-black transition-all"
+                              className="flex-1 py-5 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-2xl font-semibold transition-all"
                             >
                               {lang === 'tr' ? 'İptal' : 'Cancel'}
                             </button>
                             <button 
                               type="submit"
-                              className="flex-1 py-5 text-white rounded-2xl font-black transition-all shadow-xl active:scale-95"
+                              className="flex-1 py-5 text-white rounded-2xl font-semibold transition-all shadow-xl active:scale-95"
                               style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
                             >
                               {lang === 'tr' ? 'Kaydet' : 'Save'}
@@ -2467,18 +2475,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           </div>
                         </form>
                       ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="space-y-8">
                             <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Kişisel Bilgiler</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide mb-2 block">Kişisel Bilgiler</label>
                               <div className="space-y-4">
                                 <div className="flex items-center gap-4">
                                   <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
                                     <User className="w-5 h-5" />
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Ad Soyad' : 'Full Name'}</p>
-                                    <p className="text-base font-black text-gray-900">{customerProfile.name} {customerProfile.surname}</p>
+                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Ad Soyad' : 'Full Name'}</p>
+                                    <p className="text-base font-semibold text-gray-900">{customerProfile.name} {customerProfile.surname}</p>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -2486,8 +2494,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     <Mail className="w-5 h-5" />
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">E-posta</p>
-                                    <p className="text-base font-black text-gray-900">{customerProfile.email}</p>
+                                    <p className="text-xss text-gray-400 font-bold tracking-wide">E-posta</p>
+                                    <p className="text-base font-semibold text-gray-900">{customerProfile.email}</p>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -2495,8 +2503,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     <CreditCard className="w-5 h-5" />
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'T.C. Kimlik No' : 'TC ID'}</p>
-                                    <p className="text-base font-black text-gray-900">{customerProfile.tc_id || '-'}</p>
+                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'T.C. Kimlik No' : 'TC ID'}</p>
+                                    <p className="text-base font-semibold text-gray-900">{customerProfile.tc_id || '-'}</p>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -2504,8 +2512,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     <Building2 className="w-5 h-5" />
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Hesap Türü' : 'Account Type'}</p>
-                                    <p className="text-base font-black text-gray-900">{customerProfile.is_corporate ? (lang === 'tr' ? 'Kurumsal' : 'Corporate') : (lang === 'tr' ? 'Bireysel' : 'Individual')}</p>
+                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Hesap Türü' : 'Account Type'}</p>
+                                    <p className="text-base font-semibold text-gray-900">{customerProfile.is_corporate ? (lang === 'tr' ? 'Kurumsal' : 'Corporate') : (lang === 'tr' ? 'Bireysel' : 'Individual')}</p>
                                   </div>
                                 </div>
                               </div>
@@ -2514,15 +2522,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                           <div className="space-y-8">
                             <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Adres Bilgileri</label>
+                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide mb-2 block">Adres Bilgileri</label>
                               <div className="space-y-4">
                                 <div className="flex items-center gap-4">
                                   <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
                                     <MapPin className="w-5 h-5" />
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Konum' : 'Location'}</p>
-                                    <p className="text-base font-black text-gray-900">{customerProfile.city}, {customerProfile.country}</p>
+                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Konum' : 'Location'}</p>
+                                    <p className="text-base font-semibold text-gray-900">{customerProfile.city}, {customerProfile.country}</p>
                                   </div>
                                 </div>
                                 <div className="flex items-start gap-4">
@@ -2530,8 +2538,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     <Home className="w-5 h-5" />
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Tam Adres' : 'Full Address'}</p>
-                                    <p className="text-base font-black text-gray-900 leading-tight">{customerProfile.address}</p>
+                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Tam Adres' : 'Full Address'}</p>
+                                    <p className="text-base font-semibold text-gray-900 leading-tight">{customerProfile.address}</p>
                                   </div>
                                 </div>
                               </div>
@@ -2540,8 +2548,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         </div>
                       )
                     ) : (
-                      <div className="text-center py-20">
-                        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+                      <div className="text-center py-1.50">
+                        <Loader2 className="w-10 h-10 animate-spin text-xsrimary mx-auto mb-4" />
                         <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}</p>
                       </div>
                     )}
@@ -2553,17 +2561,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           {isOrdersView && (
             <div className="max-w-5xl mx-auto">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-display font-black text-gray-900 tracking-tighter">
+                <h2 className="text-3xl font-bold text-gray-900 tracking-tighter">
                   {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
                 </h2>
-                <div className="px-4 py-1.5 bg-gray-100 rounded-full text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                <div className="px-4 py-1.5 bg-gray-100 rounded-lg text-[10px] font-semibold text-gray-500 tracking-wide">
                   {orders.length} {lang === 'tr' ? 'SİPARİŞ' : 'ORDERS'}
                 </div>
               </div>
               
               {loadingOrders ? (
-                <div className="bg-white rounded-3xl p-20 text-center border border-gray-100">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+                <div className="bg-white rounded-lg p-20 text-center border border-gray-100">
+                  <Loader2 className="w-10 h-10 animate-spin text-xsrimary mx-auto mb-4" />
                   <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Siparişler yükleniyor...' : 'Loading orders...'}</p>
                 </div>
               ) : orders.length > 0 ? (
@@ -2577,25 +2585,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     >
                       <div className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex items-center gap-6">
-                          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/5 group-hover:text-xsrimary transition-colors">
                             <ShoppingBag className="w-6 h-6" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">#{order.id}</span>
-                              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                              <span className="text-[10px] font-semibold text-gray-400 tracking-wide">#{order.id}</span>
+                              <span className="w-1 h-1 rounded-lg bg-gray-300"></span>
                               <span className="text-[10px] font-bold text-gray-500">{new Date(order.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
                             </div>
-                            <p className="text-sm font-black text-gray-900">
+                            <p className="text-sm font-semibold text-gray-900">
                               {order.items_count || (order.items?.length || 1)} {lang === 'tr' ? 'Ürün' : 'Items'}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center flex-wrap gap-4 md:gap-12">
+                        <div className="flex items-center flex-wrap gap-4 md:gap-8">
                           <div className="hidden sm:block">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'ÖDEME' : 'PAYMENT'}</p>
-                            <p className="text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                            <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1">{lang === 'tr' ? 'ÖDEME' : 'PAYMENT'}</p>
+                            <p className="text-xss font-bold text-gray-600 flex items-center gap-1.5">
                               <CreditCard className="w-3 h-3" />
                               {order.payment_method === 'iyzico' ? 'iyzico' : 
                                order.payment_method === 'bank_transfer' ? (lang === 'tr' ? 'Havale' : 'Transfer') :
@@ -2604,15 +2612,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           </div>
 
                           <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TUTAR' : 'TOTAL'}</p>
-                            <p className="text-sm font-black text-primary">
+                            <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1">{lang === 'tr' ? 'TUTAR' : 'TOTAL'}</p>
+                            <p className="text-sm font-semibold text-xsrimary">
                               {order.total_amount?.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {order.currency}
                             </p>
                           </div>
 
                           <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 text-right">{lang === 'tr' ? 'DURUM' : 'STATUS'}</p>
-                            <span className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-colors ${
+                            <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1 text-right">{lang === 'tr' ? 'DURUM' : 'STATUS'}</p>
+                            <span className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-semibold tracking-wide border transition-colors ${
                               order.status === 'completed' || order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
                               order.status === 'shipped' || order.status === 'processing' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                               order.status === 'cancelled' || order.status === 'returned' ? 'bg-red-50 text-red-600 border-red-100' :
@@ -2631,7 +2639,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                       {/* Notes Section */}
                       {order.notes && (
-                        <div className="px-6 py-3 bg-blue-50/30 border-t border-gray-100 italic text-xs text-gray-500">
+                        <div className="px-4 py-2 bg-blue-50/30 border-t border-gray-100 italic text-xss text-gray-500">
                           {lang === 'tr' ? 'Not: ' : 'Note: '}{order.notes}
                         </div>
                       )}
@@ -2644,13 +2652,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               <Truck className="w-4 h-4" />
                             </div>
                             <div>
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KARGO BİLGİSİ' : 'SHIPPING INFO'}</p>
+                              <p className="text-[9px] font-semibold text-gray-400 tracking-wide">{lang === 'tr' ? 'KARGO BİLGİSİ' : 'SHIPPING INFO'}</p>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-gray-700">{order.shipping_carrier || (lang === 'tr' ? 'Standart Kargo' : 'Standard Shipping')}</span>
+                                <span className="text-xss font-semibold text-gray-700">{order.shipping_carrier || (lang === 'tr' ? 'Standart Kargo' : 'Standard Shipping')}</span>
                                 {order.tracking_number && (
                                   <>
-                                    <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                    <span className="text-xs font-mono font-bold text-primary select-all">{order.tracking_number}</span>
+                                    <span className="w-1 h-1 rounded-lg bg-gray-300"></span>
+                                    <span className="text-xss font-mono font-bold text-xsrimary select-all">{order.tracking_number}</span>
                                   </>
                                 )}
                               </div>
@@ -2672,7 +2680,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 
                                 if (url) window.open(url, '_blank');
                               }}
-                              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black text-gray-600 hover:border-primary hover:text-primary transition-all flex items-center gap-2"
+                              className="px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-semibold text-gray-600 hover:border-primary hover:text-xsrimary transition-all flex items-center gap-2"
                             >
                               <ExternalLink className="w-3 h-3" />
                               {lang === 'tr' ? 'KARGO TAKİP' : 'TRACK SHIPPING'}
@@ -2684,8 +2692,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   ))}
                 </div>
               ) : (
-                <div className="bg-white rounded-3xl p-20 text-center border border-gray-100">
-                  <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="bg-white rounded-lg p-20 text-center border border-gray-100">
+                  <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-6">
                     <ShoppingBag className="w-10 h-10 text-gray-200" />
                   </div>
                   <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Henüz bir siparişiniz bulunmuyor.' : 'You don\'t have any orders yet.'}</p>
@@ -2694,10 +2702,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             </div>
           )}
           {isReturnView && (
-            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-              <h2 className="text-3xl font-black text-gray-900 mb-8">{lang === 'tr' ? 'İade Taleplerim' : 'My Return Requests'}</h2>
-              <div className="text-center py-20">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-8 border border-gray-100">
+              <h2 className="text-3xl font-semibold text-gray-900 mb-8">{lang === 'tr' ? 'İade Taleplerim' : 'My Return Requests'}</h2>
+              <div className="text-center py-1.50">
+                <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-6">
                   <RotateCcw className="w-10 h-10 text-gray-300" />
                 </div>
                 <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Aktif bir iade veya değişim talebiniz bulunmuyor.' : 'You don\'t have any active return or exchange requests.'}</p>
@@ -2723,12 +2731,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white rounded-t-[3rem] z-[101] overflow-hidden flex flex-col shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white rounded-t-[3rem] z-[101] overflow-hidden flex flex-col shadow-lg"
             >
               <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
                 <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter">Filtrele</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{products.length} Ürün Mevcut</p>
+                  <h3 className="text-2xl font-semibold text-gray-900 tracking-tighter">Filtrele</h3>
+                  <p className="text-xss text-gray-400 font-bold tracking-wide">{products.length} Ürün Mevcut</p>
                 </div>
                 <button 
                   onClick={() => setShowMobileFilters(false)}
@@ -2742,11 +2750,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 {/* Mobile Subcategories */}
                 {selectedCategory && categories.get(selectedCategory)!.size > 0 && (
                   <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-4">{t.dashboard.subCategories || 'ALT KATEGORİLER'}</h4>
+                    <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-4">{t.dashboard.subCategories || 'ALT KATEGORİLER'}</h4>
                     <div className="flex flex-wrap gap-2">
                         <button
                             onClick={() => setSelectedSubCategory(null)}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
                                 !selectedSubCategory ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
                             }`}
                         >
@@ -2756,7 +2764,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             <button
                                 key={sub}
                                 onClick={() => setSelectedSubCategory(sub)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                                className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
                                     selectedSubCategory === sub ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
                                 }`}
                             >
@@ -2769,7 +2777,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                 {/* Brands */}
                 <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-4">{brandsLabel}</h4>
+                  <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-4">{brandsLabel}</h4>
                   <div className="relative mb-4">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -2783,7 +2791,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   <div className="flex flex-wrap gap-2">
                     <button
                         onClick={() => setSelectedBrand(null)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
                             !selectedBrand ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
                         }`}
                     >
@@ -2795,7 +2803,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         <button
                           key={brand}
                           onClick={() => setSelectedBrand(brand)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                          className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
                             selectedBrand === brand ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
                           }`}
                         >
@@ -2809,7 +2817,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               <div className="p-8 bg-gray-50">
                 <button 
                   onClick={() => setShowMobileFilters(false)}
-                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg shadow-xl shadow-gray-900/20 active:scale-95 transition-all"
+                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-semibold text-lg shadow-xl shadow-gray-900/20 active:scale-95 transition-all"
                 >
                   Sonuçları Gör
                 </button>
@@ -2820,7 +2828,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     setSelectedBrand(null);
                     setShowMobileFilters(false);
                   }}
-                  className="w-full mt-4 py-2 text-gray-400 text-xs font-bold hover:text-gray-600 transition-all"
+                  className="w-full mt-4 py-1.5 text-gray-400 text-xss font-bold hover:text-gray-600 transition-all"
                 >
                   Filtreleri Temizle
                 </button>
@@ -2832,18 +2840,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
       {/* Newsletter Section */}
       {layoutSettings.show_newsletter && (
-      <section className="bg-white py-24 px-4 md:px-8 border-t border-gray-100">
+      <section className="bg-white py-1.54 px-4 md:px-8 border-t border-gray-100">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-gray-900 rounded-[4rem] p-10 md:p-24 relative overflow-hidden group">
+          <div className="bg-gray-900 rounded-[4rem] p-6 md:p-24 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-600/30 via-indigo-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]" />
+            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/20 rounded-lg blur-[100px]" />
             
             <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
               <div className="max-w-xl text-center lg:text-left">
-                <h2 className="text-4xl md:text-7xl font-display font-black text-white tracking-tighter mb-8 leading-[0.9]">
+                <h2 className="text-4xl md:text-7xl font-bold text-white tracking-tighter mb-8 leading-[0.9]">
                   {lang === 'tr' ? 'Fırsatları Kaçırmayın' : 'Never Miss a Deal'}
                 </h2>
-                <p className="text-white/60 font-medium text-xl md:text-2xl leading-relaxed">
+                <p className="text-white/60 font-medium text-xsl md:text-2xl leading-relaxed">
                   {lang === 'tr' ? 'Yeni ürünler ve özel indirimlerden ilk siz haberdar olun. Hemen abone olun!' : 'Be the first to know about new products and special discounts. Subscribe now!'}
                 </p>
               </div>
@@ -2855,22 +2863,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <input 
                       type="email" 
                       placeholder={lang === 'tr' ? 'E-posta adresiniz' : 'Your email address'}
-                      className="w-full pl-16 pr-6 py-6 bg-white/10 border border-white/10 rounded-3xl text-white placeholder:text-gray-500 font-bold focus:bg-white/20 focus:border-white/30 transition-all outline-none text-lg"
+                      className="w-full pl-16 pr-6 py-4 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-500 font-bold focus:bg-white/20 focus:border-white/30 transition-all outline-none text-lg"
                     />
                   </div>
-                  <button className="w-full py-6 bg-white text-gray-900 rounded-3xl font-black text-lg uppercase tracking-[0.2em] hover:bg-blue-50 hover:scale-[0.98] transition-all shadow-2xl shadow-black/20">
+                  <button className="w-full py-4 bg-white text-gray-900 rounded-lg font-semibold text-lg tracking-wide hover:bg-blue-50 hover:scale-[0.98] transition-all shadow-lg shadow-black/20">
                     {lang === 'tr' ? 'ABONE OL VE KEŞFET' : 'SUBSCRIBE & DISCOVER'}
                   </button>
                 </form>
                 <div className="flex items-center justify-center lg:justify-start gap-4 mt-8 opacity-40">
                   <div className="flex items-center gap-2">
                     <Shield className="w-3 h-3 text-white" />
-                    <span className="text-[10px] text-white font-black uppercase tracking-widest">KVKK GÜVENLİ</span>
+                    <span className="text-[10px] text-white font-semibold tracking-wide">KVKK GÜVENLİ</span>
                   </div>
-                  <div className="w-1 h-1 rounded-full bg-white/20" />
+                  <div className="w-1 h-1 rounded-lg bg-white/20" />
                   <div className="flex items-center gap-2">
                     <Lock className="w-3 h-3 text-white" />
-                    <span className="text-[10px] text-white font-black uppercase tracking-widest">SSL KORUMALI</span>
+                    <span className="text-[10px] text-white font-semibold tracking-wide">SSL KORUMALI</span>
                   </div>
                 </div>
               </div>
@@ -2895,7 +2903,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <ShoppingBag className="w-6 h-6" />
                   </div>
                 )}
-                <span className="text-3xl font-display font-black tracking-tighter text-white">{store?.name}</span>
+                <span className="text-3xl font-bold tracking-tighter text-white">{store?.name}</span>
               </div>
               <p className="text-gray-500 text-lg font-medium max-w-md leading-relaxed mb-10">
                 {store?.description || (lang === 'tr' ? 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.' : 'We offer you the highest quality products at the most affordable prices. Customer satisfaction is always our priority.')}
@@ -2903,7 +2911,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               
               <div className="flex items-center gap-4">
                 {[
-                  { id: 'instagram_url', icon: Instagram, color: 'hover:text-pink-500', bg: 'hover:bg-pink-500/10' },
+                  { id: 'instagram_url', icon: Instagram, color: 'hover:text-xsink-500', bg: 'hover:bg-pink-500/10' },
                   { id: 'facebook_url', icon: Facebook, color: 'hover:text-blue-500', bg: 'hover:bg-blue-500/10' },
                   { id: 'twitter_url', icon: Twitter, color: 'hover:text-sky-400', bg: 'hover:bg-sky-400/10' },
                   { id: 'whatsapp_number', icon: MessageCircle, color: 'hover:text-green-500', bg: 'hover:bg-green-500/10' }
@@ -2936,7 +2944,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'HIZLI ERİŞİM' : 'QUICK LINKS'}</h4>
+              <h4 className="text-xss font-semibold uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'HIZLI ERİŞİM' : 'QUICK LINKS'}</h4>
               <ul className="space-y-4">
                 {store?.about_text && (
                   <li>
@@ -2944,7 +2952,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       onClick={() => setShowAboutModal(true)}
                       className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                      <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
                       {lang === 'tr' ? 'Hakkımızda' : 'About Us'}
                     </button>
                   </li>
@@ -2955,7 +2963,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       onClick={() => setShowStoreLocatorModal(true)}
                       className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                      <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
                       {lang === 'tr' ? 'Mağazalarımız' : 'Our Stores'}
                     </button>
                   </li>
@@ -2963,7 +2971,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 {(store?.menu_links || []).map((link: any, index: number) => (
                   <li key={index}>
                     <a href={link.url} className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                      <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
                       {link.label}
                     </a>
                   </li>
@@ -2975,7 +2983,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             </div>
 
             <div>
-              <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'İLETİŞİM' : 'CONTACT US'}</h4>
+              <h4 className="text-xss font-semibold uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'İLETİŞİM' : 'CONTACT US'}</h4>
               <ul className="space-y-6">
                 {(store?.emails && store.emails.some(e => e?.trim())) ? (
                   store.emails.filter(e => e?.trim()).map((e, idx) => (
@@ -3021,7 +3029,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
               <div className="flex flex-wrap items-center justify-center gap-8 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
                 <div className="flex items-center gap-6">
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest underline underline-offset-8 decoration-blue-600">Secure Payments</span>
+                  <span className="text-[10px] font-semibold text-white tracking-wide underline underline-offset-8 decoration-blue-600">Secure Payments</span>
                   <div className="flex items-center gap-4">
                     <CreditCard className="w-5 h-5 text-white" />
                     <ShieldCheck className="w-5 h-5 text-white" />
@@ -3030,13 +3038,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 </div>
               </div>
 
-              <p className="text-gray-600 font-bold text-[10px] uppercase tracking-widest">
+              <p className="text-gray-600 font-bold text-[10px] tracking-wide">
                 © {new Date().getFullYear()} {store?.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
               </p>
 
               <div className="flex items-center gap-6">
                 {(store?.footer_links || []).map((page: any, index: number) => (
-                  <a key={index} href={page.url} className="text-gray-600 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors">{page.label}</a>
+                  <a key={index} href={page.url} className="text-gray-600 hover:text-white text-[10px] font-semibold tracking-wide transition-colors">{page.label}</a>
                 ))}
               </div>
             </div>
@@ -3044,7 +3052,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         </div>
         
         {/* Abstract Background Element */}
-        <div className="absolute -bottom-48 -left-48 w-96 h-96 bg-blue-600/5 rounded-full blur-[120px]" />
+        <div className="absolute -bottom-48 -left-48 w-96 h-96 bg-blue-600/5 rounded-lg blur-[120px]" />
       </footer>
 
       {/* Floating Basket Summary (Mobile) */}
@@ -3056,7 +3064,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         >
           <button 
             onClick={() => setIsBasketOpen(true)}
-            className="w-full text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between font-bold"
+            className="w-full text-white p-4 rounded-2xl shadow-lg flex items-center justify-between font-bold"
             style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
           >
             <div className="flex items-center gap-3">
@@ -3089,7 +3097,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[101] flex flex-col"
+              className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-lg z-[101] flex flex-col"
             >
               <div className="p-8 border-b flex items-center justify-between bg-gray-50">
                 <div className="flex items-center gap-4">
@@ -3100,11 +3108,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <ShoppingBasket className="w-6 h-6" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black uppercase tracking-wider">{t.dashboard.cart}</h2>
-                    <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">{basketCount} {t.dashboard.product}</p>
+                    <h2 className="text-xsl font-semibold tracking-normal">{t.dashboard.cart}</h2>
+                    <p className="text-gray-500 text-xss font-bold tracking-wide">{basketCount} {t.dashboard.product}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsBasketOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                <button onClick={() => setIsBasketOpen(false)} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -3115,7 +3123,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <div className="w-24 h-24 bg-gray-50 rounded-[40px] flex items-center justify-center mb-6">
                       <ShoppingBasket className="w-12 h-12 text-gray-300" />
                     </div>
-                    <h3 className="text-xl font-black text-gray-900">{t.dashboard.emptyBasket}</h3>
+                    <h3 className="text-xsl font-semibold text-gray-900">{t.dashboard.emptyBasket}</h3>
                     <p className="text-gray-500 mt-2 max-w-[200px]">{t.dashboard.startShopping}</p>
                   </div>
                 ) : (
@@ -3134,7 +3142,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                           <div>
                             <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:opacity-80 transition-colors" style={{ color: primaryColor }}>{item.name}</h4>
-                            <p className="font-black mt-1" style={{ color: primaryColor }}>
+                            <p className="font-semibold mt-1" style={{ color: primaryColor }}>
                               {(basketItemPrices[item.id] || item.price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
                             </p>
                           </div>
@@ -3146,7 +3154,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               >
                                 <Minus className="w-4 h-4" />
                               </button>
-                              <span className="font-black w-8 text-center text-sm">{item.quantity}</span>
+                              <span className="font-semibold w-8 text-center text-sm">{item.quantity}</span>
                               <button 
                                 onClick={() => addToBasket(item)}
                                 className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded-lg transition-all shadow-sm active:scale-90"
@@ -3173,11 +3181,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               {basket.length > 0 && (
                 <div className="p-8 border-t bg-gray-50 space-y-6">
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between text-gray-500 text-sm font-bold uppercase tracking-widest">
+                    <div className="flex items-center justify-between text-gray-500 text-sm font-bold tracking-wide">
                       <span>{t.dashboard.subtotal}</span>
                       <span>{basketSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}</span>
                     </div>
-                    <div className="flex items-center justify-between text-green-600 text-sm font-bold uppercase tracking-widest">
+                    <div className="flex items-center justify-between text-green-600 text-sm font-bold tracking-wide">
                       <span>{t.dashboard.shipping}</span>
                       <span>
                         {basketShippingTotal > 0 
@@ -3188,15 +3196,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     </div>
                     <div className="h-px bg-gray-200 my-4"></div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-900 font-black uppercase tracking-widest">{t.dashboard.total}</span>
-                      <span className="text-3xl font-black" style={{ color: primaryColor }}>
+                      <span className="text-gray-900 font-semibold tracking-wide">{t.dashboard.total}</span>
+                      <span className="text-3xl font-semibold" style={{ color: primaryColor }}>
                         {basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
                       </span>
                     </div>
                   </div>
                   <button 
                     onClick={() => setIsCheckoutModalOpen(true)}
-                    className="w-full py-5 text-white rounded-2xl font-black text-xl transition-all shadow-2xl active:scale-95 uppercase tracking-widest"
+                    className="w-full py-5 text-white rounded-2xl font-semibold text-xsl transition-all shadow-lg active:scale-95 tracking-wide"
                     style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
                   >
                     {t.dashboard.checkout}
@@ -3223,16 +3231,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl relative z-10 overflow-hidden max-h-[80vh] flex flex-col"
+              className="bg-white w-full max-w-2xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[80vh] flex flex-col"
             >
               <div className="p-8 border-b flex items-center justify-between">
-                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">{lang === 'tr' ? 'Sıkça Sorulan Sorular' : 'FAQ'}</h2>
-                <button onClick={() => setShowFaq(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+                <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">{lang === 'tr' ? 'Sıkça Sorulan Sorular' : 'FAQ'}</h2>
+                <button onClick={() => setShowFaq(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
               </div>
               <div className="p-8 overflow-y-auto space-y-4">
                 {store?.faq?.length ? store.faq.map((item, i) => (
-                  <div key={i} className="p-6 bg-gray-50 rounded-3xl">
-                    <h4 className="font-black text-gray-900 mb-2">{item.question}</h4>
+                  <div key={i} className="p-6 bg-gray-50 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">{item.question}</h4>
                     <p className="text-gray-600 text-sm leading-relaxed">{item.answer}</p>
                   </div>
                 )) : (
@@ -3259,25 +3267,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
+              className="bg-white w-full max-w-4xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-8 border-b flex items-center justify-between">
-                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">{lang === 'tr' ? 'Blog' : 'Blog'}</h2>
-                <button onClick={() => setShowBlog(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+                <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">{lang === 'tr' ? 'Blog' : 'Blog'}</h2>
+                <button onClick={() => setShowBlog(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
               </div>
               <div className="p-8 overflow-y-auto custom-scrollbar">
                 {selectedBlogPost ? (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <button 
                       onClick={() => setSelectedBlogPost(null)} 
-                      className="group mb-8 flex items-center gap-2 text-sm font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-700 transition-colors"
+                      className="group mb-8 flex items-center gap-2 text-sm font-semibold text-indigo-600 tracking-wide hover:text-indigo-700 transition-colors"
                     >
                       <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
                       {lang === 'tr' ? 'TÜM YAZILAR' : 'ALL POSTS'}
                     </button>
                     
                     {selectedBlogPost.image_url && (
-                      <div className="relative h-96 rounded-[2.5rem] overflow-hidden mb-10 shadow-2xl">
+                      <div className="relative h-96 rounded-xl overflow-hidden mb-10 shadow-lg">
                         <img 
                           src={selectedBlogPost.image_url} 
                           alt={selectedBlogPost.title} 
@@ -3288,16 +3296,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     
                     <div className="max-w-2xl mx-auto">
                       <div className="flex items-center gap-3 mb-6">
-                        <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest leading-none">
+                        <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-semibold tracking-wide leading-none">
                           {selectedBlogPost.date}
                         </span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        <span className="w-1.5 h-1.5 rounded-lg bg-gray-200" />
+                        <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
                           {Math.ceil((selectedBlogPost.content?.length || 0) / 1000)} {isTr ? 'DAKİKA OKUMA' : 'MIN READ'}
                         </span>
                       </div>
                       
-                      <h3 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-10 tracking-tight">
+                      <h3 className="text-4xl md:text-4xl font-semibold text-gray-900 leading-tight mb-10 tracking-tight">
                         {selectedBlogPost.title}
                       </h3>
                       
@@ -3308,7 +3316,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       {/* Social Share for Blog */}
                       <div className="mt-16 pt-10 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
-                          <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{isTr ? 'PAYLAŞ:' : 'SHARE:'}</span>
+                          <span className="text-xss font-semibold text-gray-400 tracking-wide">{isTr ? 'PAYLAŞ:' : 'SHARE:'}</span>
                           <div className="flex items-center gap-2">
                              <button className="p-3 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all"><Facebook className="w-5 h-5" /></button>
                              <button className="p-3 bg-gray-50 hover:bg-sky-50 hover:text-sky-600 rounded-2xl transition-all"><Twitter className="w-5 h-5" /></button>
@@ -3320,7 +3328,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             navigator.clipboard.writeText(window.location.href);
                             alert(isTr ? 'Bağlantı kopyalandı!' : 'Link copied!');
                           }}
-                          className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-800 transition-all active:scale-95"
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-2xl font-semibold text-xss tracking-wide hover:bg-gray-800 transition-all active:scale-95"
                         >
                           <Link2 className="w-4 h-4" />
                           <span>{isTr ? 'BAĞLANTIYI KOPYALA' : 'COPY LINK'}</span>
@@ -3335,7 +3343,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         key={post.id} 
                         whileHover={{ y: -4 }}
                         onClick={() => setSelectedBlogPost(post)} 
-                        className="group cursor-pointer bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+                        className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
                       >
                         <div className="relative h-56 overflow-hidden">
                           {post.image_url ? (
@@ -3347,19 +3355,19 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           )}
                         </div>
                         <div className="p-8">
-                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 block">
+                          <span className="text-[10px] font-semibold text-indigo-600 tracking-wide mb-3 block">
                             {post.date}
                           </span>
-                          <h4 className="text-xl font-black text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</h4>
+                          <h4 className="text-xsl font-semibold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</h4>
                           <p className="text-gray-500 text-sm font-medium line-clamp-3 leading-relaxed">{post.excerpt || post.content}</p>
                         </div>
                       </motion.div>
                     )) : (
-                      <div className="col-span-full text-center py-20 px-8">
-                        <div className="p-6 bg-slate-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 text-slate-300">
+                      <div className="col-span-full text-center py-1.50 px-8">
+                        <div className="p-6 bg-slate-50 rounded-lg w-20 h-20 flex items-center justify-center mx-auto mb-6 text-slate-300">
                            <BookOpen className="w-10 h-10" />
                         </div>
-                        <p className="text-xl font-black text-slate-900 mb-2">{isTr ? 'Henüz Yazı Yok' : 'No Posts Yet'}</p>
+                        <p className="text-xsl font-semibold text-slate-900 mb-2">{isTr ? 'Henüz Yazı Yok' : 'No Posts Yet'}</p>
                         <p className="text-slate-500 font-medium">{isTr ? 'Yakında yeni içeriklerimizle burada olacağız.' : 'We will be here with new content soon.'}</p>
                       </div>
                     )}
@@ -3386,15 +3394,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl relative z-10 overflow-hidden max-h-[85vh] flex flex-col"
+              className="bg-white w-full max-w-3xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[85vh] flex flex-col"
             >
               <div className="p-8 border-b flex items-center justify-between">
-                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">
+                <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">
                   {showLegal === 'kvkk' ? (lang === 'tr' ? 'KVKK ve Gizlilik Politikası' : 'Privacy Policy') : 
                    showLegal === 'sales' ? (lang === 'tr' ? 'Mesafeli Satış Sözleşmesi' : 'Sales Agreement') : 
                    (lang === 'tr' ? 'Ön Bilgilendirme Formu' : 'Pre-Information Form')}
                 </h2>
-                <button onClick={() => setShowLegal(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+                <button onClick={() => setShowLegal(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
               </div>
               <div className="p-8 overflow-y-auto prose prose-blue max-w-none text-gray-600 leading-relaxed">
                 {showLegal === 'kvkk' ? store?.legal_pages?.kvkk?.content : 
@@ -3424,25 +3432,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[40px] shadow-2xl relative z-10 overflow-y-auto max-h-[90vh]"
+              className="bg-white w-full max-w-md rounded-[40px] shadow-lg relative z-10 overflow-y-auto max-h-[90vh]"
             >
-              <div className="p-10">
+              <div className="p-6">
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex gap-4">
                     <button 
                       onClick={() => setAuthMode('login')}
-                      className={`text-2xl font-black tracking-tight transition-colors ${authMode === 'login' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
+                      className={`text-2xl font-semibold tracking-tight transition-colors ${authMode === 'login' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
                     >
                       {lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN'}
                     </button>
                     <button 
                       onClick={() => setAuthMode('register')}
-                      className={`text-2xl font-black tracking-tight transition-colors ${authMode === 'register' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
+                      className={`text-2xl font-semibold tracking-tight transition-colors ${authMode === 'register' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
                     >
                       {lang === 'tr' ? 'ÜYE OL' : 'REGISTER'}
                     </button>
                   </div>
-                  <button onClick={() => setShowAuthModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
+                  <button onClick={() => setShowAuthModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
                 </div>
 
                 <form onSubmit={authMode === 'login' ? handleCustomerLogin : handleCustomerRegister} className="space-y-4">
@@ -3450,7 +3458,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
                           <input 
                             required
                             type="text"
@@ -3461,7 +3469,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
                           <input 
                             required
                             type="text"
@@ -3475,7 +3483,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     </>
                   )}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-POSTA</label>
+                    <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">E-POSTA</label>
                     <input 
                       required
                       type="email"
@@ -3487,7 +3495,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">ŞİFRE</label>
+                      <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">ŞİFRE</label>
                       <input 
                         required
                         type="password"
@@ -3499,7 +3507,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     </div>
                     {authMode === 'register' && (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ŞİFRE TEKRAR' : 'PASSWORD CONFIRM'}</label>
+                        <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ŞİFRE TEKRAR' : 'PASSWORD CONFIRM'}</label>
                         <input 
                           required
                           type="password"
@@ -3514,7 +3522,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   {authMode === 'register' && (
                     <>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.phone}</label>
+                        <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.phone}</label>
                         <input 
                           required
                           type="tel"
@@ -3526,7 +3534,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
                           <input 
                             required
                             type="text"
@@ -3537,7 +3545,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
                           <input 
                             required
                             type="text"
@@ -3549,7 +3557,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.address}</label>
+                        <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.address}</label>
                         <textarea 
                           required
                           value={customerInfo.address}
@@ -3561,7 +3569,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
                           <input 
                             type="text"
                             value={customerInfo.tc_id}
@@ -3571,7 +3579,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           />
                         </div>
                         <div className="space-y-1 flex flex-col justify-center">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
                           <div className="flex gap-4">
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input 
@@ -3579,7 +3587,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 name="is_corporate" 
                                 checked={!customerInfo.is_corporate} 
                                 onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: false }))}
-                                className="w-4 h-4 text-primary focus:ring-primary"
+                                className="w-4 h-4 text-xsrimary focus:ring-primary"
                               />
                               <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
                             </label>
@@ -3589,7 +3597,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 name="is_corporate" 
                                 checked={customerInfo.is_corporate} 
                                 onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: true }))}
-                                className="w-4 h-4 text-primary focus:ring-primary"
+                                className="w-4 h-4 text-xsrimary focus:ring-primary"
                               />
                               <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
                             </label>
@@ -3603,9 +3611,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             type="checkbox" 
                             checked={customerInfo.marketing_email}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_email: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                            className="mt-1 w-4 h-4 rounded text-xsrimary focus:ring-primary"
                           />
-                          <span className="text-xs font-medium text-gray-600 leading-tight">
+                          <span className="text-xss font-medium text-gray-600 leading-tight">
                             {lang === 'tr' ? 'Kampanyalardan haberdar olmak için elektronik ileti almak istiyorum.' : 'I want to receive electronic messages to be informed about campaigns.'}
                           </span>
                         </label>
@@ -3614,9 +3622,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             type="checkbox" 
                             checked={customerInfo.marketing_sms}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_sms: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                            className="mt-1 w-4 h-4 rounded text-xsrimary focus:ring-primary"
                           />
-                          <span className="text-xs font-medium text-gray-600 leading-tight">
+                          <span className="text-xss font-medium text-gray-600 leading-tight">
                             {lang === 'tr' ? 'Kampanyalardan haberdar olmak için SMS almak istiyorum.' : 'I want to receive SMS to be informed about campaigns.'}
                           </span>
                         </label>
@@ -3626,9 +3634,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             required
                             checked={customerInfo.accept_terms}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, accept_terms: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                            className="mt-1 w-4 h-4 rounded text-xsrimary focus:ring-primary"
                           />
-                          <span className="text-xs font-medium text-gray-600 leading-tight">
+                          <span className="text-xss font-medium text-gray-600 leading-tight">
                             {lang === 'tr' ? 'Üyelik sözleşmesini ve kişisel verilerin işlenmesine ilişkin aydınlatma metnini okudum, kabul ediyorum.' : 'I have read and accept the membership agreement and the clarification text on the processing of personal data.'}
                           </span>
                         </label>
@@ -3638,7 +3646,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                   <button 
                     type="submit"
-                    className="w-full py-5 text-white rounded-2xl font-black text-xl transition-all shadow-2xl active:scale-95 mt-4"
+                    className="w-full py-5 text-white rounded-2xl font-semibold text-xsl transition-all shadow-lg active:scale-95 mt-4"
                     style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
                   >
                     {authMode === 'login' ? (lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN') : (lang === 'tr' ? 'KAYIT OL' : 'REGISTER')}
@@ -3646,7 +3654,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                   <div className="relative flex items-center py-4">
                     <div className="flex-grow border-t border-gray-200"></div>
-                    <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-widest">
+                    <span className="flex-shrink-0 mx-4 text-gray-400 text-xss font-bold tracking-wide">
                       {lang === 'tr' ? 'VEYA' : 'OR'}
                     </span>
                     <div className="flex-grow border-t border-gray-200"></div>
@@ -3722,19 +3730,19 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[32px] shadow-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
+              className="bg-white w-full max-w-md rounded-[32px] shadow-lg relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-6 md:p-8 overflow-y-auto no-scrollbar">
                 {iyzicoPaymentUrl ? (
                   <div className="w-full flex flex-col h-[70vh] min-h-[500px]">
                     <div className="flex items-center justify-between mb-4 shrink-0">
-                      <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider">{lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}</h2>
+                      <h2 className="text-xsl font-semibold text-gray-900 tracking-normal">{lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}</h2>
                       <button 
                         onClick={() => {
                           setIyzicoPaymentUrl(null);
                           setIsCheckoutModalOpen(false);
                         }}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                       >
                         <X className="w-6 h-6" />
                       </button>
@@ -3750,19 +3758,19 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <div className="w-24 h-24 bg-green-100 text-green-600 rounded-[40px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-100">
                       <CheckCircle2 className="w-12 h-12" />
                     </div>
-                    <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">{t.dashboard.orderReceived}</h2>
+                    <h2 className="text-3xl font-semibold text-gray-900 mb-4 tracking-tight">{t.dashboard.orderReceived}</h2>
                     <p className="text-gray-500 font-medium leading-relaxed">{t.dashboard.orderReceivedDesc}</p>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center justify-between mb-10">
                       <div>
-                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wider">{t.dashboard.orderSummary}</h2>
-                        <div className="h-1 w-12 mt-1 rounded-full" style={{ backgroundColor: primaryColor }}></div>
+                        <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">{t.dashboard.orderSummary}</h2>
+                        <div className="h-1 w-12 mt-1 rounded-lg" style={{ backgroundColor: primaryColor }}></div>
                       </div>
                       <button 
                         onClick={() => setIsCheckoutModalOpen(false)}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                       >
                         <X className="w-6 h-6" />
                       </button>
@@ -3771,7 +3779,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <form onSubmit={handleCheckout} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.customerName}</label>
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.customerName}</label>
                           <input 
                             required
                             type="text"
@@ -3783,7 +3791,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'SOYAD' : 'SURNAME'}</label>
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'SOYAD' : 'SURNAME'}</label>
                           <input 
                             required
                             type="text"
@@ -3798,7 +3806,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.phone}</label>
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.phone}</label>
                           <input 
                             required
                             type="tel"
@@ -3810,7 +3818,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'T.C. KİMLİK NO' : 'IDENTITY NUMBER'}</label>
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'T.C. KİMLİK NO' : 'IDENTITY NUMBER'}</label>
                           <input 
                             required
                             type="text"
@@ -3825,7 +3833,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'E-POSTA' : 'EMAIL'}</label>
+                        <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'E-POSTA' : 'EMAIL'}</label>
                         <input 
                           required
                           type="email"
@@ -3839,7 +3847,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ŞEHİR' : 'CITY'}</label>
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ŞEHİR' : 'CITY'}</label>
                           <input 
                             required
                             type="text"
@@ -3850,7 +3858,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
                           <input 
                             required
                             type="text"
@@ -3863,7 +3871,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t.dashboard.address}</label>
+                        <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.address}</label>
                         <textarea 
                           required
                           rows={2}
@@ -3881,14 +3889,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             type="checkbox"
                             checked={customerInfo.createAccount}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, createAccount: e.target.checked }))}
-                            className="w-4 h-4 rounded text-primary focus:ring-primary"
+                            className="w-4 h-4 rounded text-xsrimary focus:ring-primary"
                           />
                           <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Hesap oluştur' : 'Create an account'}</span>
                         </label>
                       </div>
                       
                       <div className="space-y-3">
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</label>
+                        <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {/* 1. Iyzico (Primary Credit Card if enabled) */}
                           {store?.payment_settings?.iyzico_enabled && (
@@ -3899,7 +3907,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               style={{ borderColor: paymentMethod === 'iyzico' ? primaryColor : undefined }}
                             >
                               <ShieldCheck className={`w-6 h-6 mb-2 ${paymentMethod === 'iyzico' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'iyzico' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xs text-center ${paymentMethod === 'iyzico' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
+                              <span className={`font-bold text-xss text-center ${paymentMethod === 'iyzico' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
                             </button>
                           )}
 
@@ -3912,7 +3920,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
                             >
                               <ShieldCheck className={`w-6 h-6 mb-2 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xs text-center ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
+                              <span className={`font-bold text-xss text-center ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
                             </button>
                           )}
 
@@ -3925,7 +3933,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               style={{ borderColor: paymentMethod === 'payoneer' ? primaryColor : undefined }}
                             >
                               <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'payoneer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'payoneer' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xs text-center ${paymentMethod === 'payoneer' ? 'text-gray-900' : 'text-gray-500'}`}>Payoneer</span>
+                              <span className={`font-bold text-xss text-center ${paymentMethod === 'payoneer' ? 'text-gray-900' : 'text-gray-500'}`}>Payoneer</span>
                             </button>
                           )}
 
@@ -3938,7 +3946,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               style={{ borderColor: paymentMethod === 'paypal' ? primaryColor : undefined }}
                             >
                               <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'paypal' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'paypal' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xs text-center ${paymentMethod === 'paypal' ? 'text-gray-900' : 'text-gray-500'}`}>PayPal</span>
+                              <span className={`font-bold text-xss text-center ${paymentMethod === 'paypal' ? 'text-gray-900' : 'text-gray-500'}`}>PayPal</span>
                             </button>
                           )}
 
@@ -3950,8 +3958,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'bank_transfer' ? primaryColor : undefined }}
                             >
-                              <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xs text-center ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
+                              <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-xsrimary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xss text-center ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
                             </button>
                           )}
                           
@@ -3963,8 +3971,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }}
                             >
-                              <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xs text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
+                              <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-xsrimary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xss text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
                             </button>
                           )}
 
@@ -3977,7 +3985,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               style={{ borderColor: paymentMethod === 'store_reservation' ? primaryColor : undefined }}
                             >
                               <MapPin className={`w-6 h-6 mb-2 ${paymentMethod === 'store_reservation' ? 'text-amber-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'store_reservation' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xs text-center ${paymentMethod === 'store_reservation' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Mağazadan Teslim' : 'In-Store Pickup'}</span>
+                              <span className={`font-bold text-xss text-center ${paymentMethod === 'store_reservation' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Mağazadan Teslim' : 'In-Store Pickup'}</span>
                             </button>
                           )}
                         </div>
@@ -4018,20 +4026,20 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
                         >
                           <div className="flex flex-col">
-                            <span className="text-white/70 text-[10px] font-black uppercase tracking-[0.2em] mb-1">{t.dashboard.amountToPay}</span>
-                            <span className="text-xs font-bold flex items-center gap-1.5">
+                            <span className="text-white/70 text-[10px] font-semibold tracking-wide mb-1">{t.dashboard.amountToPay}</span>
+                            <span className="text-xss font-bold flex items-center gap-1.5">
                               <ShieldCheck className="w-3 h-3" />
                               {t.dashboard.securePayment}
                             </span>
                           </div>
-                          <span className="text-2xl font-black">
+                          <span className="text-2xl font-semibold">
                             {basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
                           </span>
                         </div>
                         <button 
                           type="submit"
                           disabled={checkoutStatus === 'loading'}
-                          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-95 uppercase tracking-widest"
+                          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-semibold text-lg hover:bg-black transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-95 tracking-wide"
                         >
                           {checkoutStatus === 'loading' ? (
                             <>
@@ -4061,7 +4069,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9+]/g, '')}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-28 md:bottom-24 right-4 md:right-8 z-[100] bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-xl flex items-center gap-3 transition-all active:scale-95"
+        className="fixed bottom-28 md:bottom-24 right-4 md:right-8 z-[100] bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-3 transition-all active:scale-95"
       >
         <MessageCircle className="w-7 h-7" />
         <span className="text-sm font-bold hidden md:block">{lang === 'tr' ? 'Yardım Al' : 'WhatsApp'}</span>

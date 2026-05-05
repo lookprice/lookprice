@@ -4,6 +4,38 @@ import crypto from "crypto";
 
 const router = express.Router();
 
+router.get("/fix-db", async (req, res) => {
+  const result = await pool.query("SELECT id, branding FROM stores");
+  for (const row of result.rows) {
+    if (row.branding && typeof row.branding === 'object') {
+       let br = { ...row.branding };
+       let changed = false;
+       while (br.branding) {
+         const nested = br.branding;
+         delete br.branding;
+         br = { ...nested, ...br };
+         changed = true;
+       }
+       const colsToRemove = ['id', 'created_at', 'updated_at', 'store_id', 'cf_api_token', 'cf_account_id', 'cf_api_email', 'cf_zone_id', 'custom_domain_status', 'cf_name_servers', 'parent_id', 'hero_title', 'about_text'];
+       for (const col of colsToRemove) {
+         if (br[col] !== undefined) {
+           delete br[col];
+           changed = true;
+         }
+       }
+       if (changed) {
+         await pool.query("UPDATE stores SET branding = $1 WHERE id = $2", [JSON.stringify(br), row.id]);
+       }
+    }
+  }
+  res.json({ success: true });
+});
+
+router.get("/debug-stores", async (req, res) => {
+  const result = await pool.query("SELECT id, name, about_text, hero_title, branding FROM stores ORDER BY id ASC LIMIT 2");
+  res.json(result.rows);
+});
+
 router.get("/stores/:slug/blog-posts", async (req, res) => {
   const { slug } = req.params;
   try {
@@ -259,25 +291,32 @@ router.get("/store/:slug", async (req, res) => {
       id, name, slug, logo_url, favicon_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text, description,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles, custom_domain
+      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles, custom_domain,
+      branding, page_layout, menu_links
     FROM stores 
     WHERE LOWER(slug) = LOWER($1)
   `, [slug]);
   let store = storeRes.rows[0];
 
   if (store) {
-    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles'];
+    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'page_layout', 'menu_links'];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
         try {
           store[field] = JSON.parse(store[field]);
         } catch (e) {
-          store[field] = [];
+          store[field] = field === 'branding' ? {} : [];
         }
       } else if (!store[field]) {
-        store[field] = [];
+        store[field] = field === 'branding' ? {} : [];
       }
     });
+
+    if (store.branding && typeof store.branding === 'object') {
+      const brandingObj = { ...store.branding };
+      delete brandingObj.branding;
+      Object.assign(store, brandingObj);
+    }
 
     // Sanitize payment_settings to only expose enabled flags and sandbox mode
     let ps = store.payment_settings || {};

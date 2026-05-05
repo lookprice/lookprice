@@ -845,8 +845,8 @@ const SettingsTab = ({
                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Mağaza Konumları</h4>
                  {(branding.locations || []).map((loc: any, idx: number) => (
                    <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl items-center">
-                     <input value={loc.name} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx].name = e.target.value; onBrandingChange('locations', l); }} placeholder="Mağaza Adı" className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
-                     <input value={loc.address} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx].address = e.target.value; onBrandingChange('locations', l); }} placeholder="Adres" className="col-span-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                     <input name={`location_name_${idx}`} id={`location_name_${idx}`} value={loc.name} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx] = { ...l[idx], name: e.target.value }; onBrandingChange('locations', l); }} placeholder="Mağaza Adı" className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                     <input name={`location_address_${idx}`} id={`location_address_${idx}`} value={loc.address} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx] = { ...l[idx], address: e.target.value }; onBrandingChange('locations', l); }} placeholder="Adres" className="col-span-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
                    </div>
                  ))}
                  <button 
