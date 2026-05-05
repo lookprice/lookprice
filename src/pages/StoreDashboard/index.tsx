@@ -207,6 +207,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleAddProduct,
     handleDeleteProduct,
     handleDeleteAllProducts,
+    handleBulkDelete,
     handleApplyTaxRule,
     handleBulkPriceSubmit,
     handleFileSelect,
@@ -276,24 +277,39 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [invoiceInitialData, setInvoiceInitialData] = useState<any>(null);
 
   const handleConvertToInvoice = (sale: any) => {
+    const isTaxInclusiveSource = sale.is_tax_inclusive !== undefined ? sale.is_tax_inclusive : true;
+
     const initialData = {
       sale_id: sale.id,
       customer_id: sale.customer_id,
       company_id: sale.company_id,
       customer_name: sale.customer_name,
       company_title: sale.customer_name,
-      items: sale.items?.map((item: any) => ({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        barcode: item.barcode,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        tax_rate: item.tax_rate || 20,
-        total_price: item.total_price
-      })) || [],
+      items: sale.items?.map((item: any) => {
+        const taxRate = item.tax_rate || 20;
+        let unitPrice = Number(item.unit_price); // Sale items usually store exclusive price internally
+        
+        // If the source was tax-inclusive, we should stay inclusive in the invoice for consistency
+        // But internally Sale items might store exclusive. Let's check how Sale items are stored.
+        // Actually, let's just use the sale's tax preference.
+        if (isTaxInclusiveSource) {
+           unitPrice = unitPrice * (1 + taxRate / 100);
+        }
+
+        return {
+          product_id: item.product_id,
+          product_name: item.product_name,
+          barcode: item.barcode,
+          quantity: item.quantity,
+          unit_price: unitPrice.toFixed(2),
+          tax_rate: taxRate,
+          total_price: item.total_price
+        };
+      }) || [],
       currency: sale.currency || branding?.default_currency || 'TRY',
       payment_method: sale.payment_method === 'iyzico' ? 'credit_card' : (['cash', 'credit_card', 'bank', 'term'].includes(sale.payment_method) ? sale.payment_method : 'cash'),
-      notes: sale.notes ? `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}\n${sale.notes}` : `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}`
+      notes: sale.notes ? `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}\n${sale.notes}` : `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}`,
+      is_tax_inclusive: isTaxInclusiveSource
     };
     
     setInvoiceInitialData(initialData);
@@ -1141,6 +1157,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           loading={loading}
                           isViewer={isViewer}
                           onDeleteAll={handleDeleteAllProducts}
+                          onBulkDelete={handleBulkDelete}
                           onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
                           onAddNew={() => { setEditingProduct(null); setShowProductModal(true); }}
                           onImport={() => setShowImportModal(true)}
@@ -3151,6 +3168,72 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       </div>
                     </div>
 
+                    {/* Sector Specific Inputs */}
+                    {branding?.sector && branding.sector !== 'general' && (
+                      <div className="pt-6 border-t border-gray-100">
+                        <div className="flex items-center gap-3 mb-6">
+                           <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                              <Sparkles className="w-4 h-4 text-amber-500" />
+                           </div>
+                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">{lang === 'tr' ? 'SEKTÖREL TEKNİK VERİLER' : 'SECTORAL TECHNICAL DATA'}</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          {branding.sector === 'automotive' && (
+                            <>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'BEYGİR GÜCÜ (HP)' : 'HORSEPOWER (HP)'}</label>
+                                <input name="sector_spec_hp" defaultValue={editingProduct?.sector_data?.hp} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'MOTOR HACMİ' : 'ENGINE DISPLACEMENT'}</label>
+                                <input name="sector_spec_engine" defaultValue={editingProduct?.sector_data?.engine} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'ŞANZIMAN' : 'TRANSMISSION'}</label>
+                                <input name="sector_spec_transmission" defaultValue={editingProduct?.sector_data?.transmission} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'YAKIT TİPİ' : 'FUEL TYPE'}</label>
+                                <input name="sector_spec_fuel" defaultValue={editingProduct?.sector_data?.fuel} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                            </>
+                          )}
+                          {branding.sector === 'fashion' && (
+                            <>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'MATERYAL' : 'MATERIAL'}</label>
+                                <input name="sector_spec_material" defaultValue={editingProduct?.sector_data?.material} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KALIP' : 'FIT'}</label>
+                                <input name="sector_spec_fit" defaultValue={editingProduct?.sector_data?.fit} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                              <div className="col-span-2 space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'STİL REHBERİ / KOLEKSİYON' : 'STYLE GUIDE / COLLECTION'}</label>
+                                <input name="sector_spec_collection" defaultValue={editingProduct?.sector_data?.collection} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                            </>
+                          )}
+                          {branding.sector === 'tech' && (
+                            <>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">CPU</label>
+                                <input name="sector_spec_cpu" defaultValue={editingProduct?.sector_data?.cpu} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">RAM</label>
+                                <input name="sector_spec_ram" defaultValue={editingProduct?.sector_data?.ram} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">STORAGE</label>
+                                <input name="sector_spec_storage" defaultValue={editingProduct?.sector_data?.storage} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Row 7: Web Sale & Product Type */}
                     <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-50">
                       <div className="space-y-1">
@@ -3252,9 +3335,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             }
                             
                             try {
-                              const response = await api.generateProductDescription(name, category, isTr ? 'tr' : 'en');
-                              const text = response.text || "";
-
+                              const { generateProductDescription } = await import('../../services/geminiService');
+                              const text = await generateProductDescription({ name, category }, isTr ? 'tr' : 'en');
+                              
                               const textarea = form?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
                               if(textarea) {
                                 textarea.value = text;

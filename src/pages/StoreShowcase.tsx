@@ -53,6 +53,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import { PageBuilder } from "../components/PageBuilder";
 import { Product, Store as StoreInfo, FAQEntry, BlogPost, LegalPage } from "../types";
 import SEO from "../components/SEO";
+import { StoreLocatorModal } from "../components/StoreLocatorModal";
 
 interface BasketItem extends Product {
   quantity: number;
@@ -77,8 +78,10 @@ const ProductCard: React.FC<{
   t: any, 
   addToBasket: (p: Product) => void,
   onView: (p: Product) => void,
-  primaryColor: string
-}> = ({ product, store, t, addToBasket, onView, primaryColor }) => {
+  primaryColor: string;
+  isLuxury?: boolean;
+  sector?: string;
+}> = ({ product, store, t, addToBasket, onView, primaryColor, isLuxury, sector = 'general' }) => {
   const { lang } = useLanguage();
   const [convertedPrice, setConvertedPrice] = useState<number>(product.price);
 
@@ -97,22 +100,35 @@ const ProductCard: React.FC<{
     layout
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all duration-500 group relative flex flex-col h-full"
+    className={`bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? 'font-sans tracking-tight' : ''}`}
   >
-    <div className="aspect-square bg-gray-50 relative overflow-hidden">
+    <div className="aspect-[4/5] bg-slate-50 relative overflow-hidden">
       {product.image_url ? (
         <img 
           src={product.image_url} 
           alt={product.name} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
           referrerPolicy="no-referrer"
+          onClick={() => onView(product)}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-gray-200">
+        <div className="w-full h-full flex items-center justify-center text-gray-200" onClick={() => onView(product)}>
           <Package className="w-16 h-16" />
         </div>
       )}
       
+      {/* Sector Specific Mini Specs */}
+      {product.sector_data && (
+        <div className="absolute top-24 left-4 flex flex-col gap-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+           {sector === 'automotive' && product.sector_data.hp && (
+             <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-black rounded backdrop-blur-sm border border-white/10 uppercase tracking-widest">{product.sector_data.hp} HP</span>
+           )}
+           {sector === 'tech' && product.sector_data.ram && (
+             <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-black rounded backdrop-blur-sm border border-indigo-500/20 uppercase tracking-widest">{product.sector_data.ram} RAM</span>
+           )}
+        </div>
+      )}
+
       {/* Product Labels */}
       {getLabels(product.labels).length > 0 && (
         <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
@@ -140,12 +156,19 @@ const ProductCard: React.FC<{
     </div>
     <div className="p-6 flex flex-col flex-1">
       <div className="mb-3 flex items-center justify-between">
-        <span 
-          className="text-[10px] uppercase tracking-[0.15em] font-black"
-          style={{ color: primaryColor }}
-        >
-          {product.category || t.dashboard.uncategorized}
-        </span>
+        <div className="flex flex-col">
+          <span 
+            className="text-[10px] uppercase tracking-[0.15em] font-black"
+            style={{ color: primaryColor }}
+          >
+            {product.category || t.dashboard.uncategorized}
+          </span>
+          {product.brand && (
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+              {product.brand}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1 text-yellow-400">
           <Star className="w-3 h-3 fill-current" />
           <span className="text-[10px] font-bold text-gray-400">4.8</span>
@@ -153,7 +176,7 @@ const ProductCard: React.FC<{
       </div>
 
       <h3 
-        className="font-display font-bold text-gray-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-primary text-base leading-tight" 
+        className={`font-display font-black text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-primary text-base leading-tight tracking-tight ${isLuxury ? '!font-sans !font-medium text-gray-800' : ''}`} 
         onClick={() => onView(product)}
       >
         {product.name}
@@ -178,6 +201,137 @@ const ProductCard: React.FC<{
   );
 };
 
+const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) => {
+  if (!data || typeof data !== 'object') return null;
+  const { lang } = useLanguage();
+
+  const renderAutomotive = () => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {data.hp && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'BEYGİR GÜCÜ' : 'HORSEPOWER'}</p>
+          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.hp} HP</p>
+        </div>
+      )}
+      {data.engine && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'MOTOR' : 'ENGINE'}</p>
+          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.engine}</p>
+        </div>
+      )}
+      {data.transmission && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'ŞANZIMAN' : 'TRANSMISSION'}</p>
+          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.transmission}</p>
+        </div>
+      )}
+      {data.fuel && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'YAKIT' : 'FUEL'}</p>
+          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.fuel}</p>
+        </div>
+      )}
+      {data.acceleration && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? '0-100 KM/S' : '0-100 KM/H'}</p>
+          <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.acceleration}s</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderFashion = () => (
+    <div className="grid grid-cols-2 gap-3">
+      {data.material && (
+        <div className="p-4 bg-pink-50/50 rounded-2xl border border-pink-100 group hover:border-pink-300 transition-all">
+          <p className="text-[8px] font-black text-pink-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'KUMAŞ / MATERYAL' : 'MATERIAL'}</p>
+          <p className="text-sm font-black text-slate-900 group-hover:text-pink-600 transition-colors uppercase">{data.material}</p>
+        </div>
+      )}
+      {data.fit && (
+        <div className="p-4 bg-pink-50/50 rounded-2xl border border-pink-100 group hover:border-pink-300 transition-all">
+          <p className="text-[8px] font-black text-pink-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'KESİM / KALIP' : 'FIT'}</p>
+          <p className="text-sm font-black text-slate-900 group-hover:text-pink-600 transition-colors uppercase">{data.fit}</p>
+        </div>
+      )}
+      {data.collection && (
+        <div className="col-span-2 p-4 bg-slate-900 rounded-2xl border border-slate-800 group hover:border-amber-500/30 transition-all">
+          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{lang === 'tr' ? 'KOLEKSİYON' : 'COLLECTION'}</p>
+          <p className="text-sm font-black text-amber-500 group-hover:text-amber-400 transition-colors uppercase">{data.collection}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderTech = () => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {data.cpu && (
+        <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'İŞLEMCİ' : 'CPU'}</p>
+          <p className="text-sm font-black text-indigo-900 transition-colors uppercase">{data.cpu}</p>
+        </div>
+      )}
+      {data.ram && (
+        <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">RAM</p>
+          <p className="text-sm font-black text-indigo-900 transition-colors uppercase">{data.ram}</p>
+        </div>
+      )}
+      {data.storage && (
+        <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'DEPOLAMA' : 'STORAGE'}</p>
+          <p className="text-sm font-black text-indigo-900 transition-colors uppercase">{data.storage}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
+        {lang === 'tr' ? 'TEKNİK VERİ SAYFASI' : 'TECHNICAL DATA SHEET'}
+        <div className="flex-1 h-[1px] bg-slate-100" />
+      </h4>
+      {sector === 'automotive' && renderAutomotive()}
+      {sector === 'fashion' && renderFashion()}
+      {sector === 'tech' && renderTech()}
+      {sector === 'general' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {Object.entries(data).map(([key, value]: [string, any]) => (
+            <div key={key} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
+              <p className="text-sm font-black text-slate-900 uppercase">{String(value)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DigitalSignature: React.FC<{ storeName: string, lang: string }> = ({ storeName, lang }) => (
+  <div className="mt-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between overflow-hidden relative group">
+    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+       <ShieldCheck className="w-24 h-24 text-slate-900" />
+    </div>
+    <div className="relative z-10">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'DOĞRULANMIŞ ÜRÜN' : 'VERIFIED PRODUCT'}</span>
+      </div>
+      <p className="text-xs font-bold text-slate-600 leading-tight">
+        {lang === 'tr' ? `Bu ürün ${storeName} tarafından kalite kontrolünden geçmiştir.` : `This product has been quality-checked by ${storeName}.`}
+      </p>
+    </div>
+    <div className="relative z-10 text-right">
+       <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">SECURE_PASS_ID</span>
+       <div className="flex gap-0.5 justify-end">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="w-1 h-4 bg-slate-900/10 rounded-full" />)}
+       </div>
+    </div>
+  </div>
+);
+
 const ProductDetailModal: React.FC<{
   product: Product | null;
   store: StoreInfo | null;
@@ -186,11 +340,19 @@ const ProductDetailModal: React.FC<{
   onClose: () => void;
   addToBasket: (p: Product) => void;
   primaryColor: string;
-}> = ({ product, store, t, slug, onClose, addToBasket, primaryColor }) => {
+  isLuxury?: boolean;
+  sector?: string;
+  showAboutModal: boolean;
+  setShowAboutModal: (show: boolean) => void;
+}> = ({ product, store, t, slug, onClose, addToBasket, primaryColor, isLuxury, sector = 'general', showAboutModal, setShowAboutModal }) => {
   const { lang } = useLanguage();
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [convertedPrice, setConvertedPrice] = useState<number>(product?.price || 0);
+
+  const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
+  const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
+  const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
 
   useEffect(() => {
     if (product && store?.currency && product.currency && product.currency !== store.currency) {
@@ -362,7 +524,7 @@ const ProductDetailModal: React.FC<{
         </div>
 
         <div className="md:w-1/2 p-10 md:p-14 overflow-y-auto no-scrollbar">
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-6 flex flex-wrap gap-2 items-center">
             {getLabels(product.labels).map((label, idx) => (
               <span 
                 key={idx}
@@ -372,24 +534,37 @@ const ProductDetailModal: React.FC<{
                 {label}
               </span>
             ))}
-            <span 
-              className="text-[10px] uppercase tracking-[0.2em] font-black px-4 py-1.5 rounded-full"
-              style={{ color: primaryColor, backgroundColor: `${primaryColor}10` }}
-            >
-              {product.category || t.dashboard.uncategorized}
-            </span>
+            <div className="flex flex-col px-2">
+              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{categoryLabel}</span>
+              <span 
+                className="text-[10px] uppercase tracking-[0.2em] font-black px-3 py-1 rounded-full whitespace-nowrap"
+                style={{ color: primaryColor, backgroundColor: `${primaryColor}10` }}
+              >
+                {product.category || t.dashboard.uncategorized}
+              </span>
+            </div>
+            {product.brand && (
+              <div className="flex flex-col px-2">
+                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{brandLabel}</span>
+                <span 
+                  className="text-[10px] uppercase tracking-[0.2em] font-black px-3 py-1 rounded-full border border-gray-100 text-gray-500 whitespace-nowrap"
+                >
+                  {product.brand}
+                </span>
+              </div>
+            )}
           </div>
           
-          <h2 className="text-4xl md:text-5xl font-display font-black text-gray-900 mb-4 leading-[1.1] tracking-tighter">
+          <h2 className={`text-4xl md:text-5xl text-slate-900 mb-4 leading-[1.1] tracking-tighter ${isLuxury ? '!font-sans !font-medium' : 'font-display font-black'}`}>
             {product.name}
           </h2>
 
           <div className="flex items-baseline gap-3 mb-8">
-            <span className="text-4xl font-display font-black text-gray-900">
+            <span className={`text-4xl text-slate-900 ${isLuxury ? '!font-sans !font-medium' : 'font-black font-display'}`}>
               {convertedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {store?.currency || product.currency}
             </span>
             {product.unit && (
-              <span className="text-xl text-gray-400 font-medium">/ {product.unit}</span>
+              <span className="text-xl text-slate-400 font-medium">/ {product.unit}</span>
             )}
           </div>
 
@@ -400,8 +575,12 @@ const ProductDetailModal: React.FC<{
             </p>
           </div>
 
+          <SectorSpecs sector={sector} data={product.sector_data} />
+          
+          <DigitalSignature storeName={store?.name || ''} lang={lang} />
+
           {branchStocks.length > 0 && (
-            <div className="mb-10">
+            <div className="mt-10 mb-10">
               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6">{lang === 'tr' ? 'MAĞAZA STOKLARI' : 'STORE STOCKS'}</h4>
               <div className="grid grid-cols-1 gap-3">
                 {branchStocks.map((branch, idx) => (
@@ -434,6 +613,61 @@ const ProductDetailModal: React.FC<{
           </button>
         </div>
       </motion.div>
+      {/* About Modal */}
+      <AnimatePresence>
+        {showAboutModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAboutModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[4rem] overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="relative h-48 bg-slate-900 overflow-hidden">
+                <div className="absolute inset-0 opacity-30">
+                  <img src={store?.hero_image_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8"} className="w-full h-full object-cover" />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
+                <button 
+                  onClick={() => setShowAboutModal(false)}
+                  className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="absolute bottom-6 left-10">
+                   <h2 className="text-4xl font-display font-black text-slate-900 tracking-tighter">
+                     {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
+                   </h2>
+                </div>
+              </div>
+              <div className="p-10 md:p-12">
+                <div className="prose prose-slate max-w-none">
+                   <p className="text-slate-600 text-lg leading-relaxed font-semibold whitespace-pre-wrap">
+                     {store?.about_text || (lang === 'tr' ? 'Henüz hakkımızda yazısı eklenmedi.' : 'No about text added yet.')}
+                   </p>
+                </div>
+                <div className="mt-12 pt-8 border-t border-slate-100 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-slate-900 font-bold text-sm tracking-tight">{lang === 'tr' ? 'Güvenilir Alışveriş' : 'Trusted Shopping'}</h4>
+                    <p className="text-slate-400 text-xs font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -469,6 +703,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
+  
+  const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
+  const brandsLabel = store?.brand_label ? store.brand_label.toUpperCase() : (lang === 'tr' ? 'MARKALAR' : 'BRANDS');
+  const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
+  const categoriesLabel = store?.category_label ? store.category_label.toUpperCase() : (lang === 'tr' ? 'KATEGORİLER' : 'CATEGORIES');
+  const productLabel = store?.product_label || (lang === 'tr' ? 'Ürün' : 'Product');
+  const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -535,7 +776,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
-  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal' | 'iyzico'>('credit_card');
+  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal' | 'iyzico' | 'store_reservation'>('credit_card');
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -601,8 +842,24 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     show_testimonials: true,
     show_newsletter: true,
     enable_live_activity: true,
-    theme_variety: 'modern'
+    theme_variety: 'modern',
+    sector: 'general'
   };
+
+  const isLuxury = layoutSettings.theme_variety === 'luxury' || layoutSettings.theme_variety === 'minimal';
+  const isModern = layoutSettings.theme_variety === 'modern';
+  const isBold = layoutSettings.theme_variety === 'bold';
+  
+  const sector = layoutSettings.sector || 'general';
+  const isAuto = sector === 'automotive';
+  const isFashion = sector === 'fashion' || isLuxury;
+  const isTech = sector === 'tech';
+
+  const primaryColor = store?.primary_color || (isLuxury ? '#8B7355' : '#3b82f6'); // Elegant bronze for luxury
+  const secondaryColor = store?.secondary_color || (isLuxury ? '#000000' : '#1e293b');
+
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showStoreLocatorModal, setShowStoreLocatorModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -895,7 +1152,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const newArrivals = useMemo(() => [...products].reverse().slice(0, 8), [products]);
   const bestSellers = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 8), [products]);
 
-  const primaryColor = store?.primary_color || "#2563eb"; // Default blue-600
+  const seoKeywords = useMemo(() => {
+    const categories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
+    const brands = Array.from(new Set(products.map(p => p.brand))).filter(Boolean);
+    return [
+      store?.name,
+      store?.hero_title,
+      ...categories,
+      ...brands,
+      lang === 'tr' ? 'online alışveriş, en iyi fiyatlar, kaliteli ürünler' : 'online shopping, best prices, quality products'
+    ].filter(Boolean).join(', ');
+  }, [products, store, lang]);
+
   const storeSchema = store ? {
     "@context": "https://schema.org",
     "@type": "OnlineStore",
@@ -1134,6 +1402,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         description={selectedBlogPost ? selectedBlogPost.excerpt : store.description}
         ogImage={selectedBlogPost ? selectedBlogPost.image_url : store.logo_url}
         ogType={selectedBlogPost ? "article" : "website"}
+        keywords={seoKeywords}
+        siteName={store.name}
         schemaData={selectedBlogPost ? {
           "@context": "https://schema.org",
           "@type": "BlogPosting",
@@ -1278,195 +1548,253 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         </div>
       </header>
 
-      {/* Category Stories */}
-      {layoutSettings.show_stories && Array.from(categories.keys()).length > 0 && (
-        <div className="bg-white border-b border-gray-100 py-6 relative group">
-          <div className="max-w-7xl mx-auto px-4 md:px-8">
-            <div className="flex items-center gap-6 sm:gap-10 overflow-x-auto pb-4 -mb-4 scrollbar-hide snap-x no-scrollbar">
-              {Array.from(categories.keys()).map((cat, idx) => (
-                <button
-                  key={`story-${cat}`}
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    const el = document.getElementById('products-grid');
-                    if (el) {
-                      const offset = 100;
-                      const bodyRect = document.body.getBoundingClientRect().top;
-                      const elementRect = el.getBoundingClientRect().top;
-                      const elementPosition = elementRect - bodyRect;
-                      const offsetPosition = elementPosition - offset;
-                      window.scrollTo({
-                        top: offsetPosition,
-                        behavior: 'smooth'
-                      });
-                    }
-                  }}
-                  className="flex flex-col items-center gap-3 group shrink-0 snap-center"
-                >
-                  <div className="relative">
-                    <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full p-1 border-2 transition-all duration-500 ${selectedCategory === cat ? 'border-blue-600 scale-110 shadow-lg shadow-blue-500/20' : 'border-gray-100 group-hover:border-blue-400 group-hover:scale-105'}`}>
-                      <div className="w-full h-full rounded-full bg-gray-50 overflow-hidden flex items-center justify-center">
-                         {products.find(p => p.category === cat)?.image_url ? (
-                           <img src={products.find(p => p.category === cat).image_url} alt={cat} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
-                         ) : (
-                           <Tag className="w-7 h-7 text-gray-300" />
-                         )}
-                      </div>
-                    </div>
-                    {selectedCategory === cat && (
-                      <motion.div 
-                        layoutId="active-cat-indicator"
-                        className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1.5 rounded-full border-2 border-white shadow-lg"
-                      >
-                        <Check className="w-3 h-3" />
-                      </motion.div>
-                    )}
+          {/* Premium Category Showcase */}
+          {layoutSettings.show_stories && Array.from(categories.keys()).length > 0 && (
+            <section className="bg-white py-20 overflow-hidden">
+              <div className="max-w-7xl mx-auto px-4 md:px-8">
+                <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-12">
+                  <div className="space-y-2">
+                    <h3 className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-indigo-600'}`}>
+                      {lang === 'tr' ? 'KOLEKSİYONLAR' : 'COLLECTIONS'}
+                    </h3>
+                    <h2 className={`text-4xl md:text-6xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}>
+                      {categoriesLabel}
+                    </h2>
                   </div>
-                  <span className={`text-[10px] sm:text-xs font-bold whitespace-nowrap transition-all tracking-tight uppercase ${selectedCategory === cat ? 'text-blue-600 scale-110' : 'text-gray-500 group-hover:text-gray-900'}`}>
-                    {cat}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          {/* Subtle Fade Indicators for Desktop Scroll */}
-          <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-white to-transparent pointer-events-none opacity-0 md:group-hover:opacity-100 transition-opacity" />
-          <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-white to-transparent pointer-events-none opacity-0 md:group-hover:opacity-100 transition-opacity" />
-        </div>
-      )}
+                  <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <div className="w-12 h-[1px] bg-slate-200"></div>
+                    {lang === 'tr' ? 'Seçkin Seçkiler' : 'Curated Selections'}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                  {Array.from(categories.keys()).sort().map((cat, idx) => {
+                    const firstProduct = products.find(p => p.category === cat);
+                    const isLarge = idx % 5 === 0;
+                    return (
+                      <motion.div
+                        key={`cat-grid-${cat}`}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: idx * 0.05 }}
+                        viewport={{ once: true }}
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className={`group relative overflow-hidden rounded-[2.5rem] cursor-pointer bg-slate-50 transition-all duration-700 hover:shadow-2xl hover:-translate-y-2 ${isLarge ? 'md:col-span-2 md:row-span-1' : ''}`}
+                        style={{ height: isLarge ? '260px' : '260px' }}
+                      >
+                        <div className="absolute inset-0 z-0">
+                          {firstProduct?.image_url ? (
+                            <img 
+                              src={firstProduct.image_url} 
+                              alt={cat} 
+                              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300">
+                              <Tag className="w-12 h-12" />
+                            </div>
+                          )}
+                          <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity group-hover:opacity-90`} />
+                        </div>
+                        
+                        <div className="absolute inset-0 p-8 flex flex-col justify-end z-10">
+                          <span className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1 group-hover:text-white transition-colors">
+                            {products.filter(p => p.category === cat).length} {productLabel}
+                          </span>
+                          <h4 className={`text-xl md:text-2xl font-black text-white tracking-tight leading-tight group-hover:translate-x-2 transition-transform duration-500`}>
+                            {cat}
+                          </h4>
+                          <div className="mt-4 pt-4 border-t border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+                             <div className="flex items-center gap-2 text-white text-[10px] font-black uppercase tracking-widest">
+                               {lang === 'tr' ? 'Keşfet' : 'Discover'}
+                               <Plus className="w-3 h-3" />
+                             </div>
+                          </div>
+                        </div>
+
+                        {selectedCategory === cat && (
+                          <div className="absolute top-6 right-6 z-20 w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-900 shadow-xl border border-white/50">
+                            <Check className="w-4 h-4" />
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
 
       {/* Main Content Area */}
       {!isProfileView && !isOrdersView && !isReturnView ? (
         <>
           {/* Hero Section */}
-          <section className="relative h-[300px] md:h-[450px] overflow-hidden">
-            {store?.hero_image_url ? (
-              <img 
-                src={store.hero_image_url} 
-                alt={store.hero_title || store.name} 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <img 
-                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2048&auto=format&fit=crop" 
-                alt="Store Hero" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent flex items-center p-8 md:p-24">
-              <div className="max-w-3xl">
+          <section className="relative min-h-[60vh] md:min-h-[85vh] flex items-center overflow-hidden bg-slate-950">
+            <motion.div 
+              initial={{ scale: 1.1, opacity: 0 }}
+              animate={{ scale: 1, opacity: 0.7 }}
+              transition={{ duration: 2, ease: "easeOut" }}
+              className="absolute inset-0 z-0"
+            >
+              {store?.hero_image_url ? (
+                <img 
+                  src={store.hero_image_url} 
+                  alt={store.hero_title || store.name} 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <img 
+                  src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2048&auto=format&fit=crop" 
+                  alt="Store Hero" 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+            </motion.div>
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent z-10" />
+            <div className="absolute inset-0 bg-slate-950/20 z-10" />
+
+            <div className="container max-w-7xl mx-auto px-4 md:px-8 relative z-20">
+              <div className="max-w-4xl">
                 <motion.div
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="mb-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex items-center gap-4 mb-8"
                 >
-                  <span 
-                    className="px-5 py-2 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full backdrop-blur-md border border-white/20"
-                    style={{ backgroundColor: `${primaryColor}80` }}
-                  >
+                  <div className="w-12 h-0.5 bg-white/40" />
+                  <span className="text-white/80 text-xs font-black uppercase tracking-[0.4em]">
                     {store?.name}
                   </span>
                 </motion.div>
+
                 <motion.h2 
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-5xl md:text-8xl font-display font-black text-white mb-8 leading-[0.9] tracking-tighter text-balance"
+                  transition={{ delay: 0.7, duration: 0.8 }}
+                  className={`text-6xl md:text-9xl text-white mb-6 leading-[0.85] tracking-tight text-balance ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}
                 >
                   {store?.hero_title || store?.name}
                 </motion.h2>
+
                 {store?.hero_subtitle && (
                   <motion.p 
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="text-lg md:text-2xl text-white/80 font-medium max-w-xl leading-relaxed mb-12 text-balance"
+                    transition={{ delay: 0.9, duration: 0.8 }}
+                    className="text-xl md:text-3xl text-white/60 font-medium max-w-2xl leading-relaxed mb-12 text-balance"
                   >
                     {store.hero_subtitle}
                   </motion.p>
                 )}
+
                 <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.1 }}
+                  className="flex flex-wrap gap-4"
                 >
+                  <button 
+                    onClick={() => document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="px-10 py-5 bg-white text-slate-950 rounded-full font-black text-sm uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-95 shadow-2xl hover:px-12"
+                  >
+                    {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
+                  </button>
+                  {store?.about_text && (
+                    <button 
+                      onClick={() => setShowAboutModal(true)}
+                      className="px-10 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-sm uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                    >
+                      {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
+                    </button>
+                  )}
                 </motion.div>
               </div>
             </div>
+
+            {/* Scroll Indicator */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 2 }}
+              className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 hidden md:flex flex-col items-center gap-4 text-white/40"
+            >
+              <span className="text-[10px] font-black uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kaydır' : 'Scroll'}</span>
+              <div className="w-[1px] h-12 bg-gradient-to-b from-white/40 to-transparent" />
+            </motion.div>
           </section>
 
           {/* Featured / Campaign Section */}
           {layoutSettings.show_campaigns && (
-          <section className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20 border-b border-gray-100">
-            <div className="flex flex-col md:flex-row items-end justify-between gap-4 mb-10">
-              <div className="space-y-1">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600 mb-2">
+          <section className="max-w-7xl mx-auto px-4 md:px-8 py-20 md:py-32">
+            <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-16">
+              <div className="space-y-3">
+                <h3 className={`text-[10px] font-black uppercase tracking-[0.5em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-blue-600'}`}>
                   {lang === 'tr' ? 'HAFTANIN FIRSATLARI' : 'DEALS OF THE WEEK'}
                 </h3>
-                <h2 className="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tighter">
+                <h2 className={`text-4xl md:text-6xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}>
                   {lang === 'tr' ? 'Kampanyalı Ürünler' : 'Special Campaigns'}
                 </h2>
               </div>
-              <div className="flex items-center gap-2 text-sm font-bold text-gray-400">
-                <span className="w-12 h-[1px] bg-gray-200"></span>
-                {products.length} {lang === 'tr' ? 'Ürün Keşfedilmeyi Bekliyor' : 'Products waiting to be discovered'}
+              <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                <span className="w-16 h-[1px] bg-slate-100"></span>
+                <span className="text-slate-900 font-black">{products.length}</span> {lang === 'tr' ? 'Parça' : 'Items'}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
               {(products.some(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat')) 
                 ? products.filter(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat'))
                 : products
               ).slice(0, 4).map((product, idx) => (
                 <motion.div 
                   key={`featured-${product.id}`}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
+                  transition={{ delay: idx * 0.1, duration: 0.8 }}
                   viewport={{ once: true }}
-                  className="group relative bg-white rounded-[2rem] p-5 border border-gray-100 hover:border-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer"
-                  onClick={() => {
-                    setSelectedProduct(product);
-                  }}
+                  className="group relative cursor-pointer"
+                  onClick={() => setSelectedProduct(product)}
                 >
-                  {/* Campaign Badge */}
-                  <div className="absolute top-8 left-8 z-10 px-4 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-red-500/30">
-                    {lang === 'tr' ? 'FIRSAT' : 'DEAL'}
-                  </div>
-
-                  <div className="aspect-[4/5] rounded-[1.5rem] overflow-hidden bg-gray-50 mb-6 relative">
+                  <div className="aspect-[3/4] rounded-[3rem] overflow-hidden bg-slate-50 mb-8 relative shadow-sm group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-700 font-sans">
+                    {/* Discount Badge */}
+                    {product.old_price && (
+                      <div className="absolute top-8 right-8 z-10 w-14 h-14 bg-white rounded-full flex items-center justify-center text-red-600 text-xs font-black shadow-xl">
+                        -{Math.round((1 - product.price / product.old_price) * 100)}%
+                      </div>
+                    )}
+                    
                     <img 
                       src={product.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=400&auto=format&fit=crop"} 
                       alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{product.category}</div>
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400">
-                        <Truck className="w-3 h-3" />
-                        {lang === 'tr' ? 'Ücretsiz Kargo' : 'Free Shipping'}
-                      </div>
+                    
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />
+                    
+                    <div className="absolute bottom-8 left-8 right-8 flex justify-center translate-y-20 group-hover:translate-y-0 transition-transform duration-700">
+                       <button className="w-full py-4 bg-white text-slate-950 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl">
+                         {lang === 'tr' ? 'İncele' : 'View Details'}
+                       </button>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{product.name}</h3>
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                       <div className="flex flex-col">
-                         <span className="text-[10px] text-gray-400 line-through font-bold">
-                           {formatPrice(product.price * 1.2, product.currency)}
-                         </span>
-                         <span className="text-2xl font-display font-black text-gray-900">
-                           {formatPrice(product.price, product.currency)}
-                         </span>
-                       </div>
-                       <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-900 group-hover:bg-gray-900 group-hover:text-white transition-all shadow-sm">
-                         <Plus className="w-5 h-5 transition-transform group-active:scale-90" />
-                       </div>
+                  </div>
+
+                  <div className="px-4 text-center">
+                    <h4 className={`text-xl text-slate-900 mb-2 truncate ${isLuxury ? '!font-sans !font-medium' : 'font-black'}`}>
+                      {product.name}
+                    </h4>
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-xl font-black text-slate-900 font-sans tracking-tight">{formatPrice(product.price)}</span>
+                      {product.old_price && (
+                        <span className="text-sm font-medium text-slate-400 line-through decoration-red-500/50 font-sans tracking-tight">{formatPrice(product.old_price)}</span>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -1482,11 +1810,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         <div className="mb-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
             <div>
-              <h2 className="text-4xl font-display font-black text-gray-900 tracking-tighter mb-2">
+              <h2 className={`text-4xl md:text-6xl text-slate-900 tracking-tight mb-4 ${isLuxury ? '!font-sans !font-bold' : 'font-black font-display tracking-tighter'}`}>
                 {selectedCategory || t.dashboard.allProducts}
               </h2>
-              <p className="text-gray-400 font-medium">
-                {sortedAndFilteredProducts.length} {t.dashboard.productsFound || 'ürün bulundu'}
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                <span className="text-slate-900">{sortedAndFilteredProducts.length}</span> {t.dashboard.productsFound || 'ürün listeleniyor'}
               </p>
             </div>
 
@@ -1575,7 +1903,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               <div>
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
                   <Filter className="w-4 h-4" />
-                  {t.dashboard.categories}
+                  {categoriesLabel}
                 </h3>
                 
                 {/* Removed sidebar category search bar */}
@@ -1677,7 +2005,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <div>
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
                     <Tag className="w-4 h-4" />
-                    {lang === 'tr' ? 'MARKALAR' : 'BRANDS'}
+                    {brandsLabel}
                   </h3>
 
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -1686,7 +2014,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="text"
-                          placeholder={lang === 'tr' ? 'Marka Ara...' : 'Search Brands...'}
+                          placeholder={lang === 'tr' ? `${brandLabel} Ara...` : `Search ${brandLabel}...`}
                           value={brandSearch}
                           onChange={(e) => setBrandSearch(e.target.value)}
                           className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
@@ -1717,7 +2045,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         ))}
                         {brands.filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
                           <div className="w-full text-center py-4 text-gray-400 text-sm">
-                            {lang === 'tr' ? 'Marka bulunamadı.' : 'No brands found.'}
+                            {lang === 'tr' ? `${brandLabel} bulunamadı.` : `No ${brandLabel.toLowerCase()}s found.`}
                           </div>
                         )}
                       </div>
@@ -1751,7 +2079,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           <h2 className="text-3xl font-black text-gray-900 mb-10">{t.dashboard.featuredProducts}</h2>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                             {featuredProducts.map(p => (
-                              <ProductCard key={p.id} product={p} store={store} t={t} addToBasket={addToBasket} onView={setSelectedProduct} primaryColor={primaryColor} />
+                              <ProductCard 
+                                key={p.id} 
+                                product={p} 
+                                store={store} 
+                                t={t} 
+                                addToBasket={addToBasket} 
+                                onView={setSelectedProduct} 
+                                primaryColor={primaryColor} 
+                                isLuxury={isLuxury}
+                                sector={sector}
+                              />
                             ))}
                           </div>
                         </section>
@@ -1836,15 +2174,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-10">
                     <AnimatePresence mode="popLayout">
                       {paginatedProducts.map((product) => (
-                        <ProductCard 
-                          key={product.id} 
-                          product={product} 
-                          store={store} 
-                          t={t} 
-                          onView={setSelectedProduct}
-                          addToBasket={addToBasket}
-                          primaryColor={primaryColor}
-                        />
+                          <ProductCard 
+                            key={product.id} 
+                            product={product} 
+                            store={store} 
+                            t={t} 
+                            onView={setSelectedProduct}
+                            addToBasket={addToBasket}
+                            primaryColor={primaryColor}
+                            isLuxury={isLuxury}
+                            sector={sector}
+                          />
                       ))}
                     </AnimatePresence>
                   </div>
@@ -1874,7 +2214,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {newArrivals.map(p => (
-                <ProductCard key={p.id} product={p} store={store} t={t} addToBasket={addToBasket} onView={setSelectedProduct} primaryColor={primaryColor} />
+                <ProductCard 
+                  key={p.id} 
+                  product={p} 
+                  store={store} 
+                  t={t} 
+                  addToBasket={addToBasket} 
+                  onView={setSelectedProduct} 
+                  primaryColor={primaryColor} 
+                  isLuxury={isLuxury}
+                  sector={sector}
+                />
               ))}
             </div>
           </section>
@@ -1891,7 +2241,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {bestSellers.map(p => (
-                <ProductCard key={p.id} product={p} store={store} t={t} addToBasket={addToBasket} onView={setSelectedProduct} primaryColor={primaryColor} />
+                <ProductCard 
+                  key={p.id} 
+                  product={p} 
+                  store={store} 
+                  t={t} 
+                  addToBasket={addToBasket} 
+                  onView={setSelectedProduct} 
+                  primaryColor={primaryColor} 
+                  isLuxury={isLuxury}
+                  sector={sector}
+                />
               ))}
             </div>
           </section>
@@ -2400,12 +2760,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                 {/* Brands */}
                 <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-4">{lang === 'tr' ? 'MARKALAR' : 'BRANDS'}</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-4">{brandsLabel}</h4>
                   <div className="relative mb-4">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Marka Ara..."
+                      placeholder={lang === 'tr' ? `${brandLabel} Ara...` : `Search ${brandLabel}...`}
                       value={brandSearch}
                       onChange={(e) => setBrandSearch(e.target.value)}
                       className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
@@ -2418,7 +2778,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             !selectedBrand ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
                         }`}
                     >
-                        Hepsi
+                        {lang === 'tr' ? 'Hepsi' : 'All'}
                     </button>
                     {brands
                       .filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase()))
@@ -2565,9 +2925,32 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               </div>
             </div>
 
+            {/* Quick Links */}
             <div>
               <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'HIZLI ERİŞİM' : 'QUICK LINKS'}</h4>
               <ul className="space-y-4">
+                {store?.about_text && (
+                  <li>
+                    <button 
+                      onClick={() => setShowAboutModal(true)}
+                      className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                      {lang === 'tr' ? 'Hakkımızda' : 'About Us'}
+                    </button>
+                  </li>
+                )}
+                {store?.locations && store.locations.length > 0 && (
+                  <li>
+                    <button 
+                      onClick={() => setShowStoreLocatorModal(true)}
+                      className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                      {lang === 'tr' ? 'Mağazalarımız' : 'Our Stores'}
+                    </button>
+                  </li>
+                )}
                 {(store?.menu_links || []).map((link: any, index: number) => (
                   <li key={index}>
                     <a href={link.url} className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group">
@@ -3307,6 +3690,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             onClose={() => setSelectedProduct(null)} 
             addToBasket={addToBasket} 
             primaryColor={primaryColor}
+            isLuxury={isLuxury}
+            sector={sector}
+            showAboutModal={showAboutModal}
+            setShowAboutModal={setShowAboutModal}
           />
         )}
       </AnimatePresence>
@@ -3571,12 +3958,38 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               <span className={`font-bold text-xs text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
                             </button>
                           )}
+
+                          {/* In-Store Pickup */}
+                          {store?.reservation_enabled && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('store_reservation')}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'store_reservation' ? 'border-amber-600 bg-amber-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
+                              style={{ borderColor: paymentMethod === 'store_reservation' ? primaryColor : undefined }}
+                            >
+                              <MapPin className={`w-6 h-6 mb-2 ${paymentMethod === 'store_reservation' ? 'text-amber-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'store_reservation' ? primaryColor : undefined }} />
+                              <span className={`font-bold text-xs text-center ${paymentMethod === 'store_reservation' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Mağazadan Teslim' : 'In-Store Pickup'}</span>
+                            </button>
+                          )}
                         </div>
                         
                         {/* Bank Details Display */}
                         {paymentMethod === 'bank_transfer' && store?.payment_settings?.bank_details && (
                           <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-sm font-medium whitespace-pre-wrap">
                             {store.payment_settings.bank_details}
+                          </div>
+                        )}
+
+                        {/* Store Locator Selection */}
+                        {paymentMethod === 'store_reservation' && store?.locations && (
+                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm mt-4">
+                            <h4 className="font-bold mb-2">Mağaza Seçiniz:</h4>
+                            {store.locations.map((loc, idx) => (
+                                <label key={idx} className="flex items-center gap-2 mb-1">
+                                    <input type="radio" value={loc.name} name="selected_store_location" className="text-amber-600" />
+                                    <span>{loc.name} - {loc.address}</span>
+                                </label>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -3646,6 +4059,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       </a>
     )}
 
+    {showStoreLocatorModal && store?.locations && (
+      <StoreLocatorModal 
+        locations={store.locations} 
+        onClose={() => setShowStoreLocatorModal(false)}
+      />
+    )}
     </ErrorBoundary>
   );
 };

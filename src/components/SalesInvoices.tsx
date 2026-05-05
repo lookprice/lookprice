@@ -18,8 +18,14 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   const invoiceRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -255,12 +261,13 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         const taxRate = Number(taxRateStr);
         
         let unitPrice: number;
-        if (product.price_2 && Number(product.price_2) > 0) {
-          unitPrice = Number(product.price_2);
-        } else {
-          const kdvDahilPrice = Number(product.price) || 0;
-          unitPrice = kdvDahilPrice / (1 + taxRate / 100);
-        }
+        const kdvDahilPrice = Number(product.price) || 0;
+        const kdvHaricPrice = (product.price_2 && Number(product.price_2) > 0) 
+          ? Number(product.price_2) 
+          : kdvDahilPrice / (1 + taxRate / 100);
+
+        // If UI is tax-inclusive, we display and use the inclusive price in the inputs
+        unitPrice = isTaxInclusive ? kdvDahilPrice : kdvHaricPrice;
 
         if (productCurrency !== targetCurrency) {
           const rates = branding?.currency_rates || {};
@@ -509,14 +516,23 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
       setStatus(data.status || 'draft');
-      setItems((data.items || []).map((item: any) => ({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        barcode: item.barcode,
-        quantity: String(Math.floor(Number(item.quantity) || 0)),
-        unit_price: String(item.unit_price),
-        tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
-      })));
+      const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
+      setIsTaxInclusive(taxIncl);
+      setItems((data.items || []).map((item: any) => {
+        const taxRate = Number(item.tax_rate) || 0;
+        const exclusivePrice = Number(item.unit_price) || 0;
+        // If UI is tax-inclusive, show the inclusive price in the inputs
+        const displayPrice = taxIncl ? (exclusivePrice * (1 + taxRate / 100)) : exclusivePrice;
+        
+        return {
+          product_id: item.product_id,
+          product_name: item.product_name,
+          barcode: item.barcode,
+          quantity: String(Math.floor(Number(item.quantity) || 0)),
+          unit_price: String(displayPrice.toFixed(2)),
+          tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
+        };
+      }));
       setShowModal(true);
     } catch (error: any) {
       alert(error.message || (isTr ? "Hata oluştu" : "An error occurred"));

@@ -115,7 +115,8 @@ export default function BlogTab({ storeId, storeName, isTr }: BlogTabProps) {
     if (!topic) return;
     setIsGenerating(true);
     try {
-      const result = await api.generateBlog(topic, storeName, isTr ? 'tr' : 'en');
+      const { generateBlogContent } = await import('../../services/geminiService');
+      const result = await generateBlogContent(topic, storeName, isTr ? 'tr' : 'en');
       setFormState(prev => ({
         ...prev,
         ...result

@@ -101,6 +101,7 @@ export const api = {
   bulkRecalculatePrice2: (storeId?: number) => api.put(`/api/store/products/bulk-recalculate-price2${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   updateProductStock: (id: number, quantityChange: number, storeId?: number) => api.post(`/api/store/products/${id}/stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { quantityChange }),
   deleteProduct: (id: number, storeId?: number) => api.delete(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  deleteBulkProducts: (ids: number[], storeId?: number) => api.post(`/api/store/products/bulk-delete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ids }),
   reformatProductNames: (storeId?: number) => api.post(`/api/store/products/reformat-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   importProducts: (formData: FormData, storeId?: number) => api.upload(`/api/store/import${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, formData),

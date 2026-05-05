@@ -805,42 +805,55 @@ const SettingsTab = ({
               {(branding.shipping_profiles || []).map((profile: any, index: number) => (
                 <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
                   <div className="flex-1 w-full">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Profil Adı</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
-                      value={profile.name}
-                      onChange={(e) => {
-                        const newProfiles = [...branding.shipping_profiles];
-                        newProfiles[index].name = e.target.value;
-                        onBrandingChange('shipping_profiles', newProfiles);
-                      }}
-                    />
+                    <input value={profile.name} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].name = e.target.value; onBrandingChange('shipping_profiles', p); }} placeholder="Profil Adı" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold mb-2" />
+                    <div className="flex gap-2">
+                       <input type="number" value={profile.cost} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].cost = parseFloat(e.target.value); onBrandingChange('shipping_profiles', p); }} placeholder="Ücret" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                       <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold" />
+                    </div>
                   </div>
-                  <div className="w-full sm:w-32 shrink-0">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1 block">Ücret</label>
-                    <input 
-                      type="number" 
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
-                      value={profile.cost}
-                      onChange={(e) => {
-                        const newProfiles = [...branding.shipping_profiles];
-                        newProfiles[index].cost = parseFloat(e.target.value) || 0;
-                        onBrandingChange('shipping_profiles', newProfiles);
-                      }}
-                    />
-                  </div>
-                  <button 
-                    onClick={() => {
-                      const newProfiles = branding.shipping_profiles.filter((_: any, i: number) => i !== index);
-                      onBrandingChange('shipping_profiles', newProfiles);
-                    }}
-                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-6 sm:mt-5"
-                  >
+                  <button onClick={() => { const p = [...branding.shipping_profiles]; p.splice(index, 1); onBrandingChange('shipping_profiles', p); }} className="text-red-500 hover:text-red-700">
                     <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Store Locator & Reservations */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
+                  <MapPin className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Mağaza ve Rezervasyon</h3>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={!!branding.reservation_enabled}
+                  onChange={(e) => onBrandingChange('reservation_enabled', e.target.checked)}
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-sm font-bold text-slate-900">Mağazadan Teslimat (Rezervasyon) Aktif Et</span>
+              </label>
+
+              <div className="space-y-4">
+                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Mağaza Konumları</h4>
+                 {(branding.locations || []).map((loc: any, idx: number) => (
+                   <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl items-center">
+                     <input value={loc.name} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx].name = e.target.value; onBrandingChange('locations', l); }} placeholder="Mağaza Adı" className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                     <input value={loc.address} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx].address = e.target.value; onBrandingChange('locations', l); }} placeholder="Adres" className="col-span-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                   </div>
+                 ))}
+                 <button 
+                  onClick={() => onBrandingChange('locations', [...(branding.locations || []), { name: '', address: '', active: true }])}
+                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
+                 >Mağaza Ekle</button>
+              </div>
             </div>
           </div>
 
@@ -2521,13 +2534,31 @@ const SettingsTab = ({
               <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'TEMA KONSEPTİ' : 'THEME CONCEPT'}</p>
                 <div className="flex gap-2">
-                  {['modern', 'minimal', 'bold'].map((theme) => (
+                  {['modern', 'minimal', 'bold', 'luxury'].map((theme) => (
                     <button
                       key={theme}
                       onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), theme_variety: theme })}
                       className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${branding.page_layout_settings?.theme_variety === theme ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}
                     >
                       {theme}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 mt-4">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'SEKTÖR MODU' : 'SECTOR MODE'}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {['general', 'fashion', 'automotive', 'tech'].map((sect) => (
+                    <button
+                      key={sect}
+                      onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), sector: sect })}
+                      className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${branding.page_layout_settings?.sector === sect ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}
+                    >
+                      {sect === 'general' ? (lang === 'tr' ? 'Genel' : 'General') :
+                       sect === 'fashion' ? (lang === 'tr' ? 'Moda / Lüks' : 'Fashion / Luxury') :
+                       sect === 'automotive' ? (lang === 'tr' ? 'Otomotiv' : 'Automotive') :
+                       (lang === 'tr' ? 'Teknoloji' : 'Tech')}
                     </button>
                   ))}
                 </div>
@@ -2606,6 +2637,72 @@ const SettingsTab = ({
                     <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onBannerUpload} />
                   </div>
                   <input className="w-full px-4 py-2 bg-slate-100/50 border-none rounded-lg text-[10px] font-mono text-slate-400" value={branding.hero_image_url || ''} onChange={(e) => onBrandingChange('hero_image_url', e.target.value)} placeholder="Banner URL..." />
+               </div>
+            </div>
+
+            {/* Label Customization */}
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+               <div className="flex items-center justify-between mb-6">
+                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{lang === 'tr' ? 'ÖZEL ETİKETLER' : 'CUSTOM LABELS'}</h3>
+                 <div className="flex gap-2">
+                   <button 
+                    onClick={() => {
+                      onBrandingChange('brand_label', lang === 'tr' ? 'Yazarlar' : 'Authors');
+                      onBrandingChange('category_label', lang === 'tr' ? 'Kitap Türleri' : 'Book Types');
+                      onBrandingChange('product_label', lang === 'tr' ? 'Kitap' : 'Book');
+                      onBrandingChange('stock_label', lang === 'tr' ? 'Stoktaki Kitap Sayısı' : 'Books in Stock');
+                      onBrandingChange('hero_title', lang === 'tr' ? 'Okumayı Seviyoruz' : 'We Love Reading');
+                    }}
+                    className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-indigo-100 transition-colors"
+                   >
+                     {lang === 'tr' ? 'Kitapçı Konsepti Uygula' : 'Apply Bookstore Concept'}
+                   </button>
+                 </div>
+               </div>
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'MARKA ETİKETİ' : 'BRAND LABEL'}</label>
+                      <input 
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                        placeholder={lang === 'tr' ? 'Örn: Yazarlar' : 'e.g. Authors'}
+                        value={branding.brand_label || ''} 
+                        onChange={(e) => onBrandingChange('brand_label', e.target.value)} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'KATEGORİ ETİKETİ' : 'CATEGORY LABEL'}</label>
+                      <input 
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                        placeholder={lang === 'tr' ? 'Örn: Koleksiyon' : 'e.g. Collections'}
+                        value={branding.category_label || ''} 
+                        onChange={(e) => onBrandingChange('category_label', e.target.value)} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜRÜN ADLANDIRMA' : 'PRODUCT LABEL'}</label>
+                       <input 
+                         className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                         placeholder={lang === 'tr' ? 'Örn: Kitap' : 'e.g. Book'}
+                         value={branding.product_label || ''} 
+                         onChange={(e) => onBrandingChange('product_label', e.target.value)} 
+                       />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'STOK ETİKETİ' : 'STOCK LABEL'}</label>
+                       <input 
+                         className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                         placeholder={lang === 'tr' ? 'Örn: Kalan Adet' : 'e.g. Remaining'}
+                         value={branding.stock_label || ''} 
+                         onChange={(e) => onBrandingChange('stock_label', e.target.value)} 
+                       />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
+                    {lang === 'tr' 
+                      ? '* Bu ayarlar web sitenizdeki filtreleme ve ürün detaylarındaki başlıkları değiştirir.' 
+                      : '* These settings change the titles in filtering and product details on your website.'}
+                  </p>
                </div>
             </div>
 

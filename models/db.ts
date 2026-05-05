@@ -552,6 +552,7 @@ export async function initDb() {
       -- Update stores table if needed
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;
       ALTER TABLE quotations ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS phone TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS country TEXT;
       ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'TR';

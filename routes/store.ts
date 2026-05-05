@@ -904,11 +904,14 @@ router.get("/analytics", async (req: any, res) => {
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
   try {
+    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const totalScans = (await pool.query("SELECT COUNT(*)::INT as count FROM scan_logs WHERE store_id = $1", [storeId])).rows[0].count;
+    const monthlyScans = (await pool.query("SELECT COUNT(*)::INT as count FROM scan_logs WHERE store_id = $1 AND created_at >= $2", [storeId, currentMonthStart])).rows[0].count;
     const totalProducts = (await pool.query("SELECT COUNT(*)::INT as count FROM products WHERE store_id = $1", [storeId])).rows[0].count;
     const lowStockCount = (await pool.query("SELECT COUNT(*)::INT as count FROM products WHERE store_id = $1 AND product_type != 'service' AND stock_quantity <= min_stock_level", [storeId])).rows[0].count;
     
     const totalSalesAmount = (await pool.query("SELECT SUM(total_amount)::FLOAT as amount FROM sales WHERE store_id = $1 AND status = 'completed'", [storeId])).rows[0].amount || 0;
+    const monthlySalesAmount = (await pool.query("SELECT SUM(total_amount)::FLOAT as amount FROM sales WHERE store_id = $1 AND status = 'completed' AND created_at >= $2", [storeId, currentMonthStart])).rows[0].amount || 0;
 
     const dailyScans = await pool.query(`
       SELECT TO_CHAR(d.date, 'DD/MM') as date, COALESCE(s.count, 0)::INT as count FROM (
@@ -970,9 +973,11 @@ router.get("/analytics", async (req: any, res) => {
 
     res.json({
       total_scans: totalScans,
+      monthly_scans: monthlyScans,
       total_products: totalProducts,
       low_stock_count: lowStockCount,
       total_sales_amount: totalSalesAmount,
+      monthly_sales_amount: monthlySalesAmount,
       daily_scans: dailyScans.rows,
       daily_sales: dailySales.rows,
       top_products: topProducts.rows,
@@ -1357,6 +1362,36 @@ router.delete("/products/all", async (req: any, res) => {
     res.json({ success: true });
   } catch (e: any) {
     console.error("Delete all products error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/products/bulk-delete", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+    if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
+
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "No IDs provided" });
+    }
+
+    await pool.query("DELETE FROM products WHERE store_id = $1 AND id = ANY($2::int[])", [storeId, ids]);
+
+    // Log the action
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "product_bulk_delete", 
+      "product", 
+      null, 
+      `${ids.length} adet ürün toplu olarak silindi`,
+      null,
+      null
+    );
+
+    res.json({ success: true, message: `${ids.length} products deleted.` });
+  } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -3480,10 +3515,9 @@ router.post("/purchase-invoices", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items: bodyItems, notes, currency, exchange_rate, payment_method } = req.body;
+    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items: bodyItems, notes, currency, exchange_rate, payment_method, is_tax_inclusive } = req.body;
     
     // For superadmins, prioritize bodyStoreId. If not provided, fallback to req.user.store_id.
-    // If both are null/undefined, storeId will be null/undefined.
     let storeId = req.user.store_id;
     if (req.user.role === "superadmin") {
       if (bodyStoreId) {
@@ -3496,7 +3530,8 @@ router.post("/purchase-invoices", async (req: any, res) => {
     }
     
     const items = Array.isArray(bodyItems) ? bodyItems : [];
-    
+    const isTaxIncl = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
+
     // Calculate totals
     let total_amount = 0;
     let tax_amount = 0;
@@ -3507,20 +3542,28 @@ router.post("/purchase-invoices", async (req: any, res) => {
       const up = Number(item.unit_price) || 0;
       const tr = Number(item.tax_rate) || 0;
       
-      const itemTotal = qty * up;
-      const itemTax = itemTotal * (tr / 100);
-      
-      total_amount += itemTotal;
-      tax_amount += itemTax;
-      grand_total += (itemTotal + itemTax);
+      if (isTaxIncl) {
+        const itemTotalIncl = qty * up;
+        const itemTotalExcl = itemTotalIncl / (1 + (tr / 100));
+        const itemTax = itemTotalIncl - itemTotalExcl;
+        total_amount += itemTotalExcl;
+        tax_amount += itemTax;
+        grand_total += itemTotalIncl;
+      } else {
+        const itemTotal = qty * up;
+        const itemTax = itemTotal * (tr / 100);
+        total_amount += itemTotal;
+        tax_amount += itemTax;
+        grand_total += (itemTotal + itemTax);
+      }
     }
     
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO purchase_invoices 
-        (store_id, company_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, payment_method) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-      [storeId, company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method]
+        (store_id, company_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, payment_method, is_tax_inclusive) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      [storeId, company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, isTaxIncl]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -3534,28 +3577,40 @@ router.post("/purchase-invoices", async (req: any, res) => {
       const qty = Number(item.quantity) || 0;
       const up = Number(item.unit_price) || 0;
       const tr = Number(item.tax_rate) || 0;
-      const itemTotal = qty * up;
-      const itemTax = itemTotal * (tr / 100);
+      
+      let kdvHaricPrice: number;
+      let itemTaxAmount: number;
+      let kdvHaricTotal: number;
+
+      if (isTaxIncl) {
+        kdvHaricPrice = up / (1 + tr / 100);
+        kdvHaricTotal = (qty * up) / (1 + tr / 100);
+        itemTaxAmount = (qty * up) - kdvHaricTotal;
+      } else {
+        kdvHaricPrice = up;
+        kdvHaricTotal = qty * up;
+        itemTaxAmount = (kdvHaricTotal * tr) / 100;
+      }
       
       await client.query(
         `INSERT INTO purchase_invoice_items 
           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [invoiceId, item.product_id, item.product_name, item.barcode, qty, up, tr, itemTax, itemTotal]
+        [invoiceId, item.product_id, item.product_name, item.barcode, qty, kdvHaricPrice, tr, itemTaxAmount, kdvHaricTotal]
       );
       
       // Update stock and cost if product_id is provided
       if (item.product_id) {
         const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.product_id]);
         const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
- 
+
         if (productType !== 'service') {
           await client.query(
             "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
-            [qty, up, currency || 'TRY', item.product_id, storeId]
+            [qty, kdvHaricPrice, currency || 'TRY', item.product_id, storeId]
           );
           
-          await addStockMovement(client, storeId, item.product_id, 'in', qty, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, up, companyName, currency);
+          await addStockMovement(client, storeId, item.product_id, 'in', qty, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, kdvHaricPrice, companyName, currency);
         }
       }
     }

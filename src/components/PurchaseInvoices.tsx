@@ -16,8 +16,14 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
@@ -50,6 +56,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTaxInclusive, setIsTaxInclusive] = useState(true);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
 
   const isTr = lang === 'tr';
@@ -187,12 +194,20 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     items.forEach(item => {
       const qty = Number(String(item.quantity).replace(',', '.')) || 0;
       const price = Number(String(item.unit_price).replace(',', '.')) || 0;
-      const tax = Math.floor(Number(String(item.tax_rate).replace(',', '.')) || 0);
+      const tax = Number(String(item.tax_rate).replace(',', '.')) || 0;
       
-      const itemTotal = qty * price;
-      const itemTax = itemTotal * (tax / 100);
-      subtotal += itemTotal;
-      taxTotal += itemTax;
+      if (isTaxInclusive) {
+        const itemTotalIncl = qty * price;
+        const itemTotalExcl = itemTotalIncl / (1 + (tax / 100));
+        const itemTax = itemTotalIncl - itemTotalExcl;
+        subtotal += itemTotalExcl;
+        taxTotal += itemTax;
+      } else {
+        const itemTotal = qty * price;
+        const itemTax = itemTotal * (tax / 100);
+        subtotal += itemTotal;
+        taxTotal += itemTax;
+      }
     });
     
     return {
@@ -270,7 +285,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         })),
         payment_method: currentPaymentMethod,
         currency: currentCurrency,
-        exchange_rate: Number(currentExchangeRate) || 1
+        exchange_rate: Number(currentExchangeRate) || 1,
+        is_tax_inclusive: isTaxInclusive
       };
 
       const res = currentEditingId 
@@ -332,14 +348,23 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setPaymentMethod(data.payment_method || 'term');
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
-      setItems((data.items || []).map((item: any) => ({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        barcode: item.barcode,
-        quantity: String(item.quantity || 0),
-        unit_price: String(item.unit_price),
-        tax_rate: String(item.tax_rate || 0)
-      })));
+      const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
+      setIsTaxInclusive(taxIncl);
+      
+      setItems((data.items || []).map((item: any) => {
+        const tr = Number(item.tax_rate) || 0;
+        const up = Number(item.unit_price) || 0;
+        const displayPrice = taxIncl ? (up * (1 + tr / 100)) : up;
+        
+        return {
+          product_id: item.product_id,
+          product_name: item.product_name,
+          barcode: item.barcode,
+          quantity: String(item.quantity || 0),
+          unit_price: String(displayPrice.toFixed(2)),
+          tax_rate: String(item.tax_rate || 0)
+        };
+      }));
       setShowModal(true);
     } catch (error: any) {
       toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
@@ -964,6 +989,18 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         <Package className="h-4 w-4 text-indigo-600" />
                         {isTr ? "Ürünler" : "Products"}
                       </h4>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                        <input
+                          id="is_tax_inclusive_purchase"
+                          type="checkbox"
+                          checked={isTaxInclusive}
+                          onChange={(e) => setIsTaxInclusive(e.target.checked)}
+                          className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                        />
+                        <label htmlFor="is_tax_inclusive_purchase" className="text-[11px] font-bold text-slate-600 cursor-pointer">
+                          {isTr ? "Fiyatlara KDV Dahil" : "Prices Include VAT"}
+                        </label>
+                      </div>
                     </div>
 
                     <div className="relative">

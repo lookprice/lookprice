@@ -22,8 +22,19 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     const formData = new FormData(e.target as HTMLFormElement);
     const rawData = Object.fromEntries(formData.entries());
     
+    // Collect sector-specific data
+    const sector_data: any = {};
+    Object.keys(rawData).forEach(key => {
+      if (key.startsWith('sector_spec_')) {
+        const specKey = key.replace('sector_spec_', '');
+        sector_data[specKey] = rawData[key];
+        delete rawData[key];
+      }
+    });
+
     const data: any = { 
       ...rawData,
+      sector_data,
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
       product_type: rawData.product_type || 'product'
     };
@@ -118,5 +129,22 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     }
   };
 
-  return { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, editingProduct, setEditingProduct };
+  const handleBulkDelete = async (ids: number[]) => {
+    if (!ids || ids.length === 0) return;
+    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    
+    const deletePromise = (async () => {
+      const res = await api.deleteBulkProducts(ids, targetStoreId);
+      fetchData(true);
+      return res;
+    })();
+
+    toast.promise(deletePromise, {
+      loading: lang === 'tr' ? `${ids.length} ürün siliniyor...` : `Deleting ${ids.length} products...`,
+      success: lang === 'tr' ? `${ids.length} ürün silindi` : `${ids.length} products deleted`,
+      error: lang === 'tr' ? "Ürünler silinemedi" : "Failed to delete products"
+    });
+  };
+
+  return { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, editingProduct, setEditingProduct };
 };

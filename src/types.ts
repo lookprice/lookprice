@@ -17,6 +17,7 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  old_price?: number;
   currency: string;
   cost_price: number;
   cost_currency: string;
@@ -30,6 +31,7 @@ export interface Product {
   brand?: string;
   author?: string;
   labels?: string[];
+  sector_data?: any;
   is_web_sale?: boolean;
   product_type?: 'product' | 'service';
   price_2?: number;
@@ -58,6 +60,14 @@ export interface LegalPage {
   content: string;
 }
 
+export interface StoreLocation {
+  name: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+  active: boolean;
+}
+
 export interface Store {
   id: number;
   name: string;
@@ -79,6 +89,11 @@ export interface Store {
   facebook_url?: string;
   twitter_url?: string;
   whatsapp_number?: string;
+  brand_label?: string;
+  category_label?: string;
+  product_label?: string;
+  stock_label?: string;
+  show_barcode_in_list?: boolean;
   about_text?: string;
   description?: string;
   faq?: FAQEntry[];
@@ -98,12 +113,16 @@ export interface Store {
     show_newsletter?: boolean;
     enable_live_activity?: boolean;
     theme?: 'modern' | 'minimal' | 'bold';
+    theme_variety?: 'modern' | 'minimal' | 'bold' | 'luxury';
+    sector?: string;
   };
   menu_links?: any[];
   footer_links?: any[];
   shipping_profiles?: any[];
   default_currency?: string;
   currency?: string;
+  locations?: StoreLocation[];
+  reservation_enabled?: boolean;
   // Payment configuration
   payment_settings?: {
     iyzico_enabled: boolean;

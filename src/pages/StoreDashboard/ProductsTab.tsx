@@ -40,6 +40,7 @@ interface ProductsTabProps {
   loading: boolean;
   isViewer: boolean;
   onDeleteAll: () => void;
+  onBulkDelete?: (ids: number[]) => void;
   onEdit: (product: any) => void;
   onAddNew: () => void;
   onImport: () => void;
@@ -59,6 +60,7 @@ const ProductsTab = ({
   loading, 
   isViewer, 
   onDeleteAll, 
+  onBulkDelete,
   onEdit, 
   onAddNew,
   onImport,
@@ -83,6 +85,7 @@ const ProductsTab = ({
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [isFixingNames, setIsFixingNames] = useState(false);
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const handleFixNames = async () => {
     if (isFixingNames) return;
@@ -235,6 +238,49 @@ const ProductsTab = ({
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
+  const handleBulkDeleteFiltered = () => {
+    if (filteredProducts.length === 0) return;
+    
+    const confirmMsg = lang === 'tr' 
+      ? `FİLTRELENMİŞ OLAN ${filteredProducts.length} ADET ÜRÜNÜ SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nBu işlem geri alınamaz!` 
+      : `ARE YOU SURE YOU WANT TO DELETE ${filteredProducts.length} FILTERED PRODUCTS?\n\nThis action cannot be undone!`;
+      
+    if (window.confirm(confirmMsg)) {
+      onBulkDelete?.(filteredProducts.map(p => p.id));
+      setSelectedIds([]);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    const allOnPageSelected = paginatedProducts.every(p => selectedIds.includes(p.id));
+    if (allOnPageSelected) {
+      const pageIds = paginatedProducts.map(p => p.id);
+      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+    } else {
+      const pageIds = paginatedProducts.map(p => p.id);
+      setSelectedIds(prev => [...new Set([...prev, ...pageIds])]);
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDeleteSelected = () => {
+    if (selectedIds.length === 0) return;
+    
+    const confirmMsg = lang === 'tr' 
+      ? `SEÇİLMİŞ OLAN ${selectedIds.length} ADET ÜRÜNÜ SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?` 
+      : `ARE YOU SURE YOU WANT TO DELETE ${selectedIds.length} SELECTED PRODUCTS?`;
+      
+    if (window.confirm(confirmMsg)) {
+      onBulkDelete?.(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
   useEffect(() => {
     if (page > totalPages && totalPages > 0) {
       setPage(totalPages);
@@ -289,11 +335,35 @@ const ProductsTab = ({
                           onDeleteAll();
                         }
                       }}
-                      className="p-3 text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-transparent hover:border-rose-700 active:scale-95 text-rose-600 font-black hover:text-white"
+                      className="p-3 text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-transparent hover:border-rose-700 active:scale-95 text-rose-600 font-black hover:text-white group"
                       title={t.deleteAll}
                     >
                       <Trash2 className="h-4.5 w-4.5" />
                     </button>
+
+                    {selectedIds.length > 0 && (
+                      <button 
+                        onClick={handleBulkDeleteSelected}
+                        className="p-3 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-black flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300"
+                        title={lang === 'tr' ? "Seçilenleri Sil" : "Delete Selected"}
+                      >
+                        <Trash2 className="h-4.5 w-4.5" />
+                        <span className="text-[10px] tracking-tight uppercase">{lang === 'tr' ? `SEÇİLENLERİ SİL (${selectedIds.length})` : `DELETE SELECTED (${selectedIds.length})`}</span>
+                      </button>
+                    )}
+
+                    {!isViewer && (selectedCategory !== 'all' || search !== '') && filteredProducts.length > 0 && selectedIds.length === 0 && (
+                      <button 
+                        onClick={handleBulkDeleteFiltered}
+                        className="p-3 bg-amber-50 text-amber-700 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-amber-200 hover:border-rose-700 active:scale-95 font-black flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300 shadow-sm"
+                        title={lang === 'tr' ? "Filtrelenmiş Ürünleri Sil" : "Delete Filtered Products"}
+                      >
+                        <Trash2 className="h-4.5 w-4.5" />
+                        <span className="text-[10px] tracking-tight uppercase">
+                          {lang === 'tr' ? `LİSTEYİ SİL (${filteredProducts.length})` : `DELETE LIST (${filteredProducts.length})`}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 )}
                 <button 
@@ -374,6 +444,16 @@ const ProductsTab = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
+                {!isViewer && (
+                  <th className="pl-6 py-5 w-10">
+                    <input 
+                      type="checkbox" 
+                      className="h-4 w-4 border-2 border-slate-300 rounded-md text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      checked={paginatedProducts.length > 0 && paginatedProducts.every(p => selectedIds.includes(p.id))}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.barcode}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.productName}</th>
                 {showStoreName && <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.branch}</th>}
@@ -401,8 +481,18 @@ const ProductsTab = ({
                 paginatedProducts.map((p, pIdx) => {
                   const isNearBottom = pIdx >= paginatedProducts.length - 4;
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group cursor-default">
-                      <td className="px-6 py-4">
+                      <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : ''}`}>
+                        {!isViewer && (
+                          <td className="pl-6 py-4">
+                            <input 
+                              type="checkbox" 
+                              className="h-4 w-4 border-2 border-slate-300 rounded-md text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              checked={selectedIds.includes(p.id)}
+                              onChange={() => toggleSelect(p.id)}
+                            />
+                          </td>
+                        )}
+                        <td className="px-6 py-4">
                         <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
                           {p.barcode}
                         </span>

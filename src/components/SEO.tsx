@@ -9,6 +9,8 @@ interface SEOProps {
   ogType?: string;
   keywords?: string;
   schemaData?: object;
+  siteName?: string;
+  robots?: string;
 }
 
 const SEO: React.FC<SEOProps> = ({
@@ -19,8 +21,9 @@ const SEO: React.FC<SEOProps> = ({
   ogType = 'website',
   keywords,
   schemaData,
+  siteName = 'FastPOS & E-Commerce',
+  robots = 'index, follow',
 }) => {
-  const siteName = 'FastPOS & E-Commerce';
   const fullTitle = title ? `${title} | ${siteName}` : siteName;
   const defaultDescription = 'Professional POS and E-commerce management solutions.';
   const currentDescription = description || defaultDescription;
@@ -31,6 +34,7 @@ const SEO: React.FC<SEOProps> = ({
       <title>{fullTitle}</title>
       <meta name="description" content={currentDescription} />
       {keywords && <meta name="keywords" content={keywords} />}
+      <meta name="robots" content={robots} />
       {canonical && <link rel="canonical" href={canonical} />}
 
       {/* Open Graph / Facebook */}
