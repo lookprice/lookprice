@@ -63,7 +63,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
-  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA'>('TEMELFATURA');
+  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('EARSIVFATURA');
   const [isReturn, setIsReturn] = useState(false);
   
   const selectedCompany = companies.find((c: any) => c.id === Number(companyId));
@@ -208,6 +208,38 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setEditAddress("");
     }
   }, [companyId, customerId, isNewCustomer]);
+
+  useEffect(() => {
+    const fetchTaxType = async () => {
+      if (!branding?.einvoice_settings?.is_active) return;
+      
+      let vkn = "";
+      if (companyId) {
+        const comp = companies.find((c: any) => c.id === Number(companyId));
+        vkn = comp?.tax_number || "";
+      } else if (customerId) {
+        const cust = customers.find((c: any) => c.id === Number(customerId));
+        vkn = cust?.tax_number || "";
+      }
+
+      if (vkn && (vkn.length === 10 || vkn.length === 11)) {
+        try {
+          const res = await api.checkTaxpayer(vkn);
+          if (res.documentType === 'E-FATURA') {
+            // Default to TICARIFATURA for companies, but keep current if already set
+            if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TICARIFATURA');
+          } else {
+            setInvoiceProfile('EARSIVFATURA');
+          }
+        } catch (err) {
+          setInvoiceProfile('EARSIVFATURA');
+        }
+      } else {
+        setInvoiceProfile('EARSIVFATURA');
+      }
+    };
+    fetchTaxType();
+  }, [companyId, customerId, branding?.einvoice_settings?.is_active]);
 
   useEffect(() => {
     fetchInvoicesData();
@@ -459,6 +491,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         currency: currentCurrency,
         exchange_rate: Number(currentExchangeRate) || 1,
         status: currentStatus,
+        e_document_type: selectedInvoice?.e_document_type || null,
+        invoice_profile: invoiceProfile,
         is_tax_inclusive: currentIsTaxInclusive
       };
 
@@ -1146,14 +1180,15 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       </div>
                       <div className="space-y-4">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura Tipi' : 'Invoice Profile'}</label>
-                        <select 
-                          className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700 appearance-none"
-                          value={invoiceProfile}
-                          onChange={(e: any) => setInvoiceProfile(e.target.value)}
-                        >
-                          <option value="TEMELFATURA">{isTr ? "Temel Fatura" : "Basic Invoice"}</option>
-                          <option value="TICARIFATURA">{isTr ? "Ticari Fatura" : "Commercial Invoice"}</option>
-                        </select>
+                          <select 
+                            className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700 appearance-none"
+                            value={invoiceProfile}
+                            onChange={(e: any) => setInvoiceProfile(e.target.value)}
+                          >
+                            <option value="EARSIVFATURA">{isTr ? "E-Arşiv Fatura" : "E-Archive"}</option>
+                            <option value="TEMELFATURA">{isTr ? "Temel Fatura" : "Basic Invoice"}</option>
+                            <option value="TICARIFATURA">{isTr ? "Ticari Fatura" : "Commercial Invoice"}</option>
+                          </select>
                       </div>
                       <div className="space-y-4">
                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'İşlem Tipi' : 'Trans Type'}</label>

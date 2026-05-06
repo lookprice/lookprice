@@ -632,13 +632,9 @@ router.get("/info", async (req: any, res) => {
     }
   });
 
-  // Extract branding object to avoid self-overwrite
-  let brandingObj = null;
+  // Merge branding JSON directly onto the store object so frontend can access fields like store.locations correctly
   if (store.branding && typeof store.branding === 'object') {
-    brandingObj = { ...store.branding };
-    // DO NOT allow brandingObj to contain 'branding' key to prevent infinite nesting
-    delete brandingObj.branding;
-    Object.assign(store, brandingObj);
+    Object.assign(store, store.branding);
   }
   
   if (store.parent_id) {
@@ -3043,6 +3039,7 @@ router.post("/sales-invoices", async (req: any, res) => {
       exchange_rate,
       payment_method,
       invoice_type,
+      invoice_profile,
       status,
       is_tax_inclusive
     } = req.body;
@@ -3120,9 +3117,9 @@ router.post("/sales-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, is_tax_inclusive) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
-      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash', quotation_id || null, e_document_type, finalIsTaxInclusive]
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
+      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash', quotation_id || null, e_document_type, invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), finalIsTaxInclusive]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -3225,7 +3222,7 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate, invoice_type, status, is_tax_inclusive } = req.body;
+    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate, invoice_type, invoice_profile, status, is_tax_inclusive } = req.body;
 
     const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
 
@@ -3338,9 +3335,9 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     // 5. Update invoice
     await client.query(
       `UPDATE sales_invoices 
-       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15, is_tax_inclusive = $16
-       WHERE id = $17 AND store_id = $18`,
-      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, e_document_type, finalIsTaxInclusive, req.params.id, storeId]
+       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15, invoice_profile = $16, is_tax_inclusive = $17
+       WHERE id = $18 AND store_id = $19`,
+      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, e_document_type, invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), finalIsTaxInclusive, req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock
@@ -3784,6 +3781,60 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [storeId, company_id, req.params.id, 'debt', grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, `Alış Faturası Ödemesi Revizyonu: ${invoice_number} (${payment_method})`, payment_method, invoice_date || new Date()]
       );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.post("/purchase-invoices/:id/status", async (req: any, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { status, reason } = req.body;
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+
+    // 1. Get the invoice to check if it's an e-invoice and get ETTN/UUID
+    const invRes = await client.query(
+      "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2",
+      [req.params.id, storeId]
+    );
+
+    if (invRes.rows.length === 0) {
+      throw new Error("Invoice not found");
+    }
+
+    const invoice = invRes.rows[0];
+
+    // 2. Update local status
+    await client.query(
+      "UPDATE purchase_invoices SET status = $1 WHERE id = $2",
+      [status, req.params.id]
+    );
+
+    // 3. If it has ETTN and is from integrator, send response to integrator
+    if (invoice.ettn && invoice.integration_status === 'RECEIVED') {
+      try {
+         const { getEInvoiceService } = await import("./einvoice");
+         const service = await getEInvoiceService(storeId);
+         await service.sendApplicationResponse(invoice.ettn, status, reason);
+         
+         await client.query(
+           "UPDATE purchase_invoices SET integration_status = $1 WHERE id = $2",
+           [status === 'APPROVED' ? 'ACCEPTED' : 'REJECTED', req.params.id]
+         );
+      } catch (err: any) {
+         console.error("Integrator Status Update Error:", err.message);
+         // We might not want to fail the whole transaction if only the integrator call fails, 
+         // but usually for e-invoice it's critical. Let's throw for now.
+         throw new Error(`Entegratöre yanıt iletilemedi: ${err.message}`);
+      }
     }
 
     await client.query("COMMIT");

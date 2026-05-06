@@ -6,6 +6,7 @@ import axios from "axios";
 export class MySoftService {
   private baseUrl: string;
   private token: string | null = null;
+  private tokenExpiry: Date | null = null;
   private credentials: {
     username?: string;
     password?: string;
@@ -24,82 +25,45 @@ export class MySoftService {
     this.credentials = credentials;
   }
 
-   // 1. Token Handling
-  private async authenticate(forceRefresh = false) {
-    if (this.credentials.api_token && this.credentials.api_token.length > 10) {
-       this.token = this.credentials.api_token;
-       return this.token;
+  // 1. Token Handling - Phase 1 Implementation
+  private async authenticate(): Promise<string> {
+    if (this.token && this.tokenExpiry && this.tokenExpiry > new Date()) {
+      return this.token;
     }
-    
-    if (this.credentials.username && this.credentials.password) {
-       if (this.token && !forceRefresh) return this.token;
-       this.token = null; // Clear if refreshing
 
-       const endpoints = [
-         `${this.baseUrl}/Login/Authentication`,
-         `${this.baseUrl}/Authentication/Login`,
-         `${this.baseUrl}/Authentication/GetToken`,
-         `${this.baseUrl}/Authentication/Token`,
-         `${this.baseUrl}/token`,
-         `${this.baseUrl.replace('/api', '')}/Login/Authentication`
-       ];
+    try {
+      // Use URLSearchParams for x-www-form-urlencoded format
+      const params = new URLSearchParams();
+      params.append('username', this.credentials.username || '');
+      params.append('password', this.credentials.password || '');
+      params.append('grant_type', 'password');
 
-       let lastError = null;
+      // Robust auth URL resolution
+      let authUrl = "";
+      if (this.baseUrl.includes('/api')) {
+        authUrl = this.baseUrl.split('/api')[0] + '/oauth/token';
+      } else {
+        authUrl = this.baseUrl + '/oauth/token';
+      }
+      
+      console.log(`Authenticating with MySoft OAuth at: ${authUrl}`);
+      
+      const response = await axios.post(authUrl, params, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 10000
+      });
 
-       for (const endpoint of endpoints) {
-         try {
-           const authPayload: any = {
-             Username: this.credentials.username,
-             Password: this.credentials.password
-           };
-
-           if (this.credentials.tenant_id) {
-             authPayload.TenantId = this.credentials.tenant_id;
-             authPayload.ApplicationId = this.credentials.tenant_id;
-             authPayload.tenantId = this.credentials.tenant_id;
-           }
-           
-           if (this.credentials.earchive_uuid) {
-             authPayload.ClientId = this.credentials.earchive_uuid;
-             authPayload.clientId = this.credentials.earchive_uuid;
-           }
-
-           console.log(`Trying MySoft Auth at: ${endpoint}`);
-           const config: any = { 
-             timeout: 8000, 
-             headers: { 'Content-Type': 'application/json' } 
-           };
-           if (this.credentials.tenant_id) {
-             config.headers['TenantId'] = this.credentials.tenant_id;
-           }
-
-           const response = await axios.post(endpoint, authPayload, config);
-           
-           let tokenValue = response.data.Data || response.data.token || response.data.AccessToken || response.data.access_token || response.data.data?.token || response.data.data?.accessToken;
-
-           if (tokenValue && typeof tokenValue === 'object') {
-             tokenValue = tokenValue.Token || tokenValue.AccessToken || tokenValue.token || tokenValue.accessToken || tokenValue.SessionId;
-           }
-
-           if (tokenValue && typeof tokenValue === 'string') {
-             this.token = tokenValue;
-             console.log(`MySoft Auth Success at: ${endpoint}`);
-             return this.token;
-           }
-         } catch (error: any) {
-           lastError = error;
-           const errMsg = error.response?.data?.Message || error.response?.data || error.message;
-           console.log(`Failed auth at ${endpoint}: ${errMsg}`);
-         }
-       }
-       
-       const errorData = lastError?.response?.data;
-       const errorMessage = errorData?.Message || errorData || lastError?.message || "Bilinmeyen hata";
-       console.error("MySoft All Auth Endpoints Failed:", errorMessage);
-       throw new Error(`MySoft Giriş Hatası: ${errorMessage}. Lütfen kullanıcı adı, şifre ve Tenant ID (Genelde 210) bilgilerini kontrol ediniz.`);
+      if (response.data.access_token) {
+        this.token = response.data.access_token;
+        // Token'ı birkaç dakika önce expire olmuş gibi ayarlayalım ki güvenli olsun
+        this.tokenExpiry = new Date(Date.now() + (response.data.expires_in - 300) * 1000);
+        return this.token;
+      }
+      throw new Error("Authentication response failed");
+    } catch (error: any) {
+      console.error("MySoft OAuth Error:", error.response?.data || error.message);
+      throw new Error("MySoft API kimlik doğrulaması başarısız.");
     }
-    
-    throw new Error("MySoft API Token veya kullanıcı bilgileri (Kullanıcı Adı, Şifre) eksik. Lütfen mağaza ayarlarından bilgileri kontrol ediniz.");
   }
 
   // 2. Taxpayer Query (Mükellef Sorgulama)
@@ -134,7 +98,7 @@ export class MySoftService {
     }
   }
 
-  // 3. Send Invoice (Giden Fatura Gönderimi)
+  // 3. Create/Send Invoice (Standardized Outbox Implementation)
   async sendInvoice(invoiceData: any): Promise<{ isSuccess: boolean; ettn: string; message: string }> {
     try {
       const token = await this.authenticate();
@@ -142,25 +106,35 @@ export class MySoftService {
       const config: any = {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json-patch+json"
+        },
+        timeout: 20000
       };
-      if (this.credentials.tenant_id) {
-        config.headers['TenantId'] = this.credentials.tenant_id;
+      
+      console.log(`Sending MySoft Invoice (Outbox) to: ${this.baseUrl}/InvoiceOutbox/invoiceOutbox`);
+      
+      const response = await axios.post(`${this.baseUrl}/InvoiceOutbox/invoiceOutbox`, invoiceData, config);
+
+      if (response.data.succeed === true) {
+         return {
+            isSuccess: true,
+            ettn: response.data.data?.invoiceETTN || invoiceData.ettn || "",
+            message: response.data.message || "Fatura başarıyla oluşturuldu ve kuyruğa alındı."
+         };
       }
+      
+      const errorMsg = response.data.message || "Entegratör bilinmeyen bir hata döndürdü.";
+      throw new Error(errorMsg);
 
-      const response = await axios.post(`${this.baseUrl}/Invoice/SendInvoice`, invoiceData, config);
-
-      return {
-        isSuccess: true,
-        ettn: response.data.Data?.Uuid || response.data.ettn || invoiceData.Uuid,
-        message: response.data.Message || "Fatura başarıyla iletildi."
-      };
     } catch (error: any) {
-      console.error("MySoft Send Invoice Error:", error.response?.data || error.message);
-      throw new Error(error.response?.data?.Message || "Fatura gönderimi başarısız oldu.");
+      const apiError = error.response?.data?.message || error.response?.data?.Message || error.message;
+      console.error("MySoft Send Invoice Error:", apiError);
+      throw new Error(apiError);
     }
   }
+
+  // 4. Get Invoice Status (Fatura Durum Sorgulama)
+
 
   // 4. Get Invoice Status (Fatura Durum Sorgulama)
   async getInvoiceStatus(ettn: string): Promise<{ status: string; message: string; gibStatusCode?: string }> {
@@ -321,20 +295,69 @@ export class MySoftService {
       }
       
       // Map to normalized camelCase format for our route logic
-      return rawData.map((item: any) => ({
-        ettn: item.Uuid || item.uuid || item.ettn || item.Ettn,
-        documentNumber: item.Id || item.id || item.documentNumber || item.DocumentNumber,
-        issueDate: item.IssueDate || item.issueDate || item.Date || item.date,
-        senderTitle: item.SenderTitle || item.senderTitle || item.Title || item.title,
-        senderVkn: item.SenderVkn || item.senderVkn || item.Vkn || item.vkn,
-        payableAmount: item.PayableAmount || item.payableAmount || item.Amount || item.amount,
-        currency: item.CurrencyCode || item.currencyCode || item.Currency || item.currency,
-        documentType: item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type,
-        raw: item
-      }));
+      return rawData.map((item: any) => {
+        // Robust extraction from varied MySoft response structures
+        const ettn = item.Uuid || item.uuid || item.ettn || item.Ettn || item.invoiceETTN;
+        const documentNumber = item.Id || item.id || item.documentNumber || item.DocumentNumber || item.invoiceID;
+        const issueDate = item.IssueDate || item.issueDate || item.Date || item.date || item.invoiceDate;
+        const senderTitle = item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName;
+        const senderVkn = item.SenderVkn || item.senderVkn || item.Vkn || item.vkn || item.senderIdentifier;
+        const payableAmount = item.PayableAmount || item.payableAmount || item.Amount || item.amount || item.totalAmount;
+        const currency = item.CurrencyCode || item.currencyCode || item.Currency || item.currency || item.currencyCode || 'TRY';
+        const documentType = item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type || item.eDocumentType || 'EFATURA';
+        
+        return {
+          ettn,
+          documentNumber,
+          issueDate,
+          senderTitle,
+          senderVkn,
+          payableAmount: Number(payableAmount) || 0,
+          currency,
+          documentType,
+          raw: item
+        };
+      });
     } catch (error: any) {
       console.error("MySoft Inbox Sync Error:", error.message);
       throw new Error(`Gelen faturalar senkronize edilemedi: ${error.message}`);
+    }
+  }
+
+  // 6. Send Application Response (Ticari Fatura Yanıtı - Kabul/Red)
+  async sendApplicationResponse(ettn: string, status: 'APPROVED' | 'REJECTED', reason = ""): Promise<{ isSuccess: boolean; message: string }> {
+    try {
+      const token = await this.authenticate();
+      
+      const config: any = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json-patch+json"
+        }
+      };
+      
+      const payload = {
+        uuid: ettn,
+        responseStatus: status === 'APPROVED' ? 'KABUL' : 'RED',
+        reason: reason || (status === 'APPROVED' ? 'Fatura tarafımızca kabul edilmiştir.' : 'Fatura reddedilmiştir.')
+      };
+
+      console.log(`Sending MySoft Application Response for ${ettn} at: ${this.baseUrl}/InvoiceInbox/saveApplicationResponse`);
+      
+      const response = await axios.post(`${this.baseUrl}/InvoiceInbox/saveApplicationResponse`, payload, config);
+
+      if (response.data.succeed === true) {
+         return {
+            isSuccess: true,
+            message: response.data.message || "Yanıt başarıyla iletildi."
+         };
+      }
+      
+      throw new Error(response.data.message || "Uygulama yanıtı iletilemedi.");
+    } catch (error: any) {
+      const apiError = error.response?.data?.message || error.response?.data?.Message || error.message;
+      console.error("MySoft Application Response Error:", apiError);
+      throw new Error(apiError);
     }
   }
 }

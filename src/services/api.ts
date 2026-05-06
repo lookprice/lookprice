@@ -348,4 +348,5 @@ export const api = {
   sendEInvoice: (invoiceId: number) => api.post(`/api/einvoice/send/${invoiceId}`, {}),
   checkEInvoiceStatus: (invoiceId: number) => api.get(`/api/einvoice/status/${invoiceId}`),
   syncIncomingEInvoices: (startDate: string, endDate: string, storeId?: number) => api.post(`/api/einvoice/sync-inbox${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { startDate, endDate }),
+  testEInvoiceConnection: () => api.post("/api/einvoice/test-connection", {}),
 };

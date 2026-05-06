@@ -1,6 +1,6 @@
 {
   "name": "LookPrice GAP OS",
-  "description": "A comprehensive SaaS platform for stores providing QR-based price checks, e-commerce with Iyzico payment integration, and advanced CRM management.",
+  "description": "A comprehensive SaaS platform for stores providing QR-based price checks, e-commerce with Iyzico payment integration, MySoft E-Invoice/E-Archive integration, and advanced CRM management.",
   "requestFramePermissions": [
     "camera"
   ]

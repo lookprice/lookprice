@@ -32,7 +32,7 @@ router.get("/fix-db", async (req, res) => {
 });
 
 router.get("/debug-stores", async (req, res) => {
-  const result = await pool.query("SELECT id, name, about_text, hero_title, branding FROM stores ORDER BY id ASC LIMIT 2");
+  const result = await pool.query("SELECT * FROM stores WHERE name ILIKE '%GAP%'");
   res.json(result.rows);
 });
 
@@ -313,9 +313,7 @@ router.get("/store/:slug", async (req, res) => {
     });
 
     if (store.branding && typeof store.branding === 'object') {
-      const brandingObj = { ...store.branding };
-      delete brandingObj.branding;
-      Object.assign(store, brandingObj);
+      Object.assign(store, store.branding);
     }
 
     // Sanitize payment_settings to only expose enabled flags and sandbox mode

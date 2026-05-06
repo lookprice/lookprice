@@ -332,6 +332,130 @@ const DigitalSignature: React.FC<{ storeName: string, lang: string }> = ({ store
   </div>
 );
 
+const DiscoverModal: React.FC<{
+  products: Product[],
+  onClose: () => void,
+  onViewProduct: (product: Product) => void,
+  lang: string
+}> = ({ products, onClose, onViewProduct, lang }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (products.length === 0) return;
+    const timer = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % products.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [products]);
+
+  if (products.length === 0) return null;
+
+  const currentProduct = products[currentIndex];
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex(prev => (prev + 1) % products.length);
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex(prev => (prev - 1 + products.length) % products.length);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-black flex items-center justify-center">
+      <div className="absolute inset-0 z-0">
+        <img 
+          src={currentProduct.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30"} 
+          alt={currentProduct.name}
+          className="w-full h-full object-cover opacity-60 blur-sm scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/60" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md h-full sm:h-[85vh] sm:rounded-3xl overflow-hidden bg-black flex flex-col shadow-2xl">
+        {/* Progress Bars */}
+        <div className="flex gap-1 p-4 absolute top-0 left-0 right-0 z-30">
+          {products.map((_, idx) => (
+            <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-white transition-all duration-100 ease-linear"
+                style={{
+                  width: idx < currentIndex ? '100%' : idx === currentIndex ? '100%' : '0%',
+                  transitionDuration: idx === currentIndex ? '4000ms' : '0ms'
+                }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Header */}
+        <div className="absolute top-8 left-4 right-4 z-30 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
+               <Sparkles className="w-4 h-4 text-amber-400" />
+             </div>
+             <span className="text-white text-sm font-semibold tracking-wide drop-shadow-md">
+               {lang === 'tr' ? 'Keşfet' : 'Discover'}
+             </span>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-white transition-all">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Click Areas */}
+        <div className="absolute inset-y-0 left-0 w-1/3 z-20 cursor-pointer" onClick={handlePrev} />
+        <div className="absolute inset-y-0 right-0 w-1/3 z-20 cursor-pointer" onClick={handleNext} />
+
+        {/* Image */}
+        <div className="flex-1 relative">
+           <AnimatePresence mode="wait">
+             <motion.img 
+               key={currentProduct.id}
+               initial={{ opacity: 0, scale: 1.05 }}
+               animate={{ opacity: 1, scale: 1 }}
+               exit={{ opacity: 0 }}
+               transition={{ duration: 0.4 }}
+               src={currentProduct.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30"} 
+               className="absolute inset-0 w-full h-full object-cover"
+             />
+           </AnimatePresence>
+           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+        </div>
+
+        {/* Footer Info */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 z-30 pointer-events-none">
+          <div className="pointer-events-auto">
+            <span className="text-amber-400 text-[10px] font-bold uppercase tracking-widest mb-2 block drop-shadow-md">
+              {currentProduct.category || (lang === 'tr' ? 'YENİ ÜRÜN' : 'NEW ARRIVAL')}
+            </span>
+            <h2 className="text-white text-3xl font-bold leading-tight mb-2 drop-shadow-lg max-w-[90%]">
+              {currentProduct.name}
+            </h2>
+            <p className="text-white/80 text-sm line-clamp-2 mb-6 drop-shadow-md">
+              {currentProduct.description || ''}
+            </p>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                  onViewProduct(currentProduct);
+                }}
+                className="flex-1 py-4 bg-white text-black rounded-2xl font-bold text-sm hover:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                {lang === 'tr' ? 'Ürünü İncele' : 'View Product'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProductDetailModal: React.FC<{
   product: Product | null;
   store: StoreInfo | null;
@@ -613,61 +737,7 @@ const ProductDetailModal: React.FC<{
           </button>
         </div>
       </motion.div>
-      {/* About Modal */}
-      <AnimatePresence>
-        {showAboutModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowAboutModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[4rem] overflow-hidden shadow-lg"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="relative h-48 bg-slate-900 overflow-hidden">
-                <div className="absolute inset-0 opacity-30">
-                  <img src={store?.hero_image_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8"} className="w-full h-full object-cover" />
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
-                <button 
-                  onClick={() => setShowAboutModal(false)}
-                  className="absolute top-6 right-6 w-10 h-10 rounded-lg bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-                <div className="absolute bottom-6 left-10">
-                   <h2 className="text-4xl font-bold text-slate-900 tracking-tighter">
-                     {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
-                   </h2>
-                </div>
-              </div>
-              <div className="p-6 md:p-8">
-                <div className="prose prose-slate max-w-none">
-                   <p className="text-slate-600 text-lg leading-relaxed font-semibold whitespace-pre-wrap">
-                     {store?.about_text || (lang === 'tr' ? 'Henüz hakkımızda yazısı eklenmedi.' : 'No about text added yet.')}
-                   </p>
-                </div>
-                <div className="mt-12 pt-8 border-t border-slate-100 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-slate-900 font-bold text-sm tracking-tight">{lang === 'tr' ? 'Güvenilir Alışveriş' : 'Trusted Shopping'}</h4>
-                    <p className="text-slate-400 text-xss font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Removed About Modal functionality */}
     </div>
   );
 };
@@ -796,6 +866,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   }, [store]);
   const [customer, setCustomer] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDiscoverModal, setShowDiscoverModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [showFaq, setShowFaq] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
@@ -1422,50 +1493,23 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         } : storeSchema}
       />
       
-      {/* Announcement Bar */}
       {layoutSettings.show_announcement && (
       <div className="bg-gray-900 overflow-hidden py-1.5">
         <div className="flex whitespace-nowrap animate-marquee">
           <div className="flex gap-8 text-[10px] sm:text-xss font-semibold text-white/80 tracking-wide px-4">
-            {layoutSettings.announcement_text ? (
-                <span className="flex items-center gap-2">
-                  <Package className="w-3 h-3" />
-                  {layoutSettings.announcement_text}
-                </span>
-            ) : (
-                <>
-                    <span className="flex items-center gap-2">
-                      <Package className="w-3 h-3" />
-                      {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <Globe className="w-3 h-3" />
-                      {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <RotateCcw className="w-3 h-3" />
-                      {lang === 'tr' ? 'Kolay İade' : 'Easy Returns'}
-                    </span>
-                </>
-            )}
-            {/* Repeat for continuous scroll */}
             <span className="flex items-center gap-2">
               <Package className="w-3 h-3" />
-              {lang === 'tr' ? 'Orijinal Ürün Garantisi' : 'Original Product Guarantee'}
+              {layoutSettings.announcement_text || (lang === 'tr' ? 'Anneler Gününüz Kutlu Olsun' : 'Happy Mother\'s Day')}
             </span>
+            {/* Repeat to ensure smooth flow */}
             <span className="flex items-center gap-2">
-              <Globe className="w-3 h-3" />
-              {lang === 'tr' ? 'Dünya Çapında Gönderim' : 'Worldwide Shipping'}
-            </span>
-            <span className="flex items-center gap-2">
-              <RotateCcw className="w-3 h-3" />
-              {lang === 'tr' ? 'Kolay İade' : 'Easy Returns'}
+              <Package className="w-3 h-3" />
+              {layoutSettings.announcement_text || (lang === 'tr' ? 'Anneler Gününüz Kutlu Olsun' : 'Happy Mother\'s Day')}
             </span>
           </div>
         </div>
       </div>
       )}
-
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[60] transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between gap-8">
@@ -1499,7 +1543,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               placeholder={t.dashboard.searchProducts}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-1.5.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-lg transition-all outline-none text-sm font-medium"
+              className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-lg transition-all outline-none text-sm font-medium"
               style={{ '--tw-ring-color': primaryColor } as any}
             />
           </div>
@@ -1567,7 +1611,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
           {/* Premium Category Showcase */}
           {layoutSettings.show_stories && Array.from(categories.keys()).length > 0 && (
-            <section className="bg-white py-1.50 overflow-hidden">
+            <section className="bg-white py-16 overflow-hidden">
               <div className="max-w-7xl mx-auto px-4 md:px-8">
                 <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-12">
                   <div className="space-y-2">
@@ -1718,19 +1762,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   className="flex flex-wrap gap-4"
                 >
                   <button 
-                    onClick={() => document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="px-10 py-5 bg-white text-slate-950 rounded-lg font-semibold text-sm tracking-wide hover:bg-opacity-90 transition-all active:scale-95 shadow-lg hover:px-12"
+                    onClick={() => setShowDiscoverModal(true)}
+                    className="px-10 py-5 bg-white text-slate-950 rounded-lg font-semibold text-sm tracking-wide hover:bg-opacity-90 transition-all active:scale-95 shadow-lg flex items-center gap-3"
                   >
+                    <Sparkles className="w-5 h-5 text-indigo-500" />
                     {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
                   </button>
-                  {store?.about_text && (
-                    <button 
-                      onClick={() => setShowAboutModal(true)}
-                      className="px-10 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-lg font-semibold text-sm tracking-wide hover:bg-white/20 transition-all active:scale-95"
-                    >
-                      {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
-                    </button>
-                  )}
                 </motion.div>
               </div>
             </div>
@@ -1749,7 +1786,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
           {/* Featured / Campaign Section */}
           {layoutSettings.show_campaigns && (
-          <section className="max-w-7xl mx-auto px-4 md:px-8 py-1.50 md:py-32">
+          <section className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-32">
             <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-16">
               <div className="space-y-3">
                 <h3 className={`text-[10px] font-semibold uppercase tracking-[0.5em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-blue-600'}`}>
@@ -1807,6 +1844,33 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <h4 className={`text-xsl text-slate-900 mb-2 truncate ${isLuxury ? '!font-sans !font-medium' : 'font-semibold'}`}>
                       {product.name}
                     </h4>
+                    {(() => {
+                      let labels: string[] = [];
+                      
+                      if (Array.isArray(product.labels)) {
+                        labels = product.labels;
+                      } else if (typeof product.labels === 'string') {
+                        // Remove all non-alphanumeric characters except spaces and Turkish chars, 
+                        // treat as comma separated to extract clean labels.
+                        labels = (product.labels as string)
+                          .replace(/[^a-zA-Z0-9çÇğĞışİÖöÜü\s,]/g, '') 
+                          .split(',')
+                          .map(s => s.trim())
+                          .filter(Boolean);
+                      }
+                      
+                      if (labels.length === 0) return null;
+
+                      return (
+                        <div className="flex flex-wrap gap-1 justify-center mb-2">
+                          {labels.map((label, idx) => (
+                            <span key={idx} className="px-1.5 py-0.5 bg-amber-500/10 text-amber-600 text-[9px] uppercase font-black rounded-md tracking-wider">
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center justify-center gap-3">
                       <span className="text-xsl font-semibold text-slate-900 font-sans tracking-tight">{formatPrice(product.price)}</span>
                       {product.old_price && (
@@ -1873,7 +1937,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 setSelectedSubCategory(null);
                 document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
             }}
-            className={`flex-shrink-0 px-6 py-1.5.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
+            className={`flex-shrink-0 px-6 py-2.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
                 !selectedCategory 
                 ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
                 : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
@@ -1894,7 +1958,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     setSelectedSubCategory(null);
                 }
               }}
-              className={`flex-shrink-0 px-6 py-1.5.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
+              className={`flex-shrink-0 px-6 py-2.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
                 selectedCategory === cat 
                 ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
                 : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
@@ -2548,7 +2612,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         </div>
                       )
                     ) : (
-                      <div className="text-center py-1.50">
+                      <div className="text-center py-16">
                         <Loader2 className="w-10 h-10 animate-spin text-xsrimary mx-auto mb-4" />
                         <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}</p>
                       </div>
@@ -2704,7 +2768,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           {isReturnView && (
             <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-8 border border-gray-100">
               <h2 className="text-3xl font-semibold text-gray-900 mb-8">{lang === 'tr' ? 'İade Taleplerim' : 'My Return Requests'}</h2>
-              <div className="text-center py-1.50">
+              <div className="text-center py-16">
                 <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-6">
                   <RotateCcw className="w-10 h-10 text-gray-300" />
                 </div>
@@ -2976,9 +3040,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     </a>
                   </li>
                 ))}
-                {(!store?.menu_links || store.menu_links.length === 0) && (
-                  <li><span className="text-gray-600 text-sm font-medium">{lang === 'tr' ? 'Menü bulunamadı.' : 'No menu links.'}</span></li>
-                )}
+                {/* Removed 'No menu links' message to avoid UX issues */}
               </ul>
             </div>
 
@@ -3043,6 +3105,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               </p>
 
               <div className="flex items-center gap-6">
+                {store?.about_text && (
+                  <button onClick={() => setShowAboutModal(true)} className="text-gray-600 hover:text-white text-[10px] font-semibold tracking-wide transition-colors">
+                    {lang === 'tr' ? 'Hakkımızda' : 'Our Story'}
+                  </button>
+                )}
                 {(store?.footer_links || []).map((page: any, index: number) => (
                   <a key={index} href={page.url} className="text-gray-600 hover:text-white text-[10px] font-semibold tracking-wide transition-colors">{page.label}</a>
                 ))}
@@ -3363,7 +3430,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         </div>
                       </motion.div>
                     )) : (
-                      <div className="col-span-full text-center py-1.50 px-8">
+                      <div className="col-span-full text-center py-16 px-8">
                         <div className="p-6 bg-slate-50 rounded-lg w-20 h-20 flex items-center justify-center mx-auto mb-6 text-slate-300">
                            <BookOpen className="w-10 h-10" />
                         </div>
@@ -4082,6 +4149,77 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         onClose={() => setShowStoreLocatorModal(false)}
       />
     )}
+
+    {/* Discover Stories Modal */}
+    <AnimatePresence>
+      {showDiscoverModal && (
+        <DiscoverModal 
+          products={products.slice(0, 10)} 
+          onClose={() => setShowDiscoverModal(false)}
+          onViewProduct={(p) => {
+            setSelectedProduct(p);
+            // Optionally fetch details...
+          }}
+          lang={lang}
+        />
+      )}
+    </AnimatePresence>
+
+    {/* About Modal */}
+    <AnimatePresence>
+      {showAboutModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAboutModal(false)}
+            className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-2xl bg-white rounded-[4rem] overflow-hidden shadow-lg"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="relative h-48 bg-slate-900 overflow-hidden">
+              <div className="absolute inset-0 opacity-30">
+                <img src={store?.hero_image_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
+              <button 
+                onClick={() => setShowAboutModal(false)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-lg bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all z-20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="absolute bottom-6 left-10 z-10">
+                 <h2 className="text-4xl font-bold text-slate-900 tracking-tighter">
+                   {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
+                 </h2>
+              </div>
+            </div>
+            <div className="p-6 md:p-8">
+              <div className="prose prose-slate max-w-none">
+                 <p className="text-slate-600 text-lg leading-relaxed font-semibold whitespace-pre-wrap">
+                   {store?.about_text || (lang === 'tr' ? 'Henüz hakkımızda yazısı eklenmedi.' : 'No about text added yet.')}
+                 </p>
+              </div>
+              <div className="mt-12 pt-8 border-t border-slate-100 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-slate-900 font-bold text-sm tracking-tight">{lang === 'tr' ? 'Güvenilir Alışveriş' : 'Trusted Shopping'}</h4>
+                  <p className="text-slate-400 text-xss font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
     </ErrorBoundary>
   );
 };

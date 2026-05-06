@@ -128,6 +128,7 @@ const SettingsTab = ({
   const [manualCfAccount, setManualCfAccount] = React.useState("");
   const [manualCfEmail, setManualCfEmail] = React.useState("");
   const [loadingCf, setLoadingCf] = React.useState(false);
+  const [testingEInvoice, setTestingEInvoice] = React.useState(false);
 
   // Sync Pazarama state when branding prop changes
   React.useEffect(() => {
@@ -139,6 +140,19 @@ const SettingsTab = ({
     setPzCategoryMappings(s.categoryMappings || {});
     setPzBrandMappings(s.brandMappings || {});
   }, [branding.pazarama_settings]);
+
+  const handleTestEInvoice = async () => {
+    setTestingEInvoice(true);
+    try {
+      const res = await api.testEInvoiceConnection();
+      if (res.error) throw new Error(res.error);
+      alert(res.message || (lang === 'tr' ? "Bağlantı başarılı!" : "Connection successful!"));
+    } catch (error: any) {
+      alert(error.message || (lang === 'tr' ? "Bağlantı hatası!" : "Connection error!"));
+    } finally {
+      setTestingEInvoice(false);
+    }
+  };
 
   const [emails, setEmails] = React.useState<string[]>((branding.emails && branding.emails.length > 0) ? branding.emails : ['']);
   const [phones, setPhones] = React.useState<string[]>((branding.phones && branding.phones.length > 0) ? branding.phones : ['']);
@@ -1035,6 +1049,27 @@ const SettingsTab = ({
                       />
                     </div>
 
+                    <div className="md:col-span-2 flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={handleTestEInvoice}
+                        disabled={testingEInvoice}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${testingEInvoice ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:shadow-md active:scale-95'}`}
+                      >
+                        {testingEInvoice ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            {lang === 'tr' ? 'Bağlantı Test Ediliyor...' : 'Testing Connection...'}
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4" />
+                            {lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection'}
+                          </>
+                        )}
+                      </button>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
                       <div className="space-y-2">
                         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Kullanıcı ID (Tenant ID)</label>
@@ -1044,6 +1079,16 @@ const SettingsTab = ({
                           placeholder="Örn: 210"
                           value={branding.einvoice_settings.tenant_id || ''}
                           onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, tenant_id: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Connector GUID (MySoft)</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
+                          placeholder="Örn: 00000000-0000-0000-0000-000000000000"
+                          value={branding.einvoice_settings.connector_guid || ''}
+                          onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, connector_guid: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">

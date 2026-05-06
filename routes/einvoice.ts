@@ -8,7 +8,7 @@ import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
 const router = express.Router();
 
 // Get the E-Invoice service instance based on Store Settings
-const getEInvoiceService = async (storeId: number) => {
+export const getEInvoiceService = async (storeId: number) => {
   const storeRes = await pool.query("SELECT einvoice_settings FROM stores WHERE id = $1", [storeId]);
   if (storeRes.rows.length === 0) throw new Error("Mağaza bulunamadı");
   
@@ -180,41 +180,46 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       };
     });
 
-    // Construct UBL JSON Data matching MySoft standard payload
+    // Construct UBL JSON Data matching MySoft standard payload (Outbox format)
     const ublData = {
-       Id: invoice.document_number, 
-       Uuid: invoice.ettn,
-       ProfileId: invoice.e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA',
-       InvoiceTypeCode: 'SATIS',
-       DocumentCurrencyCode: invoice.currency || 'TRY',
-       IssueDate: formattedDate,
-       IssueTime: formattedTime,
-       Notes: [(invoice.notes || ""), invoice.waybill_number ? `İrsaliye No: ${invoice.waybill_number}` : ""].filter(Boolean),
+       isCalculateByApi: true,
+       id: 0, // 0 usually means create new in integrator
+       connectorGuid: settings.connector_guid || null,
+       eDocumentType: invoice.e_document_type === 'E-FATURA' ? 'EFATURA' : 'EARSIV',
+       profile: invoice.invoice_profile || (invoice.e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'),
+       invoiceType: 'SATIS',
+       ettn: invoice.ettn,
+       prefix: invoice.document_number.substring(0, 3),
+       issueDate: formattedDate,
+       issueTime: formattedTime,
+       notes: [(invoice.notes || ""), invoice.waybill_number ? `İrsaliye No: ${invoice.waybill_number}` : ""].filter(Boolean),
        
-       SenderAlias: settings.sender_alias || 'urn:mail:defaultgb@default.com',
-       ReceiverAlias: settings.receiver_alias || 'urn:mail:defaultpk@default.com',
-       TenantId: settings.tenant_id,
+       senderAlias: settings.sender_alias || 'urn:mail:defaultgb@default.com',
+       receiverAlias: settings.receiver_alias || 'urn:mail:defaultpk@default.com',
        
-       Receiver: {
-          VknTckn: taxNumber.replace(/\D/g, ''),
-          Title: isCorporate ? customerTitle : undefined,
-          Name: !isCorporate ? name : undefined,
-          Surname: !isCorporate ? surname : undefined,
-          TaxOffice: isCorporate ? taxOffice : undefined,
-          Address: {
-             Room: "",
-             StreetName: address,
-             CityName: "Bilinmeyen",
-             CountryName: "Türkiye"
+       receiver: {
+          vknTckn: taxNumber.replace(/\D/g, ''),
+          title: isCorporate ? customerTitle : undefined,
+          name: !isCorporate ? name : undefined,
+          surname: !isCorporate ? surname : undefined,
+          taxOffice: isCorporate ? taxOffice : undefined,
+          address: {
+             room: "",
+             streetName: address,
+             cityName: "Türkiye", // Ideally map from address but Turkey is default
+             countryName: "Türkiye"
           }
        },
 
-       LineExtensionAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount, 0),
-       TaxExclusiveAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount, 0),
-       TaxInclusiveAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount + line.Taxes[0].TaxAmount, 0),
-       PayableAmount: Lines.reduce((sum, line) => sum + line.LineExtensionAmount + line.Taxes[0].TaxAmount, 0),
-       
-       Lines: Lines
+       lines: Lines.map(line => ({
+          id: line.Id,
+          name: line.Name,
+          quantity: line.Quantity,
+          unitCode: line.UnitCode,
+          price: line.Price,
+          taxRate: line.Taxes[0].TaxRate,
+          taxCode: line.Taxes[0].TaxCode
+       }))
     };
 
     // Sending
@@ -343,15 +348,16 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           
           const newInvoiceId = invInsertRes.rows[0].id;
 
-          // 3. Attempt to parse lines if present in raw data
-          // MySoft returns items in different fields depending on the response depth.
+          // 3. Attempt to parse lines and match with existing products
           const rawData = inv.raw || {};
-          const rawLines = rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || [];
+          const rawLines = rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || rawData.invoiceLines || [];
           
           if (Array.isArray(rawLines)) {
             for (const line of rawLines) {
               const productName = line.Name || line.itemName || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
               const qtyRaw = line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
+              const unitCode = line.UnitCode || line.unitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
+              
               const qty = Number(qtyRaw) || 0;
               
               const upRaw = line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
@@ -363,12 +369,28 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               const lineTotal = qty * up;
               const taxAmount = (lineTotal * tr) / 100;
 
+              // Try to find matching product by name or barcode
+              const prodMatch = await pool.query(
+                "SELECT id FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3)",
+                [storeId, productName, productName]
+              );
+              
+              const productId = prodMatch.rows.length > 0 ? prodMatch.rows[0].id : null;
+
               await pool.query(
                 `INSERT INTO purchase_invoice_items 
-                 (purchase_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [newInvoiceId, productName, qty, up, tr, taxAmount, lineTotal + taxAmount]
+                 (purchase_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [newInvoiceId, productId, productName, qty, up, tr, taxAmount, lineTotal + taxAmount, unitCode]
               );
+              
+              // If product exists, update its stock automatically
+              if (productId) {
+                await pool.query(
+                  "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+                  [qty, productId]
+                );
+              }
             }
           }
 
@@ -390,6 +412,27 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
   } catch (error: any) {
     console.error("Sync Inbox endpoint error:", error);
     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+  }
+});
+
+// 5. Test Connection
+router.post("/einvoice/test-connection", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.store_id;
+    const service = await getEInvoiceService(storeId);
+    
+    // We can test connection by attempting a trivial check taxpayer call on a known VKN (like MySoft itself or a static one)
+    // or just checking if authenticate() works.
+    const result = await service.checkTaxpayer("4840843430"); // MySoft VKN for testing
+    
+    res.json({ 
+      success: true, 
+      message: "Bağlantı başarılı. Entegratör sistemi ile iletişim sağlandı.",
+      data: result 
+    });
+  } catch (error: any) {
+    console.error("Test Connection endpoint error:", error);
+    res.status(500).json({ error: `Bağlantı Hatası: ${error.message}` });
   }
 });
 

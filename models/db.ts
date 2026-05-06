@@ -569,6 +569,7 @@ export async function initDb() {
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS ettn TEXT;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS document_number TEXT;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS e_document_type TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS invoice_profile TEXT DEFAULT 'TICARIFATURA';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS integration_status TEXT;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS integration_message TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;

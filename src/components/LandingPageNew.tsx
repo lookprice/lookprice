@@ -330,13 +330,13 @@ export const LandingPage = () => {
               <h3 className="text-2xl font-medium mb-4 relative z-10">{lang === 'tr' ? 'MOTOR (Lojistik, Transfer & Filo)' : 'MOTOR (Logistics & Fleet)'}</h3>
               <div className="space-y-3 text-white/80 font-light text-sm relative z-10">
                 <p>
-                  <span className="text-emerald-400 font-medium">Sevkiyat:</span> {lang === 'tr' ? 'Çok mağazalı yapılar için depo/mağaza arası transfer süreçleri sıfır hatayla çalışır.' : 'Zero-error warehouse/store transfer process for multi-branch setups.'}
+                  <span className="text-emerald-400 font-medium">{lang === 'tr' ? 'Sevkiyat:' : 'Dispatch:'}</span> {lang === 'tr' ? 'Çok mağazalı yapılar için depo/mağaza arası transfer süreçleri sıfır hatayla çalışır.' : 'Zero-error warehouse/store transfer process for multi-branch setups.'}
                 </p>
                 <p>
-                  <span className="text-emerald-400 font-medium">360° Filo:</span> {lang === 'tr' ? 'Şirket & şahsi araçların evrakları, sigorta, vergi takibi. Sürücü zimmetleri ve kaza raporlamaları.' : 'Tracking documents, tax, and insurance for all vehicles. Driver assignments and accident reports.'}
+                  <span className="text-emerald-400 font-medium">{lang === 'tr' ? '360° Filo:' : '360° Fleet:'}</span> {lang === 'tr' ? 'Şirket & şahsi araçların evrakları, sigorta, vergi takibi. Sürücü zimmetleri ve kaza raporlamaları.' : 'Tracking documents, tax, and insurance for all vehicles. Driver assignments and accident reports.'}
                 </p>
                 <p>
-                  <span className="text-emerald-400 font-medium">Uyarı Mekanizması:</span> {lang === 'tr' ? 'KM/Mil ayarlı periyodik bakım ve lastik değişimi uyarıları.' : 'Mileage-triggered periodic maintenance and tire alerts.'}
+                  <span className="text-emerald-400 font-medium">{lang === 'tr' ? 'Uyarı Mekanizması:' : 'Alert Mechanism:'}</span> {lang === 'tr' ? 'KM/Mil ayarlı periyodik bakım ve lastik değişimi uyarıları.' : 'Mileage-triggered periodic maintenance and tire alerts.'}
                 </p>
               </div>
             </div>
@@ -371,13 +371,13 @@ export const LandingPage = () => {
               <h3 className="text-2xl font-medium mb-4 relative z-10">{lang === 'tr' ? 'OTONOM (Tedarik, Vergi & Denetim)' : 'AUTONOMIC (Supply & Audit)'}</h3>
               <div className="space-y-3 text-white/80 font-light text-sm relative z-10">
                  <p>
-                  <span className="text-purple-400 font-medium">Distribütör Zekası:</span> {lang === 'tr' ? 'Teklif kabul edildi ama stok yok mu? Sistem distribütör verisini okur, otomatik tedarik emri oluşturur.' : 'Quote approved but out of stock? System reads distributor data, creates auto-supply order.'}
+                  <span className="text-purple-400 font-medium">{lang === 'tr' ? 'Distribütör Zekası:' : 'Distributor Intelligence:'}</span> {lang === 'tr' ? 'Teklif kabul edildi ama stok yok mu? Sistem distribütör verisini okur, otomatik tedarik emri oluşturur.' : 'Quote approved but out of stock? System reads distributor data, creates auto-supply order.'}
                 </p>
                 <p>
-                  <span className="text-purple-400 font-medium">Finans & Vergi Öngörüsü:</span> {lang === 'tr' ? 'Dijital hesap mutabakatı ve anlık ödenecek vergi öngörü dashboardları.' : 'Digital reconciliation and live dashboards anticipating upcoming taxes.'}
+                  <span className="text-purple-400 font-medium">{lang === 'tr' ? 'Finans & Vergi Öngörüsü:' : 'Finance & Tax Forecast:'}</span> {lang === 'tr' ? 'Dijital hesap mutabakatı ve anlık ödenecek vergi öngörü dashboardları.' : 'Digital reconciliation and live dashboards anticipating upcoming taxes.'}
                 </p>
                  <p>
-                  <span className="text-purple-400 font-medium">İşlem Geçmişi:</span> {lang === 'tr' ? 'Hangi personel ne iş yapmış, çarkı kim çeviriyor? Tüm raporları dilediğiniz cihaza indirin.' : 'Track exact operations by staff. Download all reports anywhere, anytime.'}
+                  <span className="text-purple-400 font-medium">{lang === 'tr' ? 'İşlem Geçmişi:' : 'Audit Trail:'}</span> {lang === 'tr' ? 'Hangi personel ne iş yapmış, çarkı kim çeviriyor? Tüm raporları dilediğiniz cihaza indirin.' : 'Track exact operations by staff. Download all reports anywhere, anytime.'}
                 </p>
               </div>
             </div>
@@ -661,7 +661,7 @@ export const LandingPage = () => {
                 {lang === 'tr' ? 'Dijital/manuel fatura sistemi, anlık mutabakat.' : 'Digital/manual invoicing, instant reconciliation.'}
               </p>
               <p className="text-white/60 font-light text-sm">
-                <span className="text-rose-400 font-medium">Vergi Öngörüsü:</span> {lang === 'tr' ? 'Dashboardlar ile ödenecek vergiyi anlık izleyin.' : 'Track upcoming tax payments live via dashboards.'}
+                <span className="text-rose-400 font-medium">{lang === 'tr' ? 'Vergi Öngörüsü:' : 'Tax Forecast:'}</span> {lang === 'tr' ? 'Dashboardlar ile ödenecek vergiyi anlık izleyin.' : 'Track upcoming tax payments live via dashboards.'}
               </p>
             </div>
 
