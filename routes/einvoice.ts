@@ -324,6 +324,26 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           }
 
           // 2. Insert invoice
+          let invoiceDetails = inv;
+          if (typeof inv === 'string') {
+            const details = await service.getInvoiceDetailsByUuid(inv);
+            if (!details) {
+              console.error(`Could not fetch details for invoice: ${inv}`);
+              continue;
+            }
+            invoiceDetails = {
+               ettn: details.Uuid || details.uuid || inv,
+               documentNumber: details.Id || details.id || details.documentNumber || `IN-${Date.now()}`,
+               issueDate: details.IssueDate || details.issueDate || details.date || new Date().toISOString(),
+               senderTitle: details.SenderTitle || details.senderTitle || 'Bilinmeyen Tedarikçi',
+               senderVkn: details.SenderVkn || details.senderVkn || details.taxNumber || '',
+               payableAmount: details.PayableAmount || details.payableAmount || details.totalAmount || 0,
+               currency: details.CurrencyCode || details.currencyCode || 'TRY',
+               documentType: details.InvoiceTypeCode || details.invoiceTypeCode || 'EFATURA',
+               raw: details
+            };
+          }
+          
           const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
             (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, grand_total, currency, status, integration_status)
@@ -331,16 +351,31 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
             [
               storeId, 
               companyId,
-              inv.documentNumber || `IN-${Date.now()}`, 
-              inv.documentNumber, 
-              inv.ettn, 
-              inv.documentType || 'E-FATURA', 
-              inv.senderTitle || 'Bilinmeyen Tedarikçi',
-              inv.senderVkn,
-              inv.issueDate || new Date().toISOString(),
-              inv.payableAmount || 0,
-              inv.payableAmount || 0,
-              inv.currency || 'TRY',
+              invoiceDetails.documentNumber, 
+              invoiceDetails.documentNumber, 
+              invoiceDetails.ettn, 
+              invoiceDetails.documentType, 
+              invoiceDetails.senderTitle,
+              invoiceDetails.senderVkn,
+              (() => {
+                const d = invoiceDetails.issueDate;
+                if (!d) return new Date().toISOString();
+                if (typeof d !== 'string') return d;
+                // If it's DD.MM.YYYY format
+                if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
+                  const [day, month, year] = d.split('.');
+                  return `${year}-${month}-${day}`;
+                }
+                // Try standard parsing
+                try {
+                  const parsed = new Date(d);
+                  if (!isNaN(parsed.getTime())) return parsed.toISOString();
+                } catch (e) {}
+                return new Date().toISOString();
+              })(),
+              invoiceDetails.payableAmount,
+              invoiceDetails.payableAmount,
+              invoiceDetails.currency,
               'approved', 
               'RECEIVED'
             ]
@@ -349,7 +384,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           const newInvoiceId = invInsertRes.rows[0].id;
 
           // 3. Attempt to parse lines and match with existing products
-          const rawData = inv.raw || {};
+          const rawData = invoiceDetails.raw || (typeof inv === 'object' ? inv : {});
           const rawLines = rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || rawData.invoiceLines || [];
           
           if (Array.isArray(rawLines)) {
@@ -433,6 +468,32 @@ router.post("/einvoice/test-connection", authenticate, async (req: any, res) => 
   } catch (error: any) {
     console.error("Test Connection endpoint error:", error);
     res.status(500).json({ error: `Bağlantı Hatası: ${error.message}` });
+  }
+});
+
+// 6. Get Invoice HTML
+router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.store_id;
+    const invoiceId = req.params.id;
+
+    const invRes = await pool.query("SELECT ettn FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+
+    const ettn = invRes.rows[0].ettn;
+    if (!ettn) return res.status(400).json({ error: "Faturanın ETTN'si bulunmuyor." });
+
+    const service = await getEInvoiceService(storeId);
+    
+    if ('getInvoiceHtml' in service) {
+      const html = await (service as any).getInvoiceHtml(ettn);
+      return res.json({ html });
+    }
+
+    res.status(400).json({ error: "Kullandığınız entegratör için HTML önizleme desteği bulunmuyor." });
+  } catch (error: any) {
+    console.error("Get HTML endpoint error:", error);
+    res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
   }
 });
 

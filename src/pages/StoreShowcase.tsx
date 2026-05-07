@@ -1530,10 +1530,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           {/* Menu Links */}
           <div className="hidden md:flex items-center gap-6">
             {(store?.menu_links || []).map((link: any, index: number) => (
-              <a key={index} href={link.url} className="text-sm font-bold text-gray-600 hover:text-xsrimary transition-colors">
+              <a key={index} href={link.url} className="text-sm font-bold text-gray-600 hover:text-primary transition-colors">
                 {link.label}
               </a>
             ))}
+            {store?.blog_posts && store.blog_posts.length > 0 && (
+              <button 
+                onClick={() => setShowBlog(true)}
+                className="text-sm font-bold text-gray-600 hover:text-primary transition-colors"
+              >
+                {lang === 'tr' ? 'Blog' : 'Blog'}
+              </button>
+            )}
           </div>
           
           <div className="flex-1 max-w-xl relative hidden md:block">
@@ -1587,7 +1595,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
                 className="flex items-center gap-2 px-4 py-1.5 hover:bg-gray-100 rounded-lg transition-all group"
               >
-                <User className="w-5 h-5 text-gray-700 group-hover:text-xsrimary transition-colors" />
+                <User className="w-5 h-5 text-gray-700 group-hover:text-primary transition-colors" />
                 <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Giriş Yap' : 'Login'}</span>
               </button>
             )}
@@ -1595,7 +1603,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               onClick={() => setIsBasketOpen(true)}
               className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
             >
-              <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-xsrimary transition-colors" />
+              <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
               {basketCount > 0 && (
                 <span 
                   className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
@@ -2072,7 +2080,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     {Array.from(categories.keys()).length > 5 && (
                       <button 
                         onClick={() => setShowAllCategories(!showAllCategories)}
-                        className="w-full text-center py-1.5 text-[10px] font-semibold text-xsrimary tracking-wide hover:bg-primary/5 rounded-lg transition-all"
+                        className="w-full text-center py-1.5 text-[10px] font-semibold text-primary tracking-wide hover:bg-primary/5 rounded-lg transition-all"
                       >
                         {showAllCategories ? (lang === 'tr' ? 'Daha Az' : 'Show Less') : (lang === 'tr' ? 'Tümünü Gör' : 'Show All')}
                       </button>
@@ -2269,7 +2277,49 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       ))}
                     </AnimatePresence>
                   </div>
-                  {/* ... pagination ... */}
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="mt-12 flex items-center justify-center gap-2">
+                       {/* ... pagination buttons logic ... */}
+                    </div>
+                  )}
+
+                  {/* Blog Posts in Fallback Layout */}
+                  {store?.blog_posts && store.blog_posts.length > 0 && (
+                    <section className="mt-32">
+                      <div className="flex items-center justify-between mb-10">
+                        <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">{lang === 'tr' ? 'Blog Yazıları' : 'Blog Posts'}</h2>
+                        <button 
+                          onClick={() => setShowBlog(true)}
+                          className="text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                        >
+                          {lang === 'tr' ? 'Tümünü Gör' : 'See All'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {store.blog_posts.slice(0, 3).map(post => (
+                          <motion.div 
+                            key={post.id} 
+                            whileHover={{ y: -8 }}
+                            onClick={() => { setSelectedBlogPost(post); setShowBlog(true); }}
+                            className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-500"
+                          >
+                            <div className="relative h-48 overflow-hidden">
+                              <img 
+                                src={post.image_url || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60'} 
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                              />
+                            </div>
+                            <div className="p-6">
+                              <span className="text-[10px] font-semibold text-indigo-600 tracking-wide mb-2 block">{post.date}</span>
+                              <h4 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</h4>
+                              <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed">{post.excerpt || post.content}</p>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center py-32 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
@@ -4025,7 +4075,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'bank_transfer' ? primaryColor : undefined }}
                             >
-                              <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-xsrimary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
+                              <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
                               <span className={`font-bold text-xss text-center ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
                             </button>
                           )}
@@ -4038,7 +4088,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
                               style={{ borderColor: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }}
                             >
-                              <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-xsrimary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
+                              <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
                               <span className={`font-bold text-xss text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
                             </button>
                           )}

@@ -13,6 +13,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [htmlPreview, setHtmlPreview] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -333,6 +334,24 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     }
   };
 
+  const handleViewHtml = async (id: number) => {
+    try {
+      let reqId = id;
+      // if we are already viewing from details
+      if (!id && selectedInvoice) reqId = selectedInvoice.id;
+      if (!reqId) return;
+
+      const response = await api.getPurchaseInvoiceHtml(reqId);
+      if (response && response.html) {
+        setHtmlPreview(response.html);
+      } else {
+        toast.error("HTML boş döndü.");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || error.message || "Fatura görseli alınamadı");
+    }
+  };
+
   const handleEdit = async (id: number) => {
     try {
       const data = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
@@ -340,7 +359,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       
       setEditingInvoiceId(id);
       setCompanyId(data.company_id);
-      setCompanySearch(data.company_name);
+      setCompanySearch(data.company_name || "");
       setInvoiceNumber(data.invoice_number);
       setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
@@ -741,6 +760,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         title={isTr ? "Görüntüle" : "View"}
                       >
                         <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleViewHtml(invoice.id)}
+                        className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                        title={isTr ? "HTML Önizleme" : "HTML Preview"}
+                      >
+                        <FileText className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(invoice.id)}
@@ -1394,7 +1420,18 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
             >
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Fatura Detayı' : 'Invoice Details'}</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Fatura Detayı' : 'Invoice Details'}</h3>
+                  {selectedInvoice?.ettn && (
+                    <button
+                      onClick={() => handleViewHtml(selectedInvoice.id)}
+                      className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {isTr ? 'Orijinal Faturayı Göster' : 'View Original Invoice'}
+                    </button>
+                  )}
+                </div>
                 <button 
                   onClick={() => setShowDetailsModal(false)} 
                   className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
@@ -1660,6 +1697,33 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* HTML Preview Modal */}
+      <AnimatePresence>
+        {htmlPreview && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden relative border border-slate-200"
+            >
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Orijinal Fatura Görüntüsü' : 'Original Invoice View'}</h3>
+                <button 
+                  onClick={() => setHtmlPreview(null)} 
+                  className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
+                >
+                  <X className="h-5 w-5 text-slate-500" />
+                </button>
+              </div>
+              <div className="flex-1 bg-white relative w-full h-full overflow-hidden">
+                <iframe srcDoc={htmlPreview} className="w-full h-full border-0" sandbox="allow-same-origin" />
+              </div>
             </motion.div>
           </div>
         )}

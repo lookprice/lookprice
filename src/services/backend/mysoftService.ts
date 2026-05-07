@@ -181,68 +181,79 @@ export class MySoftService {
       const dateDDMMYYYY_start = transformDate(startDate);
       const dateDDMMYYYY_end = transformDate(endDate);
 
-      // Variations of MySoft Inbox endpoints, methods and payloads
+      // Variations of MySoft Inbox endpoints based on provided documentation and trial/error
+      const tId = this.credentials.tenant_id;
       const syncOptions = [
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'GET', params: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'GET', params: { startDate, endDate } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'POST', data: { StartDate: startDate, EndDate: endDate, Pagination: { PageNumber: 1, PageSize: 100 } } },
-        { url: `${this.baseUrl}/EInvoice/GetInboxInvoices`, method: 'POST', data: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl}/EInvoice/GetInboxInvoices`, method: 'GET', params: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'POST', data: { Search: { StartDate: startDate, EndDate: endDate }, Pagination: { PageNumber: 1, PageSize: 100 } } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'POST', data: { Search: { StartDate: startDate, EndDate: endDate } } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'POST', data: { StartDate: dateDDMMYYYY_start, EndDate: dateDDMMYYYY_end } },
-        { url: `${this.baseUrl}/Inbox/GetInvoices`, method: 'GET', params: { startDate, endDate } },
-        { url: `${this.baseUrl}/Invoice/GetInvoices`, method: 'GET', params: { StartDate: startDate, EndDate: endDate, IsInbox: true } },
-        { url: `${this.baseUrl}/Invoice/GetInvoices`, method: 'POST', data: { StartDate: startDate, EndDate: endDate, Direction: 1 } },
-        { url: `${this.baseUrl}/Invoice/GetInvoices`, method: 'POST', data: { StartDate: startDate, EndDate: endDate, IsInbox: true } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'POST', data: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoiceList`, method: 'GET', params: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl}/Invoice/GetInboxInvoiceList`, method: 'POST', data: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl}/Archive/GetInboxArchiveInvoices`, method: 'POST', data: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl.replace('edocumentapi', 'edonusumapi')}/Invoice/GetInboxInvoices`, method: 'GET', params: { StartDate: startDate, EndDate: endDate } },
-        { url: `${this.baseUrl.replace('/api', '')}/api/Invoice/GetInboxInvoices`, method: 'GET', params: { StartDate: startDate, EndDate: endDate } }
+        // 1. getInvoiceInboxListForPeriod (POST) - Primary documented way
+        { 
+          url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          data: { 
+            startDate: startDate + " 00:00:00", 
+            endDate: endDate + " 23:59:59", 
+            afterValue: 0, 
+            limit: 0,
+            isUseDocDate: true,
+            tenantIdentifierNumber: tId
+          } 
+        },
+        // 2. getInvoiceInboxListForPeriod (POST with null tenant)
+        { 
+          url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          data: { 
+            startDate: startDate + " 00:00:00", 
+            endDate: endDate + " 23:59:59", 
+            afterValue: 0, 
+            limit: 0,
+            isUseDocDate: true,
+            tenantIdentifierNumber: null
+          } 
+        },
+        // 3. getNewInvoiceInboxList (POST) 
+        { 
+          url: `${this.baseUrl}/InvoiceInbox/getNewInvoiceInboxList`, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          data: { afterValue: 0, limit: 0, tenantIdentifierNumber: tId } 
+        },
+        // 4. getNewInvoiceInboxList (POST with null tenant)
+        { 
+          url: `${this.baseUrl}/InvoiceInbox/getNewInvoiceInboxList`, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          data: { afterValue: 0, limit: 0, tenantIdentifierNumber: null } 
+        },
+        // 4.1 getNewInvoiceInboxList (POST without tenant field)
+        { 
+          url: `${this.baseUrl}/InvoiceInbox/getNewInvoiceInboxList`, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          data: { afterValue: 0, limit: 100 } 
+        },
+        // 5. Generic GET variations (Older APIs)
+        { url: `${this.baseUrl}/InvoiceInbox/invoiceInbox`, method: 'GET', params: { startDate, endDate, tenantIdentifierNumber: tId } },
+        { url: `${this.baseUrl}/Invoice/GetInboxInvoices`, method: 'GET', params: { StartDate: startDate, EndDate: endDate, tenantIdentifierNumber: tId } },
       ];
 
       const errors: string[] = [];
       for (const opt of syncOptions) {
         try {
-          console.log(`Trying MySoft Inbox Sync: ${opt.method} ${opt.url} (${JSON.stringify(opt.data || opt.params)})`);
+          console.log(`Trying MySoft Inbox Sync: ${opt.method} ${opt.url}`);
           const config: any = {
             headers: { 
               Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}`,
-              'X-Auth-Token': token,
-              'AuthToken': token,
-              'Token': token,
-              'SessionId': token,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              ...(opt.headers || {})
             },
-            timeout: 10000
+            timeout: 15000
           };
           
           if (this.credentials.tenant_id) {
-            const tId = this.credentials.tenant_id;
-            config.headers['TenantId'] = tId;
-            config.headers['tenantid'] = tId;
-            config.headers['ApplicationId'] = tId;
-            config.headers['applicationid'] = tId;
-            config.headers['AppKey'] = tId;
-            config.headers['X-TenantId'] = tId;
-            config.headers['X-ApplicationId'] = tId;
-            config.headers['X-App-Key'] = tId;
-            
-            // Also try in data if it's a POST
-            if (opt.method === 'POST' && opt.data) {
-              (opt.data as any).TenantId = tId;
-              (opt.data as any).ApplicationId = tId;
-              (opt.data as any).Tenant_Id = tId;
-            } else if (opt.method === 'GET') {
-              // Add to params if it's a GET
-              if (!opt.params) (opt as any).params = {};
-              const p = (opt as any).params;
-              p.TenantId = tId;
-              p.ApplicationId = tId;
-            }
+            config.headers['TenantId'] = this.credentials.tenant_id;
+            config.headers['ApplicationId'] = this.credentials.tenant_id;
           }
 
           let response;
@@ -253,9 +264,29 @@ export class MySoftService {
           }
 
           if (response.status === 200 && response.data) {
-            let data = response.data.Data || response.data.data;
-            if (!Array.isArray(data)) {
-              data = Array.isArray(response.data) ? response.data : null;
+            // MySoft often returns Success: true/false inside a 200 OK
+            const isSuccess = response.data.Succeed ?? response.data.succeed ?? response.data.Success ?? response.data.success ?? true;
+            if (!isSuccess) {
+               const msg = response.data.Message || response.data.message || "İşlem başarısız (Succeed: false)";
+               console.log(`MySoft Inbox variation returned Succeed: false (${opt.url}): ${msg}`);
+               errors.push(`${opt.method} ${opt.url.split('/').pop()}: [200] ${msg}`);
+               continue;
+            }
+
+            let data = response.data.Data || response.data.data || response.data.Items || response.data.items;
+            
+            // If data is still null, but the root is an array
+            if (data === undefined || data === null) {
+              if (Array.isArray(response.data)) {
+                data = response.data;
+              } else if (response.data.value && Array.isArray(response.data.value)) {
+                data = response.data.value;
+              }
+            } else if (!Array.isArray(data) && data.Items && Array.isArray(data.Items)) {
+              // Handle { Data: { Items: [] } }
+              data = data.Items;
+            } else if (!Array.isArray(data) && data.items && Array.isArray(data.items)) {
+              data = data.items;
             }
             
             if (data && Array.isArray(data)) {
@@ -263,48 +294,43 @@ export class MySoftService {
               success = true;
               console.log(`Successfully synced inbox from ${opt.url} using ${opt.method}. Found ${data.length} items.`);
               break;
+            } else {
+              console.log(`MySoft Inbox variation returned 200 but no array found (${opt.url})`);
+              errors.push(`${opt.method} ${opt.url.split('/').pop()}: [200] Beklenen liste formatı bulunamadı`);
             }
           }
         } catch (err: any) {
           lastApiError = err;
-          const msg = err.response?.data?.Message || err.response?.data || err.message;
+          const msg = err.response?.data?.Message || err.response?.data?.message || err.response?.data || err.message;
           const status = err.response?.status;
           console.log(`MySoft Inbox variation failed (${opt.url} ${opt.method}): [${status}] ${msg}`);
           
-          // CRITICAL: If we get a 401 Unauthorized, maybe the token expired. 
-          // We clear token and retry the whole process once if configured.
           if (status === 401 && retryOnAuth) {
             console.log("Authorization failed (401), refreshing token and retrying inbox sync...");
             this.token = null;
             return this.getIncomingInvoices(startDate, endDate, false);
           }
 
-          errors.push(`${opt.method} ${opt.url.split('/').pop()}: ${msg}`);
+          errors.push(`${opt.method} ${opt.url.split('/').pop()}: [${status}] ${msg}`);
         }
       }
 
       if (!success) {
-        const errorData = lastApiError?.response?.data;
-        const errorMessage = errorData?.Message || errorData || lastApiError?.message || "Bilinmeyen API hatası";
-        
-        // If we have specific accumulated errors, throw a summarized version
-        if (errors.length > 0) {
-           console.error("All sync variations failed:", errors);
-        }
-        throw new Error(errorMessage);
+        console.error("All sync variations failed. Errors tracked:", errors);
+        throw new Error(`Entegratörün fatura listeleme servislerine ulaşılamadı. Hatalar: ${errors.join(' | ')}`);
       }
       
       // Map to normalized camelCase format for our route logic
       return rawData.map((item: any) => {
         // Robust extraction from varied MySoft response structures
-        const ettn = item.Uuid || item.uuid || item.ettn || item.Ettn || item.invoiceETTN;
-        const documentNumber = item.Id || item.id || item.documentNumber || item.DocumentNumber || item.invoiceID;
-        const issueDate = item.IssueDate || item.issueDate || item.Date || item.date || item.invoiceDate;
-        const senderTitle = item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName;
-        const senderVkn = item.SenderVkn || item.senderVkn || item.Vkn || item.vkn || item.senderIdentifier;
-        const payableAmount = item.PayableAmount || item.payableAmount || item.Amount || item.amount || item.totalAmount;
-        const currency = item.CurrencyCode || item.currencyCode || item.Currency || item.currency || item.currencyCode || 'TRY';
-        const documentType = item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type || item.eDocumentType || 'EFATURA';
+        const ettn = item.Uuid || item.uuid || item.ettn || item.Ettn || item.invoiceETTN || item.DocumentUUID || item.documentUUID || item.invoiceUuid || item.InvoiceUuid || "";
+        const documentNumber = item.Id || item.id || item.documentNumber || item.DocumentNumber || item.invoiceID || item.documentId || item.DocumentId || item.InvoiceNumber || item.invoiceNumber || "";
+        const issueDate = item.IssueDate || item.issueDate || item.Date || item.date || item.invoiceDate || item.DocumentDate || item.documentDate || item.ExecutionDate || item.executionDate || "";
+        const senderTitle = item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName || item.SenderName || item.companyName || item.CompanyName || item.customerName || item.CustomerName || item.TaxpayerName || item.taxpayerName || "";
+        const senderVkn = item.SenderVkn || item.senderVkn || item.Vkn || item.vkn || item.senderIdentifier || item.SenderVknTckn || item.senderVknTckn || item.CustomerVkn || item.customerVkn || item.vkntckn || item.VknTckn || item.TaxNumber || item.taxNumber || item.TaxId || item.taxId || "";
+        const payableAmount = item.PayableAmount || item.payableAmount || item.Amount || item.amount || item.totalAmount || item.TotalAmount || item.PayableAmount || item.GrandTotal || item.grandTotal || item.InvoiceAmount || item.invoiceAmount || 0;
+        const currency = item.CurrencyCode || item.currencyCode || item.Currency || item.currency || item.documentCurrencyCode || item.DocumentCurrencyCode || 'TRY';
+        const documentType = item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type || item.eDocumentType || item.DocumentType || item.documentType || item.profileId || item.ProfileId || 'EFATURA';
         
         return {
           ettn,
@@ -358,6 +384,94 @@ export class MySoftService {
       const apiError = error.response?.data?.message || error.response?.data?.Message || error.message;
       console.error("MySoft Application Response Error:", apiError);
       throw new Error(apiError);
+    }
+  }
+
+  // 8. Get Invoice Details by UUID
+  async getInvoiceDetailsByUuid(ettn: string): Promise<any> {
+    try {
+      const token = await this.authenticate();
+      
+      const config: any = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      };
+      if (this.credentials.tenant_id) {
+        config.headers['TenantId'] = this.credentials.tenant_id;
+      }
+      
+      // Try a few variations for detail fetch
+      const variations = [
+        `${this.baseUrl}/InvoiceInbox/GetInvoiceDetailByUuid?uuid=${ettn}`,
+        `${this.baseUrl}/Invoice/GetInvoiceByUuid?uuid=${ettn}`
+      ];
+      
+      for (const url of variations) {
+        try {
+          const response = await axios.get(url, config);
+          if (response.status === 200 && response.data) {
+             const data = response.data.Data || response.data.data || response.data;
+             return data;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      throw new Error(`Detaylar alınamadı: ${ettn}`);
+    } catch (error: any) {
+      console.error("MySoft Invoice Details Error:", error.message);
+      return null;
+    }
+  }
+
+  // 7. Get Invoice HTML
+  async getInvoiceHtml(ettn: string): Promise<string> {
+    try {
+      const token = await this.authenticate();
+      
+      const config: any = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      };
+      
+      const variations = [
+        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceHtml`, method: 'POST', data: { uuid: ettn, tenantIdentifierNumber: this.credentials.tenant_id } },
+        { url: `${this.baseUrl}/Invoice/GetHtml`, method: 'POST', data: { uuid: ettn, tenantIdentifierNumber: this.credentials.tenant_id } },
+        { url: `${this.baseUrl}/Invoice/getInvoiceHtml`, method: 'POST', data: { Id: ettn, tenantIdentifierNumber: this.credentials.tenant_id } },
+        { url: `${this.baseUrl}/InvoiceInbox/getInvoiceHtml`, method: 'GET', params: { uuid: ettn, tenantIdentifierNumber: this.credentials.tenant_id } }
+      ];
+
+      for (const opt of variations) {
+        try {
+          const response = await axios({
+            url: opt.url,
+            method: opt.method,
+            headers: {
+              ...config.headers,
+              "Content-Type": opt.method === 'POST' ? "application/json" : undefined
+            },
+            data: opt.method === 'POST' ? opt.data : undefined,
+            params: opt.method === 'GET' ? opt.params : undefined
+          });
+
+          if (response.status === 200 && response.data) {
+            const html = response.data.Data || response.data.data || response.data.Html || response.data.html || response.data;
+            if (typeof html === 'string' && (html.includes('<html') || html.includes('<body') || html.includes('<div'))) {
+              return html;
+            }
+          }
+        } catch (e) {
+          // ignore error and try next
+        }
+      }
+
+      throw new Error("HTML formatı bulunamadı veya entegratör desteklemiyor.");
+    } catch (error: any) {
+      console.error("MySoft HTML Info Error:", error.message);
+      throw new Error(error.message);
     }
   }
 }

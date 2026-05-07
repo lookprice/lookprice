@@ -703,12 +703,21 @@ router.get("/returns", authenticateCustomer, async (req: any, res) => {
 router.get("/store/:slug/content", async (req, res) => {
   const { slug } = req.params;
   try {
-    const result = await pool.query(
-      "SELECT id, slug, faq, blog_posts, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE slug = $1",
+    const storeRes = await pool.query(
+      "SELECT id, slug, faq, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE slug = $1",
       [slug]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: "Store not found" });
-    res.json(result.rows[0]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const store = storeRes.rows[0];
+
+    // Fetch blog posts from separate table
+    const blogRes = await pool.query(
+      "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC",
+      [store.id]
+    );
+    store.blog_posts = blogRes.rows;
+
+    res.json(store);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

@@ -3493,7 +3493,7 @@ router.get("/purchase-invoices", async (req: any, res) => {
     const result = await pool.query(
       `SELECT pi.*, c.title as company_name 
        FROM purchase_invoices pi 
-       JOIN companies c ON pi.company_id = c.id 
+       LEFT JOIN companies c ON pi.company_id = c.id 
        WHERE pi.store_id = $1 
        ORDER BY pi.created_at DESC`,
       [storeId]
@@ -3510,7 +3510,7 @@ router.get("/purchase-invoices/:id", async (req: any, res) => {
     const invoiceResult = await pool.query(
       `SELECT pi.*, c.title as company_name 
        FROM purchase_invoices pi 
-       JOIN companies c ON pi.company_id = c.id 
+       LEFT JOIN companies c ON pi.company_id = c.id 
        WHERE pi.id = $1 AND pi.store_id = $2`,
       [req.params.id, storeId]
     );
