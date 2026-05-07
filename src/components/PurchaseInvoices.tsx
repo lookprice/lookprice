@@ -16,7 +16,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [htmlPreview, setHtmlPreview] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const [activeSearch, setActiveSearch] = useState("");
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
@@ -66,8 +66,27 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    fetchInvoicesData(deferredSearch);
-  }, [storeId, deferredSearch]);
+    setPage(1);
+  }, [activeSearch, startDate, endDate]);
+
+  useEffect(() => {
+    fetchInvoicesData(activeSearch, startDate, endDate);
+  }, [storeId, activeSearch, startDate, endDate]);
+
+  useEffect(() => {
+    if (search.length === 0 || search.length >= 3) {
+      const timer = setTimeout(() => {
+        setActiveSearch(search);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [search]);
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      setActiveSearch(search);
+    }
+  };
 
   const handleSyncInbox = async () => {
     setSyncing(true);
@@ -97,13 +116,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     }
   };
 
-  const fetchInvoicesData = async (searchStr?: string) => {
+  const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string) => {
     if (role === 'superadmin' && !storeId) return;
     setLoading(true);
     try {
       const targetStoreId = role === 'superadmin' ? storeId : undefined;
       const [invRes, compRes, prodRes] = await Promise.all([
-        api.getPurchaseInvoices(targetStoreId, searchStr),
+        api.getPurchaseInvoices(targetStoreId, searchStr, sDate || startDate, eDate || endDate),
         api.getCompanies(false, targetStoreId),
         api.getProducts("", targetStoreId)
       ]);
@@ -427,13 +446,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
 
   const totals = calculateTotals();
 
-  const filteredInvoices = invoices.filter((inv: any) => {
-    const invDate = new Date(inv.invoice_date).toISOString().split('T')[0];
-    const matchesStartDate = !startDate || invDate >= startDate;
-    const matchesEndDate = !endDate || invDate <= endDate;
-    
-    return matchesStartDate && matchesEndDate;
-  });
+  const filteredInvoices = invoices;
 
   const paginatedInvoices = filteredInvoices.slice(
     (page - 1) * itemsPerPage,
@@ -567,6 +580,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         tax_rate: taxRate,
         stock_quantity: 0,
         status: 'active',
+        is_web_sale: false,
         category: category
       }, role === 'superadmin' ? storeId : undefined);
       
@@ -695,8 +709,16 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                 placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                onKeyDown={handleSearchKeyPress}
+                className="w-full pl-10 pr-12 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
               />
+              <button 
+                onClick={() => setActiveSearch(search)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
+                title={isTr ? "Ara" : "Search"}
+              >
+                <Search className="h-4 w-4" />
+              </button>
             </div>
           </div>
           <div className="w-full md:w-44 space-y-1.5">

@@ -1155,7 +1155,7 @@ router.post("/products", async (req: any, res) => {
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', brand || '', author || '', 
       JSON.stringify(labels || []), image_url || '', 
-      is_web_sale !== undefined ? is_web_sale : true,
+      (is_web_sale === true || is_web_sale === 'true') && parseFloat(stock_quantity) > 0 ? true : false,
       product_type || 'product',
       parseFloat(price_2) || 0,
       price_2_currency || 'TRY',
@@ -1335,7 +1335,7 @@ router.put("/products/:id", async (req: any, res) => {
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', brand || '', author || '', 
       JSON.stringify(labels || []), image_url || '',
-      is_web_sale !== undefined ? is_web_sale : true,
+      (is_web_sale === true || is_web_sale === 'true') && parseFloat(stock_quantity) > 0 ? true : false,
       product_type || 'product',
       parseFloat(price_2) || 0,
       price_2_currency || 'TRY',
@@ -2984,6 +2984,9 @@ router.get("/sales-invoices", async (req: any, res) => {
         si.invoice_number ILIKE $${params.length} OR 
         si.document_number ILIKE $${params.length} OR
         si.ettn ILIKE $${params.length} OR
+        si.notes ILIKE $${params.length} OR
+        si.waybill_number ILIKE $${params.length} OR
+        si.tax_number ILIKE $${params.length} OR
         c.title ILIKE $${params.length} OR
         cust.full_name ILIKE $${params.length} OR
         s.customer_name ILIKE $${params.length} OR
@@ -3503,7 +3506,7 @@ router.post("/sales/:id/create-invoice", async (req: any, res) => {
 router.get("/purchase-invoices", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-    const { search } = req.query;
+    const { search, startDate, endDate } = req.query;
 
     let query = `
       SELECT DISTINCT pi.*, c.title as company_name 
@@ -3520,9 +3523,22 @@ router.get("/purchase-invoices", async (req: any, res) => {
         pi.invoice_number ILIKE $${params.length} OR 
         pi.supplier_name ILIKE $${params.length} OR
         pi.ettn ILIKE $${params.length} OR
+        pi.notes ILIKE $${params.length} OR
+        pi.waybill_number ILIKE $${params.length} OR
+        pi.tax_number ILIKE $${params.length} OR
         c.title ILIKE $${params.length} OR
         pii.product_name ILIKE $${params.length}
       )`;
+    }
+
+    if (startDate) {
+      params.push(startDate);
+      query += ` AND pi.invoice_date >= $${params.length}`;
+    }
+
+    if (endDate) {
+      params.push(endDate);
+      query += ` AND pi.invoice_date <= $${params.length}`;
     }
 
     query += ` ORDER BY pi.created_at DESC`;

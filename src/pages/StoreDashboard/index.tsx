@@ -19,6 +19,7 @@ import {
   Upload, 
   Edit2, 
   ChevronRight, 
+  AlertCircle,
   AlertTriangle,
   TrendingUp,
   Scan,
@@ -3269,19 +3270,30 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3 pt-4 border-t border-gray-50">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          name="is_web_sale" 
-                          defaultChecked={editingProduct?.is_web_sale !== false} 
-                          className="sr-only peer" 
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                        <span className="ml-3 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                          {lang === 'tr' ? 'WEB SATIŞI' : 'WEB SALE'}
-                        </span>
-                      </label>
+                    <div className="flex flex-col space-y-2 pt-4 border-t border-gray-50">
+                      <div className="flex items-center space-x-3">
+                        <label className={`relative inline-flex items-center ${(editingProduct?.stock_quantity || 0) <= 0 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                          <input 
+                            type="checkbox" 
+                            name="is_web_sale" 
+                            defaultChecked={editingProduct ? (editingProduct.stock_quantity > 0 && editingProduct.is_web_sale !== false) : false} 
+                            disabled={(editingProduct?.stock_quantity || 0) <= 0}
+                            className="sr-only peer" 
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                          <span className="ml-3 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            {lang === 'tr' ? 'WEB SATIŞI' : 'WEB SALE'}
+                          </span>
+                        </label>
+                      </div>
+                      {(editingProduct?.stock_quantity || 0) <= 0 && (
+                        <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {lang === 'tr' 
+                            ? 'Stok miktarı 0 veya daha az olan ürünler web satışına açılamaz.' 
+                            : 'Products with zero or negative stock cannot be enabled for web sale.'}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

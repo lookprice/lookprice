@@ -17,7 +17,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const [activeSearch, setActiveSearch] = useState("");
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
@@ -242,15 +242,34 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   }, [companyId, customerId, branding?.einvoice_settings?.is_active]);
 
   useEffect(() => {
-    fetchInvoicesData(deferredSearch);
-  }, [storeId, deferredSearch]);
+    setPage(1);
+  }, [activeSearch, startDate, endDate]);
 
-  const fetchInvoicesData = async (searchStr?: string) => {
+  useEffect(() => {
+    fetchInvoicesData(activeSearch, startDate, endDate);
+  }, [storeId, activeSearch, startDate, endDate]);
+
+  useEffect(() => {
+    if (search.length === 0 || search.length >= 3) {
+      const timer = setTimeout(() => {
+        setActiveSearch(search);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [search]);
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      setActiveSearch(search);
+    }
+  };
+
+  const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string) => {
     if (role === 'superadmin' && !storeId) return;
     setLoading(true);
     try {
       const [invRes, custRes, compRes, prodRes] = await Promise.all([
-        api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, searchStr),
+        api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, searchStr, sDate || startDate, eDate || endDate),
         api.getCustomers(role === 'superadmin' ? storeId : undefined),
         api.getCompanies(false, role === 'superadmin' ? storeId : undefined),
         api.getProducts("", role === 'superadmin' ? storeId : undefined)
@@ -668,13 +687,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   };
 
 
-  const filteredInvoices = invoices.filter((inv: any) => {
-    const invDate = new Date(inv.invoice_date);
-    const matchesStartDate = !startDate || invDate >= new Date(startDate);
-    const matchesEndDate = !endDate || invDate <= new Date(endDate);
-    
-    return matchesStartDate && matchesEndDate;
-  });
+  const filteredInvoices = invoices;
 
   const paginatedInvoices = filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
@@ -751,10 +764,18 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
             <input 
               type="text" 
               placeholder={isTr ? "Fatura no, müşteri ara..." : "Search invoice, customer..."}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+              className="w-full pl-10 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyPress}
             />
+            <button 
+              onClick={() => setActiveSearch(search)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
+              title={isTr ? "Ara" : "Search"}
+            >
+              <Search className="h-4 w-4" />
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-slate-400" />

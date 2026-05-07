@@ -167,13 +167,27 @@ export const api = {
   deleteSale: (id: number, storeId?: number) => api.delete(`/api/store/sales/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getDailySalesReport: (start = "", end = "", storeId?: number) => api.get(`/api/store/reports/daily-sales?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   
-  getSalesInvoices: (storeId?: number, search?: string) => api.get(`/api/store/sales-invoices?${(storeId !== undefined && storeId !== null) ? `storeId=${storeId}&` : ""}${search ? `search=${encodeURIComponent(search)}` : ""}`),
+  getSalesInvoices: (storeId?: number, search?: string, startDate?: string, endDate?: string) => {
+    let url = `/api/store/sales-invoices?`;
+    if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (startDate) url += `startDate=${startDate}&`;
+    if (endDate) url += `endDate=${endDate}&`;
+    return api.get(url);
+  },
   getSalesInvoice: (id: number, storeId?: number) => api.get(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateSalesInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteSalesInvoice: (id: number, storeId?: number) => api.delete(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
-  getPurchaseInvoices: (storeId?: number, search?: string) => api.get(`/api/store/purchase-invoices?${(storeId !== undefined && storeId !== null) ? `storeId=${storeId}&` : ""}${search ? `search=${encodeURIComponent(search)}` : ""}`),
+  getPurchaseInvoices: (storeId?: number, search?: string, startDate?: string, endDate?: string) => {
+    let url = `/api/store/purchase-invoices?`;
+    if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (startDate) url += `startDate=${startDate}&`;
+    if (endDate) url += `endDate=${endDate}&`;
+    return api.get(url);
+  },
   getPurchaseInvoice: (id: number, storeId?: number) => api.get(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getPurchaseInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html`),
   addPurchaseInvoice: (data: any, storeId?: number) => api.post(`/api/store/purchase-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
