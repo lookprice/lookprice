@@ -199,11 +199,14 @@ export async function initDb() {
         product_name TEXT NOT NULL,
         barcode TEXT,
         quantity INTEGER DEFAULT 1,
+        unit_code TEXT DEFAULT 'Adet',
         unit_price DECIMAL(12,2) NOT NULL,
         tax_rate DECIMAL(5,2) DEFAULT 20,
         total_price DECIMAL(12,2) NOT NULL,
         FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
       );
+
+      ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS unit_code TEXT DEFAULT 'Adet';
 
       ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) DEFAULT 20;
 
@@ -488,6 +491,7 @@ export async function initDb() {
         product_name TEXT NOT NULL,
         barcode TEXT,
         quantity REAL NOT NULL,
+        unit_code TEXT DEFAULT 'Adet',
         unit_price DECIMAL(12,2) NOT NULL,
         tax_rate DECIMAL(5,2) NOT NULL,
         tax_amount DECIMAL(12,2) NOT NULL,
@@ -495,6 +499,8 @@ export async function initDb() {
         FOREIGN KEY (purchase_invoice_id) REFERENCES purchase_invoices(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
       );
+
+      ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS unit_code TEXT DEFAULT 'Adet';
 
       CREATE TABLE IF NOT EXISTS sales_invoices (
         id SERIAL PRIMARY KEY,
@@ -541,6 +547,7 @@ export async function initDb() {
         product_name TEXT NOT NULL,
         barcode TEXT,
         quantity REAL NOT NULL,
+        unit_code TEXT DEFAULT 'Adet',
         unit_price DECIMAL(12,2) NOT NULL,
         tax_rate DECIMAL(5,2) NOT NULL,
         tax_amount DECIMAL(12,2) NOT NULL,
@@ -548,6 +555,8 @@ export async function initDb() {
         FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
       );
+
+      ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS unit_code TEXT DEFAULT 'Adet';
 
       -- Update stores table if needed
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;

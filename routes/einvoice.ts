@@ -298,56 +298,102 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
     }
     
     let importedCount = 0;
+    // Helper to normalize Turkish date format (DD.MM.YYYY) to (YYYY-MM-DD)
+    const normalizeDate = (dateStr: any) => {
+      if (typeof dateStr !== 'string') return dateStr;
+      if (dateStr.includes('.')) {
+        const parts = dateStr.split('.');
+        if (parts.length === 3 && parts[2].length === 4) {
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+      return dateStr;
+    };
+
     // Process and insert them into purchase_invoices
     for (const inv of incomingInvoices) {
-       // Check if invoice already exists via ETTN or Document Number
-       const existing = await pool.query(
-         "SELECT id FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
-         [storeId, inv.ettn, inv.documentNumber]
+       let invoiceDetails = inv;
+       
+       // If basic info is missing but ETTN exists, fetch full details early
+       const rawForLines = inv.raw || (typeof inv === 'object' ? inv : {});
+       const linesAtRoot = rawForLines.detailList || rawForLines.InvoiceLines || rawForLines.lines || rawForLines.InvoiceLine || rawForLines.Lines || rawForLines.invoiceLines;
+       
+       if (!linesAtRoot && inv.ettn) {
+         console.log(`Fetching full details for invoice: ${inv.ettn} before processing...`);
+         const details = await service.getInvoiceDetailsByUuid(inv.ettn);
+         if (details) {
+           const detailsBase = details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || 0;
+           const detailsTaxArr = details.taxTotal || details.TaxTotal || [];
+           const detailsTax = Array.isArray(detailsTaxArr) 
+             ? detailsTaxArr.reduce((sum: number, tax: any) => sum + (Number(tax.taxAmount || tax.TaxAmount || 0)), 0)
+             : (Number(detailsTaxArr.taxAmount || detailsTaxArr.TaxAmount) || 0);
+
+           invoiceDetails = {
+             ...inv,
+             documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
+             issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
+             senderTitle: details.supplierInfo?.partyName || details.supplierInfo?.customerName || details.SenderTitle || details.senderTitle || inv.senderTitle,
+             senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
+             payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
+             baseAmount: Number(detailsBase) || inv.baseAmount || 0,
+             taxAmount: Number(detailsTax) || inv.taxAmount || 0,
+             currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
+             documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
+             raw: details
+           };
+         }
+       } else {
+         // Even if we have lines, normalize the date in inv
+         invoiceDetails = {
+           ...inv,
+           issueDate: normalizeDate(inv.issueDate)
+         };
+       }
+
+       // Check if invoice already exists
+       const existingRes = await pool.query(
+         "SELECT id, ettn FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
+         [storeId, invoiceDetails.ettn, invoiceDetails.documentNumber]
        );
- 
-       if (existing.rows.length === 0) {
+
+       if (existingRes.rows.length > 0) {
+          // If it exists but has no ETTN, update it
+          const existing = existingRes.rows[0];
+          if (!existing.ettn && invoiceDetails.ettn) {
+             console.log(`Updating missing ETTN for existing invoice ${invoiceDetails.documentNumber}: ${invoiceDetails.ettn}`);
+             await pool.query(
+               "UPDATE purchase_invoices SET ettn = $1 WHERE id = $2",
+               [invoiceDetails.ettn, existing.id]
+             );
+          }
+          continue; // Already processed
+       }
+
+       if (true) {
           // 1. Find or create company
           let companyId = null;
-          if (inv.senderVkn) {
-            const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, inv.senderVkn]);
+          if (invoiceDetails.senderVkn) {
+            const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
             if (compRes.rows.length > 0) {
               companyId = compRes.rows[0].id;
             } else {
               // Create company
               const newComp = await pool.query(
                 "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
-                [storeId, inv.senderTitle || 'Bilinmeyen Tedarikçi', inv.senderVkn, 'Otomatik Oluşturuldu']
+                [storeId, invoiceDetails.senderTitle || 'Bilinmeyen Tedarikçi', invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
               );
               companyId = newComp.rows[0].id;
             }
           }
 
-          // 2. Insert invoice
-          let invoiceDetails = inv;
-          if (typeof inv === 'string') {
-            const details = await service.getInvoiceDetailsByUuid(inv);
-            if (!details) {
-              console.error(`Could not fetch details for invoice: ${inv}`);
-              continue;
-            }
-            invoiceDetails = {
-               ettn: details.Uuid || details.uuid || inv,
-               documentNumber: details.Id || details.id || details.documentNumber || `IN-${Date.now()}`,
-               issueDate: details.IssueDate || details.issueDate || details.date || new Date().toISOString(),
-               senderTitle: details.SenderTitle || details.senderTitle || 'Bilinmeyen Tedarikçi',
-               senderVkn: details.SenderVkn || details.senderVkn || details.taxNumber || '',
-               payableAmount: details.PayableAmount || details.payableAmount || details.totalAmount || 0,
-               currency: details.CurrencyCode || details.currencyCode || 'TRY',
-               documentType: details.InvoiceTypeCode || details.invoiceTypeCode || 'EFATURA',
-               raw: details
-            };
-          }
-          
+          const baseAmt = Number(invoiceDetails.baseAmount) || (Number(invoiceDetails.payableAmount) - Number(invoiceDetails.taxAmount || 0));
+          const taxAmt = Number(invoiceDetails.taxAmount) || 0;
+          const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
+
           const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, grand_total, currency, status, integration_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, status, integration_status, payment_method, payment_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
             [
               storeId, 
               companyId,
@@ -373,11 +419,14 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                 } catch (e) {}
                 return new Date().toISOString();
               })(),
-              invoiceDetails.payableAmount,
-              invoiceDetails.payableAmount,
+              baseAmt,
+              taxAmt,
+              grandAmt,
               invoiceDetails.currency,
               'approved', 
-              'RECEIVED'
+              'RECEIVED',
+              'term',
+              'unpaid'
             ]
           );
           
@@ -385,20 +434,20 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 
           // 3. Attempt to parse lines and match with existing products
           const rawData = invoiceDetails.raw || (typeof inv === 'object' ? inv : {});
-          const rawLines = rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || rawData.invoiceLines || [];
+          const rawLines = rawData.detailList || rawData.InvoiceLines || rawData.lines || rawData.InvoiceLine || rawData.Lines || rawData.invoiceLines || [];
           
           if (Array.isArray(rawLines)) {
             for (const line of rawLines) {
-              const productName = line.Name || line.itemName || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
-              const qtyRaw = line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
-              const unitCode = line.UnitCode || line.unitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
+              const productName = line.detailItem?.itemName || line.itemName || line.Name || line.itemName || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
+              const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
+              const unitCode = line.unitCode || line.UnitCode || line.unitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
               
               const qty = Number(qtyRaw) || 0;
               
-              const upRaw = line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+              const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
               const up = Number(upRaw) || 0;
               
-              const trRaw = line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 0;
+              const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 0;
               const tr = Number(trRaw) || 0;
               
               const lineTotal = qty * up;
@@ -416,7 +465,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                 `INSERT INTO purchase_invoice_items 
                  (purchase_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                [newInvoiceId, productId, productName, qty, up, tr, taxAmount, lineTotal + taxAmount, unitCode]
+                [newInvoiceId, productId, productName, qty, up, tr, taxAmount, lineTotal, unitCode]
               );
               
               // If product exists, update its stock automatically
@@ -435,7 +484,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               `INSERT INTO current_account_transactions 
                 (store_id, company_id, purchase_invoice_id, type, amount, currency, description, transaction_date) 
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-              [storeId, companyId, newInvoiceId, 'credit', inv.payableAmount || 0, inv.currency || 'TRY', `E-Fatura İçe Aktarma: ${inv.documentNumber}`, inv.issueDate || new Date()]
+              [storeId, companyId, newInvoiceId, 'credit', invoiceDetails.payableAmount || 0, invoiceDetails.currency || 'TRY', `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, invoiceDetails.issueDate || new Date()]
             );
           }
 
@@ -477,16 +526,16 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     const storeId = req.user.store_id;
     const invoiceId = req.params.id;
 
-    const invRes = await pool.query("SELECT ettn FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
-    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const invoiceRes = await pool.query("SELECT ettn, document_number FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    if (invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
-    const ettn = invRes.rows[0].ettn;
-    if (!ettn) return res.status(400).json({ error: "Faturanın ETTN'si bulunmuyor." });
+    const { ettn, document_number } = invoiceRes.rows[0];
+    if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
 
     const service = await getEInvoiceService(storeId);
     
     if ('getInvoiceHtml' in service) {
-      const html = await (service as any).getInvoiceHtml(ettn);
+      const html = await (service as any).getInvoiceHtml(ettn, document_number);
       return res.json({ html });
     }
 

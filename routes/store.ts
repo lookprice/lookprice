@@ -3538,7 +3538,7 @@ router.post("/purchase-invoices", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items: bodyItems, notes, currency, exchange_rate, payment_method, is_tax_inclusive } = req.body;
+    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items: bodyItems, notes, currency, exchange_rate, payment_method, payment_status, is_tax_inclusive } = req.body;
     
     // For superadmins, prioritize bodyStoreId. If not provided, fallback to req.user.store_id.
     let storeId = req.user.store_id;
@@ -3584,9 +3584,9 @@ router.post("/purchase-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO purchase_invoices 
-        (store_id, company_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, payment_method, is_tax_inclusive) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [storeId, company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, isTaxIncl]
+        (store_id, company_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, payment_method, payment_status, is_tax_inclusive) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+      [storeId, company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, payment_status || 'unpaid', isTaxIncl]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -3672,7 +3672,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate } = req.body;
+    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, payment_status, currency, exchange_rate } = req.body;
 
     // 1. Get old invoice and items to revert stock
     const oldInvoiceResult = await client.query(
@@ -3732,9 +3732,9 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     // 5. Update invoice
     await client.query(
       `UPDATE purchase_invoices 
-       SET company_id = $1, invoice_number = $2, waybill_number = $3, invoice_date = $4, total_amount = $5, tax_amount = $6, grand_total = $7, currency = $8, exchange_rate = $9, notes = $10, payment_method = $11
-       WHERE id = $12 AND store_id = $13`,
-      [company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, req.params.id, storeId]
+       SET company_id = $1, invoice_number = $2, waybill_number = $3, invoice_date = $4, total_amount = $5, tax_amount = $6, grand_total = $7, currency = $8, exchange_rate = $9, notes = $10, payment_method = $11, payment_status = $12
+       WHERE id = $13 AND store_id = $14`,
+      [company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, payment_status || 'unpaid', req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock
@@ -3844,6 +3844,20 @@ router.post("/purchase-invoices/:id/status", async (req: any, res) => {
     res.status(400).json({ error: e.message });
   } finally {
     client.release();
+  }
+});
+
+router.patch("/purchase-invoices/:id/payment-status", async (req: any, res) => {
+  try {
+    const { status } = req.body;
+    const storeId = req.user.store_id;
+    await pool.query(
+      "UPDATE purchase_invoices SET payment_status = $1 WHERE id = $2 AND store_id = $3",
+      [status, req.params.id, storeId]
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
   }
 });
 

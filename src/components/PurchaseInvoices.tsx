@@ -40,6 +40,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const deferredProductSearch = useDeferredValue(productSearch);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'term' | 'cash' | 'credit_card' | 'bank'>('term');
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('unpaid');
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [companySearch, setCompanySearch] = useState("");
@@ -74,7 +75,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       // By default sync last 5 days
       const end = new Date();
       const start = new Date();
-      start.setDate(end.getDate() - 5);
+      start.setDate(end.getDate() - 30); // Sync last 30 days to catch older invoices with missing ETTNs
       
       const s = start.toISOString().split('T')[0];
       const e = end.toISOString().split('T')[0];
@@ -243,6 +244,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     const currentInvoiceDate = invoiceDate;
     const currentNotes = notes;
     const currentPaymentMethod = paymentMethod;
+    const currentPaymentStatus = paymentStatus;
     const currentCurrency = currency;
     const currentExchangeRate = exchangeRate;
     const currentEditingId = editingInvoiceId;
@@ -267,6 +269,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     setNotes("");
     setItems([]);
     setPaymentMethod('term');
+    setPaymentStatus('unpaid');
     setCurrency(branding?.default_currency || 'TRY');
     setExchangeRate("1");
 
@@ -285,6 +288,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
           tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
         })),
         payment_method: currentPaymentMethod,
+        payment_status: currentPaymentStatus,
         currency: currentCurrency,
         exchange_rate: Number(currentExchangeRate) || 1,
         is_tax_inclusive: isTaxInclusive
@@ -339,16 +343,21 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       let reqId = id;
       // if we are already viewing from details
       if (!id && selectedInvoice) reqId = selectedInvoice.id;
-      if (!reqId) return;
+      if (!reqId) {
+        toast.error(isTr ? "Fatura seçilemedi." : "Invoice not selected.");
+        return;
+      }
 
       const response = await api.getPurchaseInvoiceHtml(reqId);
       if (response && response.html) {
         setHtmlPreview(response.html);
+      } else if (response && response.error) {
+        toast.error(response.error);
       } else {
-        toast.error("HTML boş döndü.");
+        toast.error(isTr ? "HTML verisi boş döndü." : "HTML returned empty.");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || error.message || "Fatura görseli alınamadı");
+      toast.error(error.response?.data?.error || error.message || (isTr ? "Fatura görseli alınamadı" : "Failed to get invoice image"));
     }
   };
 
@@ -365,6 +374,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method || 'term');
+      setPaymentStatus(data.payment_status || 'unpaid');
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
       const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
@@ -398,6 +408,17 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       if (res.error) throw new Error(res.error);
       
       toast.success(isTr ? "Fatura durumu güncellendi" : "Invoice status updated");
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+    }
+  };
+
+  const handleUpdatePaymentStatus = async (id: number, status: 'paid' | 'unpaid') => {
+    try {
+      const res = await api.updatePurchaseInvoicePaymentStatus(id, status);
+      if (res.error) throw new Error(res.error);
+      toast.success(isTr ? "Ödeme durumu güncellendi" : "Payment status updated");
       await fetchInvoicesData();
     } catch (error: any) {
       toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
@@ -719,6 +740,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                 <th className="p-4 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
                 <th className="p-4 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
+                <th className="p-4 font-bold text-center">{isTr ? "Ödeme" : "Payment"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
               </tr>
             </thead>
@@ -751,6 +773,26 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   </td>
                   <td className="p-4 text-xs text-slate-500 text-center font-bold">
                     {invoice.currency}
+                  </td>
+                  <td className="p-4 text-xs text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <button
+                        onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
+                        className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                          invoice.payment_status === 'paid' 
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
+                            : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                        }`}
+                      >
+                        {invoice.payment_status === 'paid' ? (isTr ? 'ÖDENDİ' : 'PAID') : (isTr ? 'VADELİ' : 'UNPAID')}
+                      </button>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase">
+                        {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') :
+                         invoice.payment_method === 'credit_card' ? (isTr ? 'Kredi Kartı' : 'Credit Card') :
+                         invoice.payment_method === 'bank' ? (isTr ? 'Banka' : 'Bank') :
+                         (isTr ? 'Vadeli' : 'Deferred')}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-4 text-sm text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -806,7 +848,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               ))}
               {paginatedInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                  <td colSpan={11} className="p-8 text-center text-slate-500">
                     {isTr ? "Fatura bulunamadı." : "No invoices found."}
                   </td>
                 </tr>
@@ -1244,55 +1286,86 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
 
                   <div className="flex flex-col md:flex-row gap-6">
                     <div className="flex-1 space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                          {isTr ? "Ödeme Yöntemi" : "Payment Method"}
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('term')}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                              paymentMethod === 'term' 
-                                ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isTr ? "Vadeli (Ödenmedi)" : "Term (Unpaid)"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('cash')}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                              paymentMethod === 'cash' 
-                                ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isTr ? "Nakit" : "Cash"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('credit_card')}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                              paymentMethod === 'credit_card' 
-                                ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isTr ? "Kredi Kartı" : "Credit Card"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('bank')}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                              paymentMethod === 'bank' 
-                                ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isTr ? "Banka / EFT" : "Bank Transfer"}
-                          </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                            {isTr ? "Ödeme Yöntemi" : "Payment Method"}
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => { setPaymentMethod('term'); setPaymentStatus('unpaid'); }}
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                paymentMethod === 'term' 
+                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
+                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isTr ? "Vadeli" : "Term"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setPaymentMethod('cash'); setPaymentStatus('paid'); }}
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                paymentMethod === 'cash' 
+                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
+                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isTr ? "Nakit" : "Cash"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setPaymentMethod('credit_card'); setPaymentStatus('paid'); }}
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                paymentMethod === 'credit_card' 
+                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
+                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isTr ? "Kredi Kartı" : "Credit Card"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setPaymentMethod('bank'); setPaymentStatus('paid'); }}
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                paymentMethod === 'bank' 
+                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
+                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isTr ? "Banka / EFT" : "Bank Transfer"}
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                            {isTr ? "Ödeme Durumu" : "Payment Status"}
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentStatus('paid')}
+                              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                paymentStatus === 'paid' 
+                                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
+                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isTr ? "ÖDENDİ" : "PAID"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaymentStatus('unpaid')}
+                              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                paymentStatus === 'unpaid' 
+                                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-200' 
+                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isTr ? "ÖDENMEDİ" : "UNPAID"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div>

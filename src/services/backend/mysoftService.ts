@@ -184,21 +184,7 @@ export class MySoftService {
       // Variations of MySoft Inbox endpoints based on provided documentation and trial/error
       const tId = this.credentials.tenant_id;
       const syncOptions = [
-        // 1. getInvoiceInboxListForPeriod (POST) - Primary documented way
-        { 
-          url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          data: { 
-            startDate: startDate + " 00:00:00", 
-            endDate: endDate + " 23:59:59", 
-            afterValue: 0, 
-            limit: 0,
-            isUseDocDate: true,
-            tenantIdentifierNumber: tId
-          } 
-        },
-        // 2. getInvoiceInboxListForPeriod (POST with null tenant)
+        // 1. getInvoiceInboxListForPeriod (POST with null tenant) - Often works for API users
         { 
           url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, 
           method: 'POST', 
@@ -210,6 +196,20 @@ export class MySoftService {
             limit: 0,
             isUseDocDate: true,
             tenantIdentifierNumber: null
+          } 
+        },
+        // 2. getInvoiceInboxListForPeriod (POST) - Documented way using tenantId
+        { 
+          url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxListForPeriod`, 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          data: { 
+            startDate: startDate + " 00:00:00", 
+            endDate: endDate + " 23:59:59", 
+            afterValue: 0, 
+            limit: 0,
+            isUseDocDate: true,
+            tenantIdentifierNumber: tId
           } 
         },
         // 3. getNewInvoiceInboxList (POST) 
@@ -322,13 +322,30 @@ export class MySoftService {
       
       // Map to normalized camelCase format for our route logic
       return rawData.map((item: any) => {
+        // If item is just a string, it's likely the UUID itself
+        if (typeof item === 'string') {
+          return {
+            ettn: item,
+            documentNumber: "",
+            issueDate: "",
+            senderTitle: "",
+            senderVkn: "",
+            payableAmount: 0,
+            currency: 'TRY',
+            documentType: 'EFATURA',
+            raw: item
+          };
+        }
+
         // Robust extraction from varied MySoft response structures
         const ettn = item.Uuid || item.uuid || item.ettn || item.Ettn || item.invoiceETTN || item.DocumentUUID || item.documentUUID || item.invoiceUuid || item.InvoiceUuid || "";
         const documentNumber = item.Id || item.id || item.documentNumber || item.DocumentNumber || item.invoiceID || item.documentId || item.DocumentId || item.InvoiceNumber || item.invoiceNumber || "";
         const issueDate = item.IssueDate || item.issueDate || item.Date || item.date || item.invoiceDate || item.DocumentDate || item.documentDate || item.ExecutionDate || item.executionDate || "";
         const senderTitle = item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName || item.SenderName || item.companyName || item.CompanyName || item.customerName || item.CustomerName || item.TaxpayerName || item.taxpayerName || "";
         const senderVkn = item.SenderVkn || item.senderVkn || item.Vkn || item.vkn || item.senderIdentifier || item.SenderVknTckn || item.senderVknTckn || item.CustomerVkn || item.customerVkn || item.vkntckn || item.VknTckn || item.TaxNumber || item.taxNumber || item.TaxId || item.taxId || "";
-        const payableAmount = item.PayableAmount || item.payableAmount || item.Amount || item.amount || item.totalAmount || item.TotalAmount || item.PayableAmount || item.GrandTotal || item.grandTotal || item.InvoiceAmount || item.invoiceAmount || 0;
+        const payableAmount = item.PayableAmount || item.payableAmount || item.Amount || item.amount || item.totalAmount || item.TotalAmount || item.GrandTotal || item.grandTotal || item.InvoiceAmount || item.invoiceAmount || 0;
+        const taxAmount = item.TaxAmount || item.taxAmount || item.LineTotalTaxAmount || item.TotalTaxAmount || item.totalTaxAmount || 0;
+        const baseAmount = item.LineExtensionAmount || item.lineExtensionAmount || item.TaxExclusiveAmount || item.taxExclusiveAmount || (Number(payableAmount) - Number(taxAmount)) || 0;
         const currency = item.CurrencyCode || item.currencyCode || item.Currency || item.currency || item.documentCurrencyCode || item.DocumentCurrencyCode || 'TRY';
         const documentType = item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type || item.eDocumentType || item.DocumentType || item.documentType || item.profileId || item.ProfileId || 'EFATURA';
         
@@ -339,6 +356,8 @@ export class MySoftService {
           senderTitle,
           senderVkn,
           payableAmount: Number(payableAmount) || 0,
+          taxAmount: Number(taxAmount) || 0,
+          baseAmount: Number(baseAmount) || 0,
           currency,
           documentType,
           raw: item
@@ -396,27 +415,55 @@ export class MySoftService {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
-        }
+        },
+        timeout: 15000
       };
+      
       if (this.credentials.tenant_id) {
         config.headers['TenantId'] = this.credentials.tenant_id;
       }
       
-      // Try a few variations for detail fetch
+      const tId = this.credentials.tenant_id;
+      
+      // Try a few variations for detail fetch based on documentation and successful list patterns
       const variations = [
-        `${this.baseUrl}/InvoiceInbox/GetInvoiceDetailByUuid?uuid=${ettn}`,
-        `${this.baseUrl}/Invoice/GetInvoiceByUuid?uuid=${ettn}`
+        // 1. getInvoiceInboxModel (Common MySoft endpoint for structured data)
+        { url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxModel`, method: 'GET', params: { invoiceETTN: ettn, tenantIdentifierNumber: null } },
+        { url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxModel`, method: 'GET', params: { invoiceETTN: ettn, tenantIdentifierNumber: tId } },
+        
+        // 2. Older / alternate endpoints
+        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxDetail`, method: 'GET', params: { uuid: ettn } },
+        { url: `${this.baseUrl}/Invoice/GetInvoiceByUuid`, method: 'GET', params: { uuid: ettn } },
+        
+        // 3. Document details fetch (often returns UBL or JSON model)
+        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceDetailByUuid`, method: 'GET', params: { uuid: ettn } },
+        { url: `${this.baseUrl}/InvoiceInbox/GetInvoice`, method: 'GET', params: { id: ettn } }
       ];
       
-      for (const url of variations) {
+      for (const opt of variations as any[]) {
         try {
-          const response = await axios.get(url, config);
-          if (response.status === 200 && response.data) {
-             const data = response.data.Data || response.data.data || response.data;
-             return data;
+          console.log(`Trying MySoft Invoice Details: ${opt.method} ${opt.url}`);
+          let response;
+          if (opt.method === 'GET') {
+            response = await axios.get(opt.url, { ...config, params: opt.params });
+          } else {
+            response = await axios.post(opt.url, opt.data || {}, config);
           }
-        } catch (e) {
-          // ignore
+
+          if (response.status === 200 && response.data) {
+             const isSuccess = response.data.Succeed ?? response.data.succeed ?? response.data.Success ?? response.data.success ?? true;
+             if (!isSuccess) {
+                console.log(`MySoft Details variation returned Succeed: false (${opt.url})`);
+                continue;
+             }
+             const data = response.data.Data || response.data.data || response.data;
+             if (data) {
+                console.log(`Successfully fetched details from ${opt.url}`);
+                return data;
+             }
+          }
+        } catch (e: any) {
+          console.log(`MySoft Details variation failed (${opt.url}): ${e.message}`);
         }
       }
       throw new Error(`Detaylar alınamadı: ${ettn}`);
@@ -427,50 +474,123 @@ export class MySoftService {
   }
 
   // 7. Get Invoice HTML
-  async getInvoiceHtml(ettn: string): Promise<string> {
+  async getInvoiceHtml(ettn: string, invoiceNumber?: string): Promise<string> {
     try {
       const token = await this.authenticate();
+      const tId = this.credentials.tenant_id;
       
       const config: any = {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { 
+          Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}` 
+        },
+        responseType: 'arraybuffer',
+        timeout: 15000
       };
-      
-      const variations = [
-        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceHtml`, method: 'POST', data: { uuid: ettn, tenantIdentifierNumber: this.credentials.tenant_id } },
-        { url: `${this.baseUrl}/Invoice/GetHtml`, method: 'POST', data: { uuid: ettn, tenantIdentifierNumber: this.credentials.tenant_id } },
-        { url: `${this.baseUrl}/Invoice/getInvoiceHtml`, method: 'POST', data: { Id: ettn, tenantIdentifierNumber: this.credentials.tenant_id } },
-        { url: `${this.baseUrl}/InvoiceInbox/getInvoiceHtml`, method: 'GET', params: { uuid: ettn, tenantIdentifierNumber: this.credentials.tenant_id } }
-      ];
 
-      for (const opt of variations) {
-        try {
-          const response = await axios({
-            url: opt.url,
-            method: opt.method,
-            headers: {
-              ...config.headers,
-              "Content-Type": opt.method === 'POST' ? "application/json" : undefined
-            },
-            data: opt.method === 'POST' ? opt.data : undefined,
-            params: opt.method === 'GET' ? opt.params : undefined
-          });
-
-          if (response.status === 200 && response.data) {
-            const html = response.data.Data || response.data.data || response.data.Html || response.data.html || response.data;
-            if (typeof html === 'string' && (html.includes('<html') || html.includes('<body') || html.includes('<div'))) {
-              return html;
-            }
-          }
-        } catch (e) {
-          // ignore error and try next
-        }
+      if (this.credentials.tenant_id) {
+        config.headers['TenantId'] = this.credentials.tenant_id;
+        config.headers['ApplicationId'] = this.credentials.tenant_id;
       }
 
-      throw new Error("HTML formatı bulunamadı veya entegratör desteklemiyor.");
+      const endpoints = [
+        `${this.baseUrl.replace('/api', '')}/api/InvoiceInbox/getInvoiceInboxHTMLAsZip`,
+        `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTML`,
+        `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTMLAsBase64`,
+        `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTML`,
+        `${this.baseUrl}/Invoice/getInvoiceHTML`,
+        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTML`
+      ];
+
+      // Try variations of params
+      const paramVariations: any[] = [
+        { invoiceETTN: ettn },
+        { invoiceETTN: ettn, tenantIdentifierNumber: tId },
+        { invoiceUUID: ettn },
+        { uuid: ettn },
+        { id: ettn }
+      ];
+
+      if (invoiceNumber) {
+        paramVariations.push({ invoiceNumber: invoiceNumber });
+        paramVariations.push({ invoiceID: invoiceNumber });
+        paramVariations.push({ id: invoiceNumber });
+      }
+
+      for (const url of endpoints) {
+        for (const params of paramVariations) {
+          try {
+            console.log(`[HTML-FETCH] Trying URL: ${url} with params: ${JSON.stringify(params)}`);
+            const response = await axios.get(url, {
+              ...config,
+              params: params
+            });
+            
+            if (response.status === 200 && response.data) {
+              const buffer = Buffer.from(response.data);
+              
+              // Handle JSON response
+              if (buffer[0] === 123) { // 123 is '{'
+                const jsonObj = JSON.parse(buffer.toString('utf8'));
+                const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
+                
+                if (isSuccess) {
+                  const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
+                  if (base64Data && typeof base64Data === 'string' && base64Data.length > 50) {
+                    const decoded = Buffer.from(base64Data, 'base64');
+                    // Check if zip
+                    if (decoded[0] === 0x50 && decoded[1] === 0x4B) {
+                      const AdmZip = (await import('adm-zip')).default;
+                      const zip = new AdmZip(decoded);
+                      for (const entry of zip.getEntries()) {
+                        const content = entry.getData().toString('utf8');
+                        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                           console.log(`[HTML-FETCH] SUCCESS from JSON[base64->zip] ${url}`);
+                           return content;
+                        }
+                      }
+                    } else {
+                      const content = decoded.toString('utf8');
+                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                         console.log(`[HTML-FETCH] SUCCESS from JSON[base64->string] ${url}`);
+                         return content;
+                      }
+                    }
+                  }
+                } else {
+                  console.log(`[HTML-FETCH] JSON-Failure from ${url}: ${jsonObj.message || 'unknown error'}`);
+                  continue;
+                }
+              }
+              
+              // Handle direct ZIP
+              if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
+                const AdmZip = (await import('adm-zip')).default;
+                const zip = new AdmZip(buffer);
+                for (const entry of zip.getEntries()) {
+                  const content = entry.getData().toString('utf8');
+                  if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                    console.log(`[HTML-FETCH] SUCCESS from Direct ZIP ${url}`);
+                    return content;
+                  }
+                }
+              }
+              
+              // Handle direct HTML/XML
+              const content = buffer.toString('utf8');
+              if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                console.log(`[HTML-FETCH] SUCCESS from Direct String ${url}`);
+                return content;
+              }
+            }
+          } catch (e: any) {
+             // continue to next variation
+          }
+        }
+      }
+      
+      throw new Error("Fatura görseli bulunamadı.");
     } catch (error: any) {
-      console.error("MySoft HTML Info Error:", error.message);
+      console.error("MySoft HTML Error:", error.message);
       throw new Error(error.message);
     }
   }

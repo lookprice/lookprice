@@ -19,6 +19,7 @@
     "@tailwindcss/vite": "^4.1.14",
     "@types/xml2js": "^0.4.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "adm-zip": "^0.5.17",
     "axios": "^1.14.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
