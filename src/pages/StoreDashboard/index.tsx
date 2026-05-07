@@ -420,9 +420,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       
       let targetStoreId = user.store_id;
       
@@ -446,7 +446,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       
       if (targetStoreId === undefined || targetStoreId === null) {
         console.error("No target store ID found");
-        setLoading(false);
+        if (!isSilent) setLoading(false);
         return;
       }
       
@@ -465,7 +465,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [includeBranches, user.role, user.store_id, slug]);
 

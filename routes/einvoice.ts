@@ -338,6 +338,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
              baseAmount: Number(detailsBase) || inv.baseAmount || 0,
              taxAmount: Number(detailsTax) || inv.taxAmount || 0,
              currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
+              exchangeRate: (details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1),
              documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
              raw: details
            };
@@ -392,8 +393,8 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 
           const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, status, integration_status, payment_method, payment_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
             [
               storeId, 
               companyId,
@@ -423,6 +424,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               taxAmt,
               grandAmt,
               invoiceDetails.currency,
+              invoiceDetails.exchangeRate || 1,
               'approved', 
               'RECEIVED',
               'term',

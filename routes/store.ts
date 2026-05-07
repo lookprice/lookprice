@@ -2950,10 +2950,10 @@ router.delete("/sales/:id", async (req: any, res) => {
 router.get("/sales-invoices", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-    const { startDate, endDate, status } = req.query;
+    const { startDate, endDate, status, search } = req.query;
 
     let query = `
-      SELECT si.*, 
+      SELECT DISTINCT si.*, 
              c.title as company_title,
              cust.full_name as customer_name,
              s.customer_name as sale_customer_name
@@ -2961,6 +2961,7 @@ router.get("/sales-invoices", async (req: any, res) => {
       LEFT JOIN companies c ON si.company_id = c.id 
       LEFT JOIN customers cust ON si.customer_id = cust.id
       LEFT JOIN sales s ON si.sale_id = s.id
+      LEFT JOIN sales_invoice_items sii ON si.id = sii.sales_invoice_id
       WHERE si.store_id = $1
     `;
     const params: any[] = [storeId];
@@ -2976,6 +2977,18 @@ router.get("/sales-invoices", async (req: any, res) => {
     if (status && status !== 'all') {
       params.push(status);
       query += ` AND si.status = $${params.length}`;
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (
+        si.invoice_number ILIKE $${params.length} OR 
+        si.document_number ILIKE $${params.length} OR
+        si.ettn ILIKE $${params.length} OR
+        c.title ILIKE $${params.length} OR
+        cust.full_name ILIKE $${params.length} OR
+        s.customer_name ILIKE $${params.length} OR
+        sii.product_name ILIKE $${params.length}
+      )`;
     }
 
     query += " ORDER BY si.invoice_date DESC, si.created_at DESC";
@@ -3490,14 +3503,31 @@ router.post("/sales/:id/create-invoice", async (req: any, res) => {
 router.get("/purchase-invoices", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-    const result = await pool.query(
-      `SELECT pi.*, c.title as company_name 
-       FROM purchase_invoices pi 
-       LEFT JOIN companies c ON pi.company_id = c.id 
-       WHERE pi.store_id = $1 
-       ORDER BY pi.created_at DESC`,
-      [storeId]
-    );
+    const { search } = req.query;
+
+    let query = `
+      SELECT DISTINCT pi.*, c.title as company_name 
+      FROM purchase_invoices pi 
+      LEFT JOIN companies c ON pi.company_id = c.id 
+      LEFT JOIN purchase_invoice_items pii ON pi.id = pii.purchase_invoice_id
+      WHERE pi.store_id = $1
+    `;
+    const params: any[] = [storeId];
+
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (
+        pi.invoice_number ILIKE $${params.length} OR 
+        pi.supplier_name ILIKE $${params.length} OR
+        pi.ettn ILIKE $${params.length} OR
+        c.title ILIKE $${params.length} OR
+        pii.product_name ILIKE $${params.length}
+      )`;
+    }
+
+    query += ` ORDER BY pi.created_at DESC`;
+
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (e: any) {
     res.status(400).json({ error: e.message });

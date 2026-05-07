@@ -242,15 +242,15 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   }, [companyId, customerId, branding?.einvoice_settings?.is_active]);
 
   useEffect(() => {
-    fetchInvoicesData();
-  }, [storeId]);
+    fetchInvoicesData(deferredSearch);
+  }, [storeId, deferredSearch]);
 
-  const fetchInvoicesData = async () => {
+  const fetchInvoicesData = async (searchStr?: string) => {
     if (role === 'superadmin' && !storeId) return;
     setLoading(true);
     try {
       const [invRes, custRes, compRes, prodRes] = await Promise.all([
-        api.getSalesInvoices(role === 'superadmin' ? storeId : undefined),
+        api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, searchStr),
         api.getCustomers(role === 'superadmin' ? storeId : undefined),
         api.getCompanies(false, role === 'superadmin' ? storeId : undefined),
         api.getProducts("", role === 'superadmin' ? storeId : undefined)
@@ -505,7 +505,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       }
 
       await fetchInvoicesData();
-      if (onSave) await onSave();
+      if (onSave) await onSave(true);
       return res;
     })();
 
@@ -523,12 +523,13 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       const res = await api.deleteSalesInvoice(id, role === 'superadmin' ? storeId : undefined);
       if (!res.error) {
         await fetchInvoicesData();
-        alert(isTr ? "Fatura silindi" : "Invoice deleted");
+        if (onSave) onSave(true);
+        toast.success(isTr ? "Fatura silindi" : "Invoice deleted");
       } else {
-        alert(res.error || "Error deleting invoice");
+        toast.error(res.error || (isTr ? "Fatura silinirken hata oluştu" : "Error deleting invoice"));
       }
-    } catch (error) {
-      alert("Error deleting invoice");
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "Hata oluştu" : "Error deleting invoice"));
     }
   };
 
@@ -668,16 +669,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
 
 
   const filteredInvoices = invoices.filter((inv: any) => {
-    const matchesSearch = 
-      inv.invoice_number?.toLowerCase().includes(deferredSearch.toLowerCase()) ||
-      inv.customer_name?.toLowerCase().includes(deferredSearch.toLowerCase()) ||
-      inv.company_title?.toLowerCase().includes(deferredSearch.toLowerCase());
-    
     const invDate = new Date(inv.invoice_date);
     const matchesStartDate = !startDate || invDate >= new Date(startDate);
     const matchesEndDate = !endDate || invDate <= new Date(endDate);
     
-    return matchesSearch && matchesStartDate && matchesEndDate;
+    return matchesStartDate && matchesEndDate;
   });
 
   const paginatedInvoices = filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage);

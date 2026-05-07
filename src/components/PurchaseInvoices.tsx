@@ -66,8 +66,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    fetchInvoicesData();
-  }, [storeId]);
+    fetchInvoicesData(deferredSearch);
+  }, [storeId, deferredSearch]);
 
   const handleSyncInbox = async () => {
     setSyncing(true);
@@ -97,13 +97,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     }
   };
 
-  const fetchInvoicesData = async () => {
+  const fetchInvoicesData = async (searchStr?: string) => {
     if (role === 'superadmin' && !storeId) return;
     setLoading(true);
     try {
       const targetStoreId = role === 'superadmin' ? storeId : undefined;
       const [invRes, compRes, prodRes] = await Promise.all([
-        api.getPurchaseInvoices(targetStoreId),
+        api.getPurchaseInvoices(targetStoreId, searchStr),
         api.getCompanies(false, targetStoreId),
         api.getProducts("", targetStoreId)
       ]);
@@ -303,7 +303,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       }
 
       await fetchInvoicesData();
-      if (onSave) await onSave();
+      if (onSave) await onSave(true);
       return res;
     })();
 
@@ -321,7 +321,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       if (res.error) throw new Error(res.error);
       toast.success(isTr ? "Fatura silindi" : "Invoice deleted");
       fetchInvoicesData();
-      if (onSave) onSave();
+      if (onSave) onSave(true);
     } catch (error: any) {
       toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
     }
@@ -428,14 +428,11 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const totals = calculateTotals();
 
   const filteredInvoices = invoices.filter((inv: any) => {
-    const matchesSearch = (inv.invoice_number || "").toLowerCase().includes(deferredSearch.toLowerCase()) ||
-      (inv.company_name || "").toLowerCase().includes(deferredSearch.toLowerCase());
-    
     const invDate = new Date(inv.invoice_date).toISOString().split('T')[0];
     const matchesStartDate = !startDate || invDate >= startDate;
     const matchesEndDate = !endDate || invDate <= endDate;
     
-    return matchesSearch && matchesStartDate && matchesEndDate;
+    return matchesStartDate && matchesEndDate;
   });
 
   const paginatedInvoices = filteredInvoices.slice(
