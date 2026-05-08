@@ -1,11 +1,13 @@
 import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue, useRef } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2, Printer, CloudUpload, RefreshCw } from "lucide-react";
+import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2, Printer, CloudUpload, RefreshCw, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useReactToPrint } from 'react-to-print';
+
+import { AutocompleteSelect } from "./AutocompleteSelect";
 
 export default function SalesInvoices({ storeId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
   const [invoices, setInvoices] = useState([]);
@@ -26,7 +28,87 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
+  
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkPrinting, setIsBulkPrinting] = useState(false);
+
   const invoiceRef = useRef<HTMLDivElement>(null);
+
+  const handleBulkPrint = async () => {
+    const idsToPrint = selectedIds.length > 0 ? selectedIds : filteredInvoices.map((inv: any) => inv.id);
+    if (idsToPrint.length === 0) {
+      toast.error(isTr ? "Yazdırılacak fatura bulunamadı." : "No invoices found to print.");
+      return;
+    }
+    
+    setIsBulkPrinting(true);
+    try {
+      const htmls: string[] = [];
+      for (const id of idsToPrint) {
+        try {
+          const res = await api.getSalesInvoiceHtml(id);
+          if (res && res.html) {
+            htmls.push(res.html);
+          }
+        } catch(e) {
+           // ignore missing HTML
+        }
+      }
+      
+      if (htmls.length > 0) {
+        openPrintWindow(htmls);
+      } else {
+        toast.error(isTr ? "Seçilen faturaların E-Fatura verisi bulunamadı." : "No E-Invoice data found for selected invoices.");
+      }
+    } catch(err) {
+      console.error(err);
+      toast.error(isTr ? "Toplu yazdırma hatası" : "Bulk print error");
+    } finally {
+      setIsBulkPrinting(false);
+    }
+  };
+
+  const openPrintWindow = (htmls: string[]) => {
+    let allStyles = "";
+    const bodies = htmls.map(html => {
+       const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
+       allStyles += styleMatches.map(m => m[0]).join('\n') + '\n';
+       const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+       const content = bodyMatch ? bodyMatch[1] : html;
+       return `<div style="page-break-after: always; width: 100%;">${content}</div>`;
+    });
+    
+    const printHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Toplu Yazdırma</title>
+          <meta charset="utf-8">
+          ${allStyles}
+          <style>
+             @media print {
+               @page { margin: 0; }
+               body { margin: 1cm; }
+             }
+          </style>
+        </head>
+        <body>
+          ${bodies.join('')}
+          <script>
+            window.onload = function() {
+              setTimeout(function(){ window.print(); window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    
+    const win = window.open('', '_blank');
+    if (win) {
+       win.document.write(printHtml);
+       win.document.close();
+    }
+  };
 
   const handlePrint = useReactToPrint({
     contentRef: invoiceRef,
@@ -795,6 +877,20 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
           </div>
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
+          <button
+            onClick={handleBulkPrint}
+            disabled={isBulkPrinting || filteredInvoices.length === 0}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold transition-all ${isBulkPrinting ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'bg-white hover:bg-slate-50 text-slate-700'}`}
+            title={isTr ? "Seçili veya listedeki E-Faturaları yazdır" : "Print selected or listed E-invoices"}
+          >
+            {isBulkPrinting ? <Loader2 className="h-4 w-4 animate-spin text-slate-600" /> : <Printer className="h-4 w-4 text-slate-600" />}
+            <span className="hidden sm:inline">
+              {isTr 
+                ? (selectedIds.length > 0 ? `Yazdır (${selectedIds.length})` : "Toplu Yazdır") 
+                : (selectedIds.length > 0 ? `Print (${selectedIds.length})` : "Bulk Print")
+              }
+            </span>
+          </button>
           <button 
             onClick={handleExportExcel}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
@@ -828,6 +924,20 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-3 py-4 w-10 text-center">
+                  <input 
+                    type="checkbox" 
+                    checked={paginatedInvoices.length > 0 && selectedIds.length === paginatedInvoices.length}
+                    onChange={() => {
+                      if (selectedIds.length === paginatedInvoices.length) {
+                        setSelectedIds([]);
+                      } else {
+                        setSelectedIds(paginatedInvoices.map((inv: any) => inv.id));
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                  />
+                </th>
                 <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
                 <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
                 <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Durum' : 'Status'}</th>
@@ -842,19 +952,29 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-3 py-12 text-center">
+                  <td colSpan={10} className="px-3 py-12 text-center">
                     <div className="flex justify-center"><div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>
                   </td>
                 </tr>
               ) : paginatedInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-3 py-12 text-center text-slate-400 text-sm font-medium">
+                  <td colSpan={10} className="px-3 py-12 text-center text-slate-400 text-sm font-medium">
                     {isTr ? "Fatura bulunamadı" : "No invoices found"}
                   </td>
                 </tr>
               ) : (
                 paginatedInvoices.map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="px-3 py-4 text-center">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(inv.id)}
+                        onChange={() => {
+                          setSelectedIds(prev => prev.includes(inv.id) ? prev.filter(i => i !== inv.id) : [...prev, inv.id]);
+                        }}
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-3 py-4 text-xs font-bold text-slate-500">
                       {new Date(inv.invoice_date).toLocaleDateString('tr-TR')}
                     </td>
@@ -1039,103 +1159,39 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   {/* Customer Selection & Basic Info */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="md:col-span-1 space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Müşteri / Cari Seçimi' : 'Customer / Company Selection'}</label>
-                      <div className="relative">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                        <input 
-                          type="text"
-                          placeholder={isTr ? "Müşteri veya Cari ara..." : "Search customer or company..."}
-                          className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
-                          value={customerSearch}
-                          onChange={(e) => {
-                            setCustomerSearch(e.target.value);
-                            setShowCustomerDropdown(true);
-                          }}
-                          onFocus={() => setShowCustomerDropdown(true)}
-                        />
-                        
-                        {showCustomerDropdown && (customerSearch || (filteredCustomers.length > 0 || filteredCompanies.length > 0)) && (
-                          <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-64 overflow-y-auto p-2">
-                            {customerSearch && !filteredCustomers.some(c => c.name === customerSearch) && !filteredCompanies.some(c => c.title === customerSearch) && (
-                              <button
-                                type="button"
-                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 rounded-xl transition-colors flex items-center gap-3 group border-b border-slate-100 mb-2"
-                                onClick={() => {
-                                  setIsNewCustomer(true);
-                                  setCustomerId("");
-                                  setCompanyId("");
-                                  setShowCustomerDropdown(false);
-                                }}
-                              >
-                                <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors">
-                                  <Plus className="h-4 w-4 text-emerald-600" />
-                                </div>
-                                <div>
-                                  <div className="text-sm font-bold text-emerald-700">{isTr ? `Yeni Kayıt: "${customerSearch}"` : `New Record: "${customerSearch}"`}</div>
-                                  <div className="text-[10px] text-emerald-500 font-medium">{isTr ? 'Yeni cari olarak ekle' : 'Add as new company'}</div>
-                                </div>
-                              </button>
-                            )}
-                            {filteredCustomers.length > 0 && (
-                              <div className="mb-2">
-                                <p className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'BİREYSEL MÜŞTERİLER' : 'INDIVIDUAL CUSTOMERS'}</p>
-                                {filteredCustomers.map((c: any) => (
-                                  <button
-                                    key={`cust-${c.id}`}
-                                    type="button"
-                                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded-xl transition-colors flex items-center gap-3 group"
-                                    onClick={() => {
-                                      setCustomerId(c.id);
-                                      setCompanyId("");
-                                      setCustomerSearch(c.name);
-                                      setShowCustomerDropdown(false);
-                                    }}
-                                  >
-                                    <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                                      <UserIcon className="h-4 w-4 text-slate-500 group-hover:text-indigo-600" />
-                                    </div>
-                                    <div>
-                                      <div className="text-sm font-bold text-slate-700">{c.name}</div>
-                                      <div className="text-[10px] text-slate-400 font-medium">{c.phone}</div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            {filteredCompanies.length > 0 && (
-                              <div>
-                                <p className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'KURUMSAL CARİLER' : 'CORPORATE COMPANIES'}</p>
-                                {filteredCompanies.map((c: any) => (
-                                  <button
-                                    key={`comp-${c.id}`}
-                                    type="button"
-                                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded-xl transition-colors flex items-center gap-3 group"
-                                    onClick={() => {
-                                      setCompanyId(c.id);
-                                      setCustomerId("");
-                                      setCustomerSearch(c.title);
-                                      setShowCustomerDropdown(false);
-                                    }}
-                                  >
-                                    <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                                      <Building2 className="h-4 w-4 text-slate-500 group-hover:text-indigo-600" />
-                                    </div>
-                                    <div>
-                                      <div className="text-sm font-bold text-slate-700">{c.title}</div>
-                                      <div className="text-[10px] text-slate-400 font-medium">{c.tax_number}</div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            {filteredCustomers.length === 0 && filteredCompanies.length === 0 && (
-                              <div className="p-4 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                {isTr ? "Sonuç bulunamadı" : "No results found"}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <AutocompleteSelect
+                        label={isTr ? 'Müşteri / Cari Seçimi' : 'Customer / Company Selection'}
+                        items={[
+                          ...customers.map(c => ({ ...c, display: c.name, type: 'customer' })),
+                          ...companies.map(c => ({ ...c, display: c.title, type: 'company' }))
+                        ]}
+                        displayField="display"
+                        secondaryField="phone"
+                        type="all-accounts"
+                        lang={lang as 'tr' | 'en'}
+                        value={customerSearch}
+                        placeholder={isTr ? "Müşteri veya Cari ara..." : "Search customer or company..."}
+                        onSelect={(item) => {
+                          if (item) {
+                            if (item.type === 'customer') {
+                              setCustomerId(item.id);
+                              setCompanyId("");
+                            } else {
+                              setCompanyId(item.id);
+                              setCustomerId("");
+                            }
+                            setCustomerSearch(item.display);
+                          } else {
+                            setCustomerId("");
+                            setCompanyId("");
+                            setCustomerSearch("");
+                          }
+                        }}
+                        onQuickAdd={(search) => {
+                          setCustomerSearch(search);
+                          setIsNewCustomer(true);
+                        }}
+                      />
                     </div>
 
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1466,7 +1522,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   <div className="text-sm font-black text-slate-900">
-                                    {((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400">{currency}</span>
+                                    {(isTaxInclusive 
+                                      ? ((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0))
+                                      : ((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0)) * (1 + (Number(item.tax_rate) || 0) / 100)
+                                    ).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400">{currency}</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">

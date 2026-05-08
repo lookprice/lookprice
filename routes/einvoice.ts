@@ -527,8 +527,15 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
   try {
     const storeId = req.user.store_id;
     const invoiceId = req.params.id;
+    const invoiceType = req.query.type || 'purchase';
 
-    const invoiceRes = await pool.query("SELECT ettn, document_number FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    let invoiceRes;
+    if (invoiceType === 'sales') {
+        invoiceRes = await pool.query("SELECT ettn, document_number FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    } else {
+        invoiceRes = await pool.query("SELECT ettn, document_number FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    }
+    
     if (invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
     const { ettn, document_number } = invoiceRes.rows[0];

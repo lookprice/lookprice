@@ -1,10 +1,12 @@
 import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, Building2, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, CloudDownload } from "lucide-react";
+import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, Building2, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, CloudDownload, Printer, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+import { AutocompleteSelect } from "./AutocompleteSelect";
 
 export default function PurchaseInvoices({ storeId, role, lang, api, branding, onSave }: any) {
   const [invoices, setInvoices] = useState([]);
@@ -17,6 +19,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkPrinting, setIsBulkPrinting] = useState(false);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
@@ -380,6 +384,82 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     }
   };
 
+  const handleBulkPrint = async () => {
+    const idsToPrint = selectedIds.length > 0 ? selectedIds : filteredInvoices.map((inv: any) => inv.id);
+    if (idsToPrint.length === 0) {
+      toast.error(isTr ? "Yazdırılacak fatura bulunamadı." : "No invoices found to print.");
+      return;
+    }
+    
+    setIsBulkPrinting(true);
+    try {
+      const htmls: string[] = [];
+      for (const id of idsToPrint) {
+        try {
+          const res = await api.getPurchaseInvoiceHtml(id);
+          if (res && res.html) {
+            htmls.push(res.html);
+          }
+        } catch(e) {
+           // ignore missing HTML
+        }
+      }
+      
+      if (htmls.length > 0) {
+        openPrintWindow(htmls);
+      } else {
+        toast.error(isTr ? "Seçilen faturaların E-Fatura verisi bulunamadı." : "No E-Invoice data found for selected invoices.");
+      }
+    } catch(err) {
+      console.error(err);
+      toast.error(isTr ? "Toplu yazdırma hatası" : "Bulk print error");
+    } finally {
+      setIsBulkPrinting(false);
+    }
+  };
+
+  const openPrintWindow = (htmls: string[]) => {
+    let allStyles = "";
+    const bodies = htmls.map(html => {
+       const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
+       allStyles += styleMatches.map(m => m[0]).join('\n') + '\n';
+       const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+       const content = bodyMatch ? bodyMatch[1] : html;
+       return `<div style="page-break-after: always; width: 100%;">${content}</div>`;
+    });
+    
+    const printHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Toplu Yazdırma</title>
+          <meta charset="utf-8">
+          ${allStyles}
+          <style>
+             @media print {
+               @page { margin: 0; }
+               body { margin: 1cm; }
+             }
+          </style>
+        </head>
+        <body>
+          ${bodies.join('')}
+          <script>
+            window.onload = function() {
+              setTimeout(function(){ window.print(); window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    
+    const win = window.open('', '_blank');
+    if (win) {
+       win.document.write(printHtml);
+       win.document.close();
+    }
+  };
+
   const handleEdit = async (id: number) => {
     try {
       const data = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
@@ -626,6 +706,20 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             </button>
           )}
           <button
+            onClick={handleBulkPrint}
+            disabled={isBulkPrinting || filteredInvoices.length === 0}
+            className={`flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold transition-all ${isBulkPrinting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`}
+            title={isTr ? "Seçili veya listedeki E-Faturaları yazdır" : "Print selected or listed E-invoices"}
+          >
+            {isBulkPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            <span className="hidden sm:inline">
+              {isTr 
+                ? (selectedIds.length > 0 ? `Yazdır (${selectedIds.length})` : "Toplu Yazdır") 
+                : (selectedIds.length > 0 ? `Print (${selectedIds.length})` : "Bulk Print")
+              }
+            </span>
+          </button>
+          <button
             onClick={exportToExcel}
             className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors"
           >
@@ -750,6 +844,20 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
+                <th className="p-4 w-10 text-center">
+                  <input 
+                    type="checkbox" 
+                    checked={paginatedInvoices.length > 0 && selectedIds.length === paginatedInvoices.length}
+                    onChange={() => {
+                      if (selectedIds.length === paginatedInvoices.length) {
+                        setSelectedIds([]);
+                      } else {
+                        setSelectedIds(paginatedInvoices.map((inv: any) => inv.id));
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                  />
+                </th>
                 <th className="p-4 font-bold">{isTr ? "Tarih" : "Date"}</th>
                 <th className="p-4 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
                 <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>
@@ -766,6 +874,16 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             <tbody className="divide-y divide-slate-200">
               {paginatedInvoices.map((invoice: any) => (
                 <tr key={invoice.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-4 text-center">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.includes(invoice.id)}
+                      onChange={() => {
+                        setSelectedIds(prev => prev.includes(invoice.id) ? prev.filter(i => i !== invoice.id) : [...prev, invoice.id]);
+                      }}
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                    />
+                  </td>
                   <td className="p-4 text-xs text-slate-600 whitespace-nowrap">
                     {new Date(invoice.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
                   </td>
@@ -1208,7 +1326,10 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                     </div>
                                   </td>
                                   <td className="p-3 text-right text-sm font-bold text-slate-900">
-                                    {( (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100) ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
+                                    {(isTaxInclusive 
+                                      ? (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.')))
+                                      : (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100)
+                                    ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
                                   </td>
                                   <td className="p-3 text-right">
                                     <button
@@ -1289,10 +1410,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                     <option value="20" />
                                   </datalist>
                                 </div>
-                                <div className="space-y-1 flex flex-col justify-end items-end">
+                                <div className="space-y-1 gap-1 flex flex-col justify-end items-end">
                                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Satır Toplamı" : "Line Total"}</label>
                                   <div className="text-lg font-black text-indigo-600">
-                                    {( (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100) ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
+                                    {(isTaxInclusive 
+                                      ? (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.')))
+                                      : (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100)
+                                    ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
                                   </div>
                                 </div>
                               </div>

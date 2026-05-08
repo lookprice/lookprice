@@ -62,11 +62,15 @@ interface ServiceRecord {
   items?: ServiceItem[];
 }
 
-export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; products: Product[]; onTabChange: (tab: string) => void }> = ({ storeId, isViewer, products, onTabChange }) => {
+import { AutocompleteSelect } from "../../components/AutocompleteSelect";
+
+export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; products: Product[]; role?: string; onTabChange: (tab: string) => void }> = ({ storeId, isViewer, products, role, onTabChange }) => {
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
   const t = translations[lang].dashboard;
   const [records, setRecords] = useState<ServiceRecord[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -80,6 +84,13 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   const [page, setPage] = useState(1);
   const [storeInfo, setStoreInfo] = useState<any>(null);
   const itemsPerPage = 15;
+  const [isSubmittingQuickCustomer, setIsSubmittingQuickCustomer] = useState(false);
+  const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false);
+  const [quickCustomerForm, setQuickCustomerForm] = useState({ name: '', phone: '' });
+
+  const [isSubmittingQuickProduct, setIsSubmittingQuickProduct] = useState(false);
+  const [showQuickProductModal, setShowQuickProductModal] = useState(false);
+  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', tax_rate: '20', type: 'part', index: 0 });
 
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -116,7 +127,24 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
   useEffect(() => {
     fetchRecords();
+    fetchCustomersAndCompanies();
   }, [storeId]);
+
+  const fetchCustomersAndCompanies = async () => {
+    try {
+      // Pass storeId to get data for the current store
+      const [custRes, compRes] = await Promise.all([
+        api.getCustomers(storeId),
+        api.getCompanies(true, storeId)
+      ]);
+      setCustomers(Array.isArray(custRes) ? custRes : []);
+      setCompanies(Array.isArray(compRes) ? compRes : []);
+    } catch(err) {
+      console.error("Error fetching customers/companies:", err);
+      setCustomers([]);
+      setCompanies([]);
+    }
+  };
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -127,6 +155,71 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       console.error("Error fetching service records:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickCustomerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickCustomerForm.name) return;
+    setIsSubmittingQuickCustomer(true);
+    try {
+      const data = {
+        name: quickCustomerForm.name,
+        phone: quickCustomerForm.phone,
+        type: 'retail',
+        store_id: storeId
+      };
+      await api.addCustomer(data, storeId);
+      await fetchCustomersAndCompanies();
+      setEditingRecord(prev => ({ ...prev!, customer_name: quickCustomerForm.name, customer_phone: quickCustomerForm.phone }));
+      setShowQuickCustomerModal(false);
+      setQuickCustomerForm({ name: '', phone: '' });
+    } catch(err) {
+      console.error(err);
+      alert(isTr ? "Müşteri kaydedilemedi." : "Customer save failed.");
+    } finally {
+      setIsSubmittingQuickCustomer(false);
+    }
+  };
+
+  const handleQuickProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickProductForm.name) return;
+    setIsSubmittingQuickProduct(true);
+    try {
+      const data = {
+        name: quickProductForm.name,
+        price: quickProductForm.price,
+        price_2: quickProductForm.price, // Same price
+        stock_quantity: 0,
+        unit: 'Adet',
+        tax_rate: quickProductForm.tax_rate,
+        currency: 'TRY',
+        store_id: storeId,
+        product_type: quickProductForm.type === 'labor' ? 'service' : 'ready'
+      };
+      await api.addProduct(data, storeId);
+      // Wait for product sync or just refetch? 
+      // Products prop logic comes from parent, but we might not have it right away.
+      // Easiest is to just update item locally.
+      
+      const newItems = [...serviceItems];
+      newItems[quickProductForm.index] = {
+        ...newItems[quickProductForm.index],
+        item_name: quickProductForm.name,
+        unit_price: Number(quickProductForm.price),
+        tax_rate: Number(quickProductForm.tax_rate),
+        total_price: Number(quickProductForm.price) * (newItems[quickProductForm.index].quantity ? Number(newItems[quickProductForm.index].quantity) : 1)
+      };
+      setServiceItems(newItems);
+      
+      setShowQuickProductModal(false);
+      setQuickProductForm({ name: '', price: '', tax_rate: '20', type: 'part', index: 0 });
+    } catch(err) {
+      console.error(err);
+      alert(isTr ? "Ürün/Hizmet kaydedilemedi." : "Item save failed.");
+    } finally {
+      setIsSubmittingQuickProduct(false);
     }
   };
 
@@ -756,14 +849,34 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <User className="w-4 h-4" /> {t.service_tab.customerInfo}
                     </h3>
                     <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.customerName} *</label>
-                        <input
-                          type="text"
+                      <div className="md:col-span-2">
+                        <AutocompleteSelect
+                          label={t.service_tab.customerName + " *"}
+                          items={[
+                            ...customers.map(c => ({ ...c, display: c.name, type: 'personal' })),
+                            ...companies.map(c => ({ ...c, display: c.company_title, type: 'company' }))
+                          ]}
+                          displayField="display"
+                          secondaryField="phone"
+                          type="customer"
+                          lang={lang as 'tr' | 'en'}
                           value={editingRecord?.customer_name || ''}
-                          onChange={(e) => setEditingRecord(prev => ({ ...prev!, customer_name: e.target.value }))}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                           placeholder={t.service_tab.fullName}
+                          onSelect={(item) => {
+                            if (item) {
+                              setEditingRecord(prev => ({ 
+                                ...prev!, 
+                                customer_name: item.display,
+                                customer_phone: item.phone || item.company_phone || prev?.customer_phone || ''
+                              }));
+                            } else {
+                              setEditingRecord(prev => ({ ...prev!, customer_name: '' }));
+                            }
+                          }}
+                          onQuickAdd={(search) => {
+                            setQuickCustomerForm(prev => ({ ...prev, name: search }));
+                            setShowQuickCustomerModal(true);
+                          }}
                         />
                       </div>
                       <div>
@@ -870,27 +983,69 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     {serviceItems.map((item, index) => (
                       <div key={index} className="flex flex-wrap md:flex-nowrap items-end gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         <div className="flex-1 min-w-[200px]">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                            {item.type === 'part' ? t.service_tab.sparePart : t.service_tab.laborService}
-                          </label>
-                          {item.type === 'part' ? (
-                            <select
-                              value={item.product_id || ''}
-                              onChange={(e) => updateItem(index, { product_id: e.target.value ? Number(e.target.value) : null })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase">
+                              {item.type === 'part' ? t.service_tab.sparePart : t.service_tab.laborService}
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuickProductForm({ name: item.item_name || '', price: '', tax_rate: '20', type: item.type, index });
+                                setShowQuickProductModal(true);
+                              }}
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded"
                             >
-                              <option value="">{t.service_tab.selectPart}</option>
-                              {products.map(p => (
-                                <option key={p.id} value={p.id}>{p.name} ({p.stock_quantity} {p.unit})</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              type="text"
+                              + {isTr ? 'Hızlı Ekle' : 'Add'}
+                            </button>
+                          </div>
+                          {item.type === 'part' ? (
+                            <AutocompleteSelect
+                              items={products.filter(p => !p.product_type || p.product_type !== 'service')}
+                              displayField="name"
+                              secondaryField="barcode"
+                              type="product"
+                              lang={lang as 'tr' | 'en'}
                               value={item.item_name}
-                              onChange={(e) => updateItem(index, { item_name: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
+                              placeholder={t.service_tab.selectPart}
+                              onSelect={(p) => {
+                                if (p) {
+                                  updateItem(index, { 
+                                    item_name: p.name, 
+                                    product_id: p.id,
+                                    unit_price: p.price // Auto-fill price if available
+                                  });
+                                } else {
+                                  updateItem(index, { item_name: '', product_id: null });
+                                }
+                              }}
+                              onQuickAdd={(search) => {
+                                setQuickProductForm({ name: search, price: '', tax_rate: '20', type: 'part', index });
+                                setShowQuickProductModal(true);
+                              }}
+                            />
+                          ) : (
+                            <AutocompleteSelect
+                              items={products.filter(p => p.product_type === 'service')}
+                              displayField="name"
+                              type="product"
+                              lang={lang as 'tr' | 'en'}
+                              value={item.item_name}
                               placeholder={t.service_tab.laborDescriptionPlaceholder}
+                              onSelect={(p) => {
+                                if (p) {
+                                  updateItem(index, { 
+                                    item_name: p.name, 
+                                    product_id: p.id,
+                                    unit_price: p.price 
+                                  });
+                                } else {
+                                  updateItem(index, { item_name: '', product_id: null });
+                                }
+                              }}
+                              onQuickAdd={(search) => {
+                                setQuickProductForm({ name: search, price: '', tax_rate: '20', type: 'labor', index });
+                                setShowQuickProductModal(true);
+                              }}
                             />
                           )}
                         </div>
@@ -947,6 +1102,17 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         {t.service_tab.noRecordsFound}
                       </div>
                     )}
+                    
+                    <datalist id="service-parts-list">
+                      {products.filter(p => !p.product_type || p.product_type !== 'service').map(p => (
+                        <option key={`p-list-${p.id}`} value={p.name}>{p.barcode ? `(${p.barcode})` : ''}</option>
+                      ))}
+                    </datalist>
+                    <datalist id="service-labors-list">
+                      {products.filter(p => p.product_type === 'service').map(p => (
+                        <option key={`s-list-${p.id}`} value={p.name} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               </div>
@@ -1163,6 +1329,160 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                   {t.close}
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showQuickCustomerModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+              onClick={() => setShowQuickCustomerModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <User className="h-5 w-5 text-indigo-600" />
+                  {isTr ? "Hızlı Müşteri Ekle" : "Quick Add Customer"}
+                </h3>
+                <button
+                  onClick={() => setShowQuickCustomerModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleQuickCustomerSubmit} className="p-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t.service_tab.customerName} *</label>
+                  <input
+                    type="text"
+                    required
+                    value={quickCustomerForm.name}
+                    onChange={(e) => setQuickCustomerForm({ ...quickCustomerForm, name: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t.service_tab.phone}</label>
+                  <input
+                    type="text"
+                    value={quickCustomerForm.phone}
+                    onChange={(e) => setQuickCustomerForm({ ...quickCustomerForm, phone: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickCustomerModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingQuickCustomer}
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {isSubmittingQuickCustomer ? <Loader2 className="w-5 h-5 animate-spin" /> : t.save}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Add Product Modal */}
+      <AnimatePresence>
+        {showQuickProductModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+              onClick={() => setShowQuickProductModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Package className="h-5 w-5 text-indigo-600" />
+                  {isTr ? "Hızlı Ekle" : "Quick Add"}
+                </h3>
+                <button
+                  onClick={() => setShowQuickProductModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleQuickProductSubmit} className="p-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Adı" : "Name"} *</label>
+                  <input
+                    type="text"
+                    required
+                    value={quickProductForm.name}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "KDV %" : "Tax %"}</label>
+                    <input
+                      type="number"
+                      value={quickProductForm.tax_rate}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, tax_rate: e.target.value })}
+                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                  <div className="flex-[2]">
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t.service_tab.unitPrice} *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={quickProductForm.price}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickProductModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingQuickProduct}
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {isSubmittingQuickProduct ? <Loader2 className="w-5 h-5 animate-spin" /> : t.save}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

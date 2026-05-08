@@ -97,6 +97,8 @@ const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
 const FleetTab = React.lazy(() => import("./FleetTab"));
 const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
 import ShippingSlip from "../../components/ShippingSlip";
+import { AutocompleteSelect } from "../../components/AutocompleteSelect";
+import { toast } from "sonner";
 
 interface StoreDashboardProps {
   user: User;
@@ -241,6 +243,47 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleCancelQuotation,
     handleDeleteQuotation
   } = useQuotations(currentStoreId, fetchProductsData, branding, lang);
+
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  const handleQuotationItemAdd = (p: Product) => {
+    const existingIdx = quotationItems.findIndex(item => item.product_id === p.id);
+    const taxRate = Math.round(Number(p.tax_rate ?? (branding?.default_tax_rate !== undefined ? branding.default_tax_rate : 20)));
+    
+    let unitPriceNum: number;
+    if (isTaxInclusive) {
+      unitPriceNum = Number(p.price);
+    } else {
+      if (p.price_2 && Number(p.price_2) > 0) {
+        unitPriceNum = Number(p.price_2);
+      } else {
+        unitPriceNum = Number(p.price) / (1 + taxRate / 100);
+      }
+    }
+
+    if (existingIdx > -1) {
+      const newItems = [...quotationItems];
+      newItems[existingIdx].quantity += 1;
+      newItems[existingIdx].total_price = (newItems[existingIdx].total_price || 0) + (newItems[existingIdx].unit_price * 1);
+      setQuotationItems(newItems);
+    } else {
+      setQuotationItems([...quotationItems, {
+        product_id: p.id,
+        product_name: p.name,
+        barcode: p.barcode,
+        quantity: 1,
+        unit_price: unitPriceNum,
+        tax_rate: taxRate,
+        total_price: unitPriceNum
+      }]);
+    }
+  };
+
+  useEffect(() => {
+    if (currentStoreId) {
+      api.getCustomers(currentStoreId).then(setCustomers);
+    }
+  }, [currentStoreId]);
 
   const deferredQuotationProductSearch = useDeferredValue(quotationProductSearch);
 
@@ -1251,6 +1294,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           storeId={currentStoreId}
                           isViewer={isViewer}
                           products={products}
+                          role={user.role}
                           onTabChange={setActiveTab}
                         />
                       </Suspense>
@@ -3652,48 +3696,66 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <form onSubmit={handleAddQuotation} className="flex flex-col overflow-hidden flex-1 min-h-0">
                 <div className="p-6 space-y-6 overflow-y-auto flex-1">
                   <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Firma İsmi' : 'Company Name'}</label>
-                    <input 
-                      name="customer_name" 
-                      required 
-                      list="company-list"
-                      defaultValue={editingQuotation?.customer_name} 
-                      onChange={(e) => {
-                        const company = companies.find(c => c.title === e.target.value);
-                        const companyIdInput = (e.target as HTMLInputElement).form?.elements.namedItem('company_id') as HTMLInputElement;
-                        const taxOfficeInput = (e.target as HTMLInputElement).form?.elements.namedItem('tax_office') as HTMLInputElement;
-                        const taxNumberInput = (e.target as HTMLInputElement).form?.elements.namedItem('tax_number') as HTMLInputElement;
+                  <div className="space-y-4">
+                    <AutocompleteSelect
+                      label={lang === 'tr' ? 'Firma / Müşteri Seçimi' : 'Select Company / Customer'}
+                      items={[
+                        ...companies.map(c => ({ ...c, display: c.title, type: 'company' })),
+                        ...customers.map(c => ({ ...c, display: c.name, type: 'customer' }))
+                      ]}
+                      displayField="display"
+                      secondaryField="tax_number"
+                      type="company"
+                      lang={lang as 'tr' | 'en'}
+                      value={editingQuotation?.customer_name || ''}
+                      placeholder={lang === 'tr' ? 'Firma ismi yazın veya seçin...' : 'Type or select company name...'}
+                      onSelect={(item) => {
+                        const form = document.querySelector('form[onSubmit*="handleAddQuotation"]') as HTMLFormElement;
+                        if (!form) return;
                         
-                        if (company) {
-                          const titleInput = (e.target as HTMLInputElement).form?.elements.namedItem('customer_title') as HTMLInputElement;
-                          if (titleInput) titleInput.value = company.representative || company.contact_person || '';
-                          if (companyIdInput) companyIdInput.value = company.id.toString();
-                          if (taxOfficeInput) taxOfficeInput.value = company.tax_office || '';
-                          if (taxNumberInput) taxNumberInput.value = company.tax_number || '';
+                        const customerNameInput = form.elements.namedItem('customer_name') as HTMLInputElement;
+                        const companyIdInput = form.elements.namedItem('company_id') as HTMLInputElement;
+                        const taxOfficeInput = form.elements.namedItem('tax_office') as HTMLInputElement;
+                        const taxNumberInput = form.elements.namedItem('tax_number') as HTMLInputElement;
+                        const titleInput = form.elements.namedItem('customer_title') as HTMLInputElement;
+
+                        if (item) {
+                          if (customerNameInput) customerNameInput.value = item.display;
+                          if (companyIdInput) companyIdInput.value = item.id.toString();
+                          if (taxOfficeInput) taxOfficeInput.value = item.tax_office || '';
+                          if (taxNumberInput) taxNumberInput.value = item.tax_number || '';
+                          if (titleInput) titleInput.value = item.representative || item.contact_person || '';
                         } else {
+                          if (customerNameInput) customerNameInput.value = '';
                           if (companyIdInput) companyIdInput.value = '';
+                          if (taxOfficeInput) taxOfficeInput.value = '';
+                          if (taxNumberInput) taxNumberInput.value = '';
+                          if (titleInput) titleInput.value = '';
                         }
                       }}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                      placeholder={lang === 'tr' ? 'Firma ismi yazın veya seçin...' : 'Type or select company name...'}
+                      onQuickAdd={(search) => {
+                        const form = document.querySelector('form[onSubmit*="handleAddQuotation"]') as HTMLFormElement;
+                        if (!form) return;
+                        const customerNameInput = form.elements.namedItem('customer_name') as HTMLInputElement;
+                        if (customerNameInput) {
+                          customerNameInput.value = search;
+                          toast.info(lang === 'tr' ? 'Yeni cari bilgileriyle devam edebilirsiniz. Kaydet dediğinizde otomatik oluşturulacaktır.' : 'You can continue with new current account info. It will be created upon saving.');
+                        }
+                      }}
                     />
+                    <input type="hidden" name="customer_name" defaultValue={editingQuotation?.customer_name} />
                     <input type="hidden" name="company_id" defaultValue={editingQuotation?.company_id} />
-                    <div className="grid grid-cols-2 gap-4">
+                    
+                    <div className="grid grid-cols-2 gap-4 mt-2">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi Dairesi' : 'Tax Office'}</label>
-                        <input name="tax_office" defaultValue={editingQuotation?.tax_office} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
+                        <input name="tax_office" defaultValue={editingQuotation?.tax_office} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-medium" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi No' : 'Tax Number'}</label>
-                        <input name="tax_number" defaultValue={editingQuotation?.tax_number} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
+                        <input name="tax_number" defaultValue={editingQuotation?.tax_number} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-medium" />
                       </div>
                     </div>
-                    <datalist id="company-list">
-                      {companies.map(c => (
-                        <option key={c.id} value={c.title} />
-                      ))}
-                    </datalist>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Firma Yetkilisi' : 'Company Representative'}</label>
@@ -3747,118 +3809,26 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </div>
                   
                   <div className="relative">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input 
-                          type="text"
-                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
-                          placeholder={lang === 'tr' ? 'Ürün adı veya barkod ile ara...' : 'Search by product name or barcode...'}
-                          value={quotationProductSearch}
-                          onFocus={() => setQuotationProductSearch("")}
-                          onChange={(e) => {
-                            const search = e.target.value;
-                            setQuotationProductSearch(search);
-                            const dropdown = document.getElementById('global-product-dropdown');
-                            if (dropdown) {
-                              dropdown.classList.toggle('hidden', search.length < 1);
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-                    
-                    <div 
-                      id="global-product-dropdown"
-                      className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl max-h-64 overflow-y-auto hidden"
-                    >
-                      {products.filter(p => 
-                        p.name.toLowerCase().includes(deferredQuotationProductSearch.toLowerCase()) || 
-                        p.barcode.toLowerCase().includes(deferredQuotationProductSearch.toLowerCase())
-                      ).map(p => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className="product-option w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors"
-                          onClick={() => {
-                            const existingIdx = quotationItems.findIndex(item => item.product_id === p.id);
-                            const taxRate = Math.round(Number(p.tax_rate ?? (branding?.default_tax_rate !== undefined ? branding.default_tax_rate : 20)));
-                            
-                            let unitPrice: number;
-                            if (isTaxInclusive) {
-                              // If Tax Included scenario, use price (which is Dahil)
-                              unitPrice = Number(p.price);
-                            } else {
-                              // If Tax Excluded scenario, use price_2 if available (which is Hariç)
-                              // otherwise calculate Hariç from price
-                              if (p.price_2 && Number(p.price_2) > 0) {
-                                unitPrice = Number(p.price_2);
-                              } else {
-                                unitPrice = Number(p.price) / (1 + taxRate / 100);
-                              }
-                            }
-
-                            if (existingIdx > -1) {
-                              const newItems = [...quotationItems];
-                              newItems[existingIdx].quantity += 1;
-                              newItems[existingIdx].total_price = newItems[existingIdx].quantity * newItems[existingIdx].unit_price;
-                              setQuotationItems(newItems);
-                            } else {
-                              setQuotationItems([...quotationItems, {
-                                product_id: p.id,
-                                product_name: p.name,
-                                barcode: p.barcode,
-                                quantity: 1,
-                                unit_price: unitPrice,
-                                tax_rate: taxRate,
-                                total_price: unitPrice
-                              }]);
-                            }
-                            setQuotationProductSearch("");
-                            const dropdown = document.getElementById('global-product-dropdown');
-                            if (dropdown) dropdown.classList.add('hidden');
-                          }}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <div className="font-bold text-gray-900">{p.name}</div>
-                              <div className="text-xs text-gray-400">{p.barcode}</div>
-                            </div>
-                            <div className="text-sm font-black text-indigo-600">
-                              {Number(p.price).toFixed(2)} {p.currency?.slice(0, 3)}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                      
-                      {quotationProductSearch.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setQuickProductForm({ ...quickProductForm, name: quotationProductSearch, barcode: `M-${Date.now()}` });
-                            setShowQuickProductModal(true);
-                            const dropdown = document.getElementById('global-product-dropdown');
-                            if (dropdown) dropdown.classList.add('hidden');
-                          }}
-                          className="w-full text-left px-4 py-4 bg-indigo-50 hover:bg-indigo-100 transition-colors border-t border-indigo-100"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-indigo-600 text-white rounded-lg">
-                              <Plus className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-indigo-900">"{quotationProductSearch}" {lang === 'tr' ? 'Ürününü Ekle' : 'Add Product'}</div>
-                              <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">{lang === 'tr' ? 'Yeni stok kartı oluştur' : 'Create new stock card'}</div>
-                            </div>
-                          </div>
-                        </button>
-                      )}
-                    </div>
+                    <AutocompleteSelect
+                      items={products}
+                      displayField="name"
+                      secondaryField="barcode"
+                      type="product"
+                      lang={lang as 'tr' | 'en'}
+                      value={quotationProductSearch}
+                      placeholder={lang === 'tr' ? 'Ürün adı veya barkod ile ara...' : 'Search by product name or barcode...'}
+                      onSelect={(p) => {
+                        if (p) {
+                          handleQuotationItemAdd(p);
+                          setQuotationProductSearch("");
+                        }
+                      }}
+                      onQuickAdd={(search) => {
+                        setQuickProductForm(prev => ({ ...prev, name: search }));
+                        setShowQuickProductModal(true);
+                      }}
+                    />
+                    {/* Old dropdown logic replaced by AutocompleteSelect */}
                   </div>
                   
                   <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
