@@ -3700,8 +3700,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <AutocompleteSelect
                       label={lang === 'tr' ? 'Firma / Müşteri Seçimi' : 'Select Company / Customer'}
                       items={[
-                        ...companies.map(c => ({ ...c, display: c.title, type: 'company' })),
-                        ...customers.map(c => ({ ...c, display: c.name, type: 'customer' }))
+                        ...companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' })),
+                        ...customers.map(c => ({ ...c, display: c.name || c.customer_name, type: 'customer' }))
                       ]}
                       displayField="display"
                       secondaryField="tax_number"

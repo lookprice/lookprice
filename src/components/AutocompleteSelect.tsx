@@ -55,9 +55,10 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
     return mainVal.includes(s) || secVal.includes(s);
   });
 
-  const getIcon = () => {
-    if (type === 'product') return <Package className="h-4 w-4 text-slate-400" />;
-    if (type === 'company') return <Building2 className="h-4 w-4 text-slate-400" />;
+  const getIcon = (itemType?: string) => {
+    const activeType = itemType || type;
+    if (activeType === 'product' || activeType === 'part' || activeType === 'labor') return <Package className="h-4 w-4 text-slate-400" />;
+    if (activeType === 'company') return <Building2 className="h-4 w-4 text-slate-400" />;
     return <User className="h-4 w-4 text-slate-400" />;
   };
 
@@ -117,15 +118,15 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
                     className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors flex items-center gap-3 group border-b border-slate-50 last:border-0"
                     onClick={() => {
                       onSelect(item);
-                      setSearch(item[displayField]);
+                      setSearch(item[displayField] || item.name || item.title || '');
                       setShowDropdown(false);
                     }}
                   >
                     <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-white transition-colors">
-                      {getIcon()}
+                      {getIcon(item.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-slate-700 truncate">{item[displayField]}</div>
+                      <div className="text-sm font-bold text-slate-700 truncate">{item[displayField] || item.name || item.title || item.company_title || ''}</div>
                       {secondaryField && item[secondaryField] && (
                         <div className="text-[10px] text-slate-400 font-medium truncate">{item[secondaryField]}</div>
                       )}

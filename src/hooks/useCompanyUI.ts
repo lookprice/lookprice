@@ -5,7 +5,7 @@ export const useCompanyUI = (branding: any) => {
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [includeZeroBalance, setIncludeZeroBalance] = useState(false);
+  const [includeZeroBalance, setIncludeZeroBalance] = useState(true);
   const [transactionStartDate, setTransactionStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
   const [transactionEndDate, setTransactionEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);

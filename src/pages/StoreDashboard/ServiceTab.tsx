@@ -853,12 +853,12 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                         <AutocompleteSelect
                           label={t.service_tab.customerName + " *"}
                           items={[
-                            ...customers.map(c => ({ ...c, display: c.name, type: 'personal' })),
-                            ...companies.map(c => ({ ...c, display: c.company_title, type: 'company' }))
+                            ...customers.map(c => ({ ...c, display: c.name || c.customer_name, type: 'customer' })),
+                            ...companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' }))
                           ]}
                           displayField="display"
                           secondaryField="phone"
-                          type="customer"
+                          type="all-accounts"
                           lang={lang as 'tr' | 'en'}
                           value={editingRecord?.customer_name || ''}
                           placeholder={t.service_tab.fullName}

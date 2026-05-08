@@ -1162,8 +1162,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       <AutocompleteSelect
                         label={isTr ? 'Müşteri / Cari Seçimi' : 'Customer / Company Selection'}
                         items={[
-                          ...customers.map(c => ({ ...c, display: c.name, type: 'customer' })),
-                          ...companies.map(c => ({ ...c, display: c.title, type: 'company' }))
+                          ...customers.map(c => ({ ...c, display: c.name || c.customer_name, type: 'customer' })),
+                          ...companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' }))
                         ]}
                         displayField="display"
                         secondaryField="phone"
