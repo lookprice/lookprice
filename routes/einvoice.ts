@@ -461,7 +461,20 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                 [storeId, productName, productName]
               );
               
-              const productId = prodMatch.rows.length > 0 ? prodMatch.rows[0].id : null;
+              let productId = prodMatch.rows.length > 0 ? prodMatch.rows[0].id : null;
+
+              if (!productId) {
+                // Determine a safe barcode
+                const newBarcode = `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                // Create product with "yeni_fatura_urunu" label to highlight it
+                const newProdRes = await pool.query(
+                  `INSERT INTO products 
+                   (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+                  [storeId, productName, newBarcode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+                );
+                productId = newProdRes.rows[0].id;
+              }
 
               await pool.query(
                 `INSERT INTO purchase_invoice_items 
@@ -473,8 +486,8 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               // If product exists, update its stock automatically
               if (productId) {
                 await pool.query(
-                  "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
-                  [qty, productId]
+                  "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+                  [qty, up, invoiceDetails.currency || 'TRY', productId]
                 );
               }
             }

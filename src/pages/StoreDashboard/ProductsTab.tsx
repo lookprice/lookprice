@@ -229,6 +229,12 @@ const ProductsTab = ({
                               (marketplaceFilter === "listed" && p.is_pazarama_active) ||
                               (marketplaceFilter === "not_listed" && !p.is_pazarama_active);
     return matchesSearch && matchesCategory && matchesMarketplace;
+  }).sort((a, b) => {
+    const aIsNew = Array.isArray(a.labels) && a.labels.includes('yeni_fatura_urunu') ? 1 : 0;
+    const bIsNew = Array.isArray(b.labels) && b.labels.includes('yeni_fatura_urunu') ? 1 : 0;
+    if (aIsNew && !bIsNew) return -1;
+    if (!aIsNew && bIsNew) return 1;
+    return b.id - a.id;
   });
   
   const paginatedProducts = filteredProducts.slice(
@@ -481,7 +487,7 @@ const ProductsTab = ({
                 paginatedProducts.map((p, pIdx) => {
                   const isNearBottom = pIdx >= paginatedProducts.length - 4;
                   return (
-                      <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : ''}`}>
+                      <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : '')}`}>
                         {!isViewer && (
                           <td className="pl-6 py-4">
                             <input 
@@ -536,6 +542,12 @@ const ProductsTab = ({
                               <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
                                 <CheckCircle2 className="h-2.5 w-2.5" />
                                 PAZARAMA
+                              </span>
+                            )}
+                            {Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') && (
+                              <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                {lang === 'tr' ? 'YENİ (Fat.)' : 'NEW (Inv.)'}
                               </span>
                             )}
                           </div>

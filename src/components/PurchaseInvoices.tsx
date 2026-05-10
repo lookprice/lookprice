@@ -356,6 +356,10 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       if (data.error) throw new Error(data.error);
       setSelectedInvoice(data);
       setShowDetailsModal(true);
+      if (data.is_read === false) {
+        await api.markPurchaseInvoiceRead(id, role === 'superadmin' ? storeId : undefined);
+        fetchInvoicesData();
+      }
     } catch (error: any) {
       toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
     }
@@ -369,6 +373,11 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       if (!reqId) {
         toast.error(isTr ? "Fatura seçilemedi." : "Invoice not selected.");
         return;
+      }
+
+      const inv = invoices.find((i: any) => i.id === reqId);
+      if (inv && inv.is_read === false) {
+         api.markPurchaseInvoiceRead(reqId, role === 'superadmin' ? storeId : undefined).then(() => fetchInvoicesData());
       }
 
       const response = await api.getPurchaseInvoiceHtml(reqId);
@@ -464,6 +473,10 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     try {
       const data = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
       if (data.error) throw new Error(data.error);
+
+      if (data.is_read === false) {
+         api.markPurchaseInvoiceRead(id, role === 'superadmin' ? storeId : undefined).then(() => fetchInvoicesData());
+      }
       
       setEditingInvoiceId(id);
       setCompanyId(data.company_id);
@@ -873,7 +886,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             </thead>
             <tbody className="divide-y divide-slate-200">
               {paginatedInvoices.map((invoice: any) => (
-                <tr key={invoice.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={invoice.id} className={`hover:bg-slate-50/50 transition-colors ${invoice.is_read === false ? 'font-bold bg-indigo-50/30' : ''}`}>
                   <td className="p-4 text-center">
                     <input 
                       type="checkbox" 

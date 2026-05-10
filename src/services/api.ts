@@ -195,6 +195,7 @@ export const api = {
   updatePurchaseInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deletePurchaseInvoice: (id: number, storeId?: number) => api.delete(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   updatePurchaseInvoiceTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED', storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
+  markPurchaseInvoiceRead: (id: number, storeId?: number) => api.patch(`/api/store/purchase-invoices/${id}/read${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   updatePurchaseInvoicePaymentStatus: (id: number, status: 'paid' | 'unpaid') => api.patch(`/api/store/purchase-invoices/${id}/payment-status`, { status }),
   generateProductDescription: (name: string, category: string, lang: string) => api.post("/api/store/generate-description", { name, category, lang }),
   generateBlog: (topic: string, storeName: string, lang: string) => api.post("/api/store/generate-blog", { topic, storeName, lang }),
