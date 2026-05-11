@@ -8,7 +8,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
 
   const handleAddProduct = async (e: React.FormEvent, editingProduct: Product | null, branding: any, planLimits: Record<string, number>, setShowProductModal: (val: boolean) => void, setEditingProduct: (val: Product | null) => void, setShowDescription: (val: boolean) => void) => {
     e.preventDefault();
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
     
     const currentPlan = branding.plan || 'free';
     const limit = planLimits[currentPlan];
@@ -36,7 +36,8 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       ...rawData,
       sector_data,
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
-      product_type: rawData.product_type || 'product'
+      product_type: rawData.product_type || 'product',
+      sync_group: rawData.sync_group === 'on'
     };
     ['price', 'price_2', 'cost_price', 'tax_rate'].forEach(field => {
       if (data[field]) {
@@ -96,7 +97,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
   };
 
   const handleDeleteProduct = async (id: number) => {
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
     if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
       const deletePromise = (async () => {
         const res = await api.deleteProduct(id, targetStoreId);
@@ -113,7 +114,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
   };
 
   const handleDeleteAllProducts = async () => {
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
     if (window.confirm(lang === 'tr' ? "Tüm ürünleri silmek istediğinize emin misiniz?" : "Are you sure you want to delete all products?")) {
       const deletePromise = (async () => {
         const res = await api.deleteAllProducts(targetStoreId);
@@ -131,7 +132,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
 
   const handleBulkDelete = async (ids: number[]) => {
     if (!ids || ids.length === 0) return;
-    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
     
     const deletePromise = (async () => {
       const res = await api.deleteBulkProducts(ids, targetStoreId);

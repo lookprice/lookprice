@@ -26,6 +26,18 @@ const getGeminiApiKey = () => {
 
 const API_KEY_ERROR = "AI API anahtarı bulunamadı. Lütfen 'Secrets' sekmesine (sol alt) 'GEMINI_API_KEY' adıyla anahtarınızı eklediğinizden ve sunucuyu yeniden başlattığınızdan emin olun. (AI API key not found. Please ensure you have added 'GEMINI_API_KEY' in the Secrets tab and restarted the server).";
 
+const getAuthorizedStoreId = async (req: any, requestedStoreId: any) => {
+  const currentStoreId = req.user.store_id;
+  if (req.user.role === "superadmin") return parseInt(requestedStoreId || currentStoreId);
+  if (!requestedStoreId || parseInt(requestedStoreId) === parseInt(currentStoreId)) return currentStoreId;
+
+  // Check if requestedStoreId is a branch of currentStoreId
+  const relationRes = await pool.query("SELECT id FROM stores WHERE id = $1 AND parent_id = $2", [requestedStoreId, currentStoreId]);
+  if (relationRes.rows.length > 0) return parseInt(requestedStoreId);
+
+  return null;
+};
+
 router.use(authenticate);
 
 // Blog Posts
@@ -1403,8 +1415,9 @@ router.get("/products", async (req: any, res) => {
 });
 
 router.post("/products", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
-  if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
 
   const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate } = req.body;
   if (!barcode || !name || !price) return res.status(400).json({ error: "Missing fields" });
@@ -1595,14 +1608,17 @@ router.put("/products/bulk-recalculate-price2", async (req: any, res) => {
 });
 
 router.put("/products/:id", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
-  if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
 
   const { id } = req.params;
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id } = req.body;
+  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group } = req.body;
   try {
-    const existingProductRes = await pool.query("SELECT labels FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT labels, barcode FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     let existingLabels = existingProductRes.rows[0]?.labels || [];
+    const existingBarcode = existingProductRes.rows[0]?.barcode;
     if (!Array.isArray(existingLabels)) existingLabels = [];
     
     let updatedLabels = labels !== undefined ? labels : existingLabels;
@@ -1633,6 +1649,29 @@ router.put("/products/:id", async (req: any, res) => {
       shipping_profile_id || null,
       id, storeId
     ]);
+
+    // Group Sync (Broadcast Update by Barcode)
+    if (sync_group && barcode) {
+      const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+      const parentId = storeRes.rows[0]?.parent_id || storeId;
+
+      await pool.query(`
+        UPDATE products SET 
+          name = $1, price = $2, currency = $3, 
+          description = $4, unit = $5, category = $6, 
+          sub_category = $7, brand = $8, author = $9, 
+          image_url = $10, labels = $11, product_type = $12, 
+          tax_rate = $13, updated_at = CURRENT_TIMESTAMP 
+        WHERE barcode = $14 AND store_id IN (SELECT id FROM stores WHERE id = $15 OR parent_id = $15)
+          AND id != $16
+      `, [
+        name, parseFloat(price), currency || 'TRY', 
+        description || '', unit || 'Adet', category || '', 
+        sub_category || '', brand || '', author || '', 
+        image_url || '', JSON.stringify(updatedLabels), product_type || 'product', 
+        parseFloat(tax_rate) || 0, String(barcode), parentId, id
+      ]);
+    }
     
     // Log the action
     await logAction(

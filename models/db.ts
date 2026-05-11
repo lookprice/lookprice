@@ -1133,6 +1133,12 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='quotation_items' AND column_name='barcode') THEN
           ALTER TABLE quotation_items ADD COLUMN barcode TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sale_items' AND column_name='branch_id') THEN
+          ALTER TABLE sale_items ADD COLUMN branch_id INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sale_items' AND column_name='branch_name') THEN
+          ALTER TABLE sale_items ADD COLUMN branch_name TEXT;
+        END IF;
       END $$;
     `);
     console.log("Additional updates completed.");

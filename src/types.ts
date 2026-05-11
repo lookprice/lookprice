@@ -126,6 +126,7 @@ export interface Store {
   default_currency?: string;
   currency?: string;
   locations?: StoreLocation[];
+  branches?: { id: number; name: string; slug: string; address: string; phone: string }[];
   reservation_enabled?: boolean;
   // Payment configuration
   payment_settings?: {

@@ -3421,20 +3421,40 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
 
                 </div>
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
-                  <button 
-                    type="button" 
-                    onClick={() => setShowProductModal(false)} 
-                    className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all text-sm"
-                  >
-                    {t.cancel}
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="px-10 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 text-sm"
-                  >
-                    {editingProduct ? t.update : t.save}
-                  </button>
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-4 shrink-0">
+                  {/* Sync with branches option (only for headquarters or superadmin) */}
+                  {(user.role === 'superadmin' || !branding.parent_id) && editingProduct && (
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        name="sync_group"
+                        className="w-5 h-5 rounded-lg border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">
+                          {lang === 'tr' ? 'Tüm Şubelerle Senkronize Et' : 'Sync with All Branches'}
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-medium">
+                          {lang === 'tr' ? 'Aynı barkoda sahip ürün bilgilerini tüm şubelerde günceller.' : 'Updates product info for all branches with same barcode.'}
+                        </span>
+                      </div>
+                    </label>
+                  )}
+                  <div className="flex gap-3 ml-auto">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowProductModal(false)} 
+                      className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all text-sm"
+                    >
+                      {t.cancel}
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="px-10 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 text-sm"
+                    >
+                      {editingProduct ? t.update : t.save}
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>

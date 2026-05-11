@@ -848,6 +848,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const basketByBranch = useMemo(() => {
+    const groups: Record<string, BasketItem[]> = {};
+    basket.forEach(item => {
+      const branch = item.branch_name || store?.name || 'Ana Şube';
+      if (!groups[branch]) groups[branch] = [];
+      groups[branch].push(item);
+    });
+    return groups;
+  }, [basket, store?.name]);
   const [customerProfile, setCustomerProfile] = useState<any>(null);
   const [customerToken, setCustomerToken] = useState<string | null>(localStorage.getItem('customerToken'));
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -1392,7 +1401,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     const formData = new FormData(e.target as HTMLFormElement);
     const selectedLocation = formData.get('selected_store_location');
 
-    if (paymentMethod === 'store_reservation' && store?.locations && store.locations.length > 0 && !selectedLocation) {
+    if (paymentMethod === 'store_reservation' && ((store?.locations && store.locations.length > 0) || (store?.branches && store.branches.length > 0)) && !selectedLocation) {
       setError(lang === 'tr' ? 'Lütfen bir mağaza seçin.' : 'Please select a store.');
       return;
     }
@@ -1419,7 +1428,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           name: item.name,
           barcode: item.barcode,
           quantity: item.quantity,
-          price: finalPrice
+          price: finalPrice,
+          branch_name: item.branch_name,
+          branch_id: item.store_id
         };
       }));
 
@@ -3958,6 +3969,27 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       </button>
                     </div>
 
+                    <div className="mb-8 space-y-4 max-h-48 overflow-y-auto pr-2 no-scrollbar border-b border-gray-100 pb-6">
+                      {Object.entries(basketByBranch).map(([branchName, items]) => (
+                        <div key={branchName} className="space-y-2">
+                          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+                            <Building2 className="w-3 h-3" />
+                            {branchName}
+                          </div>
+                          {items.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600 font-medium">
+                                <span className="font-bold text-gray-900">{item.quantity}x</span> {item.name}
+                              </span>
+                              <span className="font-bold text-gray-900">
+                                {(item.price * item.quantity).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+
                     <form onSubmit={handleCheckout} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -4180,15 +4212,37 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         )}
 
                         {/* Store Locator Selection */}
-                        {paymentMethod === 'store_reservation' && store?.locations && (
-                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm mt-4">
-                            <h4 className="font-bold mb-2">Mağaza Seçiniz:</h4>
-                            {store.locations.map((loc, idx) => (
-                                <label key={idx} className="flex items-center gap-2 mb-1">
-                                    <input type="radio" value={loc.name} name="selected_store_location" className="text-amber-600" />
-                                    <span>{loc.name} - {loc.address}</span>
-                                </label>
-                            ))}
+                        {paymentMethod === 'store_reservation' && (store?.branches?.length || store?.locations?.length) && (
+                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-[2rem] text-amber-900 text-sm mt-4">
+                            <h4 className="font-bold mb-4 px-2">{lang === 'tr' ? 'Teslimat Şubesi Seçiniz:' : 'Select Pickup Branch:'}</h4>
+                            <div className="space-y-2">
+                              {(store?.branches || store?.locations || []).map((loc: any, idx) => {
+                                  const branchNamesInBasket = Object.keys(basketByBranch);
+                                  const isRecommended = branchNamesInBasket.includes(loc.name);
+                                  return (
+                                    <label key={idx} className="flex items-center gap-3 p-4 bg-white/80 rounded-2xl cursor-pointer transition-all hover:bg-white hover:shadow-md border border-amber-100 group">
+                                        <input 
+                                          type="radio" 
+                                          value={loc.name} 
+                                          name="selected_store_location" 
+                                          className="w-5 h-5 text-amber-600 focus:ring-amber-500 border-amber-200" 
+                                          defaultChecked={branchNamesInBasket.length === 1 && branchNamesInBasket[0] === loc.name}
+                                        />
+                                        <div className="flex flex-col flex-1">
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-bold text-slate-900">{loc.name}</span>
+                                            {isRecommended && (
+                                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                                {lang === 'tr' ? 'Ürünleriniz Burada' : 'Items Here'}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <span className="text-[11px] text-slate-500 font-medium mt-0.5 line-clamp-1">{loc.address}</span>
+                                        </div>
+                                    </label>
+                                  );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>

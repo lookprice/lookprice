@@ -316,6 +316,15 @@ router.get("/store/:slug", async (req, res) => {
       Object.assign(store, store.branding);
     }
 
+    // Fetch branches if this is a main store
+    if (!store.parent_id) {
+      const branchesRes = await pool.query(
+        "SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1",
+        [store.id]
+      );
+      store.branches = branchesRes.rows;
+    }
+
     // Sanitize payment_settings to only expose enabled flags and sandbox mode
     let ps = store.payment_settings || {};
     if (typeof ps === 'string') {
@@ -931,8 +940,8 @@ router.post("/sales", async (req, res) => {
       const taxAmount = itemTotal - (itemTotal / (1 + taxRate / 100));
 
       await client.query(
-        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-        [saleId, item.productId || item.id || null, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, taxRate, taxAmount, itemTotal, currency || 'TRY']
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, currency, branch_id, branch_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+        [saleId, item.productId || item.id || null, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, taxRate, taxAmount, itemTotal, currency || 'TRY', item.branch_id || null, item.branch_name || null]
       );
     }
 
