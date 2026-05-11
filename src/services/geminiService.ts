@@ -17,8 +17,3 @@ export const findProductImageUrl = async (product: { name: string, barcode?: str
   }
   return null;
 };
-
-export const analyzeProductVision = async (productId: number, storeId?: number, lang: string = 'tr') => {
-  const res = await api.aiVision(productId, storeId, lang);
-  return res.data;
-};

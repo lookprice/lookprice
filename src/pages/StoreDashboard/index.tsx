@@ -3423,7 +3423,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
                 <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-4 shrink-0">
                   {/* Sync with branches option (only for headquarters or superadmin) */}
-                  {(user.role === 'superadmin' || !branding.parent_id) && editingProduct && (
+                  {(user.role === 'superadmin' || !branding.parent_id) && (
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <input 
                         type="checkbox" 
@@ -3432,10 +3432,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       />
                       <div className="flex flex-col">
                         <span className="text-[11px] font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">
-                          {lang === 'tr' ? 'Tüm Şubelerle Senkronize Et' : 'Sync with All Branches'}
+                          {lang === 'tr' ? 'Tüm Şubelere Tanımla/Senkronize Et' : 'Define/Sync to All Branches'}
                         </span>
                         <span className="text-[9px] text-gray-400 font-medium">
-                          {lang === 'tr' ? 'Aynı barkoda sahip ürün bilgilerini tüm şubelerde günceller.' : 'Updates product info for all branches with same barcode.'}
+                          {lang === 'tr' ? 'Aynı barkoda sahip ürünü tüm şubelerde de oluşturur/günceller.' : 'Creates/updates product for all branches with same barcode.'}
                         </span>
                       </div>
                     </label>

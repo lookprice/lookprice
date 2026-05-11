@@ -97,7 +97,6 @@ const ProductCard: React.FC<{
 
   return (
   <motion.div 
-    layout
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     className={`bg-white rounded-lg border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? 'font-sans tracking-tight' : ''}`}
@@ -1440,7 +1439,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           name: lang === 'tr' ? 'Kargo Ücreti' : 'Shipping Fee',
           barcode: 'SHIPPING',
           quantity: 1,
-          price: basketShippingTotal
+          price: basketShippingTotal,
+          branch_name: '',
+          branch_id: 0
         });
       }
 

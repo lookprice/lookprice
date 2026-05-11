@@ -12,6 +12,10 @@ import { GoogleGenAI } from "@google/genai";
 import { promises as dnsPromises } from "dns";
 
 const router = express.Router();
+router.use((req, res, next) => {
+  console.log(`DEBUG: Store route hit: ${req.method} ${req.originalUrl}`);
+  next();
+});
 const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
 const getGeminiApiKey = () => {
@@ -596,70 +600,40 @@ router.post("/products/auto-image", async (req: any, res) => {
         }
       }
 
-      // 2. If not found by barcode, use Gemini to "find" a public URL via its knowledge
+      // 2. If not found by barcode, use googlethis to find a public URL
       if (!foundImageUrl) {
-        const apiKey = getGeminiApiKey();
-        if (apiKey) {
-          try {
-            const ai = new GoogleGenAI({ apiKey });
-            
-            const brandInfo = product.brand ? `Brand: ${product.brand}` : '';
-            const categoryInfo = product.category ? `Category: ${product.category}${product.sub_category ? ` > ${product.sub_category}` : ''}` : '';
-            const searchTerms = `${brandInfo} ${product.name} ${product.barcode || ''}`.trim();
-            
-            addLog(`[DEBUG] AI searching for: ${searchTerms} (${categoryInfo})`);
+        try {
+          const google = (await import('googlethis')).default;
+          const brandInfo = product.brand ? `${product.brand}` : '';
+          const categoryInfo = product.category ? `${product.category} ${product.sub_category || ''}` : '';
+          const searchTerms = `${brandInfo} ${product.name} ${product.barcode || ''}`.trim();
+          
+          addLog(`[DEBUG] Google Search for: ${searchTerms}`);
 
-            const prompt = `SEARCH THE WEB and find a HIGH-QUALITY, DIRECT public image URL for this product:
-            Product Name: "${product.name}"
-            ${brandInfo}
-            ${categoryInfo}
-            Barcode (GTIN/EAN/UPC): ${product.barcode || 'N/A'}
+          const images = await google.image(searchTerms, { safe: false });
+          let guessedUrl = null;
 
-            SEARCH STRATEGY:
-            1. Search GLOBAL: Amazon (all regions), eBay, Zalando, ASOS, GS1 GEPIR, or official manufacturer portals.
-            2. IT SECTOR SPECIALTY: Look into Icecat.biz, CNET, PCMag, Newegg, and brand galleries (Dell, HP, Lenovo, ASUS, MSI, Cisco).
-            3. Target direct links from CDNs like m.media-amazon.com, productimages.hepsiburada.net, static.zara.net, images.icecat.biz.
-            
-            RESPONSE RULES:
-            - Provide a single direct URL ending in .jpg, .jpeg, .png, or .webp.
-            - If you find the product but can't find a direct link, provide the best public URL you found.
-            - Do not use markdown. If no link is found, return "NONE".`;
-            
-            const aiResponse = await ai.models.generateContent({
-              model: "gemini-1.5-pro", // Pro is better for complex tool-based extraction
-              contents: prompt,
-              tools: [
-                {
-                  googleSearchRetrieval: {
-                    dynamicRetrievalConfig: {
-                      mode: "dynamic",
-                      dynamicThreshold: 0.1
-                    }
+          if (images && images.length > 0) {
+              // Try to find a high quality direct image link
+              for (const img of images) {
+                  if (img.url && img.url.length > 10 && !img.url.includes('fbsbx.com') && !img.url.includes('data:image')) {
+                      guessedUrl = img.url;
+                      break;
                   }
-                }
-              ]
-            } as any);
-            const responseText = aiResponse.text || "";
-            
-            // Robust URL extraction: look for http...jpg/png/webp in the response
-            const urlRegex = /(https?:\/\/[^\s"'>]+\.(?:jpg|jpeg|png|webp|avif|gif)(?:\?[^\s"'>]*)?)/i;
-            const match = responseText.match(urlRegex);
-            let guessedUrl = match ? match[0] : null;
-
-            if (guessedUrl && !guessedUrl.toUpperCase().includes("NONE") && guessedUrl.length > 10) {
-              if (guessedUrl.startsWith("http://")) {
-                guessedUrl = guessedUrl.replace("http://", "https://");
               }
-              foundImageUrl = guessedUrl;
-              addLog(`[DEBUG] Found via AI Grounding: ${foundImageUrl}`);
-            } else {
-              addLog(`[DEBUG] AI could not find direct link. Response text: ${responseText.substring(0, 100)}...`);
-            }
-          } catch (aiErr: any) {
-            addLog(`[ERROR] Gemini AI error for ${product.name}: ${aiErr.message}`);
           }
-        } else {
-          addLog(`[ERROR] No API Key found for AI search in backend.`);
+
+          if (guessedUrl) {
+            if (guessedUrl.startsWith("http://")) {
+              guessedUrl = guessedUrl.replace("http://", "https://");
+            }
+            foundImageUrl = guessedUrl;
+            addLog(`[DEBUG] Found via Google Image Search: ${foundImageUrl}`);
+          } else {
+            addLog(`[DEBUG] Google Search could not find a suitable image.`);
+          }
+        } catch (searchErr: any) {
+          addLog(`[ERROR] Google image search error for ${product.name}: ${searchErr.message}`);
         }
       }
 
@@ -680,88 +654,7 @@ router.post("/products/auto-image", async (req: any, res) => {
   }
 });
 
-router.post("/products/ai-vision", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  const { productId, lang } = req.body;
-
-  if (!productId) return res.status(400).json({ error: "Product ID is required" });
-
-  try {
-    const productRes = await pool.query(
-      "SELECT id, name, barcode, brand, category, description, image_url FROM products WHERE id = $1 AND store_id = $2",
-      [productId, storeId]
-    );
-
-    if (productRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
-    const product = productRes.rows[0];
-
-    const apiKey = getGeminiApiKey();
-    if (!apiKey) return res.status(500).json({ error: API_KEY_ERROR });
-
-    const ai = new GoogleGenAI({ apiKey });
-    const isTr = lang === 'tr' || req.headers['accept-language']?.includes('tr');
-
-    const brandInfo = product.brand ? `Brand: ${product.brand}` : '';
-    const prompt = `SEARCH THE WEB and provide a comprehensive "AI Bakışı" (AI Look) analysis for the following product:
-    Name: "${product.name}"
-    ${brandInfo}
-    Barcode: ${product.barcode || 'N/A'}
-    Category: ${product.category || 'General'}
-
-    YOUR RESPONSE MUST BE A VALID JSON WITH THESE KEYS:
-    - description: A professional, informative description including historical context, key features, and specific details. 
-    - image_url: A direct, high-quality public image URL if found (skip if product already has a good one: ${product.image_url || 'None'}).
-    - title: Brief product title.
-    - specs: Key technical specifications as a string.
-
-    DESCRIPTION STYLE: Follow this structure (similar to Google Lens AI analysis):
-    "Bu ürün, [Marka/Yazar] tarafından [Detay]. [İçerik/Özellik]. [Önemi/Neden Seçilmeli]."
-
-    Language: ${isTr ? "Turkish" : "English"}.`;
-
-    try {
-      const aiResponse = await ai.models.generateContent({
-        model: "gemini-1.5-pro",
-        contents: prompt,
-        tools: [{ googleSearchRetrieval: { dynamicRetrievalConfig: { mode: "dynamic", dynamicThreshold: 0.1 } } }],
-        config: { responseMimeType: "application/json" }
-      } as any);
-
-      const data = JSON.parse(aiResponse.text || "{}");
-      
-      const updates: string[] = [];
-      const values: any[] = [];
-      let valIdx = 1;
-
-      if (data.description) {
-        updates.push(`description = $${valIdx++}`);
-        values.push(data.description);
-      }
-      
-      const isPlaceholder = !product.image_url || product.image_url.includes('unsplash') || product.image_url.includes('placeholder');
-      if (data.image_url && isPlaceholder) {
-        updates.push(`image_url = $${valIdx++}`);
-        values.push(data.image_url);
-      }
-
-      if (updates.length > 0) {
-        values.push(productId, storeId);
-        await pool.query(
-          `UPDATE products SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${valIdx++} AND store_id = $${valIdx++}`,
-          values
-        );
-        await logAction(storeId, req.user.id, 'AI_VISION_ANALYZE', 'products', productId, `Analyzed product "${product.name}" via AI Vision on server.`);
-      }
-
-      res.json({ success: true, data });
-    } catch (aiErr: any) {
-      console.error("AI Vision Server Error:", aiErr);
-      res.status(500).json({ error: aiErr.message });
-    }
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+/* AI Vision feature removed */
 
 const PLAN_LIMITS: Record<string, number> = {
   'free': 50,
@@ -1456,6 +1349,36 @@ router.post("/products", async (req: any, res) => {
       (tax_rate !== undefined && tax_rate !== null && tax_rate !== "") ? parseFloat(tax_rate) : defaultTaxRate,
       req.body.shipping_profile_id || null
     ]);
+
+    // Group Sync for object creation
+    if (req.body.sync_group && barcode) {
+      const storeResq = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+      const parentId = storeResq.rows[0]?.parent_id || storeId;
+
+      const allStoresRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
+      const branchIds = allStoresRes.rows.map(r => r.id);
+
+      for (const bId of branchIds) {
+        if (bId === storeId) continue; // Already added to the current store
+
+        const existsRes = await pool.query("SELECT id FROM products WHERE store_id = $1 AND barcode = $2", [bId, String(barcode)]);
+        
+        if (existsRes.rows.length === 0) {
+          // INSERT NEW into branches
+          await pool.query(`
+            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, labels, product_type, tax_rate, stock_quantity, is_web_sale, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, false, CURRENT_TIMESTAMP)
+          `, [
+            bId, String(barcode), name, parseFloat(price), currency || 'TRY', 
+            description || '', unit || 'Adet', category || '', 
+            sub_category || '', brand || '', author || '', 
+            image_url || '', JSON.stringify(labels || []), product_type || 'product', 
+            (tax_rate !== undefined && tax_rate !== null && tax_rate !== "") ? parseFloat(tax_rate) : defaultTaxRate
+          ]);
+        }
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -1655,22 +1578,45 @@ router.put("/products/:id", async (req: any, res) => {
       const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
       const parentId = storeRes.rows[0]?.parent_id || storeId;
 
-      await pool.query(`
-        UPDATE products SET 
-          name = $1, price = $2, currency = $3, 
-          description = $4, unit = $5, category = $6, 
-          sub_category = $7, brand = $8, author = $9, 
-          image_url = $10, labels = $11, product_type = $12, 
-          tax_rate = $13, updated_at = CURRENT_TIMESTAMP 
-        WHERE barcode = $14 AND store_id IN (SELECT id FROM stores WHERE id = $15 OR parent_id = $15)
-          AND id != $16
-      `, [
-        name, parseFloat(price), currency || 'TRY', 
-        description || '', unit || 'Adet', category || '', 
-        sub_category || '', brand || '', author || '', 
-        image_url || '', JSON.stringify(updatedLabels), product_type || 'product', 
-        parseFloat(tax_rate) || 0, String(barcode), parentId, id
-      ]);
+      const allStoresRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
+      const branchIds = allStoresRes.rows.map(r => r.id);
+
+      for (const bId of branchIds) {
+        if (bId === storeId) continue; // Already updated the current store
+
+        const existsRes = await pool.query("SELECT id FROM products WHERE store_id = $1 AND barcode = $2", [bId, String(barcode)]);
+        
+        if (existsRes.rows.length > 0) {
+          // UPDATE EXISTING
+          await pool.query(`
+            UPDATE products SET 
+              name = $1, price = $2, currency = $3, 
+              description = $4, unit = $5, category = $6, 
+              sub_category = $7, brand = $8, author = $9, 
+              image_url = $10, labels = $11, product_type = $12, 
+              tax_rate = $13, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $14
+          `, [
+            name, parseFloat(price), currency || 'TRY', 
+            description || '', unit || 'Adet', category || '', 
+            sub_category || '', brand || '', author || '', 
+            image_url || '', JSON.stringify(updatedLabels), product_type || 'product', 
+            parseFloat(tax_rate) || 0, existsRes.rows[0].id
+          ]);
+        } else {
+          // INSERT NEW
+          await pool.query(`
+            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, labels, product_type, tax_rate, stock_quantity, is_web_sale, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, false, CURRENT_TIMESTAMP)
+          `, [
+            bId, String(barcode), name, parseFloat(price), currency || 'TRY', 
+            description || '', unit || 'Adet', category || '', 
+            sub_category || '', brand || '', author || '', 
+            image_url || '', JSON.stringify(updatedLabels), product_type || 'product', 
+            parseFloat(tax_rate) || 0
+          ]);
+        }
+      }
     }
     
     // Log the action

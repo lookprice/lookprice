@@ -90,7 +90,6 @@ const ProductsTab = ({
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isFindingImages, setIsFindingImages] = useState(false);
-  const [isAnalyzingAI, setIsAnalyzingAI] = useState<{ [key: number]: boolean }>({});
 
   const handleAutoFindImages = async (params: { productIds?: number[], allMissing?: boolean, id?: number }) => {
     if (isFindingImages) return;
@@ -155,27 +154,6 @@ const ProductsTab = ({
       toast.error(e.message || "Error reformating names");
     } finally {
       setIsFixingNames(false);
-    }
-  };
-
-  const handleAIVision = async (productId: number) => {
-    try {
-      setIsAnalyzingAI(prev => ({ ...prev, [productId]: true }));
-      toast.info(lang === 'tr' ? "AI Analizi başlatıldı..." : "AI Analysis started...");
-      
-      const res = await api.aiVision(productId, currentStoreId, lang);
-      
-      if (res && res.success) {
-        toast.success(lang === 'tr' ? "AI Analizi tamamlandı ve ürün güncellendi." : "AI Analysis completed and product updated.");
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        toast.error(res?.error || (lang === 'tr' ? "AI Analizi başarısız oldu." : "AI Analysis failed."));
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || (lang === 'tr' ? "Bir hata oluştu." : "An error occurred."));
-    } finally {
-      setIsAnalyzingAI(prev => ({ ...prev, [productId]: false }));
     }
   };
 
@@ -399,15 +377,6 @@ const ProductsTab = ({
                       ) : (
                         <ImageIcon className="h-4.5 w-4.5" />
                       )}
-                    </button>
-                    <button 
-                      onClick={() => {
-                        toast.info(lang === 'tr' ? "Lütfen ürün satırındaki AI butonunu kullanın." : "Please use the AI button on the product row.");
-                      }}
-                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
-                      title={t.aiVision}
-                    >
-                      <Sparkles className="h-4.5 w-4.5" />
                     </button>
                     <button 
                       onClick={handleFixNames}
@@ -880,19 +849,6 @@ const ProductsTab = ({
                               </>
                             )}
                           </div>
-
-                          <button 
-                            onClick={() => handleAIVision(p.id)}
-                            disabled={isAnalyzingAI[p.id]}
-                            className={`p-2.5 rounded-xl transition-all border border-transparent active:scale-90 ${isAnalyzingAI[p.id] ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100'}`}
-                            title={t.aiVision}
-                          >
-                            {isAnalyzingAI[p.id] ? (
-                              <div className="h-4.5 w-4.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <Sparkles className={`h-4.5 w-4.5 ${p.description ? 'text-indigo-600' : ''}`} />
-                            )}
-                          </button>
 
                           <button 
                             onClick={() => setSelectedProduct(p)}
