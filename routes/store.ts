@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 import bcrypt from "bcryptjs";
+import axios from "axios";
 import { pool, logAction, addStockMovement } from "../models/db";
 import { authenticate } from "../middleware/auth";
 import { GoogleGenAI } from "@google/genai";
@@ -180,8 +181,11 @@ router.post("/products/reformat-names", async (req: any, res) => {
 
         try {
           const aiResponse = await ai.models.generateContent({
-            model: "gemini-2.0-flash",
-            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            model: "gemini-3-flash-preview",
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json"
+            }
           });
           
           let text = aiResponse.text || "";
@@ -470,6 +474,188 @@ router.post("/domain/manual", async (req: any, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// --- PRODUCT IMAGE AUTOMATION ---
+router.post("/products/auto-image", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { productIds, allMissing } = req.body;
+
+  try {
+    let productsToProcess = [];
+    if (allMissing) {
+      const result = await pool.query(
+        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE store_id = $1 AND (image_url IS NULL OR image_url = '')",
+        [storeId]
+      );
+      productsToProcess = result.rows;
+    } else if (Array.isArray(productIds)) {
+      const result = await pool.query(
+        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE id = ANY($1) AND store_id = $2",
+        [productIds, storeId]
+      );
+      productsToProcess = result.rows;
+    } else if (req.body.id) {
+       const result = await pool.query(
+        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE id = $1 AND store_id = $2",
+        [req.body.id, storeId]
+      );
+      productsToProcess = result.rows;
+    }
+
+    if (productsToProcess.length === 0) {
+      return res.json({ success: true, message: "İşlenecek ürün bulunamadı.", updatedCount: 0 });
+    }
+
+    let updatedCount = 0;
+    const results = [];
+    const logs = [];
+
+    const addLog = (msg) => {
+      console.log(msg);
+      logs.push(msg);
+    };
+
+    for (const product of productsToProcess) {
+      let foundImageUrl = null;
+      addLog(`[DEBUG] Processing image find for: ${product.name} (Barcode: ${product.barcode || 'Yok'})`);
+
+      const barcode = product.barcode ? product.barcode.trim() : null;
+
+      // 1. Specialized Search by Barcode (EAN/GTIN/ISBN)
+      if (barcode && /^\d+$/.test(barcode)) {
+        // A. If it looks like an ISBN (Books) - Starts with 978 or 979
+        if (barcode.startsWith('978') || barcode.startsWith('979')) {
+          try {
+            addLog(`[DEBUG] Searching as ISBN (Book)...`);
+            // Try Google Books API (Free, no key needed for simple search)
+            const gBooksRes = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}`);
+            if (gBooksRes.data.totalItems > 0 && gBooksRes.data.items[0].volumeInfo?.imageLinks?.thumbnail) {
+              foundImageUrl = gBooksRes.data.items[0].volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
+              addLog(`[DEBUG] Found via Google Books: ${foundImageUrl}`);
+            }
+            
+            if (!foundImageUrl) {
+              // Try OpenLibrary
+              const olRes = await axios.get(`https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&format=json&jscmd=data`);
+              const olData = olRes.data[`ISBN:${barcode}`];
+              if (olData?.cover?.large || olData?.cover?.medium) {
+                foundImageUrl = olData.cover.large || olData.cover.medium;
+                addLog(`[DEBUG] Found via OpenLibrary: ${foundImageUrl}`);
+              }
+            }
+          } catch (err: any) {
+            addLog(`[ERROR] Book search error: ${err.message}`);
+          }
+        }
+
+        // B. General Products (Open Food/Beauty/Product Facts)
+        if (!foundImageUrl) {
+          const endpoints = [
+            `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
+            `https://world.openbeautyfacts.org/api/v0/product/${barcode}.json`,
+            `https://world.openproductsfacts.org/api/v0/product/${barcode}.json`
+          ];
+
+          for (const url of endpoints) {
+            if (foundImageUrl) break;
+            try {
+              const offRes = await axios.get(url);
+              const offData = offRes.data;
+              if (offData.status === 1 && offData.product) {
+                foundImageUrl = offData.product.image_front_url || offData.product.image_url;
+                if (foundImageUrl) addLog(`[DEBUG] Found via Open Facts (${url.split('.')[1]}): ${foundImageUrl}`);
+              }
+            } catch (err: any) {
+              addLog(`[DEBUG] Info: ${url.split('.')[1]} check failed or no data.`);
+            }
+          }
+        }
+      }
+
+      // 2. If not found by barcode, use Gemini to "find" a public URL via its knowledge
+      if (!foundImageUrl) {
+        const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+        if (apiKey) {
+          try {
+            const ai = new GoogleGenAI({ apiKey });
+            
+            const brandInfo = product.brand ? `Brand: ${product.brand}` : '';
+            const categoryInfo = product.category ? `Category: ${product.category}${product.sub_category ? ` > ${product.sub_category}` : ''}` : '';
+            const searchTerms = `${brandInfo} ${product.name} ${product.barcode || ''}`.trim();
+            
+            addLog(`[DEBUG] AI searching for: ${searchTerms} (${categoryInfo})`);
+
+            const prompt = `SEARCH THE WEB and find a HIGH-QUALITY, DIRECT public image URL for this product:
+            Product Name: "${product.name}"
+            ${brandInfo}
+            ${categoryInfo}
+            Barcode (GTIN/EAN/UPC): ${product.barcode || 'N/A'}
+
+            SEARCH STRATEGY:
+            1. Search GLOBAL: Amazon (all regions), eBay, Zalando, ASOS, GS1 GEPIR, or official manufacturer portals.
+            2. IT SECTOR SPECIALTY: Look into Icecat.biz, CNET, PCMag, Newegg, and brand galleries (Dell, HP, Lenovo, ASUS, MSI, Cisco).
+            3. Target direct links from CDNs like m.media-amazon.com, productimages.hepsiburada.net, static.zara.net, images.icecat.biz.
+            
+            RESPONSE RULES:
+            - Provide a single direct URL ending in .jpg, .jpeg, .png, or .webp.
+            - If you find the product but can't find a direct link, provide the best public URL you found.
+            - Do not use markdown. If no link is found, return "NONE".`;
+            
+            const aiResponse = await ai.models.generateContent({
+              model: "gemini-1.5-pro", // Pro is better for complex tool-based extraction
+              contents: prompt,
+              tools: [
+                {
+                  googleSearchRetrieval: {
+                    dynamicRetrievalConfig: {
+                      mode: "dynamic",
+                      dynamicThreshold: 0.1
+                    }
+                  }
+                }
+              ]
+            } as any);
+            const responseText = aiResponse.text || "";
+            
+            // Robust URL extraction: look for http...jpg/png/webp in the response
+            const urlRegex = /(https?:\/\/[^\s"'>]+\.(?:jpg|jpeg|png|webp|avif|gif)(?:\?[^\s"'>]*)?)/i;
+            const match = responseText.match(urlRegex);
+            let guessedUrl = match ? match[0] : null;
+
+            if (guessedUrl && !guessedUrl.toUpperCase().includes("NONE") && guessedUrl.length > 10) {
+              if (guessedUrl.startsWith("http://")) {
+                guessedUrl = guessedUrl.replace("http://", "https://");
+              }
+              foundImageUrl = guessedUrl;
+              addLog(`[DEBUG] Found via AI Grounding: ${foundImageUrl}`);
+            } else {
+              addLog(`[DEBUG] AI could not find direct link. Response text: ${responseText.substring(0, 100)}...`);
+            }
+          } catch (aiErr: any) {
+            addLog(`[ERROR] Gemini AI error for ${product.name}: ${aiErr.message}`);
+          }
+        } else {
+          addLog(`[ERROR] No API Key found for AI search in backend.`);
+        }
+      }
+
+      if (foundImageUrl) {
+        await pool.query("UPDATE products SET image_url = $1 WHERE id = $2", [foundImageUrl, product.id]);
+        updatedCount++;
+        results.push({ id: product.id, status: 'found', url: foundImageUrl });
+      } else {
+        results.push({ id: product.id, status: 'not_found', name: product.name, barcode: product.barcode });
+      }
+    }
+
+    await logAction(storeId, req.user.id, 'AUTO_FIND_IMAGE', 'products', undefined, `${updatedCount} ürün için otomatik resim bulundu.`);
+    res.json({ success: true, updatedCount, results, logs });
+  } catch (error: any) {
+    console.error("Auto image error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const PLAN_LIMITS: Record<string, number> = {
   'free': 50,
   'basic': 100,
@@ -3701,6 +3887,13 @@ router.post("/purchase-invoices", async (req: any, res) => {
             [qty, kdvHaricPrice, currency || 'TRY', prodId, storeId]
           );
           
+          if (item.barcode && !item.barcode.startsWith('AUTO-')) {
+            await client.query(
+              "UPDATE products SET barcode = $1 WHERE id = $2 AND store_id = $3 AND (barcode LIKE 'AUTO-%' OR barcode IS NULL OR barcode = '')",
+              [item.barcode, prodId, storeId]
+            );
+          }
+          
           await addStockMovement(client, storeId, prodId, 'in', qty, 'purchase_invoice', `Alış Faturası: ${invoice_number}`, kdvHaricPrice, companyName, currency);
         }
       }
@@ -3837,6 +4030,14 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
           [qty, up, currency || 'TRY', prodId, storeId]
         );
+        
+        // If barcode was updated by user from AUTO-... to a real barcode, save it to the product
+        if (item.barcode && !item.barcode.startsWith('AUTO-')) {
+          await client.query(
+            "UPDATE products SET barcode = $1 WHERE id = $2 AND store_id = $3 AND (barcode LIKE 'AUTO-%' OR barcode IS NULL OR barcode = '')",
+            [item.barcode, prodId, storeId]
+          );
+        }
         
         // Log stock movement (in)
         await addStockMovement(client, storeId, prodId, 'in', qty, 'purchase_invoice', `Alış Faturası (Güncellendi): ${invoice_number}`, up, companyName, currency);

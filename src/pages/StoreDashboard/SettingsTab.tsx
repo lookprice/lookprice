@@ -38,7 +38,7 @@ import {
   Cpu as CpuIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { translations } from "../../translations";
+import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useIntegrationSync } from "../../hooks/useIntegrationSync";
 import { DEVELOPED_COUNTRIES } from "../../constants";

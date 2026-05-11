@@ -1293,7 +1293,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                                 <tr key={index} className="hover:bg-slate-50/50 transition-colors">
                                   <td className="p-3">
                                     <div className="font-medium text-sm text-slate-900">{item.product_name}</div>
-                                    <div className="text-xs text-slate-500">{item.barcode}</div>
+                                    <input
+                                      type="text"
+                                      value={item.barcode || ''}
+                                      onChange={(e) => updateItem(index, 'barcode', e.target.value)}
+                                      className="w-full mt-1.5 px-2 py-1 text-xs text-slate-500 rounded border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                      placeholder={isTr ? "Barkod" : "Barcode"}
+                                    />
                                   </td>
                                   <td className="p-3">
                                     <input
@@ -1367,7 +1373,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                               <div className="flex justify-between items-start gap-4">
                                 <div className="flex-1">
                                   <h5 className="font-bold text-slate-900 leading-tight">{item.product_name}</h5>
-                                  <p className="text-xs text-slate-500 mt-0.5">{item.barcode}</p>
+                                  <input
+                                    type="text"
+                                    value={item.barcode || ''}
+                                    onChange={(e) => updateItem(index, 'barcode', e.target.value)}
+                                    className="w-full mt-1.5 px-2 py-1 text-xs text-slate-500 rounded border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    placeholder={isTr ? "Barkod" : "Barcode"}
+                                  />
                                 </div>
                                 <button
                                   type="button"

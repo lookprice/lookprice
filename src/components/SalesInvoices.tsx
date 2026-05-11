@@ -145,7 +145,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
-  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('EARSIVFATURA');
+  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('TEMELFATURA');
   const [isReturn, setIsReturn] = useState(false);
   
   const selectedCompany = companies.find((c: any) => c.id === Number(companyId));
@@ -252,7 +252,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setNotes(initialData.notes || "");
       setItems(initialData.items || []);
       setCurrency(initialData.currency || branding?.default_currency || 'TRY');
-      setPaymentMethod(initialData.payment_method || 'cash');
+      setPaymentMethod(initialData.payment_method || 'term');
       setIsNewCustomer(false);
       setIsTaxInclusive(initialData.is_tax_inclusive !== undefined ? initialData.is_tax_inclusive : true);
       setShowModal(true);
@@ -308,8 +308,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         try {
           const res = await api.checkTaxpayer(vkn);
           if (res.documentType === 'E-FATURA') {
-            // Default to TICARIFATURA for companies, but keep current if already set
-            if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TICARIFATURA');
+            // Default to TEMELFATURA for e-invoice taxpayers
+            if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TEMELFATURA');
           } else {
             setInvoiceProfile('EARSIVFATURA');
           }
@@ -533,7 +533,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     setInvoiceDate(new Date().toISOString().split('T')[0]);
     setNotes("");
     setItems([]);
-    setPaymentMethod('cash');
+    setPaymentMethod('term');
     setCurrency(branding?.default_currency || 'TRY');
     setExchangeRate("1");
     setStatus('draft');
@@ -648,7 +648,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
       setNotes(data.notes || "");
-      setPaymentMethod(data.payment_method || 'cash');
+      setPaymentMethod(data.payment_method || 'term');
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
       setStatus(data.status || 'draft');
@@ -908,6 +908,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
               setInvoiceDate(new Date().toISOString().split('T')[0]);
               setNotes("");
               setItems([]);
+              setPaymentMethod('term');
+              setInvoiceProfile('TEMELFATURA');
               setShowModal(true);
             }}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg"

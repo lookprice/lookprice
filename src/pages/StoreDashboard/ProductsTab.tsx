@@ -26,14 +26,17 @@ import {
   CheckCircle2,
   AlertCircle,
   CircleDot,
-  Zap
+  Zap,
+  Sparkles,
+  Image as ImageIcon
 } from "lucide-react";
 import { motion } from "motion/react";
-import { translations } from "../../translations";
+import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import ProductMovementModal from "../../components/ProductMovementModal";
 import { api } from "../../services/api";
 import { toast } from "sonner";
+import { findProductImageUrl } from "../../services/geminiService";
 
 interface ProductsTabProps {
   products: any[];
@@ -86,6 +89,46 @@ const ProductsTab = ({
   const [isFixingNames, setIsFixingNames] = useState(false);
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isFindingImages, setIsFindingImages] = useState(false);
+
+  const handleAutoFindImages = async (params: { productIds?: number[], allMissing?: boolean, id?: number }) => {
+    if (isFindingImages) return;
+    
+    // For bulk actions, ask for confirmation
+    if (params.allMissing || (params.productIds && params.productIds.length > 1)) {
+       const msg = lang === 'tr' 
+        ? "Resmi olmayan ürünler için internet üzerinden (barkod ve yapay zeka) otomatik resim aranacak. Bu işlem biraz zaman alabilir. Devam etmek istiyor musunuz?"
+        : "Automated image search will be performed for products without images using barcode databases and AI. This may take some time. Do you want to continue?";
+       if (!window.confirm(msg)) return;
+    }
+
+    try {
+      setIsFindingImages(true);
+      toast.info(lang === 'tr' ? "Görüntü araması başlatıldı..." : "Image search started...");
+      
+      const res = await api.autoFindImage(params, currentStoreId);
+      
+      if (res && res.success) {
+        if (res.updatedCount > 0) {
+          toast.success(lang === 'tr' 
+            ? `${res.updatedCount} ürün için resim bulundu ve güncellendi.`
+            : `Images found and updated for ${res.updatedCount} products.`);
+          
+          window.location.reload();
+        } else {
+          toast.info(lang === 'tr'
+            ? "Maalesef bu ürünler için uygun resim bulunamadı."
+            : "No suitable images were found for these products.");
+        }
+      } else {
+        toast.error(res?.error || "Error");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error finding images");
+    } finally {
+      setIsFindingImages(false);
+    }
+  };
 
   const handleFixNames = async () => {
     if (isFixingNames) return;
@@ -324,6 +367,18 @@ const ProductsTab = ({
                       <Plus className="h-4.5 w-4.5" />
                     </button>
                     <button 
+                      onClick={() => handleAutoFindImages({ allMissing: true })}
+                      disabled={isFindingImages}
+                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95 disabled:opacity-50"
+                      title={lang === 'tr' ? "Eksik Resimleri Bul" : "Auto-find Missing Images"}
+                    >
+                      {isFindingImages ? (
+                        <div className="h-4.5 w-4.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-4.5 w-4.5" />
+                      )}
+                    </button>
+                    <button 
                       onClick={handleFixNames}
                       disabled={isFixingNames}
                       className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95 disabled:opacity-50"
@@ -499,61 +554,73 @@ const ProductsTab = ({
                           </td>
                         )}
                         <td className="px-6 py-4">
-                        <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
-                          {p.barcode}
-                        </span>
-                      </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        {p.image_url ? (
-                          <div className="relative group">
-                            <img 
-                              src={p.image_url} 
-                              alt={p.name} 
-                              className="w-12 h-12 rounded-2xl object-cover border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300"
-                              referrerPolicy="no-referrer"
-                            />
-                            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/5" />
+                          <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
+                            {p.barcode}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="relative group shrink-0">
+                              {p.image_url ? (
+                                <img 
+                                  src={p.image_url} 
+                                  alt={p.name} 
+                                  className="w-12 h-12 rounded-2xl object-contain p-2 bg-white border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                  <Package className="w-6 h-6 text-slate-300" />
+                                  {!isViewer && (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAutoFindImages({ id: p.id });
+                                      }}
+                                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"
+                                      title={lang === 'tr' ? 'Resim bul' : 'Find image'}
+                                    >
+                                      <Sparkles className="h-4 w-4 text-white" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                              <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/5 pointer-events-none" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-black text-slate-900 truncate leading-none mb-1.5">{p.name}</div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {p.brand && (
+                                  <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest bg-white">
+                                    {p.brand}
+                                  </span>
+                                )}
+                                {p.product_type === 'service' && (
+                                  <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
+                                    SERV
+                                  </span>
+                                )}
+                                {p.is_web_sale === false && (
+                                  <span className="text-[8px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
+                                    OFF_LINE
+                                  </span>
+                                )}
+                                {p.is_pazarama_active && (
+                                  <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                    PAZARAMA
+                                  </span>
+                                )}
+                                {Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') && (
+                                  <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                                    <AlertTriangle className="h-2.5 w-2.5" />
+                                    {lang === 'tr' ? 'YENİ (Fat.)' : 'NEW (Inv.)'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                            <Package className="w-6 h-6 text-slate-300" />
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-black text-slate-900 truncate leading-none mb-1.5">{p.name}</div>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {p.brand && (
-                              <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest bg-white">
-                                {p.brand}
-                              </span>
-                            )}
-                            {p.product_type === 'service' && (
-                              <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
-                                SERV
-                              </span>
-                            )}
-                            {p.is_web_sale === false && (
-                              <span className="text-[8px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
-                                OFF_LINE
-                              </span>
-                            )}
-                            {p.is_pazarama_active && (
-                              <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
-                                <CheckCircle2 className="h-2.5 w-2.5" />
-                                PAZARAMA
-                              </span>
-                            )}
-                            {Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') && (
-                              <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                                {lang === 'tr' ? 'YENİ (Fat.)' : 'NEW (Inv.)'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+                        </td>
                     {showStoreName && (
                       <td className="px-6 py-4">
                         <span className="text-[9px] font-black text-slate-500 bg-slate-100/50 px-2.5 py-1.5 rounded-xl border border-slate-200 uppercase tracking-widest">

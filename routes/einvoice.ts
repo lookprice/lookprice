@@ -440,7 +440,13 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           
           if (Array.isArray(rawLines)) {
             for (const line of rawLines) {
-              const productName = line.detailItem?.itemName || line.itemName || line.Name || line.itemName || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
+              const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
+              
+              // Extract potential barcode or product code from the e-invoice line
+              let extractedCodeObj = line.detailItem?.buyersItemIdentification || line.detailItem?.sellersItemIdentification || line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.sellersItemIdentification || line.buyersItemIdentification;
+              let productBarcodeCode = typeof extractedCodeObj === 'string' ? extractedCodeObj.trim() : (typeof extractedCodeObj === 'number' ? String(extractedCodeObj) : null);
+              if (productBarcodeCode === '') productBarcodeCode = null;
+
               const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
               const unitCode = line.unitCode || line.UnitCode || line.unitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
               
@@ -456,31 +462,40 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               const taxAmount = (lineTotal * tr) / 100;
 
               // Try to find matching product by name or barcode
-              const prodMatch = await pool.query(
-                "SELECT id FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3)",
-                [storeId, productName, productName]
-              );
+              let prodMatch;
+              if (productBarcodeCode) {
+                 prodMatch = await pool.query(
+                   "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3 OR barcode = $4)",
+                   [storeId, productName, productName, productBarcodeCode]
+                 );
+              } else {
+                 prodMatch = await pool.query(
+                   "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3)",
+                   [storeId, productName, productName]
+                 );
+              }
               
               let productId = prodMatch.rows.length > 0 ? prodMatch.rows[0].id : null;
+              let finalBarcode = prodMatch.rows.length > 0 ? prodMatch.rows[0].barcode : productBarcodeCode;
 
               if (!productId) {
                 // Determine a safe barcode
-                const newBarcode = `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                finalBarcode = productBarcodeCode ? productBarcodeCode : `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
                 // Create product with "yeni_fatura_urunu" label to highlight it
                 const newProdRes = await pool.query(
                   `INSERT INTO products 
                    (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-                  [storeId, productName, newBarcode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+                  [storeId, productName, finalBarcode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
                 );
                 productId = newProdRes.rows[0].id;
               }
 
               await pool.query(
                 `INSERT INTO purchase_invoice_items 
-                 (purchase_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                [newInvoiceId, productId, productName, qty, up, tr, taxAmount, lineTotal, unitCode]
+                 (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [newInvoiceId, productId, productName, finalBarcode, qty, up, tr, taxAmount, lineTotal, unitCode]
               );
               
               // If product exists, update its stock automatically

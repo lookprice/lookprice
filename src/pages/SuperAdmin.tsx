@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from "motion/react";
-import { translations } from "../translations";
+import { translations } from "@/translations";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import { DEVELOPED_COUNTRIES } from "../constants";

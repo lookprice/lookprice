@@ -351,7 +351,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         };
       }) || [],
       currency: sale.currency || branding?.default_currency || 'TRY',
-      payment_method: sale.payment_method === 'iyzico' ? 'credit_card' : (['cash', 'credit_card', 'bank', 'term'].includes(sale.payment_method) ? sale.payment_method : 'cash'),
+      payment_method: sale.payment_method === 'iyzico' ? 'credit_card' : (['cash', 'credit_card', 'bank', 'term'].includes(sale.payment_method) ? sale.payment_method : 'term'),
       notes: sale.notes ? `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}\n${sale.notes}` : `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}`,
       is_tax_inclusive: isTaxInclusiveSource
     };

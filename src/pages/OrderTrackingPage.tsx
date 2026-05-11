@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
-import { translations } from "../translations";
+import { translations } from "@/translations";
 import { Sale } from "../types";
 
 export default function OrderTrackingPage() {

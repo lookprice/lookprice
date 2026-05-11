@@ -48,7 +48,7 @@ import {
 import { CreditCard, User, LogOut, Edit3, Building2, Home } from "lucide-react";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
-import { translations } from "../translations";
+import { translations } from "@/translations";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { PageBuilder } from "../components/PageBuilder";
 import { Product, Store as StoreInfo, FAQEntry, BlogPost, LegalPage } from "../types";
@@ -107,7 +107,7 @@ const ProductCard: React.FC<{
         <img 
           src={product.image_url} 
           alt={product.name} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+          className="w-full h-full object-contain p-4 bg-white group-hover:scale-105 transition-transform duration-1000"
           referrerPolicy="no-referrer"
           onClick={() => onView(product)}
         />
@@ -418,7 +418,7 @@ const DiscoverModal: React.FC<{
                exit={{ opacity: 0 }}
                transition={{ duration: 0.4 }}
                src={currentProduct.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30"} 
-               className="absolute inset-0 w-full h-full object-cover"
+               className="absolute inset-0 w-full h-full object-contain bg-black/20"
              />
            </AnimatePresence>
            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
@@ -637,7 +637,7 @@ const ProductDetailModal: React.FC<{
             <img 
               src={product.image_url} 
               alt={product.name} 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain p-8 bg-white"
               referrerPolicy="no-referrer"
             />
           ) : (
@@ -1824,7 +1824,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   className="group relative cursor-pointer"
                   onClick={() => setSelectedProduct(product)}
                 >
-                  <div className="aspect-[1/1] object-contain p-4 rounded-2xl overflow-hidden bg-slate-50 mb-8 relative shadow-sm group-hover:shadow-lg group-hover:-translate-y-2 transition-all duration-700 font-sans">
+                  <div className="aspect-[1/1] rounded-2xl overflow-hidden bg-white mb-8 relative shadow-sm group-hover:shadow-lg group-hover:-translate-y-2 transition-all duration-700 font-sans border border-slate-100">
                     {/* Discount Badge */}
                     {product.old_price && (
                       <div className="absolute top-8 right-8 z-10 w-14 h-14 bg-white rounded-lg flex items-center justify-center text-red-600 text-xss font-semibold shadow-xl">
@@ -1835,7 +1835,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <img 
                       src={product.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=400&auto=format&fit=crop"} 
                       alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                      className="w-full h-full object-contain p-6 transition-transform duration-1000 group-hover:scale-110"
                       referrerPolicy="no-referrer"
                     />
                     
@@ -3249,7 +3249,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       <div key={item.id} className="flex gap-6 group">
                         <div className="w-24 h-24 bg-gray-50 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm group-hover:shadow-md transition-shadow">
                           {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <img src={item.image_url} alt={item.name} className="w-full h-full object-contain p-2 bg-white" referrerPolicy="no-referrer" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-300">
                               <Package className="w-10 h-10" />

@@ -116,6 +116,7 @@ export const api = {
   deleteBulkProducts: (ids: number[], storeId?: number) => api.post(`/api/store/products/bulk-delete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ids }),
   reformatProductNames: (storeId?: number) => api.post(`/api/store/products/reformat-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  autoFindImage: (data: { productIds?: number[], allMissing?: boolean, id?: number }, storeId?: number) => api.post(`/api/store/products/auto-image${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   importProducts: (formData: FormData, storeId?: number) => api.upload(`/api/store/import${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, formData),
   
   getDriverDocuments: (id: number) => api.get(`/api/fleet/drivers/${id}/documents`),
