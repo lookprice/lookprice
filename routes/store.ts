@@ -14,6 +14,18 @@ import { promises as dnsPromises } from "dns";
 const router = express.Router();
 const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
+const getGeminiApiKey = () => {
+  return process.env.GEMINI_API_KEY || 
+         process.env.Gemini_API_Key || 
+         process.env.Gemini_API_KEY || 
+         process.env.GOOGLE_API_KEY || 
+         process.env.VITE_GEMINI_API_KEY || 
+         process.env.API_KEY || 
+         '';
+};
+
+const API_KEY_ERROR = "AI API anahtarı bulunamadı. Lütfen 'Secrets' sekmesine (sol alt) 'GEMINI_API_KEY' adıyla anahtarınızı eklediğinizden ve sunucuyu yeniden başlattığınızdan emin olun. (AI API key not found. Please ensure you have added 'GEMINI_API_KEY' in the Secrets tab and restarted the server).";
+
 router.use(authenticate);
 
 // Blog Posts
@@ -85,9 +97,9 @@ router.post("/generate-description", async (req: any, res) => {
   const { name, category, lang } = req.body;
   if (!name) return res.status(400).json({ error: "Name is required" });
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = getGeminiApiKey();
   if (!apiKey) {
-    return res.status(500).json({ error: "AI API key not configured on server" });
+    return res.status(500).json({ error: API_KEY_ERROR });
   }
 
   try {
@@ -116,9 +128,9 @@ router.post("/generate-blog", async (req: any, res) => {
   const { topic, storeName, lang } = req.body;
   if (!topic) return res.status(400).json({ error: "Topic is required" });
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = getGeminiApiKey();
   if (!apiKey) {
-    return res.status(500).json({ error: "AI API key not configured on server" });
+    return res.status(500).json({ error: API_KEY_ERROR });
   }
 
   try {
@@ -151,7 +163,7 @@ router.post("/generate-blog", async (req: any, res) => {
 
 router.post("/products/reformat-names", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = getGeminiApiKey();
   
   try {
     const result = await pool.query("SELECT id, name FROM products WHERE store_id = $1", [storeId]);
@@ -574,7 +586,7 @@ router.post("/products/auto-image", async (req: any, res) => {
 
       // 2. If not found by barcode, use Gemini to "find" a public URL via its knowledge
       if (!foundImageUrl) {
-        const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+        const apiKey = getGeminiApiKey();
         if (apiKey) {
           try {
             const ai = new GoogleGenAI({ apiKey });
@@ -652,6 +664,89 @@ router.post("/products/auto-image", async (req: any, res) => {
     res.json({ success: true, updatedCount, results, logs });
   } catch (error: any) {
     console.error("Auto image error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/products/ai-vision", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { productId, lang } = req.body;
+
+  if (!productId) return res.status(400).json({ error: "Product ID is required" });
+
+  try {
+    const productRes = await pool.query(
+      "SELECT id, name, barcode, brand, category, description, image_url FROM products WHERE id = $1 AND store_id = $2",
+      [productId, storeId]
+    );
+
+    if (productRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
+    const product = productRes.rows[0];
+
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) return res.status(500).json({ error: API_KEY_ERROR });
+
+    const ai = new GoogleGenAI({ apiKey });
+    const isTr = lang === 'tr' || req.headers['accept-language']?.includes('tr');
+
+    const brandInfo = product.brand ? `Brand: ${product.brand}` : '';
+    const prompt = `SEARCH THE WEB and provide a comprehensive "AI Bakışı" (AI Look) analysis for the following product:
+    Name: "${product.name}"
+    ${brandInfo}
+    Barcode: ${product.barcode || 'N/A'}
+    Category: ${product.category || 'General'}
+
+    YOUR RESPONSE MUST BE A VALID JSON WITH THESE KEYS:
+    - description: A professional, informative description including historical context, key features, and specific details. 
+    - image_url: A direct, high-quality public image URL if found (skip if product already has a good one: ${product.image_url || 'None'}).
+    - title: Brief product title.
+    - specs: Key technical specifications as a string.
+
+    DESCRIPTION STYLE: Follow this structure (similar to Google Lens AI analysis):
+    "Bu ürün, [Marka/Yazar] tarafından [Detay]. [İçerik/Özellik]. [Önemi/Neden Seçilmeli]."
+
+    Language: ${isTr ? "Turkish" : "English"}.`;
+
+    try {
+      const aiResponse = await ai.models.generateContent({
+        model: "gemini-1.5-pro",
+        contents: prompt,
+        tools: [{ googleSearchRetrieval: { dynamicRetrievalConfig: { mode: "dynamic", dynamicThreshold: 0.1 } } }],
+        config: { responseMimeType: "application/json" }
+      } as any);
+
+      const data = JSON.parse(aiResponse.text || "{}");
+      
+      const updates: string[] = [];
+      const values: any[] = [];
+      let valIdx = 1;
+
+      if (data.description) {
+        updates.push(`description = $${valIdx++}`);
+        values.push(data.description);
+      }
+      
+      const isPlaceholder = !product.image_url || product.image_url.includes('unsplash') || product.image_url.includes('placeholder');
+      if (data.image_url && isPlaceholder) {
+        updates.push(`image_url = $${valIdx++}`);
+        values.push(data.image_url);
+      }
+
+      if (updates.length > 0) {
+        values.push(productId, storeId);
+        await pool.query(
+          `UPDATE products SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${valIdx++} AND store_id = $${valIdx++}`,
+          values
+        );
+        await logAction(storeId, req.user.id, 'AI_VISION_ANALYZE', 'products', productId, `Analyzed product "${product.name}" via AI Vision on server.`);
+      }
+
+      res.json({ success: true, data });
+    } catch (aiErr: any) {
+      console.error("AI Vision Server Error:", aiErr);
+      res.status(500).json({ error: aiErr.message });
+    }
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -4942,32 +5037,8 @@ router.get("/notifications", async (req: any, res) => {
   }
 });
 
-// Public: Get product stock across all branches of a store group
-router.get("/public/store/:slug/products/:barcode/stock", async (req, res) => {
-  const { slug, barcode } = req.params;
-  try {
-    // 1. Find the store by slug to get its parent_id
-    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE slug = $1", [slug]);
-    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
-    
-    const { id, parent_id } = storeRes.rows[0];
-    const parentId = parent_id || id;
+// Public: Get product stock across all branches of a store group - MOVED TO PUBLIC.TS
 
-    // 2. Get stock from all stores in the same group (parent + siblings)
-    const stockRes = await pool.query(`
-      SELECT s.name as store_name, COALESCE(p.stock_quantity, 0) as stock_quantity
-      FROM stores s
-      LEFT JOIN products p ON p.store_id = s.id AND p.barcode = $1
-      WHERE s.id = $2 OR s.parent_id = $2
-      ORDER BY (s.parent_id IS NULL) DESC, s.name ASC
-    `, [barcode, parentId]);
-
-    res.json(stockRes.rows);
-  } catch (err: any) {
-    console.error(err);
-    res.status(500).json({ error: "Stok bilgisi alınamadı" });
-  }
-});
 
 router.get("/notifications", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;

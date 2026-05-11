@@ -625,6 +625,8 @@ export const translations: Record<string, any> = {
       superAdminNote: "Süper Admin olarak bu mağazayı yönetiyorsunuz",
       importExcel: "Excel'den Yükle",
       addManual: "Ürün Ekle",
+      aiVision: "AI Bakışı",
+      aiVisionDesc: "Yapay zeka ile ürün analizi yap",
       barcode: "Barkod",
       productName: "Ürün Adı",
       price: "Fiyat",

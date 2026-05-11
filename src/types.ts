@@ -34,6 +34,9 @@ export interface Product {
   sector_data?: any;
   is_web_sale?: boolean;
   product_type?: 'product' | 'service';
+  branch_name?: string;
+  branch_slug?: string;
+  available_branches?: { id: number; store_id: number; branch_name: string; branch_slug: string }[];
   price_2?: number;
   price_2_currency?: string;
   shipping_profile_id?: string;

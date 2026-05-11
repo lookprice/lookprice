@@ -393,7 +393,14 @@ router.get("/store/:slug/products", async (req, res) => {
     ]);
   }
 
-  const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL) ORDER BY name ASC", [store.id]);
+  const productsRes = await pool.query(`
+    SELECT p.*, s.name as branch_name, s.slug as branch_slug 
+    FROM products p 
+    JOIN stores s ON p.store_id = s.id
+    WHERE (p.store_id = $1 OR s.parent_id = $1) 
+    AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
+    ORDER BY p.name ASC
+  `, [store.id]);
   
   // Convert prices to store's default currency
   const defaultCurrency = store.default_currency || 'TRY';
@@ -426,7 +433,31 @@ router.get("/store/:slug/products", async (req, res) => {
     };
   });
 
-  res.json(convertedProducts);
+  const groupedProductsMap = new Map();
+  convertedProducts.forEach(p => {
+    const key = p.barcode ? `barcode_${p.barcode}` : `id_${p.id}`;
+    if (groupedProductsMap.has(key)) {
+      const existing = groupedProductsMap.get(key);
+      if (!existing.available_branches) {
+        existing.available_branches = [{
+          id: existing.id,
+          store_id: existing.store_id,
+          branch_name: existing.branch_name || store.name,
+          branch_slug: existing.branch_slug || store.slug
+        }];
+      }
+      existing.available_branches.push({
+        id: p.id,
+        store_id: p.store_id,
+        branch_name: p.branch_name || store.name,
+        branch_slug: p.branch_slug || store.slug
+      });
+    } else {
+      groupedProductsMap.set(key, { ...p });
+    }
+  });
+
+  res.json(Array.from(groupedProductsMap.values()));
 });
 
 // Public: Facebook Product Catalog XML Feed
@@ -443,7 +474,14 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       return res.status(403).send("Meta Catalog is not enabled for this store.");
     }
 
-    const productsRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL) ORDER BY name ASC", [store.id]);
+    const productsRes = await pool.query(`
+      SELECT p.*, s.name as branch_name, s.slug as branch_slug 
+      FROM products p 
+      JOIN stores s ON p.store_id = s.id
+      WHERE (p.store_id = $1 OR s.parent_id = $1) 
+      AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
+      ORDER BY p.name ASC
+    `, [store.id]);
     const products = productsRes.rows;
     
     const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
@@ -732,21 +770,27 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
     const store = storeRes.rows[0];
     const storeId = store.id;
 
-    let query = "SELECT * FROM products WHERE store_id = $1 AND (is_web_sale = true OR is_web_sale IS NULL)";
+    let query = `
+      SELECT p.*, s.name as branch_name, s.slug as branch_slug
+      FROM products p
+      JOIN stores s ON p.store_id = s.id
+      WHERE (p.store_id = $1 OR s.parent_id = $1) 
+      AND (p.is_web_sale = true OR p.is_web_sale IS NULL)
+    `;
     let params: any[] = [storeId];
 
     if (type === 'new') {
-      query += " AND labels @> '\"Yeni\"'";
+      query += " AND p.labels @> '\"Yeni\"'";
     } else if (type === 'bestseller') {
-      query += " AND labels @> '\"Çok Satanlar\"'";
+      query += " AND p.labels @> '\"Çok Satanlar\"'";
     } else if (type === 'discounted') {
-      query += " AND labels @> '\"İndirimde\"'";
+      query += " AND p.labels @> '\"İndirimde\"'";
     } else {
-      query += " AND (LOWER(category) = LOWER($2) OR LOWER(sub_category) = LOWER($2))";
+      query += " AND (LOWER(p.category) = LOWER($2) OR LOWER(p.sub_category) = LOWER($2))";
       params.push(type);
     }
 
-    query += " ORDER BY updated_at DESC LIMIT 50";
+    query += " ORDER BY p.updated_at DESC LIMIT 50";
     const result = await pool.query(query, params);
     
     // Convert prices to store's default currency
@@ -780,9 +824,60 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
       };
     });
 
-    res.json(convertedProducts);
+    const groupedProductsMap = new Map();
+    convertedProducts.forEach(p => {
+      const key = p.barcode ? `barcode_${p.barcode}` : `id_${p.id}`;
+      if (groupedProductsMap.has(key)) {
+        const existing = groupedProductsMap.get(key);
+        if (!existing.available_branches) {
+          existing.available_branches = [{
+            id: existing.id,
+            store_id: existing.store_id,
+            branch_name: existing.branch_name || store.name,
+            branch_slug: existing.branch_slug || store.slug
+          }];
+        }
+        existing.available_branches.push({
+          id: p.id,
+          store_id: p.store_id,
+          branch_name: p.branch_name || store.name,
+          branch_slug: p.branch_slug || store.slug
+        });
+      } else {
+        groupedProductsMap.set(key, { ...p });
+      }
+    });
+
+    res.json(Array.from(groupedProductsMap.values()));
   } catch (e: any) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// Public: Get product stock across all branches of a store group
+router.get("/store/:slug/products/:barcode/stock", async (req, res) => {
+  const { slug, barcode } = req.params;
+  try {
+    // 1. Find the store by slug to get its parent_id
+    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+    
+    const { id, parent_id } = storeRes.rows[0];
+    const parentId = parent_id || id;
+
+    // 2. Get stock from all stores in the same group (parent + siblings)
+    const stockRes = await pool.query(`
+      SELECT s.name as branch_name, s.slug as branch_slug, s.id as store_id, COALESCE(p.stock_quantity, 0) as stock, p.id as product_id
+      FROM stores s
+      LEFT JOIN products p ON p.store_id = s.id AND p.barcode = $1
+      WHERE s.id = $2 OR s.parent_id = $2
+      ORDER BY (s.parent_id IS NULL) DESC, s.name ASC
+    `, [barcode, parentId]);
+
+    res.json(stockRes.rows);
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Stok bilgisi alınamadı" });
   }
 });
 

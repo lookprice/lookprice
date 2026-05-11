@@ -233,7 +233,9 @@ async function startServer() {
           
           // Then inject process.env into the head
           const envVars = {
-            GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.API_KEY || "",
+            GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.Gemini_API_Key || process.env.GOOGLE_API_KEY || process.env.API_KEY || "",
+            Gemini_API_Key: process.env.Gemini_API_Key || process.env.GEMINI_API_KEY || "",
+            GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "",
             API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
             VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
             VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",
@@ -291,7 +293,9 @@ async function startServer() {
         
         // Inject process.env into the head
         const envVars = {
-          GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.API_KEY || "",
+          GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.Gemini_API_Key || process.env.GOOGLE_API_KEY || process.env.API_KEY || "",
+          Gemini_API_Key: process.env.Gemini_API_Key || process.env.GEMINI_API_KEY || "",
+          GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "",
           API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
           VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
           VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",

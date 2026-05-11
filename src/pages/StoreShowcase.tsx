@@ -146,11 +146,17 @@ const ProductCard: React.FC<{
 
       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
         <button 
-          onClick={() => addToBasket(product)}
+          onClick={() => {
+            if (product.available_branches && product.available_branches.length > 1) {
+              onView(product);
+            } else {
+              addToBasket(product);
+            }
+          }}
           className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
         >
           <Plus className="w-4 h-4" />
-          {t.dashboard.addToBasket}
+          {product.available_branches && product.available_branches.length > 1 ? (lang === 'tr' ? 'Seçenekleri Gör' : 'View Options') : t.dashboard.addToBasket}
         </button>
       </div>
     </div>
@@ -168,6 +174,16 @@ const ProductCard: React.FC<{
               {product.brand}
             </span>
           )}
+          {product.branch_name && product.branch_name !== store?.name && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <MapPin className="w-2 h-2 text-gray-400" />
+              <span className="text-[9px] font-bold text-gray-500 tracking-tight">
+                {product.available_branches && product.available_branches.length > 1 
+                  ? (lang === 'tr' ? `${product.available_branches.length} Şubede Mevcut` : `Available in ${product.available_branches.length} Branches`) 
+                  : product.branch_name}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 text-yellow-400">
           <Star className="w-3 h-3 fill-current" />
@@ -176,7 +192,7 @@ const ProductCard: React.FC<{
       </div>
 
       <h3 
-        className={`font-bold text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-xsrimary text-base leading-tight tracking-tight ${isLuxury ? '!font-sans !font-medium text-gray-800' : ''}`} 
+        className={`font-bold text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-primary text-base leading-tight tracking-tight ${isLuxury ? '!font-sans !font-medium text-gray-800' : ''}`} 
         onClick={() => onView(product)}
       >
         {product.name}
@@ -472,6 +488,7 @@ const ProductDetailModal: React.FC<{
   const { lang } = useLanguage();
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [selectedBranchIdx, setSelectedBranchIdx] = useState(0);
   const [convertedPrice, setConvertedPrice] = useState<number>(product?.price || 0);
 
   const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
@@ -494,7 +511,14 @@ const ProductDetailModal: React.FC<{
       setLoadingBranches(true);
       api.getPublicProductBranchStock(effectiveSlug, product.barcode)
         .then(res => {
-          if (!res.error) setBranchStocks(res);
+          if (!res.error) {
+            setBranchStocks(res);
+            // Preselect the first branch that has stock
+            const inStockIdx = res.findIndex((b: any) => b.stock > 0);
+            if (inStockIdx !== -1) {
+              setSelectedBranchIdx(inStockIdx);
+            }
+          }
         })
         .finally(() => setLoadingBranches(false));
     }
@@ -677,6 +701,14 @@ const ProductDetailModal: React.FC<{
                 </span>
               </div>
             )}
+            {product.branch_name && product.branch_name !== store?.name && (
+              <div className="flex flex-col px-2">
+                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">{lang === 'tr' ? 'Şube' : 'Branch'}</span>
+                <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
+                  {product.branch_name}
+                </span>
+              </div>
+            )}
           </div>
           
           <h2 className={`text-4xl md:text-4xl text-slate-900 mb-4 leading-[1.1] tracking-tighter ${isLuxury ? '!font-sans !font-medium' : 'font-bold'}`}>
@@ -705,15 +737,24 @@ const ProductDetailModal: React.FC<{
 
           {branchStocks.length > 0 && (
             <div className="mt-10 mb-10">
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-6">{lang === 'tr' ? 'MAĞAZA STOKLARI' : 'STORE STOCKS'}</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-6">{lang === 'tr' ? 'ŞUBE SEÇİN' : 'CHOOSE BRANCH'}</h4>
               <div className="grid grid-cols-1 gap-3">
                 {branchStocks.map((branch, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-gray-100 group hover:border-primary transition-all">
+                  <div 
+                    key={idx} 
+                    onClick={() => { if (branch.stock > 0) setSelectedBranchIdx(idx); }}
+                    className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${branch.stock > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${selectedBranchIdx === idx ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-primary/30'}`}
+                  >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                        <MapPin className="w-5 h-5 text-xsrimary" />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-transform ${selectedBranchIdx === idx ? 'bg-primary text-white scale-110' : 'bg-white text-primary'}`}>
+                        <MapPin className="w-5 h-5" />
                       </div>
-                      <span className="font-bold text-gray-900">{branch.branch_name}</span>
+                      <div className="flex flex-col">
+                        <span className={`font-bold ${selectedBranchIdx === idx ? 'text-primary' : 'text-gray-900'}`}>{branch.branch_name}</span>
+                        {selectedBranchIdx === idx && (
+                          <span className="text-[9px] text-primary font-bold mt-1 uppercase tracking-wider">{lang === 'tr' ? 'Seçili Şube' : 'Selected Branch'}</span>
+                        )}
+                      </div>
                     </div>
                     <span className={`px-4 py-1.5 rounded-lg text-xss font-semibold tracking-wide ${branch.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {branch.stock > 0 ? `${branch.stock} ${t.dashboard.inStock || 'Stokta'}` : t.dashboard.outOfStock}
@@ -725,15 +766,31 @@ const ProductDetailModal: React.FC<{
           )}
 
           <button 
+            disabled={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0}
             onClick={() => {
-              addToBasket(product);
-              onClose();
+              if (branchStocks.length > 0) {
+                const selectedBranch = branchStocks[selectedBranchIdx];
+                if (selectedBranch.stock > 0) {
+                  addToBasket({
+                    ...product,
+                    id: selectedBranch.product_id,
+                    store_id: selectedBranch.store_id,
+                    branch_name: selectedBranch.branch_name,
+                    branch_slug: selectedBranch.branch_slug,
+                    stock_quantity: selectedBranch.stock
+                  });
+                  onClose();
+                }
+              } else {
+                addToBasket(product);
+                onClose();
+              }
             }}
-            className="w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-4 group"
-            style={{ backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
+            className={`w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg flex items-center justify-center gap-4 group ${branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? 'opacity-50 cursor-not-allowed grayscale' : 'active:scale-95'}`}
+            style={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? { backgroundColor: '#9ca3af' } : { backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
           >
             <ShoppingBag className="w-7 h-7 group-hover:scale-110 transition-transform" />
-            {t.dashboard.addToCart}
+            {branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? t.dashboard.outOfStock : t.dashboard.addToCart}
           </button>
         </div>
       </motion.div>
@@ -1191,10 +1248,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     
     let result = baseProducts.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.brand && p.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase()));
+        (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.branch_name && p.branch_name.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const productCategory = p.category || t.dashboard.uncategorized;
       const matchesCategory = !selectedCategory || productCategory === selectedCategory;
@@ -1909,7 +1968,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
             <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="relative flex-1 md:w-80 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-xsrimary transition-colors" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-primary transition-colors" />
                 <input 
                   type="text"
                   placeholder={t.dashboard.searchProducts}
@@ -2064,7 +2123,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
                                   }}
                                   className={`w-full text-left px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2 ${
-                                    selectedSubCategory === sub ? "text-xsrimary bg-primary/5" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                    selectedSubCategory === sub ? "text-primary bg-primary/5" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
                                   }`}
                                 >
                                   <div className={`w-1 h-1 rounded-lg ${selectedSubCategory === sub ? "bg-primary" : "bg-transparent"}`}></div>
@@ -2541,7 +2600,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     name="edit_is_corporate" 
                                     checked={!profileEditForm.is_corporate} 
                                     onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: false }))}
-                                    className="w-4 h-4 text-xsrimary focus:ring-primary"
+                                    className="w-4 h-4 text-primary focus:ring-primary"
                                   />
                                   <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
                                 </label>
@@ -2551,7 +2610,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                     name="edit_is_corporate" 
                                     checked={profileEditForm.is_corporate} 
                                     onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: true }))}
-                                    className="w-4 h-4 text-xsrimary focus:ring-primary"
+                                    className="w-4 h-4 text-primary focus:ring-primary"
                                   />
                                   <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
                                 </label>
@@ -2663,7 +2722,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       )
                     ) : (
                       <div className="text-center py-16">
-                        <Loader2 className="w-10 h-10 animate-spin text-xsrimary mx-auto mb-4" />
+                        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
                         <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}</p>
                       </div>
                     )}
@@ -2685,7 +2744,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               
               {loadingOrders ? (
                 <div className="bg-white rounded-lg p-20 text-center border border-gray-100">
-                  <Loader2 className="w-10 h-10 animate-spin text-xsrimary mx-auto mb-4" />
+                  <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
                   <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Siparişler yükleniyor...' : 'Loading orders...'}</p>
                 </div>
               ) : orders.length > 0 ? (
@@ -2699,7 +2758,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     >
                       <div className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex items-center gap-6">
-                          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/5 group-hover:text-xsrimary transition-colors">
+                          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
                             <ShoppingBag className="w-6 h-6" />
                           </div>
                           <div>
@@ -2727,7 +2786,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
                           <div>
                             <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1">{lang === 'tr' ? 'TUTAR' : 'TOTAL'}</p>
-                            <p className="text-sm font-semibold text-xsrimary">
+                            <p className="text-sm font-semibold text-primary">
                               {order.total_amount?.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {order.currency}
                             </p>
                           </div>
@@ -2772,7 +2831,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 {order.tracking_number && (
                                   <>
                                     <span className="w-1 h-1 rounded-lg bg-gray-300"></span>
-                                    <span className="text-xss font-mono font-bold text-xsrimary select-all">{order.tracking_number}</span>
+                                    <span className="text-xss font-mono font-bold text-primary select-all">{order.tracking_number}</span>
                                   </>
                                 )}
                               </div>
@@ -2794,7 +2853,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 
                                 if (url) window.open(url, '_blank');
                               }}
-                              className="px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-semibold text-gray-600 hover:border-primary hover:text-xsrimary transition-all flex items-center gap-2"
+                              className="px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-semibold text-gray-600 hover:border-primary hover:text-primary transition-all flex items-center gap-2"
                             >
                               <ExternalLink className="w-3 h-3" />
                               {lang === 'tr' ? 'KARGO TAKİP' : 'TRACK SHIPPING'}
@@ -3259,6 +3318,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                           <div>
                             <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:opacity-80 transition-colors" style={{ color: primaryColor }}>{item.name}</h4>
+                            {item.branch_name && item.branch_name !== store?.name && (
+                              <div className="flex items-center gap-1 mt-1 opacity-70">
+                                <MapPin className="w-3 h-3 text-gray-500" />
+                                <span className="text-[10px] font-bold text-gray-500 tracking-tight">{item.branch_name}</span>
+                              </div>
+                            )}
                             <p className="font-semibold mt-1" style={{ color: primaryColor }}>
                               {(basketItemPrices[item.id] || item.price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
                             </p>
@@ -3704,7 +3769,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 name="is_corporate" 
                                 checked={!customerInfo.is_corporate} 
                                 onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: false }))}
-                                className="w-4 h-4 text-xsrimary focus:ring-primary"
+                                className="w-4 h-4 text-primary focus:ring-primary"
                               />
                               <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
                             </label>
@@ -3714,7 +3779,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 name="is_corporate" 
                                 checked={customerInfo.is_corporate} 
                                 onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: true }))}
-                                className="w-4 h-4 text-xsrimary focus:ring-primary"
+                                className="w-4 h-4 text-primary focus:ring-primary"
                               />
                               <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
                             </label>
@@ -3728,7 +3793,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             type="checkbox" 
                             checked={customerInfo.marketing_email}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_email: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-xsrimary focus:ring-primary"
+                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
                           />
                           <span className="text-xss font-medium text-gray-600 leading-tight">
                             {lang === 'tr' ? 'Kampanyalardan haberdar olmak için elektronik ileti almak istiyorum.' : 'I want to receive electronic messages to be informed about campaigns.'}
@@ -3739,7 +3804,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             type="checkbox" 
                             checked={customerInfo.marketing_sms}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_sms: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-xsrimary focus:ring-primary"
+                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
                           />
                           <span className="text-xss font-medium text-gray-600 leading-tight">
                             {lang === 'tr' ? 'Kampanyalardan haberdar olmak için SMS almak istiyorum.' : 'I want to receive SMS to be informed about campaigns.'}
@@ -3751,7 +3816,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             required
                             checked={customerInfo.accept_terms}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, accept_terms: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-xsrimary focus:ring-primary"
+                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
                           />
                           <span className="text-xss font-medium text-gray-600 leading-tight">
                             {lang === 'tr' ? 'Üyelik sözleşmesini ve kişisel verilerin işlenmesine ilişkin aydınlatma metnini okudum, kabul ediyorum.' : 'I have read and accept the membership agreement and the clarification text on the processing of personal data.'}
@@ -4006,7 +4071,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             type="checkbox"
                             checked={customerInfo.createAccount}
                             onChange={(e) => setCustomerInfo(prev => ({ ...prev, createAccount: e.target.checked }))}
-                            className="w-4 h-4 rounded text-xsrimary focus:ring-primary"
+                            className="w-4 h-4 rounded text-primary focus:ring-primary"
                           />
                           <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Hesap oluştur' : 'Create an account'}</span>
                         </label>

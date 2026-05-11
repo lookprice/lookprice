@@ -5,6 +5,7 @@ import {
   Trash2, 
   Upload, 
   Edit2, 
+  FileText,
   ChevronRight, 
   ChevronLeft,
   Filter,
@@ -36,7 +37,6 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import ProductMovementModal from "../../components/ProductMovementModal";
 import { api } from "../../services/api";
 import { toast } from "sonner";
-import { findProductImageUrl } from "../../services/geminiService";
 
 interface ProductsTabProps {
   products: any[];
@@ -90,6 +90,7 @@ const ProductsTab = ({
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isFindingImages, setIsFindingImages] = useState(false);
+  const [isAnalyzingAI, setIsAnalyzingAI] = useState<{ [key: number]: boolean }>({});
 
   const handleAutoFindImages = async (params: { productIds?: number[], allMissing?: boolean, id?: number }) => {
     if (isFindingImages) return;
@@ -154,6 +155,27 @@ const ProductsTab = ({
       toast.error(e.message || "Error reformating names");
     } finally {
       setIsFixingNames(false);
+    }
+  };
+
+  const handleAIVision = async (productId: number) => {
+    try {
+      setIsAnalyzingAI(prev => ({ ...prev, [productId]: true }));
+      toast.info(lang === 'tr' ? "AI Analizi başlatıldı..." : "AI Analysis started...");
+      
+      const res = await api.aiVision(productId, currentStoreId, lang);
+      
+      if (res && res.success) {
+        toast.success(lang === 'tr' ? "AI Analizi tamamlandı ve ürün güncellendi." : "AI Analysis completed and product updated.");
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        toast.error(res?.error || (lang === 'tr' ? "AI Analizi başarısız oldu." : "AI Analysis failed."));
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || (lang === 'tr' ? "Bir hata oluştu." : "An error occurred."));
+    } finally {
+      setIsAnalyzingAI(prev => ({ ...prev, [productId]: false }));
     }
   };
 
@@ -379,6 +401,15 @@ const ProductsTab = ({
                       )}
                     </button>
                     <button 
+                      onClick={() => {
+                        toast.info(lang === 'tr' ? "Lütfen ürün satırındaki AI butonunu kullanın." : "Please use the AI button on the product row.");
+                      }}
+                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
+                      title={t.aiVision}
+                    >
+                      <Sparkles className="h-4.5 w-4.5" />
+                    </button>
+                    <button 
                       onClick={handleFixNames}
                       disabled={isFixingNames}
                       className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95 disabled:opacity-50"
@@ -587,8 +618,20 @@ const ProductsTab = ({
                               )}
                               <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/5 pointer-events-none" />
                             </div>
-                            <div className="min-w-0">
-                              <div className="text-[13px] font-black text-slate-900 truncate leading-none mb-1.5">{p.name}</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className="text-[13px] font-black text-slate-900 truncate leading-none">{p.name}</div>
+                                {p.description && (
+                                  <div className="group/desc relative">
+                                    <div className="p-1 text-indigo-500 bg-indigo-50 rounded-lg cursor-help">
+                                      <FileText className="h-3 w-3" />
+                                    </div>
+                                    <div className="invisible group-hover/desc:visible absolute left-0 top-full mt-2 w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl z-50 text-[11px] text-slate-600 leading-relaxed max-h-48 overflow-y-auto">
+                                      {p.description}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                               <div className="flex flex-wrap items-center gap-1.5">
                                 {p.brand && (
                                   <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest bg-white">
@@ -837,6 +880,19 @@ const ProductsTab = ({
                               </>
                             )}
                           </div>
+
+                          <button 
+                            onClick={() => handleAIVision(p.id)}
+                            disabled={isAnalyzingAI[p.id]}
+                            className={`p-2.5 rounded-xl transition-all border border-transparent active:scale-90 ${isAnalyzingAI[p.id] ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100'}`}
+                            title={t.aiVision}
+                          >
+                            {isAnalyzingAI[p.id] ? (
+                              <div className="h-4.5 w-4.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Sparkles className={`h-4.5 w-4.5 ${p.description ? 'text-indigo-600' : ''}`} />
+                            )}
+                          </button>
 
                           <button 
                             onClick={() => setSelectedProduct(p)}
