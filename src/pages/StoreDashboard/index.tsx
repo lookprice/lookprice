@@ -185,6 +185,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [isPending, startTransition] = useTransition();
 
   const [includeBranches, setIncludeBranches] = useState(false);
+  const [branches, setBranches] = useState<any[]>([]);
 
   const planLimits: Record<string, number> = {
     free: 50,
@@ -496,16 +497,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       
       // setCurrentStoreId(targetStoreId); // This is now handled in useProducts
 
-      const [productsRes, analyticsRes, brandingRes, usersRes] = await Promise.all([
+      const [productsRes, analyticsRes, brandingRes, usersRes, branchesRes] = await Promise.all([
         api.getProducts("", targetStoreId, includeBranches),
         api.getAnalytics(targetStoreId),
         api.getBranding(targetStoreId),
-        api.getUsers(targetStoreId)
+        api.getUsers(targetStoreId),
+        api.getBranches(targetStoreId)
       ]);
       setProducts(Array.isArray(productsRes) ? productsRes : []);
       setAnalytics(analyticsRes && !analyticsRes.error ? analyticsRes : null);
       if (brandingRes && !brandingRes.error) setBranding(brandingRes);
       setUsers(Array.isArray(usersRes) ? usersRes : []);
+      setBranches(Array.isArray(branchesRes) ? branchesRes : []);
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
@@ -1054,23 +1057,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             </div>
           </nav>
           
-      <div className="p-6 border-t border-white/5 bg-slate-900/30">
-            <div className="bg-indigo-600/5 rounded-2xl p-3 mb-4 border border-indigo-500/10 shadow-inner hidden md:block">
-              <p className="text-[9px] font-black text-indigo-500/60 uppercase tracking-[0.2em] mb-2">Live_Metrics</p>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Uptime</span>
-                <span className="text-[9px] font-mono text-emerald-500 font-bold tracking-widest">99.9%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Sync</span>
-                <span className="text-[9px] font-mono text-indigo-400 font-bold tracking-widest">12ms</span>
-              </div>
-            </div>
+      <div className="p-4 md:p-6 border-t border-white/5 bg-slate-900/30">
+            <button
+              onClick={() => setShowQrModal(true)}
+              className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
+            >
+              <QrCode className="h-4 w-4 md:h-3 md:w-3" />
+              <span>{t.storeQR || "QR Kodu"}</span>
+            </button>
             <button
               onClick={onLogout}
-              className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"
+              className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] md:text-xs font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"
             >
-              <LogOut className="h-3 w-3" />
+              <LogOut className="h-4 w-4 md:h-3 md:w-3" />
               <span>{t.logout}</span>
             </button>
           </div>
@@ -1140,7 +1139,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="flex items-center gap-3">
                 {activeTab === 'products' && (
                   <>
-                    {(user.role === 'superadmin' || (branding.stores && branding.stores.length > 1)) && (
+                    {(user.role === 'superadmin' || ((branding.stores || branding.branches || branches.length > 0) && ((branding.stores?.length || 0) > 1 || (branding.branches?.length || 0) > 1 || branches.length > 1))) && (
                       <div className="flex items-center bg-white/50 backdrop-blur-md border border-slate-200 rounded-2xl px-5 py-3 shadow-sm hover:border-indigo-200 transition-colors">
                         <label className="flex items-center cursor-pointer gap-4">
                           <div className="relative inline-flex items-center cursor-pointer">
@@ -1215,6 +1214,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           branding={branding}
                           showStoreName={includeBranches}
                           currentStoreId={currentStoreId}
+                          includeBranches={includeBranches}
                         />
                       </Suspense>
                     )}

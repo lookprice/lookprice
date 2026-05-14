@@ -11,6 +11,11 @@ export const useIntegrationSync = (integrationName: string, t: any) => {
     setLastError(null);
     try {
       const res = await syncFn();
+      
+      if (res && res.error) {
+        throw new Error(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+      }
+      
       setLastSync(new Date());
       onSuccess(res);
     } catch (error: any) {
@@ -18,7 +23,6 @@ export const useIntegrationSync = (integrationName: string, t: any) => {
       setLastError(errorMessage);
       Logger.error(`Sync failed for ${integrationName}`, { 
         error: error.message, 
-        response: error.response?.data,
         stack: error.stack 
       });
       alert(`${t.errorOccurred || 'Error'}: ${errorMessage}`);

@@ -35,7 +35,8 @@ import {
   Star,
   X,
   Cpu,
-  Cpu as CpuIcon
+  Cpu as CpuIcon,
+  ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -347,6 +348,42 @@ const SettingsTab = ({
       await api.disconnectTrendyol(currentStoreId);
       alert(t.trendyolDisconnected);
       if (onRefresh) onRefresh();
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleTestN11 = async () => {
+    try {
+      const res = await api.testN11Connection(currentStoreId);
+      alert(res.success ? (lang === 'tr' ? 'N11 Bağlantısı Başarılı!' : 'N11 Connection Successful!') : `${lang === 'tr' ? 'N11 Bağlantı Hatası' : 'N11 Connection Error'}: ${res.error}`);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleTestHb = async () => {
+    try {
+      const res = await api.testHepsiburadaConnection(currentStoreId);
+      alert(res.success ? (lang === 'tr' ? 'Hepsiburada Bağlantısı Başarılı!' : 'Hepsiburada Connection Successful!') : `${lang === 'tr' ? 'Hepsiburada Bağlantı Hatası' : 'Hepsiburada Connection Error'}: ${res.error}`);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleTestTy = async () => {
+    try {
+      const res = await api.testTrendyolConnection(currentStoreId);
+      alert(res.success ? (lang === 'tr' ? 'Trendyol Bağlantısı Başarılı!' : 'Trendyol Connection Successful!') : `${lang === 'tr' ? 'Trendyol Bağlantı Hatası' : 'Trendyol Connection Error'}: ${res.error}`);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleTestPz = async () => {
+    try {
+      const res = await api.testPazaramaConnection(currentStoreId);
+      alert(res.success ? (lang === 'tr' ? 'Pazarama Bağlantısı Başarılı!' : 'Pazarama Connection Successful!') : `${lang === 'tr' ? 'Pazarama Bağlantı Hatası' : 'Pazarama Connection Error'}: ${res.error}`);
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -1789,6 +1826,13 @@ const SettingsTab = ({
                           <XCircle className="h-4 w-4" />
                           <span>{t.disconnect}</span>
                         </button>
+                        <button 
+                          onClick={handleTestN11}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-blue-200 hover:text-blue-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>{lang === 'tr' ? 'Test Et' : 'Test'}</span>
+                        </button>
                       </>
                     )}
                   </div>
@@ -1900,6 +1944,13 @@ const SettingsTab = ({
                           <XCircle className="h-4 w-4" />
                           <span>{t.disconnect}</span>
                         </button>
+                        <button 
+                          onClick={handleTestHb}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>{lang === 'tr' ? 'Test Et' : 'Test'}</span>
+                        </button>
                       </>
                     )}
                   </div>
@@ -2010,6 +2061,13 @@ const SettingsTab = ({
                         >
                           <XCircle className="h-4 w-4" />
                           <span>{t.disconnect}</span>
+                        </button>
+                        <button 
+                          onClick={handleTestTy}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-orange-200 hover:text-orange-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>{lang === 'tr' ? 'Test Et' : 'Test'}</span>
                         </button>
                       </>
                     )}
@@ -2138,6 +2196,13 @@ const SettingsTab = ({
                         >
                           <XCircle className="h-4 w-4" />
                           <span>{t.disconnect}</span>
+                        </button>
+                        <button 
+                          onClick={handleTestPz}
+                          className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-blue-200 hover:text-blue-600 transition-all flex items-center justify-center space-x-2"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>{lang === 'tr' ? 'Test Et' : 'Test'}</span>
                         </button>
                       </>
                     )}

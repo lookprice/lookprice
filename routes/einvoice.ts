@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { pool } from "../models/db";
 import { authenticate } from "../middleware/auth";
 import { MySoftService } from "../src/services/backend/mysoftService";
+import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
 
 const router = express.Router();
@@ -44,10 +45,9 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
 
 // 2. Send Sales Invoice to Entegrator
 router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { invoiceId } = req.params;
   try {
-    const storeId = req.user.store_id;
-    const { invoiceId } = req.params;
-    
     const service = await getEInvoiceService(storeId);
 
     // Get the invoice
@@ -235,17 +235,16 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
     res.json(result);
   } catch (error: any) {
-    console.error("Send Invoice endpoint error:", error);
+    await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
   }
 });
 
 // 3. Check Status of a Sent Invoice
 router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { invoiceId } = req.params;
   try {
-    const storeId = req.user.store_id;
-    const { invoiceId } = req.params;
-    
     const service = await getEInvoiceService(storeId);
 
     const invRes = await pool.query("SELECT ettn FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
@@ -264,17 +263,17 @@ router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) =>
 
     res.json(status);
   } catch (error: any) {
-     console.error("Check Status endpoint error:", error);
+     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Status Check ${invoiceId}`, error);
      res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
   }
 });
 
 // 4. Sync Incoming Invoices
 router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
-  try {
     let storeIdRaw = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId) : req.user.store_id;
     const storeId = storeIdRaw ? parseInt(String(storeIdRaw)) : null;
     const { startDate, endDate } = req.body;
+  try {
     
     console.log(`[SYNC-INBOX] Store: ${storeId}, Dates: ${startDate} to ${endDate}`);
     
@@ -524,7 +523,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 
     res.json({ message: `${importedCount} adet yeni fatura içeri aktarıldı.`, importedCount });
   } catch (error: any) {
-    console.error("Sync Inbox endpoint error:", error);
+    await IntegrationService.logIntegrationError(storeId || 0, 'E-Fatura', `Sync Inbox`, error);
     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
   }
 });

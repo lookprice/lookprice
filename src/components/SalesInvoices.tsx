@@ -145,6 +145,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
+  const [eDocumentType, setEDocumentType] = useState<string | null>(null);
   const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('TEMELFATURA');
   const [isReturn, setIsReturn] = useState(false);
   
@@ -253,6 +254,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setItems(initialData.items || []);
       setCurrency(initialData.currency || branding?.default_currency || 'TRY');
       setPaymentMethod(initialData.payment_method || 'term');
+      setEDocumentType(initialData.e_document_type || null);
       setIsNewCustomer(false);
       setIsTaxInclusive(initialData.is_tax_inclusive !== undefined ? initialData.is_tax_inclusive : true);
       setShowModal(true);
@@ -537,6 +539,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     setCurrency(branding?.default_currency || 'TRY');
     setExchangeRate("1");
     setStatus('draft');
+    setEDocumentType(null);
     setIsNewCustomer(false);
     setIsTaxInclusive(true);
     setEditTaxNumber("");
@@ -592,7 +595,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         currency: currentCurrency,
         exchange_rate: Number(currentExchangeRate) || 1,
         status: currentStatus,
-        e_document_type: selectedInvoice?.e_document_type || null,
+        e_document_type: eDocumentType,
         invoice_profile: invoiceProfile,
         is_tax_inclusive: currentIsTaxInclusive
       };
@@ -652,6 +655,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
       setStatus(data.status || 'draft');
+      setEDocumentType(data.e_document_type || null);
+      setInvoiceProfile(data.invoice_profile || 'TEMELFATURA');
       const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
       setIsTaxInclusive(taxIncl);
       setItems((data.items || []).map((item: any) => {
@@ -910,6 +915,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
               setItems([]);
               setPaymentMethod('term');
               setInvoiceProfile('TEMELFATURA');
+              setEDocumentType(null);
               setShowModal(true);
             }}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg"

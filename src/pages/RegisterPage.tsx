@@ -59,6 +59,8 @@ export default function RegisterPage() {
             <div>
               <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{lang === 'tr' ? 'İsim' : 'Name'}</label>
               <input 
+                id="name"
+                name="name"
                 type="text" 
                 required 
                 value={name}
@@ -68,8 +70,10 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{t.email}</label>
+              <label htmlFor="email" className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{t.email}</label>
               <input 
+                id="email"
+                name="email"
                 type="email" 
                 required 
                 value={email}
@@ -79,8 +83,10 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{t.password}</label>
+              <label htmlFor="password" className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{t.password}</label>
               <input 
+                id="password"
+                name="password"
                 type="password" 
                 required 
                 value={password}

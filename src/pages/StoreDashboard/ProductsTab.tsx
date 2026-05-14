@@ -56,6 +56,7 @@ interface ProductsTabProps {
   branding?: any;
   showStoreName?: boolean;
   currentStoreId?: number;
+  includeBranches?: boolean;
 }
 
 const ProductsTab = ({ 
@@ -75,7 +76,8 @@ const ProductsTab = ({
   onShowQr,
   branding,
   showStoreName,
-  currentStoreId
+  currentStoreId,
+  includeBranches
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -106,7 +108,7 @@ const ProductsTab = ({
       setIsFindingImages(true);
       toast.info(lang === 'tr' ? "Görüntü araması başlatıldı..." : "Image search started...");
       
-      const res = await api.autoFindImage(params, currentStoreId);
+      const res = await api.autoFindImage(params, currentStoreId, includeBranches);
       
       if (res && res.success) {
         if (res.updatedCount > 0) {

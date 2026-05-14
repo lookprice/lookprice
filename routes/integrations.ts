@@ -2,61 +2,21 @@ import express from "express";
 import { pool } from "../models/db";
 import axios from "axios";
 import { authenticate } from "../middleware/auth";
+import { IntegrationService } from "../src/services/IntegrationService";
+import { 
+  processMarketplaceOrderLines, 
+  syncN11Orders, 
+  syncHepsiburadaOrders, 
+  syncTrendyolOrders, 
+  syncPazaramaOrders,
+  testN11Connection,
+  testHepsiburadaConnection,
+  testTrendyolConnection,
+  testPazaramaConnection
+} from "../src/services/marketplaceSync";
 
 const router = express.Router();
 
-// Helper function to process marketplace order lines
-async function processMarketplaceOrderLines(client: any, storeId: number, saleId: number, salesInvoiceId: number, lines: any[], marketplaceName: string, orderId: string) {
-  for (const line of lines) {
-    let productId = null;
-    let currentStock = 0;
-    
-    if (line.barcode) {
-      const prodRes = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2", [storeId, line.barcode]);
-      if (prodRes.rows.length > 0) {
-        productId = prodRes.rows[0].id;
-        currentStock = prodRes.rows[0].stock_quantity;
-      }
-    }
-    
-    if (!productId && line.sku) {
-      const prodRes = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND sku = $2", [storeId, line.sku]);
-      if (prodRes.rows.length > 0) {
-        productId = prodRes.rows[0].id;
-        currentStock = prodRes.rows[0].stock_quantity;
-      }
-    }
-
-    const quantity = line.quantity || 1;
-    const price = line.price || 0;
-    const taxRate = line.taxRate || 20;
-    const total = price * quantity;
-    const taxAmount = total * (taxRate / 100);
-    const name = line.name || `${marketplaceName} Ürünü`;
-    
-    await client.query(
-      "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [saleId, productId, name, line.barcode || '', quantity, price, total]
-    );
-
-    await client.query(
-      "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [salesInvoiceId, name, quantity, price, taxRate, taxAmount, total]
-    );
-
-    if (productId) {
-      await client.query(
-        "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
-        [quantity, productId]
-      );
-
-      await client.query(
-        "INSERT INTO stock_movements (store_id, product_id, type, quantity, notes, previous_stock, new_stock) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [storeId, productId, 'out', quantity, `${marketplaceName} Satışı: ${orderId}`, currentStock, currentStock - quantity]
-      );
-    }
-  }
-}
 
 // Amazon SP-API Constants for Turkey
 const AMAZON_TR_MARKETPLACE_ID = "A33AVAJ2PDY3WV";
@@ -293,7 +253,7 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
 
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
-    console.error("Amazon Sync Error:", error.response?.data || error.message);
+    await IntegrationService.logIntegrationError(storeId, 'Amazon', 'Sync All Orders', error);
     res.status(500).json({ error: "Amazon siparişleri senkronize edilemedi" });
   }
 });
@@ -357,7 +317,7 @@ import { parseStringPromise } from 'xml2js';
 
 // ... existing code ...
 
-// 3. Sync N11 Orders
+    // Sync N11 Orders
 router.post("/n11/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
@@ -369,38 +329,7 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "N11 API bilgileri eksik" });
     }
 
-    // N11 SOAP Request for Detailed Order List
-    const soapEnvelope = `
-      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/OrderService">
-         <soapenv:Header/>
-         <soapenv:Body>
-            <sch:DetailedOrderListRequest>
-               <auth>
-                  <appKey>${settings.appKey}</appKey>
-                  <appSecret>${settings.appSecret}</appSecret>
-               </auth>
-               <searchData>
-                  <status>New</status>
-               </searchData>
-            </sch:DetailedOrderListRequest>
-         </soapenv:Body>
-      </soapenv:Envelope>
-    `;
-
-    // Gerçek N11 API Çağrısı
-    const response = await axios.post("https://api.n11.com/ws/OrderService.wsdl", soapEnvelope, {
-      headers: { 'Content-Type': 'text/xml;charset=UTF-8' }
-    });
-
-    const parsedResult = await parseStringPromise(response.data, { explicitArray: false, ignoreAttrs: true });
-    const orderListResponse = parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['DetailedOrderListResponse'];
-    
-    if (orderListResponse.result.status === 'failure') {
-      return res.status(400).json({ error: orderListResponse.result.errorMessage });
-    }
-
-    const n11OrdersRaw = orderListResponse.orderList?.order;
-    const n11Orders = Array.isArray(n11OrdersRaw) ? n11OrdersRaw : (n11OrdersRaw ? [n11OrdersRaw] : []);
+    const n11Orders = await syncN11Orders(pool, storeId, settings);
 
     let syncedCount = 0;
     for (const order of n11Orders) {
@@ -483,12 +412,21 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
     await pool.query("UPDATE stores SET n11_settings = $1 WHERE id = $2", [newSettings, storeId]);
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
-    console.error("N11 Sync Error:", error.message);
-    res.status(500).json({ error: "N11 siparişleri senkronize edilemedi: " + error.message });
+    await IntegrationService.logIntegrationError(storeId, 'N11', 'Sync All Orders', error);
+    res.status(500).json({ error: "N11 siparişleri senkronize edilemedi." });
   }
 });
 
-// 3.1 N11 Product Publishing
+router.post("/n11/test", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.n11_settings;
+    if (!settings || !settings.appKey || !settings.appSecret) return res.status(400).json({ error: "N11 API bilgileri eksik" });
+    const success = await testN11Connection(settings);
+    res.json({ success });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
 router.post("/n11/publish", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const { productId, categoryId, attributes } = req.body;
@@ -601,24 +539,17 @@ router.get("/hepsiburada/settings", authenticate, async (req: any, res) => {
   }
 });
 
-// 3. Sync Hepsiburada Orders
+    // Sync Hepsiburada Orders
 router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
-
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+       return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
     }
-
-    // Gerçek Hepsiburada API Çağrısı
-    const response = await axios.get(`https://merchant.hepsiburada.com/api/orders/merchantid/${settings.merchantId}`, {
-      auth: { username: settings.apiKey, password: settings.apiSecret }
-    });
-
-    const hbOrders = response.data.orders || []; // response.data'dan parse edilecek
+    const hbOrders = await syncHepsiburadaOrders(pool, storeId, settings);
 
     let syncedCount = 0;
     for (const order of hbOrders) {
@@ -700,12 +631,21 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     await pool.query("UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2", [newSettings, storeId]);
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
-    console.error("Hepsiburada Sync Error:", error.message);
-    res.status(500).json({ error: "Hepsiburada siparişleri senkronize edilemedi" });
+    await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Sync All Orders', error);
+    res.status(500).json({ error: "Hepsiburada siparişleri senkronize edilemedi." });
   }
 });
 
-// 4. Disconnect Hepsiburada
+router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    const success = await testHepsiburadaConnection(settings);
+    res.json({ success });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
 router.post("/hepsiburada/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
@@ -788,7 +728,7 @@ router.get("/trendyol/settings", authenticate, async (req: any, res) => {
   }
 });
 
-// 3. Sync Trendyol Orders
+    // Sync Trendyol Orders
 router.post("/trendyol/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
@@ -800,12 +740,7 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Trendyol API bilgileri eksik" });
     }
 
-    // Gerçek Trendyol API Çağrısı
-    const response = await axios.get(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/orders`, {
-      auth: { username: settings.apiKey, password: settings.apiSecret }
-    });
-
-    const tyOrders = response.data.content || []; 
+    const tyOrders = await syncTrendyolOrders(pool, storeId, settings);
 
     let syncedCount = 0;
     for (const order of tyOrders) {
@@ -886,12 +821,21 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
     await pool.query("UPDATE stores SET trendyol_settings = $1 WHERE id = $2", [newSettings, storeId]);
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
-    console.error("Trendyol Sync Error:", error.message);
-    res.status(500).json({ error: "Trendyol siparişleri senkronize edilemedi" });
+    await IntegrationService.logIntegrationError(storeId, 'Trendyol', 'Sync All Orders', error);
+    res.status(500).json({ error: "Trendyol siparişleri senkronize edilemedi." });
   }
 });
 
-// 4. Disconnect Trendyol
+router.post("/trendyol/test", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.trendyol_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) return res.status(400).json({ error: "Trendyol API bilgileri eksik" });
+    const success = await testTrendyolConnection(settings);
+    res.json({ success });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
 router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
@@ -1015,7 +959,7 @@ router.get("/pazarama/settings", authenticate, async (req: any, res) => {
   }
 });
 
-// 3. Sync Pazarama Orders
+    // Sync Pazarama Orders
 router.post("/pazarama/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
@@ -1027,30 +971,7 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Pazarama API bilgileri eksik" });
     }
 
-    // Real Pazarama API Call
-    let pzOrders = [];
-    const authHeader = `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
-    
-    try {
-      const pzRes = await axios.post("https://isortagimapi.pazarama.com/api/v1/Order/GetOrders", {
-        PageSize: 100,
-        PageIndex: 1,
-        // Optional: Filter by date if needed
-      }, {
-        headers: {
-          'Authorization': authHeader,
-          'MerchantId': settings.merchantId,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (pzRes.data && pzRes.data.isSuccess && pzRes.data.data && Array.isArray(pzRes.data.data.items)) {
-        pzOrders = pzRes.data.data.items;
-      }
-    } catch (e: any) {
-      console.error("Pazarama API Order Fetch Error:", e.response?.data || e.message);
-      // If API fails, we skip for now - or could throw error
-    }
+    const pzOrders = await syncPazaramaOrders(pool, storeId, settings);
 
     let syncedCount = 0;
     for (const order of pzOrders) {
@@ -1141,12 +1062,21 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
 
     res.json({ success: true, count: 0, message: "Gerçek API bağlantısı için geçerli anahtarlar gereklidir." });
   } catch (error: any) {
-    console.error("Pazarama Sync Error:", error.message);
-    res.status(500).json({ error: "Pazarama siparişleri senkronize edilemedi" });
+    await IntegrationService.logIntegrationError(storeId, 'Pazarama', 'Sync All Orders', error);
+    res.status(500).json({ error: "Pazarama siparişleri senkronize edilemedi." });
   }
 });
 
-// 4. Disconnect Pazarama
+router.post("/pazarama/test", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.pazarama_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret) return res.status(400).json({ error: "Pazarama API bilgileri eksik" });
+    const success = await testPazaramaConnection(settings);
+    res.json({ success });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
 router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {

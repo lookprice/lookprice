@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { initDb } from "./models/db";
+import { startCronJobs } from "./src/services/cronJobs";
 import authRoutes from "./routes/auth";
 import publicRoutes from "./routes/public";
 import adminRoutes from "./routes/admin";
@@ -70,6 +71,7 @@ async function startServer() {
   console.log("Calling initDb...");
   await initDb();
   console.log("initDb finished.");
+  startCronJobs();
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -132,7 +134,7 @@ async function startServer() {
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "img-src 'self' data: blob: https: https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://sanalpos.halkbank.com.tr; " +
+      "img-src 'self' data: blob: https: https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://sanalpos.halkbank.com.tr https://*.insales-cdn.com; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
       "connect-src 'self' wss://*.run.app:* https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr; " +
       "frame-src 'self' https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr;"

@@ -19,13 +19,20 @@ router.use((req, res, next) => {
 const upload = multer({ dest: path.join(process.cwd(), "uploads/") });
 
 const getGeminiApiKey = () => {
-  return process.env.GEMINI_API_KEY || 
+  // Try exactly in order
+  const key = process.env.GEMINI_API_KEY || 
          process.env.Gemini_API_Key || 
          process.env.Gemini_API_KEY || 
          process.env.GOOGLE_API_KEY || 
          process.env.VITE_GEMINI_API_KEY || 
          process.env.API_KEY || 
          '';
+         
+  if (key && !key.startsWith('AIza')) {
+    throw new Error("Lütfen 'Secrets' sekmesindeki (sol alt) hatalı 'GEMINI_API_KEY' değerini silin. (Please delete the invalid 'GEMINI_API_KEY' from the Secrets tab to use the built-in system key.)");
+  }
+
+  return key;
 };
 
 const API_KEY_ERROR = "AI API anahtarı bulunamadı. Lütfen 'Secrets' sekmesine (sol alt) 'GEMINI_API_KEY' adıyla anahtarınızı eklediğinizden ve sunucuyu yeniden başlattığınızdan emin olun. (AI API key not found. Please ensure you have added 'GEMINI_API_KEY' in the Secrets tab and restarted the server).";
@@ -506,26 +513,31 @@ router.post("/domain/manual", async (req: any, res) => {
 // --- PRODUCT IMAGE AUTOMATION ---
 router.post("/products/auto-image", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  const { productIds, allMissing } = req.body;
+  const { productIds, allMissing, includeBranches } = req.body;
+  let targetStoreIds = [storeId];
+  if (includeBranches) {
+      const branchesRes = await pool.query("SELECT id FROM stores WHERE parent_id = $1", [storeId]);
+      targetStoreIds = [storeId, ...branchesRes.rows.map(r => r.id)];
+  }
 
   try {
     let productsToProcess = [];
     if (allMissing) {
       const result = await pool.query(
-        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE store_id = $1 AND (image_url IS NULL OR image_url = '')",
-        [storeId]
+        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE store_id = ANY($1) AND (image_url IS NULL OR image_url = '')",
+        [targetStoreIds]
       );
       productsToProcess = result.rows;
     } else if (Array.isArray(productIds)) {
       const result = await pool.query(
-        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE id = ANY($1) AND store_id = $2",
-        [productIds, storeId]
+        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE id = ANY($1) AND store_id = ANY($2)",
+        [productIds, targetStoreIds]
       );
       productsToProcess = result.rows;
     } else if (req.body.id) {
        const result = await pool.query(
-        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE id = $1 AND store_id = $2",
-        [req.body.id, storeId]
+        "SELECT id, name, barcode, brand, category, sub_category, product_type FROM products WHERE id = $1 AND store_id = ANY($2)",
+        [req.body.id, targetStoreIds]
       );
       productsToProcess = result.rows;
     }
@@ -542,9 +554,18 @@ router.post("/products/auto-image", async (req: any, res) => {
       console.log(msg);
       logs.push(msg);
     };
+    
+    // Check key before loop so it throws immediately and is returned to user
+    try {
+        getGeminiApiKey();
+    } catch(e: any) {
+        throw new Error(e.message);
+    }
 
     for (const product of productsToProcess) {
       let foundImageUrl = null;
+      let foundAuthor = null;
+      let foundBrand = null;
       addLog(`[DEBUG] Processing image find for: ${product.name} (Barcode: ${product.barcode || 'Yok'})`);
 
       const barcode = product.barcode ? product.barcode.trim() : null;
@@ -555,20 +576,34 @@ router.post("/products/auto-image", async (req: any, res) => {
         if (barcode.startsWith('978') || barcode.startsWith('979')) {
           try {
             addLog(`[DEBUG] Searching as ISBN (Book)...`);
-            // Try Google Books API (Free, no key needed for simple search)
             const gBooksRes = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}`);
-            if (gBooksRes.data.totalItems > 0 && gBooksRes.data.items[0].volumeInfo?.imageLinks?.thumbnail) {
-              foundImageUrl = gBooksRes.data.items[0].volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
-              addLog(`[DEBUG] Found via Google Books: ${foundImageUrl}`);
+            if (gBooksRes.data.totalItems > 0) {
+              const volumeInfo = gBooksRes.data.items[0].volumeInfo;
+              if (volumeInfo?.imageLinks?.thumbnail) {
+                foundImageUrl = volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
+                addLog(`[DEBUG] Found via Google Books: ${foundImageUrl}`);
+              }
+              if (volumeInfo?.authors && volumeInfo.authors.length > 0) {
+                foundAuthor = volumeInfo.authors[0];
+                addLog(`[DEBUG] Author found via Google Books: ${foundAuthor}`);
+              }
             }
             
-            if (!foundImageUrl) {
+            if (!foundImageUrl || !foundAuthor) {
               // Try OpenLibrary
-              const olRes = await axios.get(`https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&format=json&jscmd=data`);
-              const olData = olRes.data[`ISBN:${barcode}`];
-              if (olData?.cover?.large || olData?.cover?.medium) {
-                foundImageUrl = olData.cover.large || olData.cover.medium;
-                addLog(`[DEBUG] Found via OpenLibrary: ${foundImageUrl}`);
+              try {
+                const olRes = await axios.get(`https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&format=json&jscmd=data`);
+                const olData = olRes.data[`ISBN:${barcode}`];
+                if (!foundImageUrl && (olData?.cover?.large || olData?.cover?.medium)) {
+                  foundImageUrl = olData.cover.large || olData.cover.medium;
+                  addLog(`[DEBUG] Found via OpenLibrary: ${foundImageUrl}`);
+                }
+                if (!foundAuthor && olData?.authors && olData.authors.length > 0) {
+                  foundAuthor = olData.authors[0].name;
+                  addLog(`[DEBUG] Author found via OpenLibrary: ${foundAuthor}`);
+                }
+              } catch (olErr) {
+                addLog(`[DEBUG] OpenLibrary search failed.`);
               }
             }
           } catch (err: any) {
@@ -587,7 +622,7 @@ router.post("/products/auto-image", async (req: any, res) => {
           for (const url of endpoints) {
             if (foundImageUrl) break;
             try {
-              const offRes = await axios.get(url);
+              const offRes = await axios.get(url, { timeout: 5000 });
               const offData = offRes.data;
               if (offData.status === 1 && offData.product) {
                 foundImageUrl = offData.product.image_front_url || offData.product.image_url;
@@ -600,47 +635,85 @@ router.post("/products/auto-image", async (req: any, res) => {
         }
       }
 
-      // 2. If not found by barcode, use googlethis to find a public URL
-      if (!foundImageUrl) {
-        try {
-          const google = (await import('googlethis')).default;
-          const brandInfo = product.brand ? `${product.brand}` : '';
-          const categoryInfo = product.category ? `${product.category} ${product.sub_category || ''}` : '';
-          const searchTerms = `${brandInfo} ${product.name} ${product.barcode || ''}`.trim();
+      // 2. Try to get info via Gemini (Always allow overwrite if Gemini finds something)
+      try {
+        const mask = (s: string | undefined) => s ? `${s.substring(0, 4)}...${s.substring(s.length - 4)}` : 'undefined';
+        const apiKey = getGeminiApiKey();
+        console.log(`[DEBUG] Gemini API Key valid: ${!!apiKey}`);
+        if (apiKey) {
+          const ai = new GoogleGenAI({ apiKey });
+          const prompt = `You are an expert product cataloger. Given product: "${product.name}", brand: "${product.brand || 'Unknown'}", barcode: "${product.barcode}" (ISBN if starts with 978/979). 
+          1. Find a reliable, direct high-quality URL for the product image.
+          2. If this is a book (starts with 978/979), find the AUTHOR.
+          3. If this is not a book, find the BRAND.
+          Return ONLY valid JSON: { "imageUrl": "url_or_null", "author": "author_name_or_null", "brand": "brand_name_or_null", "usedKey": "${mask(apiKey)}" }.`;
           
-          addLog(`[DEBUG] Google Search for: ${searchTerms}`);
-
-          const images = await google.image(searchTerms, { safe: false });
-          let guessedUrl = null;
-
-          if (images && images.length > 0) {
-              // Try to find a high quality direct image link
-              for (const img of images) {
-                  if (img.url && img.url.length > 10 && !img.url.includes('fbsbx.com') && !img.url.includes('data:image')) {
-                      guessedUrl = img.url;
-                      break;
-                  }
-              }
+          console.log(`[DEBUG] Gemini Prompt for ${product.name}: ${prompt}`);
+          const aiResponse = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
+          });
+          
+          console.log(`[DEBUG] Gemini Raw Response for ${product.name}: ${aiResponse.text}`);
+          const data = JSON.parse(aiResponse.text || "{}");
+          console.log(`[DEBUG] Parsed Gemini Data for ${product.name}:`, data);
+          
+          // Overwrite always if Gemini finds valid new data
+          if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl !== 'null' && data.imageUrl !== 'undefined' && data.imageUrl.startsWith('http')) {
+            foundImageUrl = data.imageUrl;
+            addLog(`[DEBUG] Gemini overwrote/set imageUrl: ${foundImageUrl}`);
           }
-
-          if (guessedUrl) {
-            if (guessedUrl.startsWith("http://")) {
-              guessedUrl = guessedUrl.replace("http://", "https://");
-            }
-            foundImageUrl = guessedUrl;
-            addLog(`[DEBUG] Found via Google Image Search: ${foundImageUrl}`);
-          } else {
-            addLog(`[DEBUG] Google Search could not find a suitable image.`);
+          
+          if (data.author && typeof data.author === 'string' && data.author !== 'null' && data.author !== 'undefined') {
+            foundAuthor = data.author;
+            addLog(`[DEBUG] Gemini overwrote/set author: ${foundAuthor}`);
           }
-        } catch (searchErr: any) {
-          addLog(`[ERROR] Google image search error for ${product.name}: ${searchErr.message}`);
+          if (data.brand && typeof data.brand === 'string' && data.brand !== 'null' && data.brand !== 'undefined') {
+            foundBrand = data.brand;
+            addLog(`[DEBUG] Gemini overwrote/set brand: ${foundBrand}`);
+          }
+        } else {
+            console.log(`[DEBUG] Gemini API Key NOT found in process.env`);
+        }
+      } catch (searchErr: any) {
+        let mask = 'unknown';
+        try {
+          const apiKey = getGeminiApiKey();
+           mask = apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : 'undefined';
+        } catch(e) {}
+        console.error(`[ERROR] Gemini error for ${product.name} (Key: ${mask}):`, searchErr);
+        addLog(`[ERROR] Gemini error for ${product.name} (Key: ${mask}): ${searchErr.message || JSON.stringify(searchErr)}`);
+        
+        if (searchErr.message && searchErr.message.toLowerCase().includes('api key not valid')) {
+            throw new Error("API Anahtarınız geçersiz. Lütfen Sol alt köşedeki Settings menüsünde 'Secrets' tabına geçip 'GEMINI_API_KEY' anahtarını SİLİN veya doğru değerle GÜNCELLEYİN.");
         }
       }
 
-      if (foundImageUrl) {
-        await pool.query("UPDATE products SET image_url = $1 WHERE id = $2", [foundImageUrl, product.id]);
-        updatedCount++;
-        results.push({ id: product.id, status: 'found', url: foundImageUrl });
+      if (foundImageUrl || foundAuthor || foundBrand) {
+        const updateFields = [];
+        const updateValues = [];
+        const updateParams = [];
+
+        if (foundImageUrl) {
+          updateParams.push(foundImageUrl);
+          updateFields.push(`image_url = $${updateParams.length}`);
+        }
+        if (foundAuthor) {
+          updateParams.push(foundAuthor);
+          updateFields.push(`author = $${updateParams.length}`);
+        }
+        if (foundBrand) {
+          updateParams.push(foundBrand);
+          updateFields.push(`brand = $${updateParams.length}`);
+        }
+
+        if (updateFields.length > 0) {
+          updateParams.push(product.id);
+          await pool.query(`UPDATE products SET ${updateFields.join(", ")} WHERE id = $${updateParams.length}`, updateParams);
+          updatedCount++;
+          results.push({ id: product.id, status: 'found', url: foundImageUrl });
+        }
       } else {
         results.push({ id: product.id, status: 'not_found', name: product.name, barcode: product.barcode });
       }

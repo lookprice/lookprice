@@ -4350,39 +4350,39 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-2xl bg-white rounded-[4rem] overflow-hidden shadow-lg"
+            className="relative w-full max-w-2xl bg-white rounded-3xl md:rounded-[4rem] overflow-hidden shadow-lg max-h-[90vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <div className="relative h-48 bg-slate-900 overflow-hidden">
+            <div className="relative h-40 md:h-48 bg-slate-900 overflow-hidden shrink-0">
               <div className="absolute inset-0 opacity-30">
                 <img src={store?.hero_image_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent" />
               <button 
                 onClick={() => setShowAboutModal(false)}
-                className="absolute top-6 right-6 w-10 h-10 rounded-lg bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all z-20"
+                className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 rounded-lg bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all z-20"
               >
                 <X className="w-5 h-5" />
               </button>
-              <div className="absolute bottom-6 left-10 z-10">
-                 <h2 className="text-4xl font-bold text-slate-900 tracking-tighter">
+              <div className="absolute bottom-6 left-6 md:left-10 z-10">
+                 <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tighter">
                    {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
                  </h2>
               </div>
             </div>
-            <div className="p-6 md:p-8">
+            <div className="p-6 md:p-8 overflow-y-auto">
               <div className="prose prose-slate max-w-none">
-                 <p className="text-slate-600 text-lg leading-relaxed font-semibold whitespace-pre-wrap">
+                 <p className="text-slate-600 text-base md:text-lg leading-relaxed font-semibold whitespace-pre-wrap">
                    {store?.about_text || (lang === 'tr' ? 'Henüz hakkımızda yazısı eklenmedi.' : 'No about text added yet.')}
                  </p>
               </div>
-              <div className="mt-12 pt-8 border-t border-slate-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-slate-100 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
                   <h4 className="text-slate-900 font-bold text-sm tracking-tight">{lang === 'tr' ? 'Güvenilir Alışveriş' : 'Trusted Shopping'}</h4>
-                  <p className="text-slate-400 text-xss font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
+                  <p className="text-slate-400 text-xs md:text-sm font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
                 </div>
               </div>
             </div>
