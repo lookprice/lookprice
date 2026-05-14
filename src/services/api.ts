@@ -374,6 +374,12 @@ export const api = {
   updateTransaction: (id: number, data: any) => api.put(`/api/store/transactions/${id}`, data),
   logError: (data: any) => api.post("/api/store/log-error", data),
 
+  // Integration Test Methods
+  testN11Connection: (storeId?: number) => api.post("/api/integrations/n11/test", { storeId }),
+  testHepsiburadaConnection: (storeId?: number) => api.post("/api/integrations/hepsiburada/test", { storeId }),
+  testTrendyolConnection: (storeId?: number) => api.post("/api/integrations/trendyol/test", { storeId }),
+  testPazaramaConnection: (storeId?: number) => api.post("/api/integrations/pazarama/test", { storeId }),
+
   // E-Invoice Methods
   checkTaxpayer: (vknTckn: string) => api.post("/api/einvoice/check-taxpayer", { vknTckn }),
   sendEInvoice: (invoiceId: number) => api.post(`/api/einvoice/send/${invoiceId}`, {}),

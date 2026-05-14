@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Save, 
   Upload, 
@@ -158,9 +158,9 @@ const SettingsTab = ({
 
   const [emails, setEmails] = React.useState<string[]>((branding.emails && branding.emails.length > 0) ? branding.emails : ['']);
   const [phones, setPhones] = React.useState<string[]>((branding.phones && branding.phones.length > 0) ? branding.phones : ['']);
-  const [activeSubTab, setActiveSubTab] = useState<string>(localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) || 'web');
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [activeSubTab, setActiveSubTab] = React.useState<string>(localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) || 'web');
+  const [logs, setLogs] = React.useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = React.useState(false);
 
   const fetchLogs = async () => {
     setLoadingLogs(true);
@@ -175,7 +175,7 @@ const SettingsTab = ({
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (activeSubTab === 'logs') {
       fetchLogs();
     }

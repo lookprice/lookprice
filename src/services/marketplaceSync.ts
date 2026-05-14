@@ -12,12 +12,16 @@ async function fetchWithRetry<T>(
 ): Promise<T> {
   try {
     return await fn();
-  } catch (error) {
+  } catch (error: any) {
+    const errorMessage = error.response?.data ? 
+      (typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data) : 
+      error.message;
+
     if (retries <= 1) {
-      await logAction(storeId, null, "error", "marketplace_sync", null, `${marketplace} Sync Final Failure: ${(error as AxiosError).message}`);
+      await logAction(storeId, null, "error", "marketplace_sync", null, `${marketplace} Sync Final Failure: ${errorMessage}`);
       throw error;
     }
-    await logAction(storeId, null, "warning", "marketplace_sync", null, `${marketplace} Sync Retry (${4 - retries}): ${(error as AxiosError).message}`);
+    await logAction(storeId, null, "warning", "marketplace_sync", null, `${marketplace} Sync Retry (${4 - retries}): ${errorMessage}`);
     await new Promise(resolve => setTimeout(resolve, delay));
     return fetchWithRetry(fn, marketplace, storeId, retries - 1, delay * 2);
   }
@@ -89,20 +93,26 @@ export async function processMarketplaceOrderLines(
 export async function syncN11OrdersREST(client: any, storeId: number, settings: any) {
     const auth = Buffer.from(`${settings.appKey}:${settings.appSecret}`).toString('base64');
     const response = await fetchWithRetry(async () => {
-        // Trying /rest/orders as well as /v1/orders fallback
+        // Trying various headers and endpoints for N11 REST
         try {
+            // Option 1: Standard Basic Auth
             return await axios.get("https://api.n11.com/rest/orders", {
                 headers: { 'Authorization': `Basic ${auth}` },
                 timeout: 30000
             });
         } catch (e: any) {
-            if (e.response?.status === 404) {
-                return await axios.get("https://api.n11.com/v1/orders", {
-                    headers: { 'Authorization': `Basic ${auth}` },
+            // Option 2: Custom headers (N11 often uses this)
+            if (e.response?.status === 401 || e.response?.status === 403) {
+                 return await axios.get("https://api.n11.com/rest/orders", {
+                    headers: { 'appKey': settings.appKey, 'appSecret': settings.appSecret },
                     timeout: 30000
                 });
             }
-            throw e;
+            // Option 3: Fallback endpoint
+            return await axios.get("https://api.n11.com/v1/orders", {
+                headers: { 'Authorization': `Basic ${auth}` },
+                timeout: 30000
+            });
         }
     }, "N11-REST", storeId);
     
@@ -114,7 +124,7 @@ export async function syncN11Orders(client: any, storeId: number, settings: any)
     // Try SOAP first with corrected URL
     try {
         const soapEnvelope = `
-          <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/OrderService">
+          <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/ws/schemas/OrderService">
              <soapenv:Header/>
              <soapenv:Body>
                 <sch:DetailedOrderListRequest>
@@ -131,12 +141,12 @@ export async function syncN11Orders(client: any, storeId: number, settings: any)
         `;
 
         const response = await fetchWithRetry(async () => {
-            // Removing .wsdl and trying both with and without slash
+            // Removing .wsdl and trying the main endpoint
             return await axios.post("https://api.n11.com/ws/OrderService", soapEnvelope, {
                 headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
                 timeout: 30000
             });
-        }, "N11", storeId);
+        }, "N11-SOAP", storeId);
         
         await logAction(storeId, null, "sync_n11", "marketplace_sync", null, "N11 Order Sync", null, response.data);
 
@@ -184,89 +194,130 @@ export async function syncTrendyolOrders(client: any, storeId: number, settings:
     return response.data.content || [];
 }
 
-export async function syncPazaramaOrders(client: any, storeId: number, settings: any) {
-    const authHeader = `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
-    
-    const pzRes = await fetchWithRetry(async () => {
-        // Trying alternate Pazarama URL if 404 happens
+// Helper to get Pazarama Access Token
+async function getPazaramaToken(apiKey: string, apiSecret: string): Promise<string | null> {
+    const tokenPaths = [
+        "https://isortagimapi.pazarama.com/api/v1/Token",
+        "https://isortagimapi.pazarama.com/Order/Token",
+        "https://isortagimapi.pazarama.com/Token"
+    ];
+
+    for (const url of tokenPaths) {
         try {
-            return await axios.post("https://isortagimapi.pazarama.com/api/v1/Order/GetOrders", {
-                PageSize: 100, Index: 1, // Note: some docs say Index instead of PageIndex
-            }, {
-                headers: { 'Authorization': authHeader, 'MerchantId': settings.merchantId, 'Content-Type': 'application/json' },
-                timeout: 30000
-            });
-        } catch (e: any) {
-            if (e.response?.status === 404) {
-                 return await axios.post("https://api.pazarama.com/isortagim/api/v1/Order/GetOrders", {
+            const res = await axios.post(url, {
+                UserName: apiKey,
+                Password: apiSecret
+            }, { timeout: 10000 });
+            
+            if (res.data && res.data.isSuccess && res.data.data?.accessToken) {
+                return res.data.data.accessToken;
+            }
+        } catch (error) {
+            // Check next path
+        }
+    }
+    return null;
+}
+
+export async function syncPazaramaOrders(client: any, storeId: number, settings: any) {
+    const token = await getPazaramaToken(settings.apiKey, settings.apiSecret);
+    const authHeader = token ? `Bearer ${token}` : `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
+    
+    const endpoints = [
+        "https://isortagimapi.pazarama.com/order/getOrdersForApi",
+        "https://isortagimapi.pazarama.com/order/api/getOrdersForApi",
+        "https://isortagimapi.pazarama.com/api/v1/Order/GetOrders"
+    ];
+
+    let lastError: any = null;
+    for (const url of endpoints) {
+        try {
+            const pzRes = await fetchWithRetry(async () => {
+                return await axios.post(url, {
                     PageSize: 100, PageIndex: 1,
                 }, {
                     headers: { 'Authorization': authHeader, 'MerchantId': settings.merchantId, 'Content-Type': 'application/json' },
                     timeout: 30000
                 });
+            }, `Pazarama-${url.split('/').pop()}`, storeId);
+            
+            await logAction(storeId, null, "sync_pazarama", "marketplace_sync", null, `Pazarama Order Sync: ${url}`, null, pzRes.data);
+            
+            if (pzRes.data && (pzRes.data.isSuccess || pzRes.data.success)) {
+                const data = pzRes.data.data || pzRes.data.content || [];
+                return Array.isArray(data) ? data : (data.items || []);
             }
+        } catch (e: any) {
+            lastError = e;
+            if (e.response?.status === 404) continue;
             throw e;
         }
-    }, "Pazarama", storeId);
+    }
     
-    await logAction(storeId, null, "sync_pazarama", "marketplace_sync", null, "Pazarama Order Sync", null, pzRes.data);
-      
-      if (pzRes.data && pzRes.data.isSuccess && pzRes.data.data && Array.isArray(pzRes.data.data.items)) {
-        return pzRes.data.data.items;
-      }
-      return [];
+    if (lastError) throw lastError;
+    return [];
 }
 
 
 export async function testN11Connection(settings: any) {
-  const soapEnvelope = `
-      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/OrderService">
-         <soapenv:Body>
-            <sch:DetailedOrderListRequest>
-               <auth>
-                  <appKey>${settings.appKey}</appKey>
-                  <appSecret>${settings.appSecret}</appSecret>
-               </auth>
-               <searchData>
-                  <status>New</status>
-               </searchData>
-            </sch:DetailedOrderListRequest>
-         </soapenv:Body>
-      </soapenv:Envelope>
-    `;
-    const response = await axios.post("https://api.n11.com/ws/OrderService.wsdl", soapEnvelope, {
-      headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
-      timeout: 10000
-    });
-    const parsedResult = await parseStringPromise(response.data, { explicitArray: false, ignoreAttrs: true });
-    return parsedResult['SOAP-ENV:Envelope']['SOAP-ENV:Body']['DetailedOrderListResponse'].result.status === 'success';
+  try {
+    const soapEnvelope = `
+        <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sch="http://www.n11.com/service/genel/OrderService">
+           <soapenv:Body>
+              <sch:DetailedOrderListRequest>
+                 <auth>
+                    <appKey>${settings.appKey}</appKey>
+                    <appSecret>${settings.appSecret}</appSecret>
+                 </auth>
+                 <searchData><status>New</status></searchData>
+              </sch:DetailedOrderListRequest>
+           </soapenv:Body>
+        </soapenv:Envelope>
+      `;
+      const response = await axios.post("https://api.n11.com/ws/OrderService.wsdl", soapEnvelope, {
+        headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
+        timeout: 10000
+      });
+      const parsedResult = await parseStringPromise(response.data, { explicitArray: false, ignoreAttrs: true });
+      return parsedResult['SOAP-ENV:Envelope']?.['SOAP-ENV:Body']?.['DetailedOrderListResponse']?.result?.status === 'success';
+  } catch (e) {
+      console.error("N11 Test Failure:", e);
+      return false;
+  }
 }
 
 export async function testHepsiburadaConnection(settings: any) {
-    const response = await axios.get(`https://merchant.hepsiburada.com/api/orders/merchantid/${settings.merchantId}`, {
-      auth: { username: settings.apiKey, password: settings.apiSecret },
-      timeout: 10000
-    });
-    return response.status === 200;
+    try {
+      const response = await axios.get(`https://merchant.hepsiburada.com/api/orders/merchantid/${settings.merchantId}`, {
+        auth: { username: settings.apiKey, password: settings.apiSecret },
+        timeout: 10000
+      });
+      return response.status === 200;
+    } catch (e) { return false; }
 }
 
 export async function testTrendyolConnection(settings: any) {
-    const response = await axios.get(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/orders`, {
-      auth: { username: settings.apiKey, password: settings.apiSecret },
-      timeout: 10000
-    });
-    return response.status === 200;
+    try {
+      const response = await axios.get(`https://api.trendyol.com/sapigw/suppliers/${settings.merchantId}/orders`, {
+        auth: { username: settings.apiKey, password: settings.apiSecret },
+        timeout: 10000
+      });
+      return response.status === 200;
+    } catch (e) { return false; }
 }
 
 export async function testPazaramaConnection(settings: any) {
-    const authHeader = `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
-    const pzRes = await axios.post("https://isortagimapi.pazarama.com/api/v1/Order/GetOrders", { PageSize: 1, PageIndex: 1 }, {
-        headers: {
-          'Authorization': authHeader,
-          'MerchantId': settings.merchantId,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
-    return pzRes.data.isSuccess === true;
+    try {
+        const token = await getPazaramaToken(settings.apiKey, settings.apiSecret);
+        const authHeader = token ? `Bearer ${token}` : `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}`;
+        const pzRes = await axios.post("https://isortagimapi.pazarama.com/api/v1/Order/GetOrders", { PageSize: 1, PageIndex: 1 }, {
+            headers: {
+              'Authorization': authHeader,
+              'MerchantId': settings.merchantId,
+              'Content-Type': 'application/json'
+            },
+            timeout: 10000
+          });
+        return pzRes.data.isSuccess === true;
+    } catch (e) { return false; }
 }
