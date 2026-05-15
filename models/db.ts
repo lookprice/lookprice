@@ -571,7 +571,11 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_terminal_id TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_active BOOLEAN DEFAULT FALSE;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS sale_id INTEGER;
-      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS invoice_type TEXT DEFAULT 'manual';
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS gi_invoice_type TEXT DEFAULT 'SATIS';
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS customer_email TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS company_id INTEGER;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS gi_exemption_reason_code TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS gi_withholding_tax_code TEXT;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS payment_method TEXT;
@@ -609,6 +613,7 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS trendyol_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS pazarama_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS meta_settings JSONB DEFAULT '{"enabled": false, "pixel_id": "", "catalog_id": ""}';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS google_merchant_settings JSONB DEFAULT '{"enabled": false, "merchant_id": ""}';
 
       CREATE TABLE IF NOT EXISTS amazon_orders (
         id SERIAL PRIMARY KEY,

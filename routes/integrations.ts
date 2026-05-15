@@ -1445,4 +1445,36 @@ router.get("/meta/settings", authenticate, async (req: any, res) => {
   }
 });
 
+// --- Google Merchant Center Integration ---
+
+// 1. Save Google Merchant Settings
+router.post("/google-merchant/settings", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { enabled, merchant_id, catalog_currency } = req.body;
+
+  try {
+    const settings = {
+      enabled: !!enabled,
+      merchant_id: merchant_id || "",
+      catalog_currency: catalog_currency || "TRY"
+    };
+
+    await pool.query("UPDATE stores SET google_merchant_settings = $1 WHERE id = $2", [settings, storeId]);
+    res.json({ success: true, settings });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. Get Google Merchant Settings
+router.get("/google-merchant/settings", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query("SELECT google_merchant_settings FROM stores WHERE id = $1", [storeId]);
+    res.json(result.rows[0]?.google_merchant_settings || { enabled: false, merchant_id: "" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

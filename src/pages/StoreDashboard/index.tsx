@@ -15,6 +15,7 @@ import {
   LogOut, 
   Plus, 
   Search, 
+  ShoppingBag,
   Trash2, 
   Upload, 
   Edit2, 
@@ -96,6 +97,7 @@ const ServiceTab = React.lazy(() => import("./ServiceTab").then(m => ({ default:
 const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
 const FleetTab = React.lazy(() => import("./FleetTab"));
 const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
+const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
 import ShippingSlip from "../../components/ShippingSlip";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { toast } from "sonner";
@@ -947,6 +949,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "fast-pos", label: t.fastPos, icon: Scan },
     { id: "audit-logs", label: t.auditLogs, icon: History },
     { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
+    { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
   console.log("navItems:", navItems);
@@ -1375,6 +1378,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     {activeTab === "meta" && (
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
                         <MetaIntegrationTab />
+                      </Suspense>
+                    )}
+                    {activeTab === "google-merchant" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <GoogleMerchantTab />
                       </Suspense>
                     )}
                     {activeTab === "settings" && (

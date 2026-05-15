@@ -369,6 +369,10 @@ export const api = {
   getMetaSettings: (storeId?: number) => api.get(`/api/integrations/meta/settings${storeId ? `?storeId=${storeId}` : ""}`),
   saveMetaSettings: (data: { enabled: boolean, pixel_id: string, catalog_id: string, storeId?: number }) => api.post("/api/integrations/meta/settings", data),
 
+  // Google Merchant Integration
+  getGoogleMerchantSettings: (storeId?: number) => api.get(`/api/integrations/google-merchant/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveGoogleMerchantSettings: (data: { enabled: boolean, merchant_id: string, catalog_currency?: string, storeId?: number }) => api.post("/api/integrations/google-merchant/settings", data),
+
   // Transactions
   deleteTransaction: (id: number) => api.delete(`/api/store/transactions/${id}`),
   updateTransaction: (id: number, data: any) => api.put(`/api/store/transactions/${id}`, data),

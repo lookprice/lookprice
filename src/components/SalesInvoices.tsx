@@ -31,8 +31,31 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isBulkPrinting, setIsBulkPrinting] = useState(false);
+  const [showHtmlModal, setShowHtmlModal] = useState(false);
+  const [htmlContent, setHtmlContent] = useState("");
+  const [htmlLoading, setHtmlLoading] = useState(false);
 
   const invoiceRef = useRef<HTMLDivElement>(null);
+
+  const handleViewHtml = async (id: number) => {
+    setHtmlLoading(true);
+    setShowHtmlModal(true);
+    try {
+      const res = await api.getSalesInvoiceHtml(id);
+      if (res && res.html) {
+        setHtmlContent(res.html);
+      } else {
+        toast.error(isTr ? "Fatura görseli bulunamadı." : "Invoice HTML not found.");
+        setShowHtmlModal(false);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(isTr ? "Görsel yükleme hatası" : "Error loading HTML preview");
+      setShowHtmlModal(false);
+    } finally {
+      setHtmlLoading(false);
+    }
+  };
 
   const handleBulkPrint = async () => {
     const idsToPrint = selectedIds.length > 0 ? selectedIds : filteredInvoices.map((inv: any) => inv.id);
@@ -147,7 +170,12 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
   const [eDocumentType, setEDocumentType] = useState<string | null>(null);
   const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('TEMELFATURA');
+  const [giInvoiceType, setGiInvoiceType] = useState<string>('SATIS');
   const [isReturn, setIsReturn] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [exemptionReasonCode, setExemptionReasonCode] = useState("");
+  const [withholdingTaxCode, setWithholdingTaxCode] = useState("");
+  const [isCheckingTaxpayer, setIsCheckingTaxpayer] = useState(false);
   
   const selectedCompany = companies.find((c: any) => c.id === Number(companyId));
   const selectedCustomer = customers.find((c: any) => c.id === Number(customerId));
@@ -255,6 +283,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setCurrency(initialData.currency || branding?.default_currency || 'TRY');
       setPaymentMethod(initialData.payment_method || 'term');
       setEDocumentType(initialData.e_document_type || null);
+      setGiInvoiceType(initialData.gi_invoice_type || 'SATIS');
+      setCustomerEmail(initialData.customer_email || "");
+      setExemptionReasonCode(initialData.gi_exemption_reason_code || "");
+      setWithholdingTaxCode(initialData.gi_withholding_tax_code || "");
+      setIsReturn((initialData.gi_invoice_type || 'SATIS') === 'IADE');
       setIsNewCustomer(false);
       setIsTaxInclusive(initialData.is_tax_inclusive !== undefined ? initialData.is_tax_inclusive : true);
       setShowModal(true);
@@ -290,8 +323,14 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setEditTaxNumber("");
       setEditTaxOffice("");
       setEditAddress("");
+      setCustomerEmail("");
     }
   }, [companyId, customerId, isNewCustomer]);
+
+  useEffect(() => {
+    if (selectedCompany) setCustomerEmail(selectedCompany.email || "");
+    else if (selectedCustomer) setCustomerEmail(selectedCustomer.email || "");
+  }, [selectedCompany, selectedCustomer]);
 
   useEffect(() => {
     const fetchTaxType = async () => {
@@ -597,6 +636,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         status: currentStatus,
         e_document_type: eDocumentType,
         invoice_profile: invoiceProfile,
+        gi_invoice_type: isReturn ? 'IADE' : giInvoiceType,
+        gi_exemption_reason_code: exemptionReasonCode,
+        gi_withholding_tax_code: withholdingTaxCode,
+        customer_email: customerEmail,
         is_tax_inclusive: currentIsTaxInclusive
       };
 
@@ -656,6 +699,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setExchangeRate(String(data.exchange_rate || 1));
       setStatus(data.status || 'draft');
       setEDocumentType(data.e_document_type || null);
+      setGiInvoiceType(data.gi_invoice_type || 'SATIS');
+      setIsReturn(data.gi_invoice_type === 'IADE');
+      setCustomerEmail(data.customer_email || "");
+      setExemptionReasonCode(data.gi_exemption_reason_code || "");
+      setWithholdingTaxCode(data.gi_withholding_tax_code || "");
       setInvoiceProfile(data.invoice_profile || 'TEMELFATURA');
       const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
       setIsTaxInclusive(taxIncl);
@@ -795,6 +843,29 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     p.name?.toLowerCase().includes(deferredProductSearch.toLowerCase()) ||
     p.barcode?.toString().includes(deferredProductSearch)
   );
+
+  const handleCheckTaxpayer = async () => {
+    if (!editTaxNumber || editTaxNumber.length < 10) {
+      toast.error(isTr ? "Geçerli bir Vergi/TC No girin" : "Enter a valid Tax/ID Number");
+      return;
+    }
+    setIsCheckingTaxpayer(true);
+    try {
+      const res = await api.checkTaxpayer(editTaxNumber);
+      if (res && res.isTaxpayer) {
+        setEDocumentType('EINVOICE');
+        toast.success(isTr ? `E-Fatura Mükellefi: ${res.alias || '-'}` : `E-Invoice User: ${res.alias || '-'}`);
+      } else {
+        setEDocumentType('EARCHIVE');
+        toast.info(isTr ? "E-Arşiv Mükellefi" : "E-Archive User");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(isTr ? "Sorgulama hatası" : "Check failed");
+    } finally {
+      setIsCheckingTaxpayer(false);
+    }
+  };
 
   const totals = calculateTotals();
 
@@ -1076,6 +1147,13 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           </button>
                         )}
                         <button 
+                          onClick={() => handleViewHtml(inv.id)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title={isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button 
                           onClick={() => handleEdit(inv.id)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                         >
@@ -1272,18 +1350,59 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           </select>
                       </div>
                       <div className="space-y-4">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'İşlem Tipi' : 'Trans Type'}</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'GİB Fatura Tipi' : 'GİB Invoice Type'}</label>
+                          <select 
+                            className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700 appearance-none"
+                            value={giInvoiceType}
+                            onChange={(e: any) => setGiInvoiceType(e.target.value)}
+                          >
+                            <option value="SATIS">{isTr ? "Satış" : "Sales"}</option>
+                            <option value="IADE">{isTr ? "İade" : "Return"}</option>
+                            <option value="TEVKIFAT">{isTr ? "Tevkifat" : "Withholding"}</option>
+                            <option value="ISTISNA">{isTr ? "İstisna" : "Exemption"}</option>
+                            <option value="IHRACKAYITLI">{isTr ? "İhraç Kayıtlı" : "Export Registry"}</option>
+                          </select>
+                      </div>
+
+                      {giInvoiceType === 'ISTISNA' && (
+                        <div className="space-y-4">
+                           <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest px-1">{isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Reason Code'}</label>
+                           <input 
+                             type="text"
+                             className="w-full px-4 py-4 bg-rose-50 border-2 border-rose-100 rounded-2xl focus:border-rose-500 focus:bg-white transition-all font-bold text-slate-700"
+                             value={exemptionReasonCode}
+                             onChange={(e) => setExemptionReasonCode(e.target.value)}
+                             placeholder="351, 301, vb..."
+                           />
+                        </div>
+                      )}
+
+                      {giInvoiceType === 'TEVKIFAT' && (
+                        <div className="space-y-4">
+                           <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-1">{isTr ? 'Tevkifat Kodu' : 'Withholding Tax Code'}</label>
+                           <input 
+                             type="text"
+                             className="w-full px-4 py-4 bg-amber-50 border-2 border-amber-100 rounded-2xl focus:border-amber-500 focus:bg-white transition-all font-bold text-slate-700"
+                             value={withholdingTaxCode}
+                             onChange={(e) => setWithholdingTaxCode(e.target.value)}
+                             placeholder="601, 602, vb..."
+                           />
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'İşlem' : 'Action'}</label>
                          <div className="flex items-center gap-4 py-4">
                            <button
                              type="button"
-                             onClick={() => setIsReturn(false)}
+                             onClick={() => { setIsReturn(false); if(giInvoiceType === 'IADE') setGiInvoiceType('SATIS'); }}
                              className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${!isReturn ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
                            >
                              {isTr ? "Satış" : "Sale"}
                            </button>
                            <button
                              type="button"
-                             onClick={() => setIsReturn(true)}
+                             onClick={() => { setIsReturn(true); setGiInvoiceType('IADE'); }}
                              className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isReturn ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 text-slate-500'}`}
                            >
                              {isTr ? "İade" : "Return"}
@@ -1341,15 +1460,36 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       </div>
                       <div className="space-y-2">
                         <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'Vergi / TC No' : 'Tax / ID No'}</p>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            className="flex-1 px-4 py-2 bg-white border border-indigo-100 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 transition-all"
+                            value={editTaxNumber}
+                            onChange={(e) => setEditTaxNumber(e.target.value)}
+                            placeholder={isTr ? "Vergi veya TC no..." : "Tax or ID number..."}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCheckTaxpayer}
+                            disabled={isCheckingTaxpayer}
+                            className="px-3 py-2 bg-indigo-100 text-indigo-600 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-50"
+                            title={isTr ? "GİB Mükellef Kontrolü" : "Check GIB Taxpayer"}
+                          >
+                            {isCheckingTaxpayer ? <Loader2 className="h-4 w-4 animate-spin" /> : (isTr ? "SORGULA" : "CHECK")}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'E-Posta' : 'Email'}</p>
                         <input 
-                          type="text"
+                          type="email"
                           className="w-full px-4 py-2 bg-white border border-indigo-100 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 transition-all"
-                          value={editTaxNumber}
-                          onChange={(e) => setEditTaxNumber(e.target.value)}
-                          placeholder={isTr ? "Vergi veya TC no..." : "Tax or ID number..."}
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                          placeholder={isTr ? "Müşteri e-postası..." : "Customer email..."}
                         />
                       </div>
-                      <div className="md:col-span-3 space-y-2">
+                      <div className="md:col-span-2 space-y-2">
                         <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'Adres' : 'Address'}</p>
                         <textarea 
                           className="w-full px-4 py-2 bg-white border border-indigo-100 rounded-xl text-xs font-bold text-slate-600 focus:border-indigo-500 transition-all min-h-[60px]"
@@ -1724,6 +1864,56 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     </div>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* HTML View Modal */}
+      <AnimatePresence>
+        {showHtmlModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[90vh] overflow-hidden border border-slate-200 flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 className="text-xl font-bold text-slate-900">{isTr ? 'E-Fatura Görseli' : 'E-Invoice Preview'}</h3>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                       const win = window.open('', '_blank');
+                       if (win) {
+                         win.document.write(htmlContent);
+                         win.document.close();
+                         setTimeout(() => win.print(), 500);
+                       }
+                    }} 
+                    className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold"
+                  >
+                    <Printer className="h-4 w-4" />
+                    {isTr ? 'Yazdır' : 'Print'}
+                  </button>
+                  <button onClick={() => setShowHtmlModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-colors">
+                    <X className="h-5 w-5 text-slate-400" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-auto p-4 bg-slate-100 flex justify-center">
+                {htmlLoading ? (
+                   <div className="flex flex-col items-center justify-center h-full gap-4">
+                     <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
+                     <p className="text-sm font-bold text-slate-500 animate-pulse uppercase tracking-widest">{isTr ? 'Görsel Hazırlanıyor...' : 'Preparing Preview...'}</p>
+                   </div>
+                ) : (
+                  <div 
+                    className="w-full h-full bg-white shadow-inner p-4 min-h-screen"
+                    dangerouslySetInnerHTML={{ __html: htmlContent }} 
+                  />
+                )}
               </div>
             </motion.div>
           </div>

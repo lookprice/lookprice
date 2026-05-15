@@ -106,14 +106,21 @@ export class MySoftService {
       const config: any = {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json-patch+json"
+          "Content-Type": "application/json"
         },
         timeout: 20000
       };
       
       console.log(`Sending MySoft Invoice (Outbox) to: ${this.baseUrl}/InvoiceOutbox/invoiceOutbox`);
       
-      const response = await axios.post(`${this.baseUrl}/InvoiceOutbox/invoiceOutbox`, invoiceData, config);
+      const response = await axios.post(`${this.baseUrl}/InvoiceOutbox/invoiceOutbox`, invoiceData, {
+        ...config,
+        headers: {
+          ...config.headers,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        }
+      });
 
       if (response.data.succeed === true) {
          return {
@@ -377,7 +384,7 @@ export class MySoftService {
       const config: any = {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json-patch+json"
+          "Content-Type": "application/json"
         }
       };
       

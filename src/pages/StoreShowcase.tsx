@@ -4313,6 +4313,21 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       </a>
     )}
 
+    {/* Small Footer for Compliance */}
+    <div className="py-12 bg-white border-t border-gray-100">
+      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-400 text-xs font-semibold">
+        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 uppercase tracking-widest">
+          <a href={`/api/public/store/${store?.slug}/about-us`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</a>
+          <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
+          <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
+          <a href={`/api/public/store/${store?.slug}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}</a>
+        </div>
+        <div className="text-center md:text-right">
+          &copy; {new Date().getFullYear()} {store?.name}. {lang === 'tr' ? 'Tüm hakları saklıdır.' : 'All rights reserved.'}
+        </div>
+      </div>
+    </div>
+
     {showStoreLocatorModal && store?.locations && (
       <StoreLocatorModal 
         locations={store.locations} 

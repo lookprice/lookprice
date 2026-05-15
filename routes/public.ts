@@ -469,18 +469,20 @@ router.get("/store/:slug/products", async (req, res) => {
   res.json(Array.from(groupedProductsMap.values()));
 });
 
-// Public: Facebook Product Catalog XML Feed
+// Public: Facebook & Google Product Catalog XML Feed
 router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT id, name, slug, description, default_currency, currency_rates, meta_settings, custom_domain FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, name, slug, description, default_currency, currency_rates, meta_settings, google_merchant_settings, custom_domain FROM stores WHERE slug = $1", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
     const store = storeRes.rows[0];
     
-    // Check if meta catalog is enabled
+    // Check if meta catalog or google merchant is enabled
     const metaSettings = typeof store.meta_settings === 'string' ? JSON.parse(store.meta_settings) : (store.meta_settings || {});
-    if (metaSettings.enabled === false) {
-      return res.status(403).send("Meta Catalog is not enabled for this store.");
+    const merchantSettings = typeof store.google_merchant_settings === 'string' ? JSON.parse(store.google_merchant_settings) : (store.google_merchant_settings || {});
+    
+    if (metaSettings.enabled === false && merchantSettings.enabled === false) {
+      return res.status(403).send("Catalog integration is not enabled for this store.");
     }
 
     const productsRes = await pool.query(`
@@ -497,7 +499,11 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
     const host = store.custom_domain || req.get('host');
     const baseUrl = `${protocol}://${host}`;
     
-    const catalogCurrency = metaSettings.catalog_currency || store.default_currency || 'TRY';
+    // Prefer Merchant Settings currency if available, else Meta, else Store Default
+    const merchantCurrency = merchantSettings.catalog_currency;
+    const metaCurrency = metaSettings.catalog_currency;
+    const catalogCurrency = merchantCurrency || metaCurrency || store.default_currency || 'TRY';
+    
     const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
 
     const escapeXml = (unsafe: string) => {
@@ -570,7 +576,124 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
   }
 });
 
-// Public: Store Privacy Policy HTML for Facebook Review
+// Public: Store About Us HTML for Google Merchant Center
+router.get("/store/:slug/about-us", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT name, about_text FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    
+    const store = storeRes.rows[0];
+    const aboutContent = store.about_text || `${store.name} Hakkında Bilgi.`;
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${store.name} - Hakkımızda</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
+    .content { white-space: pre-wrap; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>${store.name} - Hakkımızda</h1>
+  <div class="content">${aboutContent}</div>
+</body>
+</html>
+    `;
+    
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Public: Store Return Policy HTML for Google Merchant Center
+router.get("/store/:slug/return-policy", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    
+    const store = storeRes.rows[0];
+    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
+    
+    const returnContentRaw = legalPages?.return_policy;
+    const returnContent = (typeof returnContentRaw === 'object' ? returnContentRaw?.content : returnContentRaw) || legalPages?.sales_agreement?.content || (typeof legalPages?.sales_agreement === 'string' ? legalPages?.sales_agreement : null) || `İade ve İptal Politikası. Detaylar için lütfen bizimle iletişime geçin.`;
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${store.name} - İade Politikası</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
+    .content { white-space: pre-wrap; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>${store.name} - İade Politikası</h1>
+  <div class="content">${returnContent}</div>
+</body>
+</html>
+    `;
+    
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Public: Store Shipping Policy HTML for Google Merchant Center
+router.get("/store/:slug/shipping-policy", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    
+    const store = storeRes.rows[0];
+    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
+    
+    const shippingContentRaw = legalPages?.shipping_policy;
+    const shippingContent = (typeof shippingContentRaw === 'object' ? shippingContentRaw?.content : shippingContentRaw) || `Teslimat ve Kargo Politikası. Tüm siparişleriniz en kısa sürede kargoya verilir.`;
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${store.name} - Teslimat Politikası</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
+    .content { white-space: pre-wrap; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>${store.name} - Teslimat Politikası</h1>
+  <div class="content">${shippingContent}</div>
+</body>
+</html>
+    `;
+    
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// GET Catalog XML (Facebook & Google Merchant Center Feed)
 router.get("/store/:slug/privacy", async (req, res) => {
   const { slug } = req.params;
   try {

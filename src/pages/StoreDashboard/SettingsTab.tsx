@@ -2946,11 +2946,54 @@ const SettingsTab = ({
             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">{lang === 'tr' ? 'HAKKIMIZDA METNİ' : 'ABOUT TEXT'}</h3>
                <textarea 
-                  className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none"
+                  className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
                   value={branding.about_text || ''}
                   onChange={(e) => onBrandingChange('about_text', e.target.value)}
                   placeholder={lang === 'tr' ? 'Mağazanız hakkında kısa bir bilgi yazın...' : 'Write some info about your store...'}
                />
+               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'SAYFA LİNKİ (Google Merchant İçin)' : 'PAGE LINK (For Google Merchant)'}</p>
+                  <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                    {window.location.origin}/store/{branding.slug}/about-us
+                  </code>
+               </div>
+            </div>
+          </div>
+
+          {/* Legal Policies Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">{lang === 'tr' ? 'İADE POLİTİKASI' : 'RETURN POLICY'}</h3>
+               <p className="text-[10px] text-slate-400 font-medium mb-4">{lang === 'tr' ? 'Google Merchant Center için zorunludur.' : 'Required for Google Merchant Center.'}</p>
+               <textarea 
+                  className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+                  value={branding.legal_pages?.return_policy || ''}
+                  onChange={(e) => onBrandingChange('legal_pages', { ...branding.legal_pages, return_policy: e.target.value })}
+                  placeholder={lang === 'tr' ? 'İade şartlarınızı yazın...' : 'Write your return conditions...'}
+               />
+               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'SAYFA LİNKİ' : 'PAGE LINK'}</p>
+                  <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                    {window.location.origin}/store/{branding.slug}/return-policy
+                  </code>
+               </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">{lang === 'tr' ? 'KARGO POLİTİKASI' : 'SHIPPING POLICY'}</h3>
+               <p className="text-[10px] text-slate-400 font-medium mb-4">{lang === 'tr' ? 'Google Merchant Center için zorunludur.' : 'Required for Google Merchant Center.'}</p>
+               <textarea 
+                  className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+                  value={branding.legal_pages?.shipping_policy || ''}
+                  onChange={(e) => onBrandingChange('legal_pages', { ...branding.legal_pages, shipping_policy: e.target.value })}
+                  placeholder={lang === 'tr' ? 'Kargo ve teslimat şartlarınızı yazın...' : 'Write your shipping and delivery conditions...'}
+               />
+               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'SAYFA LİNKİ' : 'PAGE LINK'}</p>
+                  <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                    {window.location.origin}/store/{branding.slug}/shipping-policy
+                  </code>
+               </div>
             </div>
           </div>
 

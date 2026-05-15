@@ -199,7 +199,8 @@ async function getPazaramaToken(apiKey: string, apiSecret: string): Promise<stri
     const tokenPaths = [
         "https://isortagimapi.pazarama.com/api/v1/Token",
         "https://isortagimapi.pazarama.com/Order/Token",
-        "https://isortagimapi.pazarama.com/Token"
+        "https://isortagimapi.pazarama.com/Token",
+        "https://isortagimapi.pazarama.com/auth/token"
     ];
 
     for (const url of tokenPaths) {
@@ -225,6 +226,7 @@ export async function syncPazaramaOrders(client: any, storeId: number, settings:
     
     const endpoints = [
         "https://isortagimapi.pazarama.com/order/getOrdersForApi",
+        "https://isortagimapi.pazarama.com/api/v1/product/getOrdersForApi",
         "https://isortagimapi.pazarama.com/order/api/getOrdersForApi",
         "https://isortagimapi.pazarama.com/api/v1/Order/GetOrders"
     ];

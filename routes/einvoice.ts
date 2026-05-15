@@ -55,6 +55,40 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
     
     const invoice = invRes.rows[0];
+    const docType = invoice.e_document_type || 'E-ARSIV';
+    const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
+    const exemptionCode = invoice.gi_exemption_reason_code;
+    const withholdingCode = invoice.gi_withholding_tax_code;
+
+    // --- GİB Compliance Validations ---
+    if (giInvoiceType === 'ISTISNA' && !exemptionCode) {
+       return res.status(400).json({ error: "İstisna faturaları için 'İstisna Muafiyet Kodu' zorunludur." });
+    }
+    if (giInvoiceType === 'TEVKIFAT' && !withholdingCode) {
+       return res.status(400).json({ error: "Tevkifatlı faturalar için 'Tevkifat Kodu' zorunludur." });
+    }
+
+    // 1. Party Identifiers
+    const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
+    if (!taxNumber || (taxNumber.length !== 10 && taxNumber.length !== 11)) {
+       return res.status(400).json({ error: "Geçerli bir VKN (10 hane) veya TCKN (11 hane) bulunamadı." });
+    }
+
+    // 2. Email for E-Archive (GİB Mandatory for some scenarios, highly recommended for all)
+    const customerEmail = invoice.customer_email || invoice.email;
+    if (docType === 'E-ARSIV' && !customerEmail) {
+       // While GİB allows sending without email to some extent (using default), 
+       // it's a "rule and schema" compliance point the user specifically mentioned.
+       // We'll allow it if strictly forced, but warn or prefer it.
+       // Actually, user said: "müşterinin e-mail bilgisi gibi GİB kurallarına uygun olup olmadığımızı kontrol etmedik"
+       // So I will enforce it here.
+       return res.status(400).json({ error: "E-Arşiv faturaları için müşteri e-posta adresi zorunludur." });
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (customerEmail && !emailRegex.test(customerEmail)) {
+        return res.status(400).json({ error: "Geçerli bir müşteri e-posta adresi girilmelidir." });
+    }
 
     // Fetch Store and Company settings to use for UBL Generation
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -124,7 +158,6 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // Determine Party Information
     let customerName = invoice.customer_name || invoice.sale_customer_name || 'Bilinmeyen Müşteri';
     let customerTitle = invoice.company_title || customerName;
-    let taxNumber = invoice.tax_number || "11111111111"; // Fallback to anonymous ID if missing
     let taxOffice = invoice.tax_office || "BilinmeyenVD";
     let address = invoice.company_address || "Girilmemiş Adres, Türkiye";
     let isCorporate = invoice.company_id ? true : false;
@@ -185,9 +218,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        isCalculateByApi: true,
        id: 0, // 0 usually means create new in integrator
        connectorGuid: settings.connector_guid || null,
-       eDocumentType: invoice.e_document_type === 'E-FATURA' ? 'EFATURA' : 'EARSIV',
-       profile: invoice.invoice_profile || (invoice.e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'),
-       invoiceType: 'SATIS',
+       eDocumentType: docType === 'E-FATURA' ? 'EFATURA' : 'EARSIV',
+       profile: invoice.invoice_profile || (docType === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'),
+       invoiceType: giInvoiceType,
        ettn: invoice.ettn,
        prefix: invoice.document_number.substring(0, 3),
        issueDate: formattedDate,
@@ -198,11 +231,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        receiverAlias: settings.receiver_alias || 'urn:mail:defaultpk@default.com',
        
        receiver: {
-          vknTckn: taxNumber.replace(/\D/g, ''),
+          vknTckn: taxNumber,
           title: isCorporate ? customerTitle : undefined,
           name: !isCorporate ? name : undefined,
           surname: !isCorporate ? surname : undefined,
           taxOffice: isCorporate ? taxOffice : undefined,
+          email: customerEmail || undefined,
           address: {
              room: "",
              streetName: address,
@@ -218,7 +252,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           unitCode: line.UnitCode,
           price: line.Price,
           taxRate: line.Taxes[0].TaxRate,
-          taxCode: line.Taxes[0].TaxCode
+          taxCode: line.Taxes[0].TaxCode,
+          exemptionReasonCode: giInvoiceType === 'ISTISNA' ? exemptionCode : undefined,
+          withholdingTaxCode: giInvoiceType === 'TEVKIFAT' ? withholdingCode : undefined
        }))
     };
 
