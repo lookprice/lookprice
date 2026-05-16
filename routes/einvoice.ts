@@ -92,46 +92,51 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
     // Fetch Store and Company settings to use for UBL Generation
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0].einvoice_settings || {};
+    const row = storeRes.rows[0] || {};
+    const settings = row.einvoice_settings || {};
+    const branding = row.branding || {};
     
-    // Sequence Generation Logic for UBL ID (document_number)
+    // Ensure ETTN and Document Number are present and atomic
     let documentNumber = invoice.document_number;
+    let ettn = invoice.ettn;
     
-    if (!documentNumber) {
-      const docType = invoice.e_document_type || 'E-ARSIV';
-      // Default to GAP for e-invoice, GEA for e-archive if prefix isn't defined
-      let prefix = docType === 'E-FATURA' ? (settings.einvoice_prefix || 'GAP') : (settings.earchive_prefix || 'GEA');
-      prefix = prefix.toUpperCase().substring(0, 3).padEnd(3, 'X'); // Ensure exactly 3 chars
-      
-      const currentYear = new Date().getFullYear().toString();
-      const prefixWithYear = `${prefix}${currentYear}`; // e.g., GAP2026
-      
-      // Lock and find the highest document number for this exact prefix pattern in this store
-      let ettn = null;
+    console.log(`[INVOICE-SEND] Invoice ID: ${invoiceId}, Existing DocNumber: ${documentNumber}, Existing ETTN: ${ettn}`);
+    
+    if (!documentNumber || !ettn) {
+      await pool.query("BEGIN");
       try {
-        await pool.query("BEGIN");
-        const seqRes = await pool.query(
-           "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
-           [storeId, `${prefixWithYear}%`]
-        );
-        
-        let nextSequenceNumber = 1;
-        if (seqRes.rows.length > 0) {
-            const lastDocNum = seqRes.rows[0].document_number; // e.g., GAP2026000000001
-            // Extract the last 9 digits
-            const lastSequencePart = lastDocNum.substring(7); // GAP2026 is 7 chars. Substring from index 7 -> 9 chars
-            const parsedSeq = parseInt(lastSequencePart, 10);
-            if (!isNaN(parsedSeq)) {
-               nextSequenceNumber = parsedSeq + 1;
-            }
+        if (!documentNumber) {
+          const docTypeStr = invoice.e_document_type || 'E-ARSIV';
+          let prefix = docTypeStr === 'E-FATURA' ? (settings.einvoice_prefix || 'GAP') : (settings.earchive_prefix || 'GEA');
+          prefix = prefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+          
+          const currentYear = new Date().getFullYear().toString();
+          const prefixWithYear = `${prefix}${currentYear}`;
+          
+          const seqRes = await pool.query(
+             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+             [storeId, `${prefixWithYear}%`]
+          );
+          
+          let nextSequenceNumber = 1;
+          if (seqRes.rows.length > 0) {
+              const lastDocNum = seqRes.rows[0].document_number;
+              const lastSequencePart = lastDocNum.substring(7);
+              const parsedSeq = parseInt(lastSequencePart, 10);
+              if (!isNaN(parsedSeq)) {
+                 nextSequenceNumber = parsedSeq + 1;
+              }
+          }
+          
+          const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
+          documentNumber = `${prefixWithYear}${sequenceString}`;
+          invoice.document_number = documentNumber;
         }
-        
-        // Format 9 digit sequence
-        const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
-        documentNumber = `${prefixWithYear}${sequenceString}`;
-        
-        // Generate ETTN UUID string right here for atomic guarantee
-        ettn = crypto.randomUUID();
+
+        if (!ettn) {
+          ettn = crypto.randomUUID();
+          invoice.ettn = ettn;
+        }
         
         await pool.query(
            "UPDATE sales_invoices SET document_number = $1, ettn = $2 WHERE id = $3",
@@ -142,9 +147,6 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         await pool.query("ROLLBACK");
         throw err;
       }
-      
-      invoice.document_number = documentNumber;
-      invoice.ettn = ettn;
     }
 
     // Fetch Invoice Items
@@ -156,25 +158,42 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     // Determine Party Information
-    let customerName = invoice.customer_name || invoice.sale_customer_name || 'Bilinmeyen Müşteri';
-    let customerTitle = invoice.company_title || customerName;
+    console.log("[DEBUG-INVOICE-DATA] Invoice Object:", JSON.stringify(invoice, null, 2));
+
+    const isCorporate = taxNumber.length === 10;
+    // Prioritize explicitly stored title or name, fallback to generic
+    let customerName = invoice.company_title || invoice.customer_name || invoice.sale_customer_name || 'Bilinmeyen Müşteri';
+    let customerTitle = customerName;
     let taxOffice = invoice.tax_office || "BilinmeyenVD";
-    let address = invoice.company_address || "Girilmemiş Adres, Türkiye";
-    let isCorporate = invoice.company_id ? true : false;
+    let address = invoice.address || "Girilmemiş Adres, Türkiye";
     
-    // Split name for E-Archive (Requires Name and Surname separately usually)
-    const nameParts = customerName.split(' ');
-    const surname = nameParts.length > 1 ? nameParts.pop() : "Bilinmeyen";
-    const name = nameParts.join(' ') || "Müşteri";
+    console.log(`[DEBUG-CUSTOMER] Name: ${customerName}, Title: ${customerTitle}`);
+
+    // Improved Address handling for GİB/MySoft
+    let cityName = "İSTANBUL";
+    let districtName = "MERKEZ";
+    if (address) {
+       const cleanAddr = address.replace(/, Türkiye/gi, '').replace(/,Turkey/gi, '').trim();
+       const parts = cleanAddr.split(/[,/]+/).map(p => p.trim()).filter(Boolean);
+       if (parts.length >= 2) {
+          cityName = parts[parts.length - 1].toUpperCase().substring(0, 30);
+          districtName = parts[parts.length - 2].toUpperCase().substring(0, 30);
+       } else if (parts.length === 1) {
+          cityName = parts[0].toUpperCase().substring(0, 30);
+       }
+    }
+
+    // Determine Store VKN for tenantIdentifierNumber
+    const storeTaxNumber = (settings.vkn || branding.tax_number || "").replace(/\s/g, '');
 
     // Date formatting
     const docDate = new Date(invoice.invoice_date || new Date());
     const formattedDate = docDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
     const formattedTime = docDate.toISOString().split('T')[1].substring(0, 8); // "HH:mm:ss"
 
-    // LINES
+    // LINES (mapped to invoiceDetail for MySoft)
     const isTaxInclusive = !!invoice.is_tax_inclusive;
-    const Lines = items.map((item, index) => {
+    const InvoiceDetail = items.map((item, index) => {
       const qty = Number(item.quantity) || 1;
       const price = Number(item.unit_price) || 0;
       const taxRate = Number(item.tax_rate) || 0;
@@ -195,68 +214,76 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       }
 
       return {
-        Id: (index + 1).toString(),
-        Name: item.product_name,
-        Quantity: qty,
-        UnitCode: item.unit_code || UNIT_CODES.PIECE,
-        Price: unitPrice,
-        LineExtensionAmount: lineExtensionAmount,
-        Taxes: [
-          {
-            TaxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
-            TaxRate: taxRate,
-            TaxAmount: taxAmount,
-            TaxableAmount: lineExtensionAmount,
-            WithholdingRate: item.tevkifat_rate ? item.tevkifat_rate : undefined
-          }
-        ]
+        productName: item.product_name || "Ürün/Hizmet",
+        qty: Number(qty.toFixed(4)),
+        unitCode: item.unit_code || UNIT_CODES.PIECE,
+        unitPriceTra: Number(unitPrice.toFixed(4)),
+        amtTra: Number(lineExtensionAmount.toFixed(2)),
+        vatRate: Number(taxRate.toFixed(2)),
+        amtVatTra: Number(taxAmount.toFixed(2)),
+        taxableAmtTra: Number(lineExtensionAmount.toFixed(2)),
+        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
       };
     });
 
     // Construct UBL JSON Data matching MySoft standard payload (Outbox format)
-    const ublData = {
-       isCalculateByApi: true,
-       id: 0, // 0 usually means create new in integrator
-       connectorGuid: settings.connector_guid || null,
-       eDocumentType: docType === 'E-FATURA' ? 'EFATURA' : 'EARSIV',
+    if (!invoice.document_number) throw new Error("Fatura numarası oluşturulamadı.");
+    
+    // Explicitly compute totals from lines to ensure consistency
+    const totalLineExtension = InvoiceDetail.reduce((acc, item) => acc + item.amtTra, 0);
+    const totalTax = InvoiceDetail.reduce((acc, item) => acc + item.amtVatTra, 0);
+    const grandTotal = totalLineExtension + totalTax;
+
+    const ublData: any = {
+       isCalculateByApi: false,
+       isManuelCalculation: false,
+       id: 0, 
+       connectorGuid: settings.connector_guid || undefined,
+       eDocumentType: docType === 'E-FATURA' ? 'EFATURA' : 'EARSIVFATURA',
        profile: invoice.invoice_profile || (docType === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'),
        invoiceType: giInvoiceType,
+       docDate: formattedDate,
+       docTime: formattedTime,
        ettn: invoice.ettn,
-       prefix: invoice.document_number.substring(0, 3),
-       issueDate: formattedDate,
-       issueTime: formattedTime,
-       notes: [(invoice.notes || ""), invoice.waybill_number ? `İrsaliye No: ${invoice.waybill_number}` : ""].filter(Boolean),
+       docNo: invoice.document_number,
+       currencyCode: invoice.currency || 'TRY',
+       currencyRate: Number(Number(invoice.exchange_rate || 1).toFixed(4)),
+       tenantIdentifierNumber: storeTaxNumber,
        
-       senderAlias: settings.sender_alias || 'urn:mail:defaultgb@default.com',
-       receiverAlias: settings.receiver_alias || 'urn:mail:defaultpk@default.com',
+       pkAlias: settings.receiver_alias || 'urn:mail:defaultpk@default.com',
        
-       receiver: {
+       invoiceAccount: {
           vknTckn: taxNumber,
-          title: isCorporate ? customerTitle : undefined,
-          name: !isCorporate ? name : undefined,
-          surname: !isCorporate ? surname : undefined,
-          taxOffice: isCorporate ? taxOffice : undefined,
-          email: customerEmail || undefined,
-          address: {
-             room: "",
-             streetName: address,
-             cityName: "Türkiye", // Ideally map from address but Turkey is default
-             countryName: "Türkiye"
-          }
+          accountName: customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`),
+          taxOffice: taxOffice || "",
+          email1: customerEmail || "",
+          countryName: "Türkiye",
+          cityName: cityName || "İSTANBUL",
+          citySubdivision: districtName || "MERKEZ",
+          streetName: (address || "Girilmemiş Adres").substring(0, 250)
        },
 
-       lines: Lines.map(line => ({
-          id: line.Id,
-          name: line.Name,
-          quantity: line.Quantity,
-          unitCode: line.UnitCode,
-          price: line.Price,
-          taxRate: line.Taxes[0].TaxRate,
-          taxCode: line.Taxes[0].TaxCode,
-          exemptionReasonCode: giInvoiceType === 'ISTISNA' ? exemptionCode : undefined,
-          withholdingTaxCode: giInvoiceType === 'TEVKIFAT' ? withholdingCode : undefined
-       }))
+       tax: [{
+         taxAmount: totalTax,
+         taxSubTotal: InvoiceDetail.map(detail => ({
+            taxableAmount: detail.taxableAmtTra,
+            taxAmount: detail.amtVatTra,
+            percent: String(detail.vatRate),
+            taxName: "Katma Değer Vergisi",
+            taxTypeCode: "0015"
+         }))
+       }],
+
+       invoiceDetail: InvoiceDetail,
+
+       invoiceCalculation: {
+          lineExtensionAmount: Number(totalLineExtension).toFixed(2),
+          taxExclusiveAmount: Number(totalLineExtension).toFixed(2),
+          taxInclusiveAmount: Number(grandTotal).toFixed(2),
+          payableAmount: Number(grandTotal).toFixed(2)
+       }
     };
+
 
     // Sending
     const result = await service.sendInvoice(ublData);
@@ -264,8 +291,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // Format DB Update
     if (result.isSuccess) {
        await pool.query(
-         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3", 
-         ['QUEUED', result.message, invoiceId]
+         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2, ettn = $3 WHERE id = $4", 
+         ['QUEUED', result.message, result.ettn, invoiceId]
        );
     }
 
@@ -289,7 +316,9 @@ router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) =>
     }
     
     const ettn = invRes.rows[0].ettn;
+    console.log(`[INVOICE-STATUS-CHECK] Checking status for ETTN: ${ettn}`);
     const status = await service.getInvoiceStatus(ettn);
+    console.log(`[INVOICE-STATUS-CHECK] Got status:`, status);
 
     // Update DB to reflect new status
     await pool.query(
@@ -304,7 +333,43 @@ router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) =>
   }
 });
 
-// 4. Sync Incoming Invoices
+// 4. Cancel E-Archive Invoice
+router.post("/einvoice/cancel/:invoiceId", authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { invoiceId } = req.params;
+  const { reason } = req.body;
+  try {
+    const service = await getEInvoiceService(storeId);
+
+    const invRes = await pool.query("SELECT ettn, e_document_type FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    if (invRes.rows.length === 0 || !invRes.rows[0].ettn) {
+      return res.status(404).json({ error: "Fatura bulunamadı veya ETTN'si yok." });
+    }
+    
+    // Only allow E-ARSIV for cancellation via MySoft (E-FATURA usually requires different processes or portal)
+    if (invRes.rows[0].e_document_type !== 'E-ARSIV') {
+        return res.status(400).json({ error: "Sadece E-Arşiv faturaları sistem üzerinden iptal edilebilir." });
+    }
+
+    const ettn = invRes.rows[0].ettn;
+    
+    const result = await (service as any).cancelInvoice(ettn, reason || "İptal talebi");
+
+    if (result.isSuccess) {
+       await pool.query(
+         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3", 
+         ['CANCELLED', result.message, invoiceId]
+       );
+    }
+
+    res.json(result);
+  } catch (error: any) {
+     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Cancel Invoice ${invoiceId}`, error);
+     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+  }
+});
+
+// 5. Sync Incoming Invoices
 router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
     let storeIdRaw = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId) : req.user.store_id;
     const storeId = storeIdRaw ? parseInt(String(storeIdRaw)) : null;
@@ -607,7 +672,9 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     const service = await getEInvoiceService(storeId);
     
     if ('getInvoiceHtml' in service) {
+      console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}`);
       const html = await (service as any).getInvoiceHtml(ettn, document_number);
+      console.log(`[HTML-FETCH] HTML fetched for ${invoiceId}`);
       return res.json({ html });
     }
 

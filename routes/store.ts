@@ -3481,9 +3481,37 @@ router.post("/sales-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
-      [storeId, sale_id || null, company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date || new Date(), total_amount, tax_amount, grand_total, currency || branding?.default_currency || 'TRY', exchange_rate || 1, notes, invoice_type || 'manual', status || 'draft', payment_method || 'cash', quotation_id || null, e_document_type, invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), finalIsTaxInclusive]
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING id`,
+      [
+        storeId, 
+        sale_id || null, 
+        company_id || null, 
+        customer_id || null, 
+        invoice_number, 
+        waybill_number || null, 
+        invoice_date || new Date(), 
+        total_amount, 
+        tax_amount, 
+        grand_total, 
+        currency || branding?.default_currency || 'TRY', 
+        exchange_rate || 1, 
+        notes, 
+        invoice_type || 'manual', 
+        status || 'draft', 
+        payment_method || 'cash', 
+        quotation_id || null, 
+        e_document_type, 
+        invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), 
+        finalIsTaxInclusive,
+        req.body.customer_email || null,
+        req.body.tax_number || tax_number || null,
+        req.body.tax_office || null,
+        req.body.address || null,
+        req.body.gi_invoice_type || 'SATIS',
+        req.body.gi_exemption_reason_code || null,
+        req.body.gi_withholding_tax_code || null
+      ]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -3586,7 +3614,13 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, customer_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, currency, exchange_rate, invoice_type, invoice_profile, status, is_tax_inclusive } = req.body;
+    const { 
+      company_id, customer_id, invoice_number, waybill_number, invoice_date, 
+      notes, items, payment_method, currency, exchange_rate, 
+      invoice_type, invoice_profile, status, is_tax_inclusive,
+      tax_number, tax_office, address,
+      gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code
+    } = req.body;
 
     const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
 
@@ -3699,9 +3733,25 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     // 5. Update invoice
     await client.query(
       `UPDATE sales_invoices 
-       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15, invoice_profile = $16, is_tax_inclusive = $17
-       WHERE id = $18 AND store_id = $19`,
-      [company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, invoice_type, status, e_document_type, invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), finalIsTaxInclusive, req.params.id, storeId]
+       SET company_id = $1, customer_id = $2, invoice_number = $3, waybill_number = $4, invoice_date = $5, 
+           total_amount = $6, tax_amount = $7, grand_total = $8, currency = $9, exchange_rate = $10, 
+           notes = $11, payment_method = $12, invoice_type = $13, status = $14, e_document_type = $15, 
+           invoice_profile = $16, is_tax_inclusive = $17,
+        customer_email = $18,
+        tax_number = $19, tax_office = $20, address = $21,
+        gi_invoice_type = $22, gi_exemption_reason_code = $23, gi_withholding_tax_code = $24
+    WHERE id = $25 AND store_id = $26`,
+    [
+      company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, 
+      total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, 
+      notes, payment_method, invoice_type, status, e_document_type, 
+      invoice_profile || (e_document_type === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'), 
+      finalIsTaxInclusive,
+      req.body.customer_email || null,
+      tax_number || null, tax_office || null, address || null,
+      gi_invoice_type || 'SATIS', gi_exemption_reason_code || null, gi_withholding_tax_code || null,
+      req.params.id, storeId
+    ]
     );
 
     // 6. Insert new items and update stock
@@ -3823,9 +3873,9 @@ router.post("/sales/:id/create-invoice", async (req: any, res) => {
 
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', sale.exchange_rate || 1, `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'cash']
+        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, is_tax_inclusive) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
+      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', sale.exchange_rate || 1, `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'cash', true]
     );
 
     const invoiceId = invoiceResult.rows[0].id;

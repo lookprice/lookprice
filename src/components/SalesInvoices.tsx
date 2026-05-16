@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue, useRef } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, Building2, Printer, CloudUpload, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, FileSearch, CheckCircle2, Edit, Building2, Printer, CloudUpload, RefreshCw, Loader2, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -311,26 +311,25 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setEditTaxNumber(selectedCompany.tax_number || "");
       setEditTaxOffice(selectedCompany.tax_office || "");
       setEditAddress(selectedCompany.address || "");
-      setIsNewCustomer(false);
+      if (!editingInvoiceId || !customerEmail) setCustomerEmail(selectedCompany.email || "");
+      if (!editingInvoiceId) setIsNewCustomer(false);
     } else if (selectedCustomer) {
       setEditTaxNumber(selectedCustomer.tax_number || "");
       setEditTaxOffice(selectedCustomer.tax_office || "");
       setEditAddress(selectedCustomer.address || "");
-      setIsNewCustomer(false);
+      if (!editingInvoiceId || !customerEmail) setCustomerEmail(selectedCustomer.email || "");
+      if (!editingInvoiceId) setIsNewCustomer(false);
     } else if (isNewCustomer) {
       // Keep manual entries
     } else {
-      setEditTaxNumber("");
-      setEditTaxOffice("");
-      setEditAddress("");
-      setCustomerEmail("");
+      if (!editingInvoiceId) {
+        setEditTaxNumber("");
+        setEditTaxOffice("");
+        setEditAddress("");
+        setCustomerEmail("");
+      }
     }
-  }, [companyId, customerId, isNewCustomer]);
-
-  useEffect(() => {
-    if (selectedCompany) setCustomerEmail(selectedCompany.email || "");
-    else if (selectedCustomer) setCustomerEmail(selectedCustomer.email || "");
-  }, [selectedCompany, selectedCustomer]);
+  }, [companyId, customerId, isNewCustomer, editingInvoiceId, selectedCompany, selectedCustomer]);
 
   useEffect(() => {
     const fetchTaxType = async () => {
@@ -560,8 +559,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     const currentTaxNumber = editTaxNumber;
     const currentTaxOffice = editTaxOffice;
     const currentAddress = editAddress;
+    const currentCustomerEmail = customerEmail;
     const currentSelectedCompany = selectedCompany ? {...selectedCompany} : null;
     const currentSelectedCustomer = selectedCustomer ? {...selectedCustomer} : null;
+
 
     // Reset form and close modal immediately for "background" effect
     setShowModal(false);
@@ -599,19 +600,21 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
           store_id: targetStoreId
         }, targetStoreId);
         finalCompanyId = newComp.id;
-      } else if (currentCompanyId && (currentTaxNumber !== currentSelectedCompany?.tax_number || currentTaxOffice !== currentSelectedCompany?.tax_office || currentAddress !== currentSelectedCompany?.address)) {
+      } else if (currentCompanyId && (currentTaxNumber !== currentSelectedCompany?.tax_number || currentTaxOffice !== currentSelectedCompany?.tax_office || currentAddress !== currentSelectedCompany?.address || currentCustomerEmail !== currentSelectedCompany?.email)) {
         await api.updateCompany(currentCompanyId, {
           ...currentSelectedCompany,
           tax_number: currentTaxNumber,
           tax_office: currentTaxOffice,
-          address: currentAddress
+          address: currentAddress,
+          email: currentCustomerEmail
         }, targetStoreId);
-      } else if (currentCustomerId && (currentTaxNumber !== currentSelectedCustomer?.tax_number || currentTaxOffice !== currentSelectedCustomer?.tax_office || currentAddress !== currentSelectedCustomer?.address)) {
+      } else if (currentCustomerId && (currentTaxNumber !== currentSelectedCustomer?.tax_number || currentTaxOffice !== currentSelectedCustomer?.tax_office || currentAddress !== currentSelectedCustomer?.address || currentCustomerEmail !== currentSelectedCustomer?.email)) {
         await api.updateCustomer(currentCustomerId, {
           ...currentSelectedCustomer,
           tax_number: currentTaxNumber,
           tax_office: currentTaxOffice,
-          address: currentAddress
+          address: currentAddress,
+          email: currentCustomerEmail
         }, targetStoreId);
       }
 
@@ -639,8 +642,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         gi_invoice_type: isReturn ? 'IADE' : giInvoiceType,
         gi_exemption_reason_code: exemptionReasonCode,
         gi_withholding_tax_code: withholdingTaxCode,
-        customer_email: customerEmail,
-        is_tax_inclusive: currentIsTaxInclusive
+        customer_email: currentCustomerEmail,
+        is_tax_inclusive: currentIsTaxInclusive,
+        tax_number: editTaxNumber,
+        tax_office: editTaxOffice,
+        address: editAddress
       };
 
       const res = currentEditingId 
@@ -705,21 +711,23 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       setExemptionReasonCode(data.gi_exemption_reason_code || "");
       setWithholdingTaxCode(data.gi_withholding_tax_code || "");
       setInvoiceProfile(data.invoice_profile || 'TEMELFATURA');
+      setEditTaxNumber(data.tax_number || "");
+      setEditTaxOffice(data.tax_office || "");
+      setEditAddress(data.address || "");
       const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
       setIsTaxInclusive(taxIncl);
       setItems((data.items || []).map((item: any) => {
-        const taxRate = Number(item.tax_rate) || 0;
-        const exclusivePrice = Number(item.unit_price) || 0;
-        // If UI is tax-inclusive, show the inclusive price in the inputs
-        const displayPrice = taxIncl ? (exclusivePrice * (1 + taxRate / 100)) : exclusivePrice;
+        // unit_price in DB is stored as the price entered in the UI (corresponds to is_tax_inclusive at save time)
+        // so we load it as-is to the UI state.
+        const unitPrice = Number(item.unit_price) || 0;
         
         return {
           product_id: item.product_id,
           product_name: item.product_name,
           barcode: item.barcode,
-          quantity: String(Math.floor(Number(item.quantity) || 0)),
-          unit_price: String(displayPrice.toFixed(2)),
-          tax_rate: String(Math.floor(Number(item.tax_rate) || 0))
+          quantity: String(Number(item.quantity) || 0),
+          unit_price: String(unitPrice.toFixed(2)),
+          tax_rate: String(Number(item.tax_rate) || 0)
         };
       }));
       setShowModal(true);
@@ -738,6 +746,20 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       await fetchInvoicesData();
     } catch (error: any) {
       toast.error(error.message || (isTr ? "Servis sağlayıcıya bağlanırken hata oluştu" : "Error connecting to integrator"));
+    }
+  };
+
+  const handleCancelGIB = async (id: number) => {
+    const reason = prompt(isTr ? "İptal nedeni giriniz:" : "Enter cancellation reason:");
+    if (!reason) return;
+    try {
+      toast.info(isTr ? "Fatura iptal ediliyor..." : "Cancelling invoice...");
+      const res = await api.cancelEInvoice(id, reason);
+      if (res.error) throw new Error(res.error);
+      toast.success(res.message || (isTr ? "Fatura iptal edildi." : "Invoice cancelled."));
+      await fetchInvoicesData();
+    } catch (error: any) {
+      toast.error(error.message || (isTr ? "İptal başarısız oldu" : "Cancellation failed"));
     }
   };
 
@@ -1043,7 +1065,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                 </tr>
               ) : (
                 paginatedInvoices.map((inv: any) => (
-                  <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
+                  <tr key={inv.id} className={`transition-colors group ${inv.integration_status === 'APPROVED' ? 'bg-emerald-50/50' : 'hover:bg-slate-50'}`}>
                     <td className="px-3 py-4 text-center">
                       <input 
                         type="checkbox" 
@@ -1127,13 +1149,24 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     <td className="px-3 py-4 text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
                         {/* E-Invoice / E-Archive Send Action */}
-                        {!['QUEUED', 'APPROVED'].includes(inv.integration_status) && branding?.einvoice_settings?.is_active && inv.status !== 'draft' && (
+                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && (
                           <button 
                             onClick={() => handleSendToGIB(inv.id)}
-                            className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
-                            title={isTr ? "GİB'e Gönder" : "Push to Document Integrator"}
+                            disabled={['QUEUED', 'APPROVED', 'CANCELLED'].includes(inv.integration_status)}
+                            className={`p-2 rounded-xl transition-all ${['QUEUED', 'APPROVED', 'CANCELLED'].includes(inv.integration_status) ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'}`}
+                            title={['QUEUED', 'APPROVED', 'CANCELLED'].includes(inv.integration_status) ? (isTr ? "Fatura GİB'de işlem görmüş" : "Invoice processed by GIB") : (isTr ? "GİB'e Gönder" : "Push to Document Integrator")}
                           >
                             <CloudUpload className="h-4 w-4" />
+                          </button>
+                        )}
+                        {/* E-Invoice / E-Archive Cancel Action */}
+                        {branding?.einvoice_settings?.is_active && inv.integration_status === 'APPROVED' && (
+                          <button 
+                            onClick={() => handleCancelGIB(inv.id)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            title={isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive Invoice"}
+                          >
+                            <XCircle className="h-4 w-4" />
                           </button>
                         )}
                         {/* E-Invoice Check Status Action */}
@@ -1162,8 +1195,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                         <button 
                           onClick={() => handleViewDetails(inv)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title={isTr ? "Sistem Kayıt Detayları" : "Internal System Details"}
                         >
-                          <Eye className="h-4 w-4" />
+                          <FileSearch className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleViewDetails(inv, true)}
@@ -1409,25 +1443,43 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                            </button>
                          </div>
                       </div>
-                      <div className="space-y-4">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Vergi Durumu' : 'Tax Status'}</label>
-                         <div className="flex items-center gap-4 py-4">
-                           <button
-                             type="button"
-                             onClick={() => setIsTaxInclusive(true)}
-                             className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
-                           >
-                             {isTr ? "KDV Dahil" : "VAT Incl."}
-                           </button>
-                           <button
-                             type="button"
-                             onClick={() => setIsTaxInclusive(false)}
-                             className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
-                           >
-                             {isTr ? "KDV Hariç" : "VAT Excl."}
-                           </button>
-                         </div>
-                      </div>
+      <div className="space-y-4">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Vergi Durumu' : 'Tax Status'}</label>
+        <div className="flex items-center gap-4 py-4">
+          <button
+            type="button"
+            onClick={() => {
+              if (!isTaxInclusive) {
+                setItems(prev => prev.map(item => {
+                  const tax = Number(item.tax_rate) || 0;
+                  const p = Number(item.unit_price) || 0;
+                  return { ...item, unit_price: (p * (1 + tax / 100)).toFixed(2) };
+                }));
+                setIsTaxInclusive(true);
+              }
+            }}
+            className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
+          >
+            {isTr ? "KDV Dahil" : "VAT Incl."}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (isTaxInclusive) {
+                setItems(prev => prev.map(item => {
+                  const tax = Number(item.tax_rate) || 0;
+                  const p = Number(item.unit_price) || 0;
+                  return { ...item, unit_price: (p / (1 + tax / 100)).toFixed(2) };
+                }));
+                setIsTaxInclusive(false);
+              }
+            }}
+            className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
+          >
+            {isTr ? "KDV Hariç" : "VAT Excl."}
+          </button>
+        </div>
+      </div>
                     </div>
                   </div>
 

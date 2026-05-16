@@ -387,6 +387,7 @@ export const api = {
   // E-Invoice Methods
   checkTaxpayer: (vknTckn: string) => api.post("/api/einvoice/check-taxpayer", { vknTckn }),
   sendEInvoice: (invoiceId: number) => api.post(`/api/einvoice/send/${invoiceId}`, {}),
+  cancelEInvoice: (invoiceId: number, reason: string) => api.post(`/api/einvoice/cancel/${invoiceId}`, { reason }),
   checkEInvoiceStatus: (invoiceId: number) => api.get(`/api/einvoice/status/${invoiceId}`),
   syncIncomingEInvoices: (startDate: string, endDate: string, storeId?: number) => api.post(`/api/einvoice/sync-inbox${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { startDate, endDate }),
   testEInvoiceConnection: () => api.post("/api/einvoice/test-connection", {}),

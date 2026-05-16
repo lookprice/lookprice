@@ -403,6 +403,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const shippingSlipRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: shippingSlipRef });
   const [selectedPurchaseInvoice, setSelectedPurchaseInvoice] = useState<any>(null);
+  const qrPrintRef = useRef<HTMLDivElement>(null);
+  const handlePrintQR = useReactToPrint({ contentRef: qrPrintRef });
   const [showPurchaseInvoiceDetailsModal, setShowPurchaseInvoiceDetailsModal] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -1438,21 +1440,30 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 </div>
 
                 <div className="bg-gray-50 p-8 rounded-[2rem] inline-block mb-8 shadow-inner border border-gray-100">
-                  <div className="bg-white p-4 rounded-2xl shadow-sm">
+                  <div ref={qrPrintRef} className="bg-white p-8 rounded-2xl shadow-sm text-center flex flex-col items-center justify-center">
+                    <div className="mb-4 text-center">
+                      <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
+                        {branding.store_name || branding.name || "LookPrice"}
+                      </h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.storeQR || "Mağaza QR Kodu"}</p>
+                    </div>
                     <QRCodeSVG 
-                      value={publicUrl}
-                      size={200}
+                      value={scanUrl}
+                      size={240}
                       level="H"
                       includeMargin={true}
                       imageSettings={{
                         src: branding.logo_url || "",
                         x: undefined,
                         y: undefined,
-                        height: 40,
-                        width: 40,
+                        height: 48,
+                        width: 48,
                         excavate: true,
                       }}
                     />
+                    <div className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      lookprice.net
+                    </div>
                   </div>
                 </div>
 
@@ -1509,7 +1520,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                   <div className="grid grid-cols-2 gap-3">
                     <button 
-                      onClick={() => window.print()}
+                      onClick={() => handlePrintQR()}
                       className="flex items-center justify-center space-x-2 p-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all"
                     >
                       <Printer className="h-5 w-5" />

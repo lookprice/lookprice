@@ -155,7 +155,7 @@ export class MySoftService {
         config.headers['TenantId'] = this.credentials.tenant_id;
       }
 
-      const response = await axios.get(`${this.baseUrl}/Invoice/GetInvoiceStatus?uuid=${ettn}`, config);
+      const response = await axios.get(`${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxStatus?invoiceETTN=${ettn}`, config);
 
       const data = response.data.Data || response.data;
       return {
@@ -413,6 +413,42 @@ export class MySoftService {
     }
   }
 
+  // 7. Cancel Invoice (e-Archive Cancellation)
+  async cancelInvoice(ettn: string, reason: string): Promise<{ isSuccess: boolean; message: string }> {
+    try {
+      const token = await this.authenticate();
+      
+      const config: any = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      };
+      
+      const payload = {
+        invoiceETTN: ettn,
+        reason: reason
+      };
+
+      console.log(`Cancelling MySoft Invoice for ${ettn} at: ${this.baseUrl}/InvoiceOutbox/cancelInvoice`);
+      
+      const response = await axios.post(`${this.baseUrl}/InvoiceOutbox/cancelInvoice`, payload, config);
+
+      if (response.data.succeed === true) {
+         return {
+            isSuccess: true,
+            message: response.data.message || "Fatura başarıyla iptal edildi."
+         };
+      }
+      
+      throw new Error(response.data.message || "Fatura iptal edilemedi.");
+    } catch (error: any) {
+      const apiError = error.response?.data?.message || error.response?.data?.Message || error.message;
+      console.error("MySoft Cancel Invoice Error:", apiError);
+      throw new Error(apiError);
+    }
+  }
+
   // 8. Get Invoice Details by UUID
   async getInvoiceDetailsByUuid(ettn: string): Promise<any> {
     try {
@@ -500,10 +536,9 @@ export class MySoftService {
       }
 
       const endpoints = [
-        `${this.baseUrl.replace('/api', '')}/api/InvoiceInbox/getInvoiceInboxHTMLAsZip`,
+        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTMLAsZip`,
+        `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTMLAsZip`,
         `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTML`,
-        `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTMLAsBase64`,
-        `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTML`,
         `${this.baseUrl}/Invoice/getInvoiceHTML`,
         `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTML`
       ];
