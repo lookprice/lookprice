@@ -341,7 +341,7 @@ router.post("/einvoice/cancel/:invoiceId", authenticate, async (req: any, res) =
   try {
     const service = await getEInvoiceService(storeId);
 
-    const invRes = await pool.query("SELECT ettn, e_document_type FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    const invRes = await pool.query("SELECT ettn, e_document_type, invoice_date FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
     if (invRes.rows.length === 0 || !invRes.rows[0].ettn) {
       return res.status(404).json({ error: "Fatura bulunamadı veya ETTN'si yok." });
     }
@@ -351,9 +351,20 @@ router.post("/einvoice/cancel/:invoiceId", authenticate, async (req: any, res) =
         return res.status(400).json({ error: "Sadece E-Arşiv faturaları sistem üzerinden iptal edilebilir." });
     }
 
-    const ettn = invRes.rows[0].ettn;
+    // the 8-day rule for E-Archive
+    const invoiceDate = new Date(invRes.rows[0].invoice_date);
+    const currentDate = new Date();
+    const diffTime = Math.abs(currentDate.getTime() - invoiceDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    const result = await (service as any).cancelInvoice(ettn, reason || "İptal talebi");
+    if (diffDays > 8) {
+       return res.status(400).json({ error: "E-Arşiv faturaları, düzenlenme tarihinden itibaren sadece 8 gün içerisinde iptal edilebilir." });
+    }
+
+    const ettn = invRes.rows[0].ettn;
+    const eDocType = invRes.rows[0].e_document_type;
+    
+    const result = await (service as any).cancelInvoice(ettn, reason || "İptal talebi", eDocType);
 
     if (result.isSuccess) {
        await pool.query(

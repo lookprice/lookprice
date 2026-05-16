@@ -874,11 +874,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     setIsCheckingTaxpayer(true);
     try {
       const res = await api.checkTaxpayer(editTaxNumber);
-      if (res && res.isTaxpayer) {
-        setEDocumentType('EINVOICE');
+      if (res && res.documentType === 'E-FATURA') {
+        setEDocumentType('E-FATURA');
         toast.success(isTr ? `E-Fatura Mükellefi: ${res.alias || '-'}` : `E-Invoice User: ${res.alias || '-'}`);
       } else {
-        setEDocumentType('EARCHIVE');
+        setEDocumentType('E-ARSIV');
         toast.info(isTr ? "E-Arşiv Mükellefi" : "E-Archive User");
       }
     } catch (err) {
@@ -1065,12 +1065,16 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                 </tr>
               ) : (
                 paginatedInvoices.map((inv: any) => {
-                  console.log(`[DEBUG-ROW] ID: ${inv.id}, Status: ${inv.status}, IntegrationStatus: ${inv.integration_status}, BrandActive: ${branding?.einvoice_settings?.is_active}`);
+                  const isQueued = ['QUEUED', 'Kuyrukta', 'İşleniyor'].includes(inv.integration_status);
+                  const isRejected = ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status);
+                  const isApproved = ['APPROVED', 'Onaylandı', 'Başarılı', '1300'].includes(inv.integration_status) || 
+                                    (inv.document_number && /^(GIB|GEA|EFA)/i.test(inv.document_number) && !isRejected);
+
                   return (
                   <tr key={inv.id} className={`transition-colors group ${
-                    inv.integration_status === 'APPROVED' ? 'bg-emerald-50' : 
-                    inv.integration_status === 'QUEUED' ? 'bg-amber-50' : 
-                    inv.integration_status === 'REJECTED' ? 'bg-rose-50' : 
+                    isApproved ? 'bg-emerald-50' : 
+                    isQueued ? 'bg-amber-50' : 
+                    isRejected ? 'bg-rose-50' : 
                     'hover:bg-slate-50'
                   }`}>
                     <td className="px-3 py-4 text-center">
@@ -1113,16 +1117,16 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                            }`}>
                              {inv.e_document_type}
                            </div>
-                           {inv.integration_status && (
+                           {(inv.integration_status || isApproved) && (
                              <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
-                               inv.integration_status === 'QUEUED' ? 'border-amber-200 bg-amber-50 text-amber-700' :
-                               inv.integration_status === 'APPROVED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
-                               inv.integration_status === 'REJECTED' ? 'border-rose-200 bg-rose-700 text-rose-700' :
+                               isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                               isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                               isRejected ? 'border-rose-200 bg-rose-50 text-rose-700' :
                                'border-slate-200 bg-slate-50 text-slate-700'
                              }`}>
-                               {inv.integration_status === 'QUEUED' ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
-                                inv.integration_status === 'APPROVED' ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
-                                inv.integration_status === 'REJECTED' ? (isTr ? 'REDDEDİLDİ' : 'REJECTED') :
+                               {isQueued ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
+                                isApproved ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
+                                isRejected ? (isTr ? 'REDDEDİLDİ/İPTAL' : 'REJECTED/CANCELLED') :
                                 inv.integration_status}
                              </div>
                            )}
@@ -1156,7 +1160,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     <td className="px-3 py-4 text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
                         {/* E-Invoice / E-Archive Send Action */}
-                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !['QUEUED', 'APPROVED', 'CANCELLED', 'REJECTED'].includes(inv.integration_status) && (
+                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
                           <button 
                             onClick={() => handleSendToGIB(inv.id)}
                             className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
@@ -1166,9 +1170,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           </button>
                         )}
                         {/* E-Invoice / E-Archive Cancel Action */}
-                        {branding?.einvoice_settings?.is_active && ['APPROVED', 'QUEUED'].includes(inv.integration_status) && (
+                        {(isApproved || isQueued) && (
                           <button 
-                            onClick={() => handleCancelGIB(inv.id)}
+                            onClick={(e) => {
+                                handleCancelGIB(inv.id);
+                            }}
                             className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
                             title={isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive Invoice"}
                           >
@@ -1176,13 +1182,13 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           </button>
                         )}
                         {/* Error Warning Indicator */}
-                        {inv.integration_status === 'REJECTED' && (
-                          <div className="p-2 text-rose-500" title={inv.integration_message || (isTr ? "Faturalama hatası" : "Invoicing error")}>
+                        {isRejected && (
+                          <div className="p-2 text-rose-500" title={inv.integration_message || (isTr ? "Faturalama hatası / İptal edildi" : "Invoicing error / Cancelled")}>
                             <XCircle className="h-4 w-4" />
                           </div>
                         )}
                         {/* E-Invoice Check Status Action */}
-                        {inv.integration_status === 'QUEUED' && branding?.einvoice_settings?.is_active && (
+                        {isQueued && branding?.einvoice_settings?.is_active && (
                           <button 
                             onClick={() => handleCheckEInvoiceStatus(inv.id)}
                             className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
@@ -1227,7 +1233,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -414,34 +414,49 @@ export class MySoftService {
   }
 
   // 7. Cancel Invoice (e-Archive Cancellation)
-  async cancelInvoice(ettn: string, reason: string): Promise<{ isSuccess: boolean; message: string }> {
+  async cancelInvoice(ettn: string, reason: string, eDocumentType?: string): Promise<{ isSuccess: boolean; message: string }> {
     try {
       const token = await this.authenticate();
       
       const config: any = {
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${token}`
         }
       };
       
-      const payload = {
-        invoiceETTN: ettn,
-        reason: reason
-      };
-
-      console.log(`Cancelling MySoft Invoice for ${ettn} at: ${this.baseUrl}/InvoiceOutbox/cancelInvoice`);
-      
-      const response = await axios.post(`${this.baseUrl}/InvoiceOutbox/cancelInvoice`, payload, config);
-
-      if (response.data.succeed === true) {
-         return {
-            isSuccess: true,
-            message: response.data.message || "Fatura başarıyla iptal edildi."
-         };
+      if (eDocumentType === 'E-ARSIV' || eDocumentType === 'E-ARCHIVE') {
+          console.log(`Cancelling MySoft E-Archive Invoice for ${ettn}`);
+          const dateStr = new Date().toISOString().split('T')[0];
+          // Use GET /InvoiceOutbox/cancelEarchiveInvoice with a valid cancelType like KEP
+          const res = await axios.get(`${this.baseUrl}/InvoiceOutbox/cancelEarchiveInvoice?invoiceETTN=${ettn}&cancelDate=${dateStr}&cancelType=KEP&notes=${encodeURIComponent(reason)}`, config);
+          
+          if (res.data.succeed === true) {
+             return {
+                isSuccess: true,
+                message: res.data.message || "E-Arşiv faturası başarıyla iptal edildi."
+             };
+          }
+          throw new Error(res.data.message || "E-Arşiv fatura iptal edilemedi.");
+      } else {
+          // E-Fatura iptal / Cancel Invoice generic
+          config.headers["Content-Type"] = "application/json";
+          const payload = {
+            invoiceETTN: ettn,
+            reason: reason
+          };
+    
+          console.log(`Cancelling MySoft Invoice for ${ettn} at: ${this.baseUrl}/InvoiceOutbox/cancelInvoice`);
+          
+          const response = await axios.post(`${this.baseUrl}/InvoiceOutbox/cancelInvoice`, payload, config);
+    
+          if (response.data.succeed === true) {
+             return {
+                isSuccess: true,
+                message: response.data.message || "Fatura başarıyla iptal edildi."
+             };
+          }
+          throw new Error(response.data.message || "Fatura iptal edilemedi.");
       }
-      
-      throw new Error(response.data.message || "Fatura iptal edilemedi.");
     } catch (error: any) {
       const apiError = error.response?.data?.message || error.response?.data?.Message || error.message;
       console.error("MySoft Cancel Invoice Error:", apiError);
