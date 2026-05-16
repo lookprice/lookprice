@@ -1064,8 +1064,15 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   </td>
                 </tr>
               ) : (
-                paginatedInvoices.map((inv: any) => (
-                  <tr key={inv.id} className={`transition-colors group ${inv.integration_status === 'APPROVED' ? 'bg-emerald-50/50' : 'hover:bg-slate-50'}`}>
+                paginatedInvoices.map((inv: any) => {
+                  console.log(`[DEBUG-ROW] ID: ${inv.id}, Status: ${inv.status}, IntegrationStatus: ${inv.integration_status}, BrandActive: ${branding?.einvoice_settings?.is_active}`);
+                  return (
+                  <tr key={inv.id} className={`transition-colors group ${
+                    inv.integration_status === 'APPROVED' ? 'bg-emerald-50' : 
+                    inv.integration_status === 'QUEUED' ? 'bg-amber-50' : 
+                    inv.integration_status === 'REJECTED' ? 'bg-rose-50' : 
+                    'hover:bg-slate-50'
+                  }`}>
                     <td className="px-3 py-4 text-center">
                       <input 
                         type="checkbox" 
@@ -1149,25 +1156,30 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                     <td className="px-3 py-4 text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
                         {/* E-Invoice / E-Archive Send Action */}
-                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && (
+                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !['QUEUED', 'APPROVED', 'CANCELLED', 'REJECTED'].includes(inv.integration_status) && (
                           <button 
                             onClick={() => handleSendToGIB(inv.id)}
-                            disabled={['QUEUED', 'APPROVED', 'CANCELLED'].includes(inv.integration_status)}
-                            className={`p-2 rounded-xl transition-all ${['QUEUED', 'APPROVED', 'CANCELLED'].includes(inv.integration_status) ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                            title={['QUEUED', 'APPROVED', 'CANCELLED'].includes(inv.integration_status) ? (isTr ? "Fatura GİB'de işlem görmüş" : "Invoice processed by GIB") : (isTr ? "GİB'e Gönder" : "Push to Document Integrator")}
+                            className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                            title={isTr ? "GİB'e Gönder" : "Push to Document Integrator"}
                           >
                             <CloudUpload className="h-4 w-4" />
                           </button>
                         )}
                         {/* E-Invoice / E-Archive Cancel Action */}
-                        {branding?.einvoice_settings?.is_active && inv.integration_status === 'APPROVED' && (
+                        {branding?.einvoice_settings?.is_active && ['APPROVED', 'QUEUED'].includes(inv.integration_status) && (
                           <button 
                             onClick={() => handleCancelGIB(inv.id)}
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
                             title={isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive Invoice"}
                           >
                             <XCircle className="h-4 w-4" />
                           </button>
+                        )}
+                        {/* Error Warning Indicator */}
+                        {inv.integration_status === 'REJECTED' && (
+                          <div className="p-2 text-rose-500" title={inv.integration_message || (isTr ? "Faturalama hatası" : "Invoicing error")}>
+                            <XCircle className="h-4 w-4" />
+                          </div>
                         )}
                         {/* E-Invoice Check Status Action */}
                         {inv.integration_status === 'QUEUED' && branding?.einvoice_settings?.is_active && (
