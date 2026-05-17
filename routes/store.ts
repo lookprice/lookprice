@@ -1366,8 +1366,12 @@ router.get("/products", async (req: any, res) => {
     const params: any[] = [storeIds];
 
     if (search) {
-      query += ` AND (p.name ILIKE $2 OR p.barcode ILIKE $2)`;
-      params.push(`%${search}%`);
+      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
+      searchTerms.forEach(term => {
+        const paramIndex = params.length + 1;
+        query += ` AND (p.name ILIKE $${paramIndex} OR p.barcode ILIKE $${paramIndex})`;
+        params.push(`%${term}%`);
+      });
     }
 
     query += ` ORDER BY p.name ASC`;
@@ -2174,8 +2178,12 @@ router.get("/quotations", async (req: any, res) => {
     let params: any[] = [storeId];
     
     if (search) {
-      query += ` AND (customer_name ILIKE $${params.length + 1} OR customer_title ILIKE $${params.length + 1})`;
-      params.push(`%${search}%`);
+      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
+      searchTerms.forEach(term => {
+        const paramIndex = params.length + 1;
+        query += ` AND (customer_name ILIKE $${paramIndex} OR customer_title ILIKE $${paramIndex})`;
+        params.push(`%${term}%`);
+      });
     }
 
     if (status && status !== 'all') {
@@ -3327,19 +3335,23 @@ router.get("/sales-invoices", async (req: any, res) => {
       query += ` AND si.status = $${params.length}`;
     }
     if (search) {
-      params.push(`%${search}%`);
-      query += ` AND (
-        si.invoice_number ILIKE $${params.length} OR 
-        si.document_number ILIKE $${params.length} OR
-        si.ettn ILIKE $${params.length} OR
-        si.notes ILIKE $${params.length} OR
-        si.waybill_number ILIKE $${params.length} OR
-        si.tax_number ILIKE $${params.length} OR
-        c.title ILIKE $${params.length} OR
-        cust.full_name ILIKE $${params.length} OR
-        s.customer_name ILIKE $${params.length} OR
-        sii.product_name ILIKE $${params.length}
-      )`;
+      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
+      searchTerms.forEach(term => {
+        const pLen = params.length + 1;
+        query += ` AND (
+          si.invoice_number ILIKE $${pLen} OR 
+          si.document_number ILIKE $${pLen} OR
+          si.ettn ILIKE $${pLen} OR
+          si.notes ILIKE $${pLen} OR
+          si.waybill_number ILIKE $${pLen} OR
+          si.tax_number ILIKE $${pLen} OR
+          c.title ILIKE $${pLen} OR
+          cust.full_name ILIKE $${pLen} OR
+          s.customer_name ILIKE $${pLen} OR
+          sii.product_name ILIKE $${pLen}
+        )`;
+        params.push(`%${term}%`);
+      });
     }
 
     query += " ORDER BY si.invoice_date DESC, si.created_at DESC";
@@ -3916,17 +3928,22 @@ router.get("/purchase-invoices", async (req: any, res) => {
     const params: any[] = [storeId];
 
     if (search) {
-      params.push(`%${search}%`);
-      query += ` AND (
-        pi.invoice_number ILIKE $${params.length} OR 
-        pi.supplier_name ILIKE $${params.length} OR
-        pi.ettn ILIKE $${params.length} OR
-        pi.notes ILIKE $${params.length} OR
-        pi.waybill_number ILIKE $${params.length} OR
-        pi.tax_number ILIKE $${params.length} OR
-        c.title ILIKE $${params.length} OR
-        pii.product_name ILIKE $${params.length}
-      )`;
+      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
+      searchTerms.forEach(term => {
+        const pLen = params.length + 1;
+        query += ` AND (
+          pi.invoice_number ILIKE $${pLen} OR 
+          pi.document_number ILIKE $${pLen} OR
+          pi.supplier_name ILIKE $${pLen} OR
+          pi.ettn ILIKE $${pLen} OR
+          pi.notes ILIKE $${pLen} OR
+          pi.waybill_number ILIKE $${pLen} OR
+          pi.tax_number ILIKE $${pLen} OR
+          c.title ILIKE $${pLen} OR
+          pii.product_name ILIKE $${pLen}
+        )`;
+        params.push(`%${term}%`);
+      });
     }
 
     if (startDate) {
@@ -3935,7 +3952,7 @@ router.get("/purchase-invoices", async (req: any, res) => {
     }
 
     if (endDate) {
-      params.push(endDate);
+      params.push(endDate + ' 23:59:59');
       query += ` AND pi.invoice_date <= $${params.length}`;
     }
 

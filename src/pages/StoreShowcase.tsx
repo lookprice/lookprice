@@ -1255,13 +1255,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     const baseProducts = sortBy === 'default' && !searchQuery && !selectedCategory && !selectedBrand ? shuffledProducts : products;
     
     let result = baseProducts.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.brand && p.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.branch_name && p.branch_name.toLowerCase().includes(searchQuery.toLowerCase()));
+      const searchTerms = searchQuery.toLowerCase().split(' ').filter(Boolean);
+      const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
+        p.name.toLowerCase().includes(term) ||
+        (p.barcode && p.barcode.toLowerCase().includes(term)) ||
+        (p.description && p.description.toLowerCase().includes(term)) ||
+        (p.category && p.category.toLowerCase().includes(term)) ||
+        (p.brand && p.brand.toLowerCase().includes(term)) ||
+        (p.author && p.author.toLowerCase().includes(term)) ||
+        (p.branch_name && p.branch_name.toLowerCase().includes(term))
+      );
       
       const productCategory = p.category || t.dashboard.uncategorized;
       const matchesCategory = !selectedCategory || productCategory === selectedCategory;

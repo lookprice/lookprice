@@ -83,9 +83,12 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   };
 
   const filteredStores = stores.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
-      s.slug.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
-      s.email?.toLowerCase().includes(storeSearchTerm.toLowerCase());
+    const storeSearchTerms = storeSearchTerm.toLowerCase().split(' ').filter(Boolean);
+    const matchesSearch = storeSearchTerms.length === 0 || storeSearchTerms.every(term => 
+      s.name.toLowerCase().includes(term) ||
+      s.slug.toLowerCase().includes(term) ||
+      s.email?.toLowerCase().includes(term)
+    );
     const matchesFilter = storeFilter === 'all' || 
       (storeFilter === 'active' && new Date(s.subscription_end) > new Date()) ||
       (storeFilter === 'expired' && new Date(s.subscription_end) <= new Date());
@@ -93,9 +96,12 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   });
 
   const filteredLeads = leads.filter(l => {
-    const matchesSearch = l.store_name.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
-      l.company_title?.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
-      l.email?.toLowerCase().includes(leadSearchTerm.toLowerCase());
+    const leadSearchTerms = leadSearchTerm.toLowerCase().split(' ').filter(Boolean);
+    const matchesSearch = leadSearchTerms.length === 0 || leadSearchTerms.every(term => 
+      l.store_name.toLowerCase().includes(term) ||
+      l.company_title?.toLowerCase().includes(term) ||
+      l.email?.toLowerCase().includes(term)
+    );
     const matchesFilter = leadFilter === 'all' || l.status === leadFilter;
     return matchesSearch && matchesFilter;
   });

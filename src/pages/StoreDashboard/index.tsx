@@ -1603,7 +1603,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <tbody className="divide-y divide-gray-50">
                         {(selectedPurchaseInvoice.items || []).map((item: any, idx: number) => (
                           <tr key={idx}>
-                            <td className="py-3 px-4 text-xs font-bold text-gray-700">{item.product_name}</td>
+                            <td className="py-3 px-4 text-xs font-bold text-gray-700 truncate max-w-[150px] md:max-w-[200px]" title={item.product_name}>{item.product_name}</td>
                             <td className="py-3 px-4 text-xs font-bold text-gray-700 text-right">{item.quantity}</td>
                             <td className="py-3 px-4 text-xs font-bold text-gray-700 text-right">{Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</td>
                             <td className="py-3 px-4 text-xs font-black text-gray-900 text-right">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</td>
@@ -1716,7 +1716,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         {selectedSale.items?.map((item: any, idx: number) => (
                           <tr key={idx}>
                             <td className="px-4 py-3 text-gray-900">
-                              <div className="font-bold">{item.product_name}</div>
+                              <div className="font-bold truncate max-w-[150px] md:max-w-[200px]" title={item.product_name}>{item.product_name}</div>
                               <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
                                 {item.barcode ? item.barcode : `#${item.product_id}`}
                               </div>
@@ -2070,7 +2070,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       {(selectedQuotationDetails.items || []).map((item: any, idx: number) => (
                         <tr key={idx}>
                           <td className="px-4 py-3">
-                            <div className="text-sm font-medium text-slate-900">{item.product_name}</div>
+                            <div className="text-sm font-medium text-slate-900 truncate max-w-[150px] md:max-w-[250px]" title={item.product_name}>{item.product_name}</div>
                             <div className="text-xs text-slate-400">#{item.product_id}</div>
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>

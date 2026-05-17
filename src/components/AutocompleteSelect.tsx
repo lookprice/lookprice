@@ -51,8 +51,9 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
   const filteredItems = items.filter(item => {
     const mainVal = (item[displayField] || '').toLowerCase();
     const secVal = secondaryField ? (item[secondaryField] || '').toLowerCase() : '';
-    const s = deferredSearch.toLowerCase();
-    return mainVal.includes(s) || secVal.includes(s);
+    const searchTerms = deferredSearch.toLowerCase().split(' ').filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    return searchTerms.every(term => mainVal.includes(term) || secVal.includes(term));
   });
 
   const getIcon = (itemType?: string) => {

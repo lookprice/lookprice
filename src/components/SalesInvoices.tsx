@@ -348,20 +348,23 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         try {
           const res = await api.checkTaxpayer(vkn);
           if (res.documentType === 'E-FATURA') {
-            // Default to TEMELFATURA for e-invoice taxpayers
             if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TEMELFATURA');
+            setEDocumentType('E-FATURA');
           } else {
             setInvoiceProfile('EARSIVFATURA');
+            setEDocumentType('E-ARŞİV');
           }
         } catch (err) {
           setInvoiceProfile('EARSIVFATURA');
+          setEDocumentType('E-ARŞİV');
         }
       } else {
         setInvoiceProfile('EARSIVFATURA');
+        setEDocumentType('E-ARŞİV');
       }
     };
     fetchTaxType();
-  }, [companyId, customerId, branding?.einvoice_settings?.is_active]);
+  }, [companyId, customerId, branding?.einvoice_settings?.is_active, companies, customers]);
 
   useEffect(() => {
     setPage(1);
@@ -372,12 +375,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   }, [storeId, activeSearch, startDate, endDate]);
 
   useEffect(() => {
-    if (search.length === 0 || search.length >= 3) {
-      const timer = setTimeout(() => {
-        setActiveSearch(search);
-      }, 600);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      setActiveSearch(search);
+    }, 600);
+    return () => clearTimeout(timer);
   }, [search]);
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
@@ -849,22 +850,34 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const paginatedInvoices = filteredInvoices.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
-  const filteredCustomers = customers.filter((c: any) => 
-    c.name?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
-    c.phone?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
-    c.email?.toLowerCase().includes(deferredCustomerSearch.toLowerCase())
-  );
+  const filteredCustomers = customers.filter((c: any) => {
+    const searchTerms = deferredCustomerSearch.toLowerCase().split(' ').filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    return searchTerms.every(term => 
+      c.name?.toLowerCase().includes(term) ||
+      c.phone?.toLowerCase().includes(term) ||
+      c.email?.toLowerCase().includes(term)
+    );
+  });
 
-  const filteredCompanies = companies.filter((c: any) => 
-    c.title?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
-    c.tax_number?.toLowerCase().includes(deferredCustomerSearch.toLowerCase()) ||
-    c.email?.toLowerCase().includes(deferredCustomerSearch.toLowerCase())
-  );
+  const filteredCompanies = companies.filter((c: any) => {
+    const searchTerms = deferredCustomerSearch.toLowerCase().split(' ').filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    return searchTerms.every(term => 
+      c.title?.toLowerCase().includes(term) ||
+      c.tax_number?.toLowerCase().includes(term) ||
+      c.email?.toLowerCase().includes(term)
+    );
+  });
 
-  const filteredProducts = products.filter((p: any) => 
-    p.name?.toLowerCase().includes(deferredProductSearch.toLowerCase()) ||
-    p.barcode?.toString().includes(deferredProductSearch)
-  );
+  const filteredProducts = products.filter((p: any) => {
+    const searchTerms = deferredProductSearch.toLowerCase().split(' ').filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    return searchTerms.every(term => 
+      p.name?.toLowerCase().includes(term) ||
+      p.barcode?.toString().includes(term)
+    );
+  });
 
   const handleCheckTaxpayer = async () => {
     if (!editTaxNumber || editTaxNumber.length < 10) {
@@ -1109,29 +1122,36 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                          inv.status === 'cancelled' ? (isTr ? 'İptal' : 'Cancelled') :
                          inv.status}
                       </span>
-                      {inv.e_document_type && (
-                         <div className="flex flex-col gap-1 mt-1">
-                           <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
-                             inv.e_document_type === 'E-FATURA' ? 'border-purple-200 bg-purple-50 text-purple-700' : 
-                             'border-blue-200 bg-blue-50 text-blue-700'
-                           }`}>
-                             {inv.e_document_type}
-                           </div>
-                           {(inv.integration_status || isApproved) && (
-                             <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
-                               isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
-                               isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
-                               isRejected ? 'border-rose-200 bg-rose-50 text-rose-700' :
-                               'border-slate-200 bg-slate-50 text-slate-700'
-                             }`}>
-                               {isQueued ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
-                                isApproved ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
-                                isRejected ? (isTr ? 'REDDEDİLDİ/İPTAL' : 'REJECTED/CANCELLED') :
-                                inv.integration_status}
-                             </div>
-                           )}
-                         </div>
-                      )}
+                      {(() => {
+                        const computedDocType = inv.e_document_type || (
+                          inv.invoice_profile === 'EARSIVFATURA' ? 'E-ARŞİV' : 
+                          ['TEMELFATURA', 'TICARIFATURA'].includes(inv.invoice_profile) ? 'E-FATURA' : null
+                        );
+                        if (!computedDocType) return null;
+                        return (
+                          <div className="flex flex-col gap-1 mt-1">
+                            <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
+                              computedDocType === 'E-FATURA' ? 'border-purple-200 bg-purple-50 text-purple-700' : 
+                              'border-blue-200 bg-blue-50 text-blue-700'
+                            }`}>
+                              {computedDocType}
+                            </div>
+                            {(inv.integration_status || isApproved) && (
+                              <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
+                                isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                                isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                                isRejected ? 'border-rose-200 bg-rose-50 text-rose-700' :
+                                'border-slate-200 bg-slate-50 text-slate-700'
+                              }`}>
+                                {isQueued ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
+                                 isApproved ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
+                                 isRejected ? (isTr ? 'REDDEDİLDİ/İPTAL' : 'REJECTED/CANCELLED') :
+                                 inv.integration_status}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-4">
                       <div className="flex items-center gap-2">
@@ -1395,7 +1415,11 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           <select 
                             className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700 appearance-none"
                             value={invoiceProfile}
-                            onChange={(e: any) => setInvoiceProfile(e.target.value)}
+                            onChange={(e: any) => {
+                              const val = e.target.value;
+                              setInvoiceProfile(val);
+                              setEDocumentType(val === 'EARSIVFATURA' ? 'E-ARŞİV' : 'E-FATURA');
+                            }}
                           >
                             <option value="EARSIVFATURA">{isTr ? "E-Arşiv Fatura" : "E-Archive"}</option>
                             <option value="TEMELFATURA">{isTr ? "Temel Fatura" : "Basic Invoice"}</option>

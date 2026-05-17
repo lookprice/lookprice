@@ -51,8 +51,10 @@ const CompaniesTab = ({
   };
 
   const filteredCompanies = companies.filter(c => {
-    const matchesSearch = normalizeSearch(c.title).includes(normalizeSearch(deferredSearch)) || 
-                          c.tax_number?.includes(deferredSearch);
+    const searchTerms = normalizeSearch(deferredSearch).split(' ').filter(Boolean);
+    const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
+      normalizeSearch(c.title).includes(term) || (c.tax_number || "").includes(term)
+    );
     
     const hasBalance = Object.values(c.balances || {}).some(bal => Number(bal) !== 0);
     

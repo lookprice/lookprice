@@ -78,12 +78,10 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   }, [storeId, activeSearch, startDate, endDate]);
 
   useEffect(() => {
-    if (search.length === 0 || search.length >= 3) {
-      const timer = setTimeout(() => {
-        setActiveSearch(search);
-      }, 600);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      setActiveSearch(search);
+    }, 600);
+    return () => clearTimeout(timer);
   }, [search]);
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
@@ -551,15 +549,23 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const totalPurchaseAmount = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
   const totalGrandTotal = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
-  const filteredProducts = products.filter((p: any) => 
-    (p.name || "").toLowerCase().includes(deferredProductSearch.toLowerCase()) ||
-    (p.barcode || "").toLowerCase().includes(deferredProductSearch.toLowerCase())
-  );
+  const filteredProducts = products.filter((p: any) => {
+    const searchTerms = deferredProductSearch.toLowerCase().split(' ').filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    return searchTerms.every(term => 
+      (p.name || "").toLowerCase().includes(term) ||
+      (p.barcode || "").toLowerCase().includes(term)
+    );
+  });
 
-  const filteredCompanies = companies.filter((c: any) => 
-    (c.title || "").toLowerCase().includes(deferredCompanySearch.toLowerCase()) ||
-    (c.tax_number && c.tax_number.includes(deferredCompanySearch))
-  );
+  const filteredCompanies = companies.filter((c: any) => {
+    const searchTerms = deferredCompanySearch.toLowerCase().split(' ').filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    return searchTerms.every(term => 
+      (c.title || "").toLowerCase().includes(term) ||
+      (c.tax_number && c.tax_number.includes(term))
+    );
+  });
 
   const exportToExcel = () => {
     const data = filteredInvoices.map((inv: any) => ({
@@ -805,54 +811,54 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1 space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Arama" : "Search"}</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={handleSearchKeyPress}
-                className="w-full pl-10 pr-12 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
-              <button 
-                onClick={() => setActiveSearch(search)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
-                title={isTr ? "Ara" : "Search"}
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
+        <div className="flex-1 flex flex-wrap items-center gap-3 w-full">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyPress}
+              className="w-full pl-10 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+            />
+            <button 
+              onClick={() => setActiveSearch(search)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
+              title={isTr ? "Ara" : "Search"}
+            >
+              <Search className="h-4 w-4" />
+            </button>
           </div>
-          <div className="w-full md:w-44 space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Başlangıç" : "Start Date"}</label>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-slate-400" />
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-[16ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
             />
-          </div>
-          <div className="w-full md:w-44 space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Bitiş" : "End Date"}</label>
+            <span className="text-slate-400">-</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-[16ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
             />
           </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <button 
             onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); }}
-            className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold rounded-xl transition-colors"
           >
             {isTr ? "Temizle" : "Clear"}
           </button>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

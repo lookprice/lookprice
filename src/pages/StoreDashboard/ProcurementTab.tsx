@@ -292,7 +292,7 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-medium text-gray-900">{item.product_name}</span>
+                        <span className="font-medium text-gray-900 truncate max-w-[150px] md:max-w-[250px]" title={item.product_name}>{item.product_name}</span>
                         <span className="text-xs text-gray-500 font-mono">{item.barcode}</span>
                       </div>
                     </td>

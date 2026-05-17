@@ -267,8 +267,10 @@ const ProductsTab = ({
   };
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = normalizeSearch(p.name).includes(normalizeSearch(deferredSearch)) || 
-                         p.barcode.includes(deferredSearch);
+    const searchTerms = normalizeSearch(deferredSearch).split(' ').filter(Boolean);
+    const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
+      normalizeSearch(p.name).includes(term) || (p.barcode && p.barcode.toString().includes(term))
+    );
     const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
     const matchesMarketplace = marketplaceFilter === "all" || 
                               (marketplaceFilter === "listed" && p.is_pazarama_active) ||
@@ -591,7 +593,9 @@ const ProductsTab = ({
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1.5">
-                                <div className="text-[13px] font-black text-slate-900 truncate leading-none">{p.name}</div>
+                                <div className="text-[13px] font-black text-slate-900 truncate max-w-[150px] md:max-w-[200px] lg:max-w-[250px] leading-none" title={p.name}>
+                                  {p.name.length > 40 ? p.name.substring(0, 40) + '...' : p.name}
+                                </div>
                                 {p.description && (
                                   <div className="group/desc relative">
                                     <div className="p-1 text-indigo-500 bg-indigo-50 rounded-lg cursor-help">

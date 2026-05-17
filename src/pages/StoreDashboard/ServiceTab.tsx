@@ -552,10 +552,12 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   };
 
   const filteredRecords = records.filter(r => {
-    const matchesSearch = 
-      r.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.device_model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.device_serial?.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchTerms = searchTerm.toLowerCase().split(' ').filter(Boolean);
+    const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
+      r.customer_name.toLowerCase().includes(term) ||
+      r.device_model.toLowerCase().includes(term) ||
+      r.device_serial?.toLowerCase().includes(term)
+    );
     const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

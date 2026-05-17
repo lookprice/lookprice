@@ -267,11 +267,17 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                   <div className="flex justify-center py-4">
                     <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" />
                   </div>
-                ) : branchStock.filter(s => s.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 ? (
+                ) : branchStock.filter(s => {
+                  const searchTerms = productSearch.toLowerCase().split(' ').filter(Boolean);
+                  return searchTerms.length === 0 || searchTerms.every(term => s.name.toLowerCase().includes(term) || (s.barcode && s.barcode.toLowerCase().includes(term)));
+                }).length === 0 ? (
                   <p className="text-[10px] text-gray-400 text-center py-2 italic">{t.noProductFound || 'Ürün bulunamadı.'}</p>
                 ) : (
                   branchStock
-                    .filter(s => s.name.toLowerCase().includes(productSearch.toLowerCase()))
+                    .filter(s => {
+                      const searchTerms = productSearch.toLowerCase().split(' ').filter(Boolean);
+                      return searchTerms.length === 0 || searchTerms.every(term => s.name.toLowerCase().includes(term) || (s.barcode && s.barcode.toLowerCase().includes(term)));
+                    })
                     .map(item => (
                       <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg group">
                         <div className="flex flex-col">
@@ -555,7 +561,7 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                     {showDispatchNote.items?.map((item: any, idx: number) => (
                       <tr key={idx}>
                         <td className="px-3 py-2 text-[10px] font-mono text-gray-500">{item.barcode}</td>
-                        <td className="px-3 py-2 text-[10px] font-bold text-gray-900">{item.product_name}</td>
+                        <td className="px-3 py-2 text-[10px] font-bold text-gray-900 truncate max-w-[120px] md:max-w-[200px]" title={item.product_name}>{item.product_name}</td>
                         <td className="px-3 py-2 text-[10px] font-bold text-gray-900 text-right">{Math.floor(Number(item.quantity))} {t.units || (lang === 'tr' ? 'Adet' : 'Units')}</td>
                       </tr>
                     ))}
@@ -654,7 +660,10 @@ export default function StockTransferTab({ storeId, products, isViewer, includeB
                       {productSearch && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
                           {branchStock
-                            .filter(s => s.name.toLowerCase().includes(productSearch.toLowerCase()))
+                            .filter(s => {
+                              const searchTerms = productSearch.toLowerCase().split(' ').filter(Boolean);
+                              return searchTerms.length === 0 || searchTerms.every(term => s.name.toLowerCase().includes(term) || (s.barcode && s.barcode.toLowerCase().includes(term)));
+                            })
                             .map(item => (
                               <button
                                 key={item.id}

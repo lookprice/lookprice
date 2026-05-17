@@ -690,7 +690,7 @@ const PublicQuotation = () => {
                       {quotation.items.map((item: any) => (
                         <tr key={item.id} className="group hover:bg-slate-50/30 transition-colors">
                           <td className="px-8 py-6">
-                            <div className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{item.product_name}</div>
+                            <div className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors truncate max-w-[150px] md:max-w-[300px]" title={item.product_name}>{item.product_name}</div>
                             <div className="flex items-center gap-2 mt-1.5">
                               <Hash className="h-3 w-3 text-slate-300" />
                               <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">{item.barcode || `#${item.product_id}`}</span>
