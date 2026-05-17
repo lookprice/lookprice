@@ -756,68 +756,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             {isTr ? "Tedarikçilerden gelen faturaları girin ve stoklarınızı güncelleyin." : "Enter invoices from suppliers and update your stock."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {branding?.einvoice_settings?.is_active && (
-            <button 
-              onClick={handleSyncInbox}
-              disabled={syncing}
-              className={`flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold transition-all ${syncing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-100'}`}
-              title={isTr ? "Son 3 gündeki GİB Faturalarını Çek" : "Sync GIB Inbox"}
-            >
-              <CloudDownload className={`h-4 w-4 ${syncing ? 'animate-bounce' : ''}`} />
-              <span className="hidden sm:inline">{isTr ? "Gelen Kutusu" : "Sync Inbox"}</span>
-            </button>
-          )}
-          <button
-            onClick={handleBulkPrint}
-            disabled={isBulkPrinting || filteredInvoices.length === 0}
-            className={`flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold transition-all ${isBulkPrinting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`}
-            title={isTr ? "Seçili veya listedeki E-Faturaları yazdır" : "Print selected or listed E-invoices"}
-          >
-            {isBulkPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-            <span className="hidden sm:inline">
-              {isTr 
-                ? (selectedIds.length > 0 ? `Yazdır (${selectedIds.length})` : "Toplu Yazdır") 
-                : (selectedIds.length > 0 ? `Print (${selectedIds.length})` : "Bulk Print")
-              }
-            </span>
-          </button>
-          <button
-            onClick={exportToExcel}
-            className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span className="hidden sm:inline">Excel</span>
-          </button>
-          <button
-            onClick={exportToPDF}
-            className="flex items-center gap-2 bg-rose-50 text-rose-600 px-4 py-2 rounded-xl hover:bg-rose-100 transition-colors"
-          >
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">PDF</span>
-          </button>
-          <button
-            onClick={() => {
-              setEditingInvoiceId(null);
-              setCompanyId("");
-              setCompanySearch("");
-              setInvoiceNumber("");
-              setInvoiceDate(new Date().toISOString().split('T')[0]);
-              setNotes("");
-              setItems([]);
-              setPaymentMethod('term');
-              setCurrency(branding?.default_currency || 'TRY');
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
-          >
-            <Plus className="h-4 w-4" />
-            {isTr ? "Yeni Fatura" : "New Invoice"}
-          </button>
-        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
           <div className="p-3 bg-indigo-50 rounded-xl">
             <Percent className="h-6 w-6 text-indigo-600" />
@@ -904,12 +845,69 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             />
           </div>
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {branding?.einvoice_settings?.is_active && (
+            <button 
+              onClick={handleSyncInbox}
+              disabled={syncing}
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold transition-all ${syncing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-100'}`}
+              title={isTr ? "Son 3 gündeki GİB Faturalarını Çek" : "Sync GIB Inbox"}
+            >
+              <CloudDownload className={`h-4 w-4 ${syncing ? 'animate-bounce' : ''}`} />
+              <span className="hidden sm:inline">{isTr ? "Gelen Kutusu" : "Sync Inbox"}</span>
+            </button>
+          )}
+          <button
+            onClick={handleBulkPrint}
+            disabled={isBulkPrinting || filteredInvoices.length === 0}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold transition-all ${isBulkPrinting ? 'opacity-50 cursor-not-allowed border border-slate-200' : 'hover:bg-slate-200 border border-slate-200'}`}
+            title={isTr ? "Seçili veya listedeki E-Faturaları yazdır" : "Print selected or listed E-invoices"}
+          >
+            {isBulkPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            <span className="hidden sm:inline">
+              {isTr 
+                ? (selectedIds.length > 0 ? `Yazdır (${selectedIds.length})` : "Toplu Yazdır") 
+                : (selectedIds.length > 0 ? `Print (${selectedIds.length})` : "Bulk Print")
+              }
+            </span>
+          </button>
+          <button
+            onClick={exportToExcel}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white text-emerald-600 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors font-bold text-sm"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            <span className="hidden sm:inline">Excel</span>
+          </button>
+          <button
+            onClick={exportToPDF}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white text-rose-600 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors font-bold text-sm"
+          >
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">PDF</span>
+          </button>
           <button 
             onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); }}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold rounded-xl transition-colors"
+            className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold rounded-xl transition-colors"
           >
             {isTr ? "Temizle" : "Clear"}
+          </button>
+          <button
+            onClick={() => {
+              setEditingInvoiceId(null);
+              setCompanyId("");
+              setCompanySearch("");
+              setInvoiceNumber("");
+              setInvoiceDate(new Date().toISOString().split('T')[0]);
+              setNotes("");
+              setItems([]);
+              setPaymentMethod('term');
+              setCurrency(branding?.default_currency || 'TRY');
+              setShowModal(true);
+            }}
+            className="flex-[2] md:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors shadow-lg font-bold text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            {isTr ? "Yeni Alış Faturası" : "New Purchase Invoice"}
           </button>
         </div>
       </div>
