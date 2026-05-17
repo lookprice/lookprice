@@ -1439,9 +1439,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
             >
-              <div className="p-8 text-center">
+              <div className="p-8 text-center flex-1 overflow-y-auto">
                 <div className="flex justify-between items-center mb-8">
                   <div className="text-left">
                     <h3 className="text-2xl font-black text-gray-900">{t.storeQR}</h3>
