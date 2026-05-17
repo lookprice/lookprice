@@ -1,5 +1,4 @@
-import { pool } from "../../models/db";
-import { logAction } from "../../models/db";
+import { pool, logAction, addStockMovement } from "../../models/db";
 import axios, { AxiosError } from "axios";
 import { parseStringPromise } from 'xml2js';
 
@@ -81,9 +80,16 @@ export async function processMarketplaceOrderLines(
         [quantity, productId]
       );
 
-      await client.query(
-        "INSERT INTO stock_movements (store_id, product_id, type, quantity, notes, previous_stock, new_stock) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [storeId, productId, 'out', quantity, `${marketplaceName} Satışı: ${orderId}`, currentStock, currentStock - quantity]
+      await addStockMovement(
+        client, 
+        storeId, 
+        productId, 
+        'out', 
+        quantity, 
+        marketplaceName.toLowerCase(), 
+        `${marketplaceName} Satışı: ${orderId}`, 
+        price, 
+        'Pazaryeri Müşterisi'
       );
     }
   }

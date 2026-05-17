@@ -78,17 +78,60 @@ export class MySoftService {
         config.headers['TenantId'] = this.credentials.tenant_id;
       }
 
-      const response = await axios.get(`${this.baseUrl}/Contact/GetContactByVkn?vkn=${vknTckn}`, config);
+      // Try multiple variations for taxpayer check as MySoft has different API versions
+      const variations = [
+        `${this.baseUrl}/Contact/GetContactByVkn?vkn=${vknTckn}`,
+        `${this.baseUrl}/Contact/GetTaxpayerByVkn?vkn=${vknTckn}`,
+        `${this.baseUrl}/Common/GetTaxpayer?vkn=${vknTckn}`
+      ];
 
-      // Based on MySoft response (Data.IsEInvoiceUser)
-      const data = response.data.Data || response.data;
-      const isTaxpayer = data.IsEInvoiceUser || data.isEInvoiceUser || false;
+      for (const url of variations) {
+        try {
+          console.log(`Checking taxpayer at: ${url}`);
+          const response = await axios.get(url, config);
+          
+          const data = response.data.Data || response.data;
+          if (!data) continue;
 
-      return {
-        isTaxpayer,
-        title: data.Title || data.title,
-        documentType: isTaxpayer ? 'E-FATURA' : 'E-ARSIV'
-      };
+          let isTaxpayer = false;
+          let title = "";
+
+          if (Array.isArray(data)) {
+            if (data.length > 0) {
+              isTaxpayer = data.some(item => 
+                item.IsEInvoiceUser || 
+                item.isEInvoiceUser || 
+                item.EInvoiceUser || 
+                item.Type === 'EFATURA' || 
+                item.type === 'EFATURA' ||
+                item.Identifier === vknTckn
+              );
+              title = data[0].Title || data[0].title || data[0].Name || data[0].name || "";
+            }
+          } else {
+            isTaxpayer = data.IsEInvoiceUser || data.isEInvoiceUser || data.EInvoiceUser || false;
+            title = data.Title || data.title || data.Name || data.name || "";
+            
+            // If the endpoint is GetContactByVkn and it returned a valid object with the VKN, 
+            // it's highly likely they are an e-invoice user in some API versions
+            if (!isTaxpayer && (data.Vkn === vknTckn || data.Identifier === vknTckn || data.vkn === vknTckn)) {
+              isTaxpayer = true;
+            }
+          }
+
+          if (isTaxpayer) {
+            return {
+              isTaxpayer: true,
+              title: title,
+              documentType: 'E-FATURA'
+            };
+          }
+        } catch (innerErr) {
+          // continue to next variation
+        }
+      }
+
+      return { isTaxpayer: false, documentType: 'E-ARSIV' };
     } catch (error: any) {
       if (error.response?.status === 404) {
          return { isTaxpayer: false, documentType: 'E-ARSIV' };

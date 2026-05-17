@@ -469,6 +469,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
 
+  const fetchAnalytics = async (start?: string, end?: string) => {
+    if (!currentStoreId) return;
+    try {
+      setLoading(true);
+      const res = await api.getAnalytics(currentStoreId, start, end);
+      setAnalytics(res && !res.error ? res : null);
+    } catch (error) {
+      console.error("Fetch analytics error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchData = useCallback(async (isSilent = false) => {
     try {
       if (!isSilent) setLoading(true);
@@ -1225,7 +1238,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                     {activeTab === "analytics" && (
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <AnalyticsTab analytics={analytics} branding={branding} />
+                        <AnalyticsTab analytics={analytics} branding={branding} onDateChange={(s, e) => fetchAnalytics(s, e)} loading={loading} />
                       </Suspense>
                     )}
                     {activeTab === "quotations" && (

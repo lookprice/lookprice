@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useDeferredValue } from 'react';
 import { Search, Plus, User, Building2, Package, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { normalizeSearch } from '../lib/searchUtils';
 
 interface AutocompleteSelectProps {
   items: any[];
@@ -49,9 +50,9 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
   }, []);
 
   const filteredItems = items.filter(item => {
-    const mainVal = (item[displayField] || '').toLowerCase();
-    const secVal = secondaryField ? (item[secondaryField] || '').toLowerCase() : '';
-    const searchTerms = deferredSearch.toLowerCase().split(' ').filter(Boolean);
+    const mainVal = normalizeSearch(item[displayField] || '');
+    const secVal = secondaryField ? normalizeSearch(item[secondaryField] || '') : '';
+    const searchTerms = normalizeSearch(deferredSearch).split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return true;
     return searchTerms.every(term => mainVal.includes(term) || secVal.includes(term));
   });

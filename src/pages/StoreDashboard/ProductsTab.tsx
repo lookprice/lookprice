@@ -1,4 +1,5 @@
 import React, { useState, useDeferredValue, useEffect } from "react";
+import { normalizeSearch } from "../../lib/searchUtils";
 import { 
   Plus, 
   Search, 
@@ -261,13 +262,8 @@ const ProductsTab = ({
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
 
-  const normalizeSearch = (text: string) => {
-    if (!text) return "";
-    return text.replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i').toLowerCase();
-  };
-
   const filteredProducts = products.filter(p => {
-    const searchTerms = normalizeSearch(deferredSearch).split(' ').filter(Boolean);
+    const searchTerms = normalizeSearch(deferredSearch).split(/\s+/).filter(Boolean);
     const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
       normalizeSearch(p.name).includes(term) || (p.barcode && p.barcode.toString().includes(term))
     );

@@ -1,6 +1,32 @@
 import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue, useRef } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, User as UserIcon, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, FileSearch, CheckCircle2, Edit, Building2, Printer, CloudUpload, RefreshCw, Loader2, XCircle } from "lucide-react";
+import { 
+  Plus, 
+  Search, 
+  Trash2, 
+  FileDown, 
+  Eye, 
+  X, 
+  Save, 
+  Calendar, 
+  User as UserIcon, 
+  Hash, 
+  Package, 
+  CreditCard, 
+  Percent, 
+  FileSpreadsheet, 
+  FileText, 
+  FileSearch, 
+  CheckCircle2, 
+  Edit, 
+  Building2, 
+  Printer, 
+  CloudUpload, 
+  RefreshCw, 
+  Loader2, 
+  XCircle 
+} from "lucide-react";
+import { normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -194,6 +220,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [editTaxOffice, setEditTaxOffice] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [lastEditedId, setLastEditedId] = useState<number | null>(null);
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
   const [quickProductForm, setQuickProductForm] = useState({ 
     name: "", 
@@ -334,6 +361,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   useEffect(() => {
     const fetchTaxType = async () => {
       if (!branding?.einvoice_settings?.is_active) return;
+      if (editingInvoiceId) return; // Don't auto-check when editing an existing invoice to prevent overwriting saved values
       
       let vkn = "";
       if (companyId) {
@@ -364,7 +392,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
       }
     };
     fetchTaxType();
-  }, [companyId, customerId, branding?.einvoice_settings?.is_active, companies, customers]);
+  }, [companyId, customerId, branding?.einvoice_settings?.is_active, companies, customers, editingInvoiceId]);
 
   useEffect(() => {
     setPage(1);
@@ -387,9 +415,9 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
     }
   };
 
-  const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string) => {
+  const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string, silent = false) => {
     if (role === 'superadmin' && !storeId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const [invRes, custRes, compRes, prodRes] = await Promise.all([
         api.getSalesInvoices(role === 'superadmin' ? storeId : undefined, searchStr, sDate || startDate, eDate || endDate),
@@ -658,7 +686,8 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
         throw new Error(res.error);
       }
 
-      await fetchInvoicesData();
+      setLastEditedId(currentEditingId || res.id);
+      await fetchInvoicesData(activeSearch, startDate, endDate, true);
       if (onSave) await onSave(true);
       return res;
     })();
@@ -851,31 +880,31 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
   const filteredCustomers = customers.filter((c: any) => {
-    const searchTerms = deferredCustomerSearch.toLowerCase().split(' ').filter(Boolean);
+    const searchTerms = normalizeSearch(deferredCustomerSearch).split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return true;
     return searchTerms.every(term => 
-      c.name?.toLowerCase().includes(term) ||
-      c.phone?.toLowerCase().includes(term) ||
-      c.email?.toLowerCase().includes(term)
+      normalizeSearch(c.name).includes(term) ||
+      normalizeSearch(c.phone).includes(term) ||
+      normalizeSearch(c.email).includes(term)
     );
   });
 
   const filteredCompanies = companies.filter((c: any) => {
-    const searchTerms = deferredCustomerSearch.toLowerCase().split(' ').filter(Boolean);
+    const searchTerms = normalizeSearch(deferredCustomerSearch).split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return true;
     return searchTerms.every(term => 
-      c.title?.toLowerCase().includes(term) ||
-      c.tax_number?.toLowerCase().includes(term) ||
-      c.email?.toLowerCase().includes(term)
+      normalizeSearch(c.title).includes(term) ||
+      normalizeSearch(c.tax_number).includes(term) ||
+      normalizeSearch(c.email).includes(term)
     );
   });
 
   const filteredProducts = products.filter((p: any) => {
-    const searchTerms = deferredProductSearch.toLowerCase().split(' ').filter(Boolean);
+    const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return true;
     return searchTerms.every(term => 
-      p.name?.toLowerCase().includes(term) ||
-      p.barcode?.toString().includes(term)
+      normalizeSearch(p.name).includes(term) ||
+      (p.barcode || "").toLowerCase().includes(term)
     );
   });
 
@@ -1084,12 +1113,16 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                                     (inv.document_number && /^(GIB|GEA|EFA)/i.test(inv.document_number) && !isRejected);
 
                   return (
-                  <tr key={inv.id} className={`transition-colors group ${
-                    isApproved ? 'bg-emerald-50' : 
-                    isQueued ? 'bg-amber-50' : 
-                    isRejected ? 'bg-rose-50' : 
-                    'hover:bg-slate-50'
-                  }`}>
+                  <tr 
+                    key={inv.id} 
+                    className={`transition-colors group ${
+                      lastEditedId === inv.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-300' :
+                      isApproved ? 'bg-emerald-50' : 
+                      isQueued ? 'bg-amber-50' : 
+                      isRejected ? 'bg-rose-50' : 
+                      'hover:bg-slate-50'
+                    }`}
+                  >
                     <td className="px-3 py-4 text-center">
                       <input 
                         type="checkbox" 
@@ -1123,15 +1156,28 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                          inv.status}
                       </span>
                       {(() => {
-                        const computedDocType = inv.e_document_type || (
-                          inv.invoice_profile === 'EARSIVFATURA' ? 'E-ARŞİV' : 
-                          ['TEMELFATURA', 'TICARIFATURA'].includes(inv.invoice_profile) ? 'E-FATURA' : null
-                        );
+                        let computedDocType = null;
+                        const profile = (inv.invoice_profile || "").toUpperCase();
+                        const type = (inv.invoice_type || "").toUpperCase();
+                        
+                        if (['TEMELFATURA', 'TICARIFATURA', 'TEMEL', 'TICARI'].includes(profile) || 
+                            ['TEMELFATURA', 'TICARIFATURA', 'TEMEL', 'TICARI'].includes(type) ||
+                            (inv.e_document_type === 'E-FATURA')) {
+                          computedDocType = 'E-FATURA';
+                        } else if (profile === 'EARSIVFATURA' || profile === 'EARSIV' || 
+                                   type === 'EARSIVFATURA' || type === 'EARSIV' ||
+                                   (inv.e_document_type === 'E-ARŞİV' || inv.e_document_type === 'E-ARSIV')) {
+                          computedDocType = 'E-ARŞİV';
+                        }
+
                         if (!computedDocType) return null;
+                        
+                        const isEFatura = computedDocType === 'E-FATURA';
+
                         return (
                           <div className="flex flex-col gap-1 mt-1">
                             <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
-                              computedDocType === 'E-FATURA' ? 'border-purple-200 bg-purple-50 text-purple-700' : 
+                              isEFatura ? 'border-purple-200 bg-purple-50 text-purple-700' : 
                               'border-blue-200 bg-blue-50 text-blue-700'
                             }`}>
                               {computedDocType}

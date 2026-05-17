@@ -122,7 +122,14 @@ export const api = {
   getDriverDocuments: (id: number) => api.get(`/api/fleet/drivers/${id}/documents`),
   getDriverAssignments: (id: number) => api.get(`/api/fleet/drivers/${id}/assignments`),
   
-  getAnalytics: (storeId?: number) => api.get(`/api/store/analytics${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getAnalytics: (storeId?: number, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+    const queryString = params.toString();
+    return api.get(`/api/store/analytics${queryString ? `?${queryString}` : ""}`);
+  },
   getAuditLogs: (storeId?: number) => api.get(`/api/store/audit-logs${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getBranding: (storeId?: number, slug?: string) => api.get(`/api/store/info${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : (slug ? `?slug=${slug}` : "")}`),
   updateBranding: (data: any, storeId?: number) => api.post(`/api/store/branding${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),

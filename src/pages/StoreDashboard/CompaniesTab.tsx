@@ -1,4 +1,5 @@
 import React, { useState, useDeferredValue } from "react";
+import { normalizeSearch } from "../../lib/searchUtils";
 import { 
   Plus, 
   Search, 
@@ -45,13 +46,8 @@ const CompaniesTab = ({
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
-  const normalizeSearch = (text: string) => {
-    if (!text) return "";
-    return text.replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i').toLowerCase();
-  };
-
   const filteredCompanies = companies.filter(c => {
-    const searchTerms = normalizeSearch(deferredSearch).split(' ').filter(Boolean);
+    const searchTerms = normalizeSearch(deferredSearch).split(/\s+/).filter(Boolean);
     const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
       normalizeSearch(c.title).includes(term) || (c.tax_number || "").includes(term)
     );

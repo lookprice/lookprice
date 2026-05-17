@@ -1,6 +1,6 @@
 import express from "express";
 import crypto from "crypto";
-import { pool } from "../models/db";
+import { pool, addStockMovement } from "../models/db";
 import { authenticate } from "../middleware/auth";
 import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
@@ -190,6 +190,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const docDate = new Date(invoice.invoice_date || new Date());
     const formattedDate = docDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
     const formattedTime = docDate.toISOString().split('T')[1].substring(0, 8); // "HH:mm:ss"
+
+    const nameParts = (invoice.customer_name || "").split(' ');
+    const surname = nameParts.length > 1 ? nameParts.pop() : "";
+    const name = nameParts.join(' ') || (invoice.customer_name || "Müşteri");
 
     // LINES (mapped to invoiceDetail for MySoft)
     const isTaxInclusive = !!invoice.is_tax_inclusive;
@@ -592,14 +596,21 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               if (!productId) {
                 // Determine a safe barcode
                 finalBarcode = productBarcodeCode ? productBarcodeCode : `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-                // Create product with "yeni_fatura_urunu" label to highlight it
-                const newProdRes = await pool.query(
-                  `INSERT INTO products 
-                   (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-                  [storeId, productName, finalBarcode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
-                );
-                productId = newProdRes.rows[0].id;
+                
+                // Check if barcode already exists for this store before creating
+                const existingProd = await pool.query("SELECT id FROM products WHERE barcode = $1 AND store_id = $2", [finalBarcode, storeId]);
+                if (existingProd.rows.length > 0) {
+                  productId = existingProd.rows[0].id;
+                } else {
+                  // Create product with "yeni_fatura_urunu" label to highlight it
+                  const newProdRes = await pool.query(
+                    `INSERT INTO products 
+                     (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+                    [storeId, productName, finalBarcode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+                  );
+                  productId = newProdRes.rows[0].id;
+                }
               }
 
               await pool.query(
@@ -614,6 +625,20 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                 await pool.query(
                   "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
                   [qty, up, invoiceDetails.currency || 'TRY', productId]
+                );
+                
+                // Log stock movement
+                await addStockMovement(
+                  pool, 
+                  storeId, 
+                  productId, 
+                  'in', 
+                  qty, 
+                  'purchase_invoice', 
+                  `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, 
+                  up, 
+                  invoiceDetails.senderTitle, 
+                  invoiceDetails.currency
                 );
               }
             }

@@ -49,6 +49,22 @@ const getAuthorizedStoreId = async (req: any, requestedStoreId: any) => {
   return null;
 };
 
+/**
+ * Normalizes a string for Turkish-friendly case-insensitive search in SQL
+ */
+const getTurkishSearchSnippet = (field: string, paramIndex: number) => {
+  // Normalize both field and search term (param) by replacing Turkish specific uppercase/lowercase:
+  // İ -> i
+  // I -> ı -> i (normalization for broader match)
+  const normalizedField = `LOWER(REPLACE(REPLACE(REPLACE(${field}::text, 'İ', 'i'), 'I', 'ı'), 'ı', 'i'))`;
+  return `${normalizedField} LIKE $${paramIndex}`;
+};
+
+const normalizeTurkishParam = (term: string) => {
+  if (!term) return '%%';
+  return `%${term.toLocaleLowerCase('tr-TR').replace(/ı/g, 'i')}%`;
+};
+
 router.use(authenticate);
 
 // Blog Posts
@@ -1185,14 +1201,107 @@ router.get("/analytics", async (req: any, res) => {
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
   try {
-    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const { startDate, endDate } = req.query;
+    
+    const currentMonthStart = startDate ? new Date(startDate as string) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const currentMonthEnd = endDate ? new Date(endDate as string) : new Date();
+    // Ensure end of day for comparison
+    if (endDate) currentMonthEnd.setHours(23, 59, 59, 999);
+
     const totalScans = (await pool.query("SELECT COUNT(*)::INT as count FROM scan_logs WHERE store_id = $1", [storeId])).rows[0].count;
-    const monthlyScans = (await pool.query("SELECT COUNT(*)::INT as count FROM scan_logs WHERE store_id = $1 AND created_at >= $2", [storeId, currentMonthStart])).rows[0].count;
+    const monthlyScans = (await pool.query("SELECT COUNT(*)::INT as count FROM scan_logs WHERE store_id = $1 AND created_at BETWEEN $2 AND $3", [storeId, currentMonthStart, currentMonthEnd])).rows[0].count;
     const totalProducts = (await pool.query("SELECT COUNT(*)::INT as count FROM products WHERE store_id = $1", [storeId])).rows[0].count;
     const lowStockCount = (await pool.query("SELECT COUNT(*)::INT as count FROM products WHERE store_id = $1 AND product_type != 'service' AND stock_quantity <= min_stock_level", [storeId])).rows[0].count;
     
-    const totalSalesAmount = (await pool.query("SELECT SUM(total_amount)::FLOAT as amount FROM sales WHERE store_id = $1 AND status = 'completed'", [storeId])).rows[0].amount || 0;
-    const monthlySalesAmount = (await pool.query("SELECT SUM(total_amount)::FLOAT as amount FROM sales WHERE store_id = $1 AND status = 'completed' AND created_at >= $2", [storeId, currentMonthStart])).rows[0].amount || 0;
+    // Sales Matrah (from sales_invoices + sales not linked to an invoice)
+    const salesMatrahQuery = `
+      SELECT SUM(amount)::FLOAT as amount FROM (
+        SELECT SUM(total_amount * COALESCE(exchange_rate, 1)) as amount 
+        FROM sales_invoices 
+        WHERE store_id = $1 AND status != 'cancelled' AND invoice_date BETWEEN $2 AND $3
+        UNION ALL
+        SELECT SUM(total_amount) as amount 
+        FROM sales 
+        WHERE store_id = $1 AND status = 'completed' AND created_at BETWEEN $2 AND $3
+        AND id NOT IN (SELECT COALESCE(sale_id, -1) FROM sales_invoices WHERE store_id = $1)
+      ) combined
+    `;
+    const monthlySalesAmount = (await pool.query(salesMatrahQuery, [storeId, currentMonthStart, currentMonthEnd])).rows[0].amount || 0;
+
+    // Total Sales Matrah
+    const totalSalesMatrahQuery = `
+      SELECT SUM(amount)::FLOAT as amount FROM (
+        SELECT SUM(total_amount * COALESCE(exchange_rate, 1)) as amount 
+        FROM sales_invoices 
+        WHERE store_id = $1 AND status != 'cancelled'
+        UNION ALL
+        SELECT SUM(total_amount) as amount 
+        FROM sales 
+        WHERE store_id = $1 AND status = 'completed'
+        AND id NOT IN (SELECT COALESCE(sale_id, -1) FROM sales_invoices WHERE store_id = $1)
+      ) combined
+    `;
+    const totalSalesAmount = (await pool.query(totalSalesMatrahQuery, [storeId])).rows[0].amount || 0;
+
+    // Purchase Matrah (excluding expenses)
+    const monthlyPurchaseAmount = (await pool.query(
+      "SELECT SUM(total_amount * COALESCE(exchange_rate, 1))::FLOAT as amount FROM purchase_invoices WHERE store_id = $1 AND is_expense = FALSE AND invoice_date BETWEEN $2 AND $3", 
+      [storeId, currentMonthStart, currentMonthEnd]
+    )).rows[0].amount || 0;
+
+    // Expense Amount
+    const monthlyExpenseAmount = (await pool.query(
+      "SELECT SUM(total_amount * COALESCE(exchange_rate, 1))::FLOAT as amount FROM purchase_invoices WHERE store_id = $1 AND is_expense = TRUE AND invoice_date BETWEEN $2 AND $3", 
+      [storeId, currentMonthStart, currentMonthEnd]
+    )).rows[0].amount || 0;
+
+    // Expenses by Category
+    const expenseCategories = await pool.query(`
+      SELECT expense_category as category, SUM(total_amount * COALESCE(exchange_rate, 1))::FLOAT as amount 
+      FROM purchase_invoices 
+      WHERE store_id = $1 AND is_expense = TRUE AND invoice_date BETWEEN $2 AND $3
+      GROUP BY expense_category
+      ORDER BY amount DESC
+    `, [storeId, currentMonthStart, currentMonthEnd]);
+
+    // Monthly History (Last 12 months)
+    const monthlyHistory = [];
+    for (let i = 0; i < 12; i++) {
+        const monthStart = new Date(new Date().getFullYear(), new Date().getMonth() - i, 1);
+        const monthEnd = new Date(new Date().getFullYear(), new Date().getMonth() - i + 1, 0);
+        monthEnd.setHours(23, 59, 59, 999);
+        
+        const sales = (await pool.query(`
+            SELECT SUM(amount)::FLOAT as amount FROM (
+              SELECT SUM(total_amount * COALESCE(exchange_rate, 1)) as amount 
+              FROM sales_invoices 
+              WHERE store_id = $1 AND status != 'cancelled' AND invoice_date BETWEEN $2 AND $3
+              UNION ALL
+              SELECT SUM(total_amount) as amount 
+              FROM sales 
+              WHERE store_id = $1 AND status = 'completed' AND created_at BETWEEN $2 AND $3
+              AND id NOT IN (SELECT COALESCE(sale_id, -1) FROM sales_invoices WHERE store_id = $1)
+            ) combined
+        `, [storeId, monthStart, monthEnd])).rows[0].amount || 0;
+
+        const purchases = (await pool.query(
+            "SELECT SUM(total_amount * COALESCE(exchange_rate, 1))::FLOAT as amount FROM purchase_invoices WHERE store_id = $1 AND is_expense = FALSE AND invoice_date BETWEEN $2 AND $3",
+            [storeId, monthStart, monthEnd]
+        )).rows[0].amount || 0;
+
+        const expenses = (await pool.query(
+            "SELECT SUM(total_amount * COALESCE(exchange_rate, 1))::FLOAT as amount FROM purchase_invoices WHERE store_id = $1 AND is_expense = TRUE AND invoice_date BETWEEN $2 AND $3",
+            [storeId, monthStart, monthEnd]
+        )).rows[0].amount || 0;
+
+        monthlyHistory.push({
+            period: monthStart.toLocaleString('tr-TR', { month: 'long', year: 'numeric' }),
+            sales_matrah: sales,
+            purchase_matrah: purchases,
+            expense_total: expenses,
+            net_volume: sales - purchases - expenses
+        });
+    }
 
     const dailyScans = await pool.query(`
       SELECT TO_CHAR(d.date, 'DD/MM') as date, COALESCE(s.count, 0)::INT as count FROM (
@@ -1259,6 +1368,10 @@ router.get("/analytics", async (req: any, res) => {
       low_stock_count: lowStockCount,
       total_sales_amount: totalSalesAmount,
       monthly_sales_amount: monthlySalesAmount,
+      monthly_purchase_amount: monthlyPurchaseAmount,
+      monthly_expense_amount: monthlyExpenseAmount,
+      expense_categories: expenseCategories.rows,
+      monthly_history: monthlyHistory,
       daily_scans: dailyScans.rows,
       daily_sales: dailySales.rows,
       top_products: topProducts.rows,
@@ -1336,43 +1449,43 @@ router.get("/products", async (req: any, res) => {
       storeIds = groupRes.rows.map(r => r.id);
     }
 
-    // Authorization check for non-superadmins
-    if (req.user.role !== "superadmin") {
-      const currentStoreRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [currentStoreId]);
-      if (currentStoreRes.rows.length === 0) return res.status(403).json({ error: "User store not found" });
-      
-      const userParentId = currentStoreRes.rows[0].parent_id || currentStoreId;
-      console.log(`[DEBUG] GET /products: currentStoreId=${currentStoreId}, requestedStoreId=${requestedStoreId}, userParentId=${userParentId}, storeIds=${JSON.stringify(storeIds)}`);
+// Authorization check for non-superadmins
+if (req.user.role !== "superadmin") {
+  const currentStoreRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [currentStoreId]);
+  if (currentStoreRes.rows.length === 0) return res.status(403).json({ error: "User store not found" });
+  
+  const userParentId = currentStoreRes.rows[0].parent_id || currentStoreId;
+  console.log(`[DEBUG] GET /products: currentStoreId=${currentStoreId}, requestedStoreId=${requestedStoreId}, userParentId=${userParentId}, storeIds=${JSON.stringify(storeIds)}`);
 
-      // Rule: Parent store can view any store in their group
-      const unauthorizedIds = await pool.query(
-        "SELECT id FROM stores WHERE id = ANY($1) AND id != $2 AND parent_id != $2",
-        [storeIds, userParentId]
-      );
+  // Rule: Parent store can view any store in their group
+  const unauthorizedIds = await pool.query(
+    "SELECT id FROM stores WHERE id = ANY($1) AND id != $2 AND parent_id != $2",
+    [storeIds, userParentId]
+  );
 
-      if (unauthorizedIds.rows.length > 0) {
-        console.log(`[DEBUG] GET /products: Unauthorized IDs found: ${JSON.stringify(unauthorizedIds.rows.map(r => r.id))}`);
-        return res.status(403).json({ error: "Unauthorized to view products from these stores" });
-      }
-    }
+  if (unauthorizedIds.rows.length > 0) {
+    console.log(`[DEBUG] GET /products: Unauthorized IDs found: ${JSON.stringify(unauthorizedIds.rows.map(r => r.id))}`);
+    return res.status(403).json({ error: "Unauthorized to view products from these stores" });
+  }
+}
 
-    const search = req.query.search as string;
-    let query = `
-      SELECT p.*, s.name as store_name 
-      FROM products p 
-      JOIN stores s ON p.store_id = s.id 
-      WHERE p.store_id = ANY($1)
-    `;
-    const params: any[] = [storeIds];
+const search = req.query.search as string;
+let query = `
+  SELECT p.*, s.name as store_name 
+  FROM products p 
+  JOIN stores s ON p.store_id = s.id 
+  WHERE p.store_id = ANY($1)
+`;
+const params: any[] = [storeIds];
 
-    if (search) {
-      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
-      searchTerms.forEach(term => {
-        const paramIndex = params.length + 1;
-        query += ` AND (p.name ILIKE $${paramIndex} OR p.barcode ILIKE $${paramIndex})`;
-        params.push(`%${term}%`);
-      });
-    }
+if (search) {
+  const searchTerms = search.split(/\s+/).filter(Boolean);
+  searchTerms.forEach(term => {
+    const pIdx = params.length + 1;
+    query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)})`;
+    params.push(normalizeTurkishParam(term));
+  });
+}
 
     query += ` ORDER BY p.name ASC`;
 
@@ -3335,22 +3448,22 @@ router.get("/sales-invoices", async (req: any, res) => {
       query += ` AND si.status = $${params.length}`;
     }
     if (search) {
-      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
+      const searchTerms = search.split(/\s+/).filter(Boolean);
       searchTerms.forEach(term => {
         const pLen = params.length + 1;
         query += ` AND (
-          si.invoice_number ILIKE $${pLen} OR 
-          si.document_number ILIKE $${pLen} OR
-          si.ettn ILIKE $${pLen} OR
-          si.notes ILIKE $${pLen} OR
-          si.waybill_number ILIKE $${pLen} OR
-          si.tax_number ILIKE $${pLen} OR
-          c.title ILIKE $${pLen} OR
-          cust.full_name ILIKE $${pLen} OR
-          s.customer_name ILIKE $${pLen} OR
-          sii.product_name ILIKE $${pLen}
+          ${getTurkishSearchSnippet('si.invoice_number', pLen)} OR 
+          ${getTurkishSearchSnippet('si.document_number', pLen)} OR
+          ${getTurkishSearchSnippet('si.ettn', pLen)} OR
+          ${getTurkishSearchSnippet('si.notes', pLen)} OR
+          ${getTurkishSearchSnippet('si.waybill_number', pLen)} OR
+          ${getTurkishSearchSnippet('si.tax_number', pLen)} OR
+          ${getTurkishSearchSnippet('c.title', pLen)} OR
+          ${getTurkishSearchSnippet('cust.full_name', pLen)} OR
+          ${getTurkishSearchSnippet('s.customer_name', pLen)} OR
+          ${getTurkishSearchSnippet('sii.product_name', pLen)}
         )`;
-        params.push(`%${term}%`);
+        params.push(normalizeTurkishParam(term));
       });
     }
 
@@ -3417,7 +3530,8 @@ router.post("/sales-invoices", async (req: any, res) => {
       invoice_type,
       invoice_profile,
       status,
-      is_tax_inclusive
+      is_tax_inclusive,
+      e_document_type: req_e_document_type
     } = req.body;
     
     let storeId = req.user.store_id;
@@ -3434,10 +3548,17 @@ router.post("/sales-invoices", async (req: any, res) => {
     const einvoiceSettings = storeRes.rows[0]?.einvoice_settings || { is_active: false };
     
     // Auto E-Invoice Check
-    let e_document_type = null;
+    let e_document_type = req_e_document_type || null;
+
+    if (invoice_type === 'TEMELFATURA' || invoice_type === 'TICARIFATURA' || invoice_profile === 'TEMELFATURA' || invoice_profile === 'TICARIFATURA') {
+      e_document_type = 'E-FATURA';
+    } else if (invoice_type === 'EARSIVFATURA' || invoice_profile === 'EARSIVFATURA') {
+      e_document_type = 'E-ARŞİV';
+    }
+    
     let tax_number = null;
     
-    if (einvoiceSettings.is_active) {
+    if (einvoiceSettings.is_active && !e_document_type) {
       if (company_id) {
          const cRes = await client.query("SELECT tax_number FROM companies WHERE id = $1", [company_id]);
          if (cRes.rows.length) tax_number = cRes.rows[0].tax_number;
@@ -3451,14 +3572,16 @@ router.post("/sales-invoices", async (req: any, res) => {
            const { MySoftService } = await import("../src/services/backend/mysoftService");
            const mysoft = new MySoftService(einvoiceSettings);
            const taxResult = await mysoft.checkTaxpayer(tax_number);
-           e_document_type = taxResult.documentType; 
+           e_document_type = taxResult.documentType === 'E-ARSIV' ? 'E-ARŞİV' : taxResult.documentType; 
          } catch (err) {
            console.error("E-Invoice check failed during invoice creation", err);
-           e_document_type = 'E-ARSIV'; // Fallback
+           e_document_type = 'E-ARŞİV'; // Fallback
          }
       } else {
-         e_document_type = 'E-ARSIV'; // No Tax number means regular citizen -> e-arşiv
+         e_document_type = 'E-ARŞİV'; // No Tax number means regular citizen -> e-arşiv
       }
+    } else if (e_document_type === 'E-ARSIV') {
+      e_document_type = 'E-ARŞİV';
     }
     
     // Calculate totals
@@ -3715,9 +3838,15 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     const storeResAuto = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
     const einvoiceSettings = storeResAuto.rows[0]?.einvoice_settings || { is_active: false };
     
-    let e_document_type = oldInvoice.e_document_type; // keep old if we don't query
+    let e_document_type = req.body.e_document_type || oldInvoice.e_document_type; 
     
-    if (einvoiceSettings.is_active) {
+    if (invoice_type === 'TEMELFATURA' || invoice_type === 'TICARIFATURA' || invoice_profile === 'TEMELFATURA' || invoice_profile === 'TICARIFATURA') {
+      e_document_type = 'E-FATURA';
+    } else if (invoice_type === 'EARSIVFATURA' || invoice_profile === 'EARSIVFATURA') {
+      e_document_type = 'E-ARŞİV';
+    }
+
+    if (einvoiceSettings.is_active && !req.body.e_document_type && !e_document_type) {
       let tax_number = null;
       if (company_id) {
          const cRes = await client.query("SELECT tax_number FROM companies WHERE id = $1", [company_id]);
@@ -3732,14 +3861,16 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
            const { MySoftService } = await import("../src/services/backend/mysoftService");
            const mysoft = new MySoftService(einvoiceSettings);
            const taxResult = await mysoft.checkTaxpayer(tax_number);
-           e_document_type = taxResult.documentType; 
+           e_document_type = taxResult.documentType === 'E-ARSIV' ? 'E-ARŞİV' : taxResult.documentType; 
          } catch (err) {
            console.error("E-Invoice check failed during invoice update", err);
-           e_document_type = 'E-ARSIV'; 
+           e_document_type = 'E-ARŞİV'; 
          }
       } else {
-         e_document_type = 'E-ARSIV';
+         e_document_type = 'E-ARŞİV';
       }
+    } else if (e_document_type === 'E-ARSIV') {
+      e_document_type = 'E-ARŞİV';
     }
 
     // 5. Update invoice
@@ -3928,21 +4059,21 @@ router.get("/purchase-invoices", async (req: any, res) => {
     const params: any[] = [storeId];
 
     if (search) {
-      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
+      const searchTerms = search.split(/\s+/).filter(Boolean);
       searchTerms.forEach(term => {
         const pLen = params.length + 1;
         query += ` AND (
-          pi.invoice_number ILIKE $${pLen} OR 
-          pi.document_number ILIKE $${pLen} OR
-          pi.supplier_name ILIKE $${pLen} OR
-          pi.ettn ILIKE $${pLen} OR
-          pi.notes ILIKE $${pLen} OR
-          pi.waybill_number ILIKE $${pLen} OR
-          pi.tax_number ILIKE $${pLen} OR
-          c.title ILIKE $${pLen} OR
-          pii.product_name ILIKE $${pLen}
+          ${getTurkishSearchSnippet('pi.invoice_number', pLen)} OR 
+          ${getTurkishSearchSnippet('pi.document_number', pLen)} OR
+          ${getTurkishSearchSnippet('pi.supplier_name', pLen)} OR
+          ${getTurkishSearchSnippet('pi.ettn', pLen)} OR
+          ${getTurkishSearchSnippet('pi.notes', pLen)} OR
+          ${getTurkishSearchSnippet('pi.waybill_number', pLen)} OR
+          ${getTurkishSearchSnippet('pi.tax_number', pLen)} OR
+          ${getTurkishSearchSnippet('c.title', pLen)} OR
+          ${getTurkishSearchSnippet('pii.product_name', pLen)}
         )`;
-        params.push(`%${term}%`);
+        params.push(normalizeTurkishParam(term));
       });
     }
 
@@ -3999,7 +4130,7 @@ router.post("/purchase-invoices", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items: bodyItems, notes, currency, exchange_rate, payment_method, payment_status, is_tax_inclusive } = req.body;
+    const { storeId: bodyStoreId, company_id, invoice_number, waybill_number, invoice_date, items: bodyItems, notes, currency, exchange_rate, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category } = req.body;
     
     // For superadmins, prioritize bodyStoreId. If not provided, fallback to req.user.store_id.
     let storeId = req.user.store_id;
@@ -4045,9 +4176,9 @@ router.post("/purchase-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO purchase_invoices 
-        (store_id, company_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, payment_method, payment_status, is_tax_inclusive, is_read) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-      [storeId, company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, payment_status || 'unpaid', isTaxIncl, true]
+        (store_id, company_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, payment_method, payment_status, is_tax_inclusive, is_read, is_expense, expense_category) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
+      [storeId, company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, payment_status || 'unpaid', isTaxIncl, true, !!is_expense, expense_category || null]
     );
     
     const invoiceId = invoiceResult.rows[0].id;
@@ -4078,26 +4209,33 @@ router.post("/purchase-invoices", async (req: any, res) => {
         itemTaxAmount = (kdvHaricTotal * tr) / 100;
       }
 
-      if (!prodId) {
+      if (!is_expense && !prodId) {
         const barcode = item.barcode || `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-        const newProductResult = await client.query(
-          `INSERT INTO products 
-            (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, cost_currency, product_type, labels)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-          [storeId, item.product_name || 'İsimsiz Ürün', barcode, 0, kdvHaricPrice, tr, 0, currency || 'TRY', currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
-        );
-        prodId = newProductResult.rows[0].id;
+        
+        // Check if barcode already exists for this store before creating
+        const existingProd = await client.query("SELECT id FROM products WHERE barcode = $1 AND store_id = $2", [barcode, storeId]);
+        if (existingProd.rows.length > 0) {
+          prodId = existingProd.rows[0].id;
+        } else {
+          const newProductResult = await client.query(
+            `INSERT INTO products 
+              (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, cost_currency, product_type, labels)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+            [storeId, item.product_name || 'İsimsiz Ürün', barcode, 0, kdvHaricPrice, tr, 0, currency || 'TRY', currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+          );
+          prodId = newProductResult.rows[0].id;
+        }
       }
       
       await client.query(
         `INSERT INTO purchase_invoice_items 
           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [invoiceId, prodId, item.product_name, item.barcode, qty, kdvHaricPrice, tr, itemTaxAmount, kdvHaricTotal]
+        [invoiceId, prodId || null, item.product_name, item.barcode, qty, kdvHaricPrice, tr, itemTaxAmount, kdvHaricTotal]
       );
       
-      // Update stock and cost if product_id is provided
-      if (prodId) {
+      // Update stock and cost if product_id is provided and it's NOT an expense invoice
+      if (prodId && !is_expense) {
         const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [prodId]);
         const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
 
@@ -4153,7 +4291,9 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
     await client.query("BEGIN");
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, payment_status, currency, exchange_rate } = req.body;
+    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, payment_status, currency, exchange_rate, is_tax_inclusive, is_expense, expense_category } = req.body;
+
+    const isTaxIncl = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
 
     // 1. Get old invoice and items to revert stock
     const oldInvoiceResult = await client.query(
@@ -4202,20 +4342,28 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
       const up = Number(item.unit_price) || 0;
       const tr = Number(item.tax_rate) || 0;
       
-      const itemTotal = qty * up;
-      const itemTax = itemTotal * (tr / 100);
-      
-      total_amount += itemTotal;
-      tax_amount += itemTax;
-      grand_total += (itemTotal + itemTax);
+      if (isTaxIncl) {
+        const itemTotalIncl = qty * up;
+        const itemTotalExcl = itemTotalIncl / (1 + (tr / 100));
+        const itemTax = itemTotalIncl - itemTotalExcl;
+        total_amount += itemTotalExcl;
+        tax_amount += itemTax;
+        grand_total += itemTotalIncl;
+      } else {
+        const itemTotal = qty * up;
+        const itemTax = itemTotal * (tr / 100);
+        total_amount += itemTotal;
+        tax_amount += itemTax;
+        grand_total += (itemTotal + itemTax);
+      }
     }
 
     // 5. Update invoice
     await client.query(
       `UPDATE purchase_invoices 
-       SET company_id = $1, invoice_number = $2, waybill_number = $3, invoice_date = $4, total_amount = $5, tax_amount = $6, grand_total = $7, currency = $8, exchange_rate = $9, notes = $10, payment_method = $11, payment_status = $12
-       WHERE id = $13 AND store_id = $14`,
-      [company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, payment_status || 'unpaid', req.params.id, storeId]
+       SET company_id = $1, invoice_number = $2, waybill_number = $3, invoice_date = $4, total_amount = $5, tax_amount = $6, grand_total = $7, currency = $8, exchange_rate = $9, notes = $10, payment_method = $11, payment_status = $12, is_tax_inclusive = $13, is_expense = $14, expense_category = $15
+       WHERE id = $16 AND store_id = $17`,
+      [company_id, invoice_number, waybill_number || null, invoice_date, total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, notes, payment_method, payment_status || 'unpaid', isTaxIncl, !!is_expense, expense_category || null, req.params.id, storeId]
     );
 
     // 6. Insert new items and update stock
@@ -4223,32 +4371,51 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
       const qty = Number(item.quantity) || 0;
       const up = Number(item.unit_price) || 0;
       const tr = Number(item.tax_rate) || 0;
-      const itemTotal = qty * up;
-      const itemTax = itemTotal * (tr / 100);
+      
+      let kdvHaricPrice: number;
+      let itemTaxAmount: number;
+      let kdvHaricTotal: number;
+
+      if (isTaxIncl) {
+        kdvHaricPrice = up / (1 + tr / 100);
+        kdvHaricTotal = (qty * up) / (1 + tr / 100);
+        itemTaxAmount = (qty * up) - kdvHaricTotal;
+      } else {
+        kdvHaricPrice = up;
+        kdvHaricTotal = qty * up;
+        itemTaxAmount = (kdvHaricTotal * tr) / 100;
+      }
       
       let prodId = item.product_id;
-      if (!prodId) {
+      if (!is_expense && !prodId) {
         const barcode = item.barcode || `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-        const newProductResult = await client.query(
-          `INSERT INTO products 
-            (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, cost_currency, product_type, labels)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-          [storeId, item.product_name || 'İsimsiz Ürün', barcode, 0, up, tr, 0, currency || 'TRY', currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
-        );
-        prodId = newProductResult.rows[0].id;
+        
+        // Check if barcode already exists for this store before creating
+        const existingProd = await client.query("SELECT id FROM products WHERE barcode = $1 AND store_id = $2", [barcode, storeId]);
+        if (existingProd.rows.length > 0) {
+          prodId = existingProd.rows[0].id;
+        } else {
+          const newProductResult = await client.query(
+            `INSERT INTO products 
+              (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, cost_currency, product_type, labels)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+            [storeId, item.product_name || 'İsimsiz Ürün', barcode, 0, kdvHaricPrice, tr, 0, currency || 'TRY', currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+          );
+          prodId = newProductResult.rows[0].id;
+        }
       }
 
       await client.query(
         `INSERT INTO purchase_invoice_items 
           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [req.params.id, prodId, item.product_name, item.barcode, qty, up, tr, itemTax, itemTotal]
+        [req.params.id, prodId || null, item.product_name, item.barcode, qty, kdvHaricPrice, tr, itemTaxAmount, kdvHaricTotal]
       );
       
-      if (prodId) {
+      if (prodId && !is_expense) {
         await client.query(
           "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
-          [qty, up, currency || 'TRY', prodId, storeId]
+          [qty, kdvHaricPrice, currency || 'TRY', prodId, storeId]
         );
         
         // If barcode was updated by user from AUTO-... to a real barcode, save it to the product
@@ -4260,7 +4427,7 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
         }
         
         // Log stock movement (in)
-        await addStockMovement(client, storeId, prodId, 'in', qty, 'purchase_invoice', `Alış Faturası (Güncellendi): ${invoice_number}`, up, companyName, currency);
+        await addStockMovement(client, storeId, prodId, 'in', qty, 'purchase_invoice', `Alış Faturası (Güncellendi): ${invoice_number}`, kdvHaricPrice, companyName, currency);
       }
     }
 

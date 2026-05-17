@@ -9,7 +9,8 @@ import {
   Download,
   CreditCard,
   Trash2,
-  FileText
+  FileText,
+  Calendar
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -45,6 +46,7 @@ const PosTab = ({
 }: PosTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
+  const isTr = lang === 'tr';
 
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
@@ -57,52 +59,58 @@ const PosTab = ({
 
   return (
     <div className="space-y-10">
-      <div className="os-panel p-6 bg-slate-950 border-indigo-500/20 shadow-2xl shadow-indigo-900/10">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
         <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 flex-1">
-            <div className="flex flex-col space-y-2 flex-1 sm:flex-none">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Archive_Temporal_Range</span>
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 shadow-inner focus-within:ring-4 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/30 transition-all">
-                <input 
-                  type="date" 
-                  className="bg-transparent border-none p-1 text-[11px] font-black text-white focus:ring-0 outline-none w-[16ch] cursor-pointer"
-                  value={startDate}
-                  onChange={(e) => onStartDateChange(e.target.value)}
-                />
-                <span className="text-slate-700 font-bold mx-2 italic">—</span>
-                <input 
-                  type="date" 
-                  className="bg-transparent border-none p-1 text-[11px] font-black text-white focus:ring-0 outline-none w-[16ch] cursor-pointer"
-                  value={endDate}
-                  onChange={(e) => onEndDateChange(e.target.value)}
-                />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Başlangıç' : 'Start Date'}</span>
+                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                  <Calendar className="h-4 w-4 text-slate-400 mr-2" />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => onStartDateChange(e.target.value)}
+                    className="bg-transparent border-none p-0 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Bitiş' : 'End Date'}</span>
+                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                  <Calendar className="h-4 w-4 text-slate-400 mr-2" />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => onEndDateChange(e.target.value)}
+                    className="bg-transparent border-none p-0 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
             <div className="flex flex-col space-y-2 flex-1 sm:flex-none">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Log_Status_Filter</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Durum Filtresi' : 'Status Filter'}</span>
               <div className="relative group">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-hover:text-indigo-400 transition-colors pointer-events-none" />
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-600 transition-colors pointer-events-none" />
                 <select 
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-10 py-3 text-[11px] font-black text-white hover:bg-white/10 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/30 appearance-none shadow-sm cursor-pointer transition-all uppercase tracking-widest"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-10 py-2.5 text-sm font-bold text-slate-900 hover:bg-slate-100 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 appearance-none shadow-sm cursor-pointer transition-all"
                   value={statusFilter}
                   onChange={(e) => onStatusFilterChange(e.target.value)}
                 >
-                  <option value="all" className="bg-slate-900">{t.all}</option>
-                  <option value="pending" className="bg-slate-900">{t.pending}</option>
-                  <option value="completed" className="bg-slate-900">{t.completed}</option>
-                  <option value="cancelled" className="bg-slate-900">{t.cancelled}</option>
+                  <option value="all">{t.all}</option>
+                  <option value="pending">{t.pending}</option>
+                  <option value="completed">{t.completed}</option>
+                  <option value="cancelled">{t.cancelled}</option>
                 </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgb(99,102,241)]" />
-                </div>
+                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 rotate-90 pointer-events-none" />
               </div>
             </div>
           </div>
           <button 
             onClick={onExportReport}
-            className="os-btn-primary py-4 px-8 text-xs flex items-center justify-center gap-3 active:scale-95 group"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 group"
           >
-            <Download className="h-4.5 w-4.5 group-hover:translate-y-0.5 transition-transform" /> 
+            <Download className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" /> 
             <span>{t.cashReport}</span>
           </button>
         </div>

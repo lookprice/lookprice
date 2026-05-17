@@ -1,10 +1,20 @@
 import React from "react";
+import { motion } from "motion/react";
 import { 
   TrendingUp, 
   Package, 
   Scan, 
   AlertTriangle,
-  CreditCard
+  CreditCard,
+  Calendar,
+  BarChart3,
+  TrendingDown,
+  PieChart,
+  ArrowUpRight,
+  ArrowDownRight,
+  Receipt,
+  FileText,
+  Search
 } from "lucide-react";
 import { 
   LineChart, 
@@ -23,11 +33,25 @@ import { useLanguage } from "../../contexts/LanguageContext";
 interface AnalyticsTabProps {
   analytics: any;
   branding: any;
+  onDateChange?: (startDate: string, endDate: string) => void;
+  loading?: boolean;
 }
 
-const AnalyticsTab = ({ analytics, branding }: AnalyticsTabProps) => {
+const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
+
+  const [startDate, setStartDate] = React.useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = React.useState(new Date().toISOString().split('T')[0]);
+
+  const handleApplyFilter = () => {
+    if (onDateChange) {
+      onDateChange(startDate, endDate);
+    }
+  };
 
   if (!analytics) return (
     <div className="flex items-center justify-center h-64">
@@ -36,96 +60,205 @@ const AnalyticsTab = ({ analytics, branding }: AnalyticsTabProps) => {
   );
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
+      {/* Analytics Header & Filters */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-indigo-600" />
+            {lang === 'tr' ? 'Finansal Analiz ve Raporlar' : 'Financial Analytics & Reports'}
+          </h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Real_Time_Data_Overview</p>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex-1 md:flex-none flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/30 transition-all">
+            <Calendar className="h-4 w-4 text-slate-400 mr-2" />
+            <input 
+              type="date" 
+              className="bg-transparent border-none p-1 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <span className="text-slate-300 font-bold mx-2">—</span>
+            <input 
+              type="date" 
+              className="bg-transparent border-none p-1 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+          <button 
+            onClick={handleApplyFilter}
+            disabled={loading}
+            className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg active:scale-95 flex items-center justify-center disabled:opacity-50"
+          >
+            {loading ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Search className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Sales Matrah Card */}
-        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 -mr-8 -mt-8 rounded-full blur-2xl" />
+        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden bg-gradient-to-br from-indigo-50/50 to-white">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'SATİŞ MATRAH (AYLIK)' : 'SALES MATRAH (MONTH)'}</div>
-            <div className="p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
-              <TrendingUp className="h-4 w-4 text-indigo-600" />
+            <div className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'SATIŞ MATRAH' : 'SALES MATRAH'}</div>
+            <div className="p-2.5 bg-indigo-100/50 text-indigo-600 rounded-xl">
+              <TrendingUp className="h-4 w-4" />
             </div>
           </div>
-          <div className="space-y-0.5">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              {lang === 'tr' ? 'Bu Ayki Satışlar' : 'Monthly Sales'} 
-            </p>
+          <div className="space-y-1">
             <h3 className="text-2xl font-black text-slate-900 tracking-tighter mono-data">
-              {Number(analytics.monthly_sales_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-xs font-black text-slate-300">{(branding.default_currency || 'TRY').substring(0, 3)}</span>
+              {Number(analytics.monthly_sales_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
             </h3>
-          </div>
-          <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-50">
-             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'TOPLAM MATRAH' : 'TOTAL MATRAH'}</span>
-             <span className="text-[10px] font-black text-slate-600">{Number(analytics.total_sales_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
+            <div className="flex items-center justify-between">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                {lang === 'tr' ? 'BU DÖNEM' : 'THIS PERIOD'} 
+              </p>
+              <span className="text-[10px] font-black text-indigo-400">{(branding.default_currency || 'TRY').substring(0, 3)}</span>
+            </div>
           </div>
         </div>
 
         {/* Purchase Matrah Card */}
-        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 -mr-8 -mt-8 rounded-full blur-2xl" />
+        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden bg-gradient-to-br from-rose-50/50 to-white">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'ALIŞ MATRAH (AYLIK)' : 'PROCUREMENT MATRAH (MONTH)'}</div>
-            <div className="p-2.5 bg-rose-50/50 rounded-xl border border-rose-100/50">
-              <Package className="h-4 w-4 text-rose-600" />
+            <div className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'ALIŞ MATRAH' : 'PURCHASE MATRAH'}</div>
+            <div className="p-2.5 bg-rose-100/50 text-rose-600 rounded-xl">
+              <Package className="h-4 w-4" />
             </div>
           </div>
-          <div className="space-y-0.5">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Bu Ayki Alımlar' : 'Monthly Purchases'}</p>
+          <div className="space-y-1">
             <h3 className="text-2xl font-black text-slate-900 tracking-tighter mono-data">
-              {Number(analytics.monthly_purchase_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-xs font-black text-slate-300">{(branding.default_currency || 'TRY').substring(0, 3)}</span>
+              {Number(analytics.monthly_purchase_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
             </h3>
-          </div>
-          <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-50">
-             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'NET HACİM' : 'NET VOLUME'}</span>
-             <span className="text-[10px] font-black text-slate-600">
-               {Number((analytics.monthly_sales_amount || 0) - (analytics.monthly_purchase_amount || 0)).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-             </span>
+            <div className="flex items-center justify-between">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'BU DÖNEM' : 'THIS PERIOD'}</p>
+              <span className="text-[10px] font-black text-rose-400">{(branding.default_currency || 'TRY').substring(0, 3)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Engagement Card */}
-        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden">
+        {/* Expense Matrah Card */}
+        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden bg-gradient-to-br from-amber-50/50 to-white">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em]">{t.analytics_tab?.engagement || 'Engagement'}</div>
-            <div className="p-2.5 bg-orange-50/50 rounded-xl border border-orange-100/50">
-              <Scan className="h-4 w-4 text-orange-600" />
+            <div className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'GİDERLER' : 'EXPENSES'}</div>
+            <div className="p-2.5 bg-amber-100/50 text-amber-600 rounded-xl">
+              <CreditCard className="h-4 w-4" />
             </div>
           </div>
-          <div className="space-y-0.5">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              {lang === 'tr' ? 'Bu Ayki Taramalar' : 'Monthly Scans'}
-            </p>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tighter mono-data">{analytics.monthly_scans}</h3>
-          </div>
-          <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-50">
-             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'TOPLAM TARAMA' : 'TOTAL SCANS'}</span>
-             <span className="text-[10px] font-black text-slate-600">{analytics.total_scans}</span>
+          <div className="space-y-1">
+            <h3 className="text-2xl font-black text-slate-900 tracking-tighter mono-data">
+              {Number(analytics.monthly_expense_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
+            </h3>
+            <div className="flex items-center justify-between">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'BU DÖNEM' : 'THIS PERIOD'}</p>
+              <span className="text-[10px] font-black text-amber-500">{(branding.default_currency || 'TRY').substring(0, 3)}</span>
+            </div>
           </div>
         </div>
 
-        {/* System Alert Card */}
-        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden">
+        {/* Net Volume Card */}
+        <div className="os-panel p-6 relative group hover:scale-[1.02] transition-transform cursor-default overflow-hidden bg-slate-900 text-white">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em]">{t.analytics_tab?.systemAlert || 'System Alert'}</div>
-            <div className="p-2.5 bg-rose-50/50 rounded-xl border border-rose-100/50">
-              <AlertTriangle className="h-4 w-4 text-rose-600" />
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{lang === 'tr' ? 'NET HACİM' : 'NET VOLUME'}</div>
+            <div className="p-2.5 bg-white/10 text-white rounded-xl">
+              <TrendingUp className={`h-4 w-4 ${Number(analytics.monthly_sales_amount - analytics.monthly_purchase_amount - analytics.monthly_expense_amount) < 0 ? 'rotate-180 text-rose-400' : 'text-emerald-400'}`} />
             </div>
           </div>
-          <div className="space-y-0.5">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t.analytics_tab?.lowStock || 'Low Stock'}</p>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tighter mono-data">{analytics.low_stock_count}</h3>
+          <div className="space-y-1">
+            <h3 className="text-2xl font-black text-white tracking-tighter mono-data">
+              {(Number(analytics.monthly_sales_amount || 0) - Number(analytics.monthly_purchase_amount || 0) - Number(analytics.monthly_expense_amount || 0)).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
+            </h3>
+            <div className="flex items-center justify-between">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'VERGİ ÖNCESİ' : 'PRE-TAX'}</p>
+              <span className="text-[10px] font-black text-indigo-400">{(branding.default_currency || 'TRY').substring(0, 3)}</span>
+            </div>
           </div>
-          <div className="mt-6 flex items-center gap-2 pt-4 border-t border-slate-50">
-            <div className={`w-1.5 h-1.5 rounded-full ${analytics.low_stock_count > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Stock_Health_Monitor
-            </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+        <div className="os-panel p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Gider Dağılımı' : 'Expense Breakdown'}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Expense_Categorization</p>
+            </div>
+            <div className="p-2.5 bg-rose-50 text-rose-500 rounded-xl">
+              <PieChart className="h-5 w-5" />
+            </div>
+          </div>
+          
+          <div className="space-y-6">
+            {!analytics.expense_categories || analytics.expense_categories.length === 0 ? (
+              <div className="py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
+                {lang === 'tr' ? 'GİDER VERİSİ BULUNAMADI' : 'NO EXPENSE DATA FOUND'}
+              </div>
+            ) : (
+              analytics.expense_categories.map((cat: any, idx: number) => {
+                const percentage = (cat.amount / analytics.monthly_expense_amount) * 100;
+                return (
+                  <div key={idx} className="group">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-rose-500' : idx === 1 ? 'bg-amber-500' : idx === 2 ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+                        <span className="text-sm font-black text-slate-700 uppercase tracking-tight group-hover:text-slate-900 transition-colors">
+                          {cat.category || (lang === 'tr' ? 'DİĞER' : 'OTHER')}
+                        </span>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 mono-data">
+                        {Number(cat.amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {(branding.default_currency || 'TRY').substring(0, 3)}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${percentage}%` }}
+                        transition={{ duration: 1, delay: idx * 0.1 }}
+                        className={`h-full rounded-full ${idx === 0 ? 'bg-rose-500' : idx === 1 ? 'bg-amber-500' : idx === 2 ? 'bg-indigo-500' : 'bg-slate-300'}`}
+                      />
+                    </div>
+                    <div className="flex justify-end mt-1">
+                      <span className="text-[9px] font-black text-slate-400">%{percentage.toFixed(1)}</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="os-panel p-8 backdrop-blur-sm bg-white/50 border border-slate-200">
+           <div className="flex items-center justify-between mb-6">
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Hızlı Etkileşim' : 'Quick Engagement'}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">User_System_Interactions</p>
+            </div>
+            <div className="p-2.5 bg-orange-50 text-orange-500 rounded-xl">
+              <Scan className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-orange-200 transition-all">
+              <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.2em] mb-2">{t.analytics_tab?.engagement || 'Engagement'}</p>
+              <h3 className="text-3xl font-black text-slate-900 mono-data">{analytics.monthly_scans}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                {lang === 'tr' ? 'TARAMA' : 'SCANS'}
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-rose-200 transition-all">
+              <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] mb-2">{t.analytics_tab?.systemAlert || 'System Alert'}</p>
+              <h3 className="text-3xl font-black text-slate-900 mono-data">{analytics.low_stock_count}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                {t.analytics_tab?.lowStock || 'Low Stock'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Sales Trend Chart */}
         <div className="os-panel p-8">
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-1">
@@ -174,9 +307,76 @@ const AnalyticsTab = ({ analytics, branding }: AnalyticsTabProps) => {
           </div>
         </div>
 
+        {/* Expense Categories Chart/Report */}
         <div className="os-panel p-8">
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-1">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Gider Analizi' : 'Expense Analysis'}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Operational_Expenditure_Breakdown</p>
+            </div>
+            <div className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg uppercase tracking-widest">{lang === 'tr' ? 'BU AY' : 'THIS MONTH'}</div>
+          </div>
+          <div className="space-y-4 h-[320px] overflow-y-auto pr-2 custom-scrollbar">
+            {analytics.expense_categories?.length > 0 ? (
+              analytics.expense_categories.map((expense: any, idx: number) => {
+                const totalExpense = analytics.monthly_expense_amount || 1;
+                const percentage = Math.round((expense.amount / totalExpense) * 100);
+                
+                const categoryNames: any = {
+                  'mutfak': lang === 'tr' ? 'Mutfak / Gıda' : 'Kitchen / Food',
+                  'temizlik': lang === 'tr' ? 'Temizlik Malzemesi' : 'Cleaning Supplies',
+                  'elektrik': lang === 'tr' ? 'Elektrik' : 'Electricity',
+                  'su': lang === 'tr' ? 'Su' : 'Water',
+                  'dogalgaz': lang === 'tr' ? 'Doğalgaz' : 'Natural Gas',
+                  'internet': lang === 'tr' ? 'İnternet / Telefon' : 'Internet / Phone',
+                  'kira': lang === 'tr' ? 'Kira' : 'Rent',
+                  'personel': lang === 'tr' ? 'Personel Gideri' : 'Staff Expense',
+                  'kargo': lang === 'tr' ? 'Kargo / Lojistik' : 'Shipping / Logistics',
+                  'diger': lang === 'tr' ? 'Diğer' : 'Other'
+                };
+
+                return (
+                  <div key={idx} className="group">
+                    <div className="flex justify-between items-end mb-1">
+                      <div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{categoryNames[expense.category] || expense.category || (lang === 'tr' ? 'BELİRTİLMEMİŞ' : 'UNSPECIFIED')}</span>
+                        <div className="text-sm font-black text-slate-900">{Number(expense.amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-300">{(branding.default_currency || 'TRY')}</span></div>
+                      </div>
+                      <div className="text-[10px] font-black text-slate-400">{percentage}%</div>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-rose-500 rounded-full transition-all duration-1000" 
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-100 rounded-[2.5rem]">
+                <div className="p-4 bg-slate-50 rounded-full mb-4">
+                  <CreditCard className="h-8 w-8 text-slate-300" />
+                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  {lang === 'tr' ? 'BU AY GİDER KAYDI BULUNAMADI' : 'NO EXPENSE RECORDS THIS MONTH'}
+                </p>
+              </div>
+            )}
+          </div>
+          {analytics.monthly_expense_amount > 0 && (
+            <div className="mt-8 pt-6 border-t border-slate-50 flex justify-between items-center">
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'TOPLAM GİDER' : 'TOTAL EXPENSES'}</span>
+               <span className="text-lg font-black text-rose-600">{Number(analytics.monthly_expense_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-xs font-black opacity-40">{(branding.default_currency || 'TRY')}</span></span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="os-panel p-8">
+          <div className="flex items-center justify-between mb-8">
+             <div className="space-y-1">
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.scanTrend || 'Scan Trend'}</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Customer_Interaction_Density</p>
             </div>
@@ -356,47 +556,40 @@ const AnalyticsTab = ({ analytics, branding }: AnalyticsTabProps) => {
                 <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'DÖNEM' : 'PERIOD'}</th>
                 <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'SATIŞ MATRAH' : 'SALES MATRAH'}</th>
                 <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'ALIŞ MATRAH' : 'PURCHASE MATRAH'}</th>
+                <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'GİDERLER' : 'EXPENSES'}</th>
                 <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'NET HACİM' : 'NET VOLUME'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              <tr className="group hover:bg-slate-50/50 transition-colors">
-                <td className="py-4 font-black text-slate-900 text-sm">
-                  {new Date().toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { month: 'long', year: 'numeric' })}
-                  <span className="ml-2 py-0.5 px-1.5 bg-emerald-100 text-emerald-700 text-[8px] rounded uppercase align-middle">{lang === 'tr' ? 'Aktif' : 'Active'}</span>
-                </td>
-                <td className="py-4 text-sm font-black text-slate-700 text-right mono-data">
-                  {Number(analytics.monthly_sales_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                </td>
-                <td className="py-4 text-sm font-black text-slate-700 text-right mono-data">
-                  {Number(analytics.monthly_purchase_amount || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                </td>
-                <td className="py-4 text-sm font-black text-emerald-600 text-right mono-data">
-                  {Number((analytics.monthly_sales_amount || 0) - (analytics.monthly_purchase_amount || 0)).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                </td>
-              </tr>
-              {(!analytics.monthly_history || analytics.monthly_history.length === 0) && [1, 2].map((i) => {
-                const date = new Date();
-                date.setMonth(date.getMonth() - i);
-                return (
-                  <tr key={i} className="group hover:bg-slate-50/50 transition-colors opacity-40">
-                    <td className="py-4 font-bold text-slate-500 text-sm">
-                      {date.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { month: 'long', year: 'numeric' })}
-                    </td>
-                    <td className="py-4 text-sm font-bold text-slate-400 text-right mono-data">---</td>
-                    <td className="py-4 text-sm font-bold text-slate-400 text-right mono-data">---</td>
-                    <td className="py-4 text-sm font-bold text-slate-400 text-right mono-data">---</td>
-                  </tr>
-                );
-              })}
               {analytics.monthly_history?.map((h: any, idx: number) => (
-                <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
-                  <td className="py-4 font-bold text-slate-900 text-sm">{h.period}</td>
-                  <td className="py-4 text-sm font-black text-slate-700 text-right mono-data">{Number(h.sales_matrah).toLocaleString()}</td>
-                  <td className="py-4 text-sm font-black text-slate-700 text-right mono-data">{Number(h.purchase_matrah).toLocaleString()}</td>
-                  <td className="py-4 text-sm font-black text-indigo-600 text-right mono-data">{Number(h.net_volume).toLocaleString()}</td>
+                <tr key={idx} className={`group hover:bg-slate-50/50 transition-colors ${idx === 0 ? 'bg-indigo-50/20' : ''}`}>
+                  <td className="py-4 font-black text-slate-900 text-sm">
+                    {h.period}
+                    {idx === 0 && (
+                      <span className="ml-2 py-0.5 px-1.5 bg-emerald-100 text-emerald-700 text-[8px] rounded uppercase align-middle">{lang === 'tr' ? 'Aktif' : 'Active'}</span>
+                    )}
+                  </td>
+                  <td className="py-4 text-sm font-black text-slate-700 text-right mono-data">
+                    {Number(h.sales_matrah || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-4 text-sm font-black text-slate-700 text-right mono-data">
+                    {Number(h.purchase_matrah || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-4 text-sm font-black text-rose-500 text-right mono-data">
+                    {Number(h.expense_total || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className={`py-4 text-sm font-black text-right mono-data ${(h.net_volume || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {Number(h.net_volume || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
                 </tr>
               ))}
+              {(!analytics.monthly_history || analytics.monthly_history.length === 0) && (
+                <tr className="group hover:bg-slate-50/50 transition-colors">
+                   <td className="py-10 text-center text-slate-400 text-xs font-bold uppercase tracking-widest" colSpan={5}>
+                     {lang === 'tr' ? 'GEÇMİŞ VERİ BULUNAMADI' : 'NO HISTORICAL DATA FOUND'}
+                   </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

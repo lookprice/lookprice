@@ -1,6 +1,29 @@
 import { toast } from "sonner";
 import React, { useState, useEffect, useDeferredValue } from "react";
-import { Plus, Search, Trash2, FileDown, Eye, X, Save, Calendar, Building2, Hash, Package, CreditCard, Percent, FileSpreadsheet, FileText, CheckCircle2, Edit, CloudDownload, Printer, Loader2 } from "lucide-react";
+import { 
+  Plus, 
+  Search, 
+  Trash2, 
+  FileDown, 
+  Eye, 
+  X, 
+  Save, 
+  Calendar, 
+  Building2, 
+  Hash, 
+  Package, 
+  CreditCard, 
+  Percent, 
+  FileSpreadsheet, 
+  FileText, 
+  CheckCircle2, 
+  Edit, 
+  CloudDownload, 
+  Printer, 
+  Loader2, 
+  TrendingUp 
+} from "lucide-react";
+import { normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -64,6 +87,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTaxInclusive, setIsTaxInclusive] = useState(true);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [isExpense, setIsExpense] = useState(false);
+  const [expenseCategory, setExpenseCategory] = useState("");
+  const [lastEditedId, setLastEditedId] = useState<number | null>(null);
 
   const isTr = lang === 'tr';
 
@@ -118,9 +144,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     }
   };
 
-  const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string) => {
+  const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string, silent = false) => {
     if (role === 'superadmin' && !storeId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const targetStoreId = role === 'superadmin' ? storeId : undefined;
       const [invRes, compRes, prodRes] = await Promise.all([
@@ -278,54 +304,66 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       }
     }
 
-    // Reset form and close modal immediately
-    setShowModal(false);
-    setShowConfirmModal(false);
-    setEditingInvoiceId(null);
-    setCompanyId("");
-    setCompanySearch("");
-    setInvoiceNumber("");
-    setWaybillNumber("");
-    setInvoiceDate(new Date().toISOString().split('T')[0]);
-    setNotes("");
-    setItems([]);
-    setPaymentMethod('term');
-    setPaymentStatus('unpaid');
-    setCurrency(branding?.default_currency || 'TRY');
-    setExchangeRate("1");
+    // Set submitting state and wait for promise
+    setIsSubmitting(true);
 
     const savePromise = (async () => {
-      const payload = {
-        storeId: targetStoreId,
-        company_id: currentCompanyId,
-        invoice_number: currentInvoiceNumber,
-        waybill_number: currentWaybillNumber,
-        invoice_date: currentInvoiceDate,
-        notes: currentNotes,
-        items: currentItems.map(item => ({
-          ...item,
-          quantity: Number(String(item.quantity).replace(',', '.')) || 0,
-          unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
-          tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
-        })),
-        payment_method: currentPaymentMethod,
-        payment_status: currentPaymentStatus,
-        currency: currentCurrency,
-        exchange_rate: Number(currentExchangeRate) || 1,
-        is_tax_inclusive: isTaxInclusive
-      };
+      try {
+        const payload = {
+          storeId: targetStoreId,
+          company_id: currentCompanyId,
+          invoice_number: currentInvoiceNumber,
+          waybill_number: currentWaybillNumber,
+          invoice_date: currentInvoiceDate,
+          notes: currentNotes,
+          items: currentItems.map(item => ({
+            ...item,
+            quantity: Number(String(item.quantity).replace(',', '.')) || 0,
+            unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
+            tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
+          })),
+          payment_method: currentPaymentMethod,
+          payment_status: currentPaymentStatus,
+          currency: currentCurrency,
+          exchange_rate: Number(currentExchangeRate) || 1,
+          is_tax_inclusive: isTaxInclusive,
+          is_expense: isExpense,
+          expense_category: expenseCategory
+        };
 
-      const res = currentEditingId 
-        ? await api.updatePurchaseInvoice(currentEditingId, payload, targetStoreId)
-        : await api.addPurchaseInvoice(payload, targetStoreId);
+        const res = currentEditingId 
+          ? await api.updatePurchaseInvoice(currentEditingId, payload, targetStoreId)
+          : await api.addPurchaseInvoice(payload, targetStoreId);
 
-      if (res.error) {
-        throw new Error(res.error);
+        if (res.error) {
+          throw new Error(res.error);
+        }
+
+        // Reset form and close modal AFTER success
+        setShowModal(false);
+        setShowConfirmModal(false);
+        setEditingInvoiceId(null);
+        setCompanyId("");
+        setCompanySearch("");
+        setInvoiceNumber("");
+        setWaybillNumber("");
+        setInvoiceDate(new Date().toISOString().split('T')[0]);
+        setNotes("");
+        setItems([]);
+        setPaymentMethod('term');
+        setPaymentStatus('unpaid');
+        setCurrency(branding?.default_currency || 'TRY');
+        setExchangeRate("1");
+        setIsExpense(false);
+        setExpenseCategory("");
+        
+        setLastEditedId(currentEditingId || res.id);
+        await fetchInvoicesData(undefined, undefined, undefined, true);
+        if (onSave) await onSave(true);
+        return res;
+      } finally {
+        setIsSubmitting(false);
       }
-
-      await fetchInvoicesData();
-      if (onSave) await onSave(true);
-      return res;
     })();
 
     toast.promise(savePromise, {
@@ -489,6 +527,8 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       setExchangeRate(String(data.exchange_rate || 1));
       const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
       setIsTaxInclusive(taxIncl);
+      setIsExpense(!!data.is_expense);
+      setExpenseCategory(data.expense_category || "");
       
       setItems((data.items || []).map((item: any) => {
         const tr = Number(item.tax_rate) || 0;
@@ -545,24 +585,28 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   );
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
-  const totalDeductibleTax = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
-  const totalPurchaseAmount = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalPurchaseInvoices = filteredInvoices.filter((inv: any) => !inv.is_expense);
+  const totalExpenseInvoices = filteredInvoices.filter((inv: any) => inv.is_expense);
+
+  const totalDeductibleTax = totalPurchaseInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalPurchaseAmount = totalPurchaseInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalExpenseAmount = totalExpenseInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
   const totalGrandTotal = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
   const filteredProducts = products.filter((p: any) => {
-    const searchTerms = deferredProductSearch.toLowerCase().split(' ').filter(Boolean);
+    const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return true;
     return searchTerms.every(term => 
-      (p.name || "").toLowerCase().includes(term) ||
+      normalizeSearch(p.name).includes(term) ||
       (p.barcode || "").toLowerCase().includes(term)
     );
   });
 
   const filteredCompanies = companies.filter((c: any) => {
-    const searchTerms = deferredCompanySearch.toLowerCase().split(' ').filter(Boolean);
+    const searchTerms = normalizeSearch(deferredCompanySearch).split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return true;
     return searchTerms.every(term => 
-      (c.title || "").toLowerCase().includes(term) ||
+      normalizeSearch(c.title).includes(term) ||
       (c.tax_number && c.tax_number.includes(term))
     );
   });
@@ -773,39 +817,51 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
           <div className="p-3 bg-indigo-50 rounded-xl">
             <Percent className="h-6 w-6 text-indigo-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplanan İndirilecek Vergi" : "Total Deductible Tax"}</p>
-            <p className="text-2xl font-black text-slate-900">
-              {totalDeductibleTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
+            <p className="text-xl font-black text-slate-900 tracking-tighter">
+              {totalDeductibleTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
             </p>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
           <div className="p-3 bg-emerald-50 rounded-xl">
-            <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
+            <TrendingUp className="h-6 w-6 text-emerald-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Alış Matrahı" : "Total Purchase Subtotal"}</p>
-            <p className="text-2xl font-black text-slate-900">
-              {totalPurchaseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
+            <p className="text-xl font-black text-slate-900 tracking-tighter">
+              {totalPurchaseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
             </p>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-amber-50 rounded-xl">
-            <CreditCard className="h-6 w-6 text-amber-600" />
+          <div className="p-3 bg-rose-50 rounded-xl">
+            <CreditCard className="h-6 w-6 text-rose-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Genel Toplam" : "Total Grand Total"}</p>
-            <p className="text-2xl font-black text-slate-900">
-              {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
+            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{isTr ? "GİDERLER" : "EXPENSES"}</p>
+            <p className="text-xl font-black text-slate-900 tracking-tighter">
+              {totalExpenseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div className="p-3 bg-slate-950 rounded-xl shadow-lg shadow-slate-200">
+            <Package className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
+            <p className="text-xl font-black text-slate-900 tracking-tighter">
+              {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
             </p>
           </div>
         </div>
@@ -892,7 +948,14 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             </thead>
             <tbody className="divide-y divide-slate-200">
               {paginatedInvoices.map((invoice: any) => (
-                <tr key={invoice.id} className={`hover:bg-slate-50/50 transition-colors ${invoice.is_read === false ? 'font-bold bg-indigo-50/30' : ''}`}>
+                <tr 
+                  key={invoice.id} 
+                  className={`hover:bg-slate-50/50 transition-colors ${
+                    invoice.is_read === false ? 'font-bold bg-indigo-50/30' : ''
+                  } ${
+                    lastEditedId === invoice.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-200' : ''
+                  }`}
+                >
                   <td className="p-4 text-center">
                     <input 
                       type="checkbox" 
@@ -913,7 +976,14 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                     {invoice.waybill_number || '-'}
                   </td>
                   <td className="p-4 text-xs font-medium text-slate-700">
-                    {invoice.company_name}
+                    <div>{invoice.company_name}</div>
+                    {invoice.is_expense && (
+                      <div className="mt-1">
+                        <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                          {isTr ? `GİDER: ${invoice.expense_category || 'DİĞER'}` : `EXPENSE: ${invoice.expense_category || 'OTHER'}`}
+                        </span>
+                      </div>
+                    )}
                   </td>
                   <td className="p-4 text-xs text-slate-500">
                     {invoice.tax_number || '-'}
@@ -1205,6 +1275,50 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="is_expense_toggle"
+                          type="checkbox"
+                          checked={isExpense}
+                          onChange={(e) => setIsExpense(e.target.checked)}
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                        />
+                        <label htmlFor="is_expense_toggle" className="text-sm font-bold text-slate-700 cursor-pointer">
+                          {isTr ? "Gider/Masraf Faturası" : "Expense Invoice"}
+                        </label>
+                      </div>
+                      {isExpense && (
+                        <div className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
+                          {isTr ? "STOKLARI ETKİLEMEZ" : "NO STOCK IMPACT"}
+                        </div>
+                      )}
+                    </div>
+                    {isExpense && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">{isTr ? "Gider Türü" : "Expense Type"}</label>
+                        <select
+                          value={expenseCategory}
+                          onChange={(e) => setExpenseCategory(e.target.value)}
+                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm"
+                        >
+                          <option value="">{isTr ? "Tür Seçin..." : "Select Type..."}</option>
+                          <option value="mutfak">{isTr ? "Mutfak / Gıda" : "Kitchen / Food"}</option>
+                          <option value="temizlik">{isTr ? "Temizlik Malzemesi" : "Cleaning Supplies"}</option>
+                          <option value="elektrik">{isTr ? "Elektrik" : "Electricity"}</option>
+                          <option value="su">{isTr ? "Su" : "Water"}</option>
+                          <option value="dogalgaz">{isTr ? "Doğalgaz" : "Natural Gas"}</option>
+                          <option value="internet">{isTr ? "İnternet / Telefon" : "Internet / Phone"}</option>
+                          <option value="kira">{isTr ? "Kira" : "Rent"}</option>
+                          <option value="personel">{isTr ? "Personel Gideri" : "Staff Expense"}</option>
+                          <option value="kargo">{isTr ? "Kargo / Lojistik" : "Shipping / Logistics"}</option>
+                          <option value="diger">{isTr ? "Diğer" : "Other"}</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">
@@ -1692,6 +1806,13 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Tedarikçi' : 'Supplier'}</p>
                     <p className="text-lg font-bold text-slate-900">{selectedInvoice.company_name}</p>
+                    {selectedInvoice.is_expense && (
+                      <div className="mt-1">
+                        <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-black uppercase tracking-wider">
+                          {isTr ? `GİDER: ${selectedInvoice.expense_category || 'DİĞER'}` : `EXPENSE: ${selectedInvoice.expense_category || 'OTHER'}`}
+                        </span>
+                      </div>
+                    )}
                     <p className="text-sm text-slate-500">{selectedInvoice.company_address}</p>
                     <p className="text-sm text-slate-500">{selectedInvoice.company_phone}</p>
                     <p className="text-sm text-slate-500">{selectedInvoice.tax_number}</p>
