@@ -289,6 +289,7 @@ export const api = {
   getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
   getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products`),
   getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}`),
+  getPublicVitrine: (storeIdentifier: string) => api.get(`/api/vitrine/${storeIdentifier}`),
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
   getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
   createPublicSale: (data: any) => api.post("/api/public/sales", data),

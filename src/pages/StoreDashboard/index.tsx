@@ -185,6 +185,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     activeTab, setActiveTab,
     branding, setBranding
   } = useDashboardController(user);
+
+  useEffect(() => {
+    if (!branding) return;
+    const currentSector = branding.page_layout_settings?.sector || branding.sector || 'general';
+    
+    if (currentSector === 'real_estate' && !['real_estate', 'analytics', 'quotations', 'settings', 'companies', 'blog', 'sales_invoices'].includes(activeTab)) {
+      setActiveTab('real_estate');
+    } else if (currentSector === 'automotive' && !['fleet', 'products', 'analytics', 'quotations', 'pos', 'settings', 'companies', 'service', 'sales_invoices'].includes(activeTab)) {
+      setActiveTab('fleet');
+    } else if (currentSector === 'general' && ['real_estate', 'fleet'].includes(activeTab)) {
+      setActiveTab('products');
+    }
+  }, [branding, activeTab, setActiveTab]);
   
   const [isPending, startTransition] = useTransition();
 
@@ -952,7 +965,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const navItems = [
+  const sector = branding?.page_layout_settings?.sector || 'general';
+
+  const allNavItems = [
     { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
     { id: "products", label: t.products, icon: Package },
     { id: "analytics", label: t.analytics, icon: LayoutDashboard },
@@ -972,6 +987,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
+
+  const filteredNavItems = allNavItems.filter(item => {
+    if (sector === 'real_estate') {
+      return ['real_estate', 'analytics', 'quotations', 'settings', 'companies', 'blog', 'sales_invoices'].includes(item.id);
+    }
+    if (sector === 'automotive') {
+      return ['fleet', 'products', 'analytics', 'quotations', 'pos', 'settings', 'companies', 'service', 'sales_invoices'].includes(item.id);
+    }
+    // Default / general / retail stores: hide automotive fleet/service and real estate
+    return !['real_estate', 'fleet', 'service'].includes(item.id);
+  });
+  
+  const navItems = filteredNavItems;
   console.log("navItems:", navItems);
 
   return (

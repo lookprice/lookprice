@@ -120,7 +120,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     default_currency: "TRY",
     language: "tr",
     plan: "free" as const,
-    parent_id: "" as string | number
+    parent_id: "" as string | number,
+    sector: "general"
   });
 
   const planLimits = {
@@ -194,7 +195,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         default_currency: "TRY",
         language: "tr",
         plan: "free",
-        parent_id: ""
+        parent_id: "",
+        sector: "general"
       });
       fetchData();
     } catch (error) {
@@ -575,7 +577,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                                 <ChevronRight className="h-4 w-4" />
                               </button>
                               <button 
-                                onClick={() => setEditingStore(store)}
+                                onClick={() => {
+                                  let brandingObj: any = {};
+                                  if (store.branding) {
+                                    try {
+                                      brandingObj = typeof store.branding === 'string' ? JSON.parse(store.branding) : store.branding;
+                                    } catch (e) {
+                                      brandingObj = {};
+                                    }
+                                  }
+                                  const sSector = store.sector || brandingObj.sector || brandingObj.page_layout_settings?.sector || 'general';
+                                  setEditingStore({ ...store, sector: sSector });
+                                }}
                                 className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
                                 title={st.edit}
                               >
@@ -799,6 +812,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     onChange={e => setEditingStore({...editingStore, admin_password: e.target.value})} 
                     placeholder={st.passwordNote}
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mağaza Sektörü</label>
+                  <select 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-800" 
+                    value={editingStore.sector || 'general'} 
+                    onChange={e => setEditingStore({...editingStore, sector: e.target.value})}
+                  >
+                    <option value="general">💼 Perakende / Mağazacılık (Retail)</option>
+                    <option value="automotive">🚗 Oto Galericilik ve Filo (Automotive & Fleet)</option>
+                    <option value="real_estate">🏢 Emlak Ofisi (Real Estate)</option>
+                  </select>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Üst Mağaza (Şube ise)</label>
@@ -1036,6 +1061,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                         <option value="GBP">GBP</option>
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">Mağaza Sektörü</label>
+                    <select 
+                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-800" 
+                      value={newStore.sector} 
+                      onChange={e => setNewStore({...newStore, sector: e.target.value})}
+                    >
+                      <option value="general">💼 Perakende / Mağazacılık (Retail)</option>
+                      <option value="automotive">🚗 Oto Galericilik ve Filo (Automotive & Fleet)</option>
+                      <option value="real_estate">🏢 Emlak Ofisi (Real Estate)</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700">{st.language}</label>

@@ -375,250 +375,272 @@ router.get("/stores/by-domain", async (req, res) => {
 
 router.get("/store/:slug", async (req, res) => {
   const { slug } = req.params;
-  const storeRes = await pool.query(`
-    SELECT 
-      id, name, slug, logo_url, favicon_url, primary_color, default_currency, background_image_url,
-      hero_title, hero_subtitle, hero_image_url, about_text, description,
-      instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles, custom_domain,
-      branding, page_layout, menu_links
-    FROM stores 
-    WHERE LOWER(slug) = LOWER($1)
-  `, [slug]);
-  let store = storeRes.rows[0];
+  try {
+    const storeRes = await pool.query(`
+      SELECT 
+        id, name, slug, logo_url, favicon_url, primary_color, default_currency, background_image_url,
+        hero_title, hero_subtitle, hero_image_url, about_text, description,
+        instagram_url, facebook_url, twitter_url, whatsapp_number,
+        address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles, custom_domain,
+        branding, page_layout, menu_links
+      FROM stores 
+      WHERE LOWER(slug) = LOWER($1)
+    `, [slug]);
+    let store = storeRes.rows[0];
 
-  if (store) {
-    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'page_layout', 'menu_links'];
-    jsonFields.forEach(field => {
-      if (typeof store[field] === 'string') {
-        try {
-          store[field] = JSON.parse(store[field]);
-        } catch (e) {
+    if (store) {
+      const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'page_layout', 'menu_links'];
+      jsonFields.forEach(field => {
+        if (typeof store[field] === 'string') {
+          try {
+            store[field] = JSON.parse(store[field]);
+          } catch (e) {
+            store[field] = field === 'branding' ? {} : [];
+          }
+        } else if (!store[field]) {
           store[field] = field === 'branding' ? {} : [];
         }
-      } else if (!store[field]) {
-        store[field] = field === 'branding' ? {} : [];
+      });
+
+      if (store.branding && typeof store.branding === 'object') {
+        Object.assign(store, store.branding);
       }
-    });
 
-    if (store.branding && typeof store.branding === 'object') {
-      Object.assign(store, store.branding);
+      // Fetch branches if this is a main store
+      if (!store.parent_id) {
+        const branchesRes = await pool.query(
+          "SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1",
+          [store.id]
+        );
+        store.branches = branchesRes.rows;
+      }
+
+      // Sanitize payment_settings to only expose enabled flags and sandbox mode
+      let ps = store.payment_settings || {};
+      if (typeof ps === 'string') {
+        try {
+          ps = JSON.parse(ps);
+        } catch (e) {
+          ps = {};
+        }
+      }
+      store.payment_settings = {
+        iyzico_enabled: !!ps.iyzico_enabled,
+        iyzico_sandbox: !!ps.iyzico_sandbox,
+        paypal_enabled: !!ps.paypal_enabled,
+        paypal_sandbox: !!ps.paypal_sandbox,
+        payoneer_enabled: !!ps.payoneer_enabled,
+        payoneer_sandbox: !!ps.payoneer_sandbox,
+        bank_transfer_enabled: !!ps.bank_transfer_enabled,
+        bank_details: ps.bank_details || '',
+        cod_enabled: !!ps.cod_enabled
+      };
     }
 
-    // Fetch branches if this is a main store
-    if (!store.parent_id) {
-      const branchesRes = await pool.query(
-        "SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1",
-        [store.id]
-      );
-      store.branches = branchesRes.rows;
-    }
-
-    // Sanitize payment_settings to only expose enabled flags and sandbox mode
-    let ps = store.payment_settings || {};
-    if (typeof ps === 'string') {
-      try {
-        ps = JSON.parse(ps);
-      } catch (e) {
-        ps = {};
+    if (store && store.parent_id) {
+      // This is a branch. Redirect to parent store's website.
+      const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
+      if (parentRes.rows[0]) {
+        return res.json({ redirect: `/store/${parentRes.rows[0].slug}`, isBranch: true });
       }
     }
-    store.payment_settings = {
-      iyzico_enabled: !!ps.iyzico_enabled,
-      iyzico_sandbox: !!ps.iyzico_sandbox,
-      paypal_enabled: !!ps.paypal_enabled,
-      paypal_sandbox: !!ps.paypal_sandbox,
-      payoneer_enabled: !!ps.payoneer_enabled,
-      payoneer_sandbox: !!ps.payoneer_sandbox,
-      bank_transfer_enabled: !!ps.bank_transfer_enabled,
-      bank_details: ps.bank_details || '',
-      cod_enabled: !!ps.cod_enabled
-    };
-  }
-
-  if (store && store.parent_id) {
-    // This is a branch. Redirect to parent store's website.
-    const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
-    if (parentRes.rows[0]) {
-      return res.json({ redirect: `/store/${parentRes.rows[0].slug}`, isBranch: true });
+    
+    if (!store && (slug === 'demo-store' || slug === 'demo')) {
+      store = {
+        id: -1,
+        name: "Demo Mağaza",
+        logo_url: "",
+        primary_color: "#4f46e5",
+        default_currency: "TRY",
+        background_image_url: "",
+        hero_title: "Hoş Geldiniz",
+        hero_subtitle: "En iyi ürünler burada",
+        about_text: "Biz bir demo mağazayız."
+      };
     }
-  }
-  
-  if (!store && (slug === 'demo-store' || slug === 'demo')) {
-    store = {
-      id: -1,
-      name: "Demo Mağaza",
-      logo_url: "",
-      primary_color: "#4f46e5",
-      default_currency: "TRY",
-      background_image_url: "",
-      hero_title: "Hoş Geldiniz",
-      hero_subtitle: "En iyi ürünler burada",
-      about_text: "Biz bir demo mağazayız."
-    };
-  }
-  
-  if (!store) return res.status(404).json({ error: "Store not found" });
+    
+    if (!store) return res.status(404).json({ error: "Store not found" });
 
-  // Fetch blog posts from the new table
-  const blogRes = await pool.query(
-    "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", 
-    [store.id]
-  );
-  store.blog_posts = blogRes.rows;
+    // Fetch blog posts from the new table
+    const blogRes = await pool.query(
+      "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", 
+      [store.id]
+    );
+    store.blog_posts = blogRes.rows;
 
-  res.json(store);
+    res.json(store);
+  } catch (error: any) {
+    console.error("Error in public store by slug:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
   const { slug } = req.params;
-  const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
-  let store = storeRes.rows[0];
+  try {
+    const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    let store = storeRes.rows[0];
 
-  if (!store && (slug === 'demo-store' || slug === 'demo')) {
-    store = { id: -1, default_currency: 'TRY', currency_rates: { "USD": 45.0, "EUR": 48.5, "GBP": 56.2 } };
-  }
-
-  if (!store) return res.status(404).json({ error: "Store not found" });
-
-  if (store.id === -1) {
-    // Return demo products
-    return res.json([
-      { id: 1, name: "Örnek Ürün 1", price: 100, currency: "TRY", barcode: "123", description: "Açıklama 1" },
-      { id: 2, name: "Örnek Ürün 2", price: 200, currency: "TRY", barcode: "456", description: "Açıklama 2" },
-      { id: 3, name: "Örnek Ürün 3", price: 300, currency: "TRY", barcode: "789", description: "Açıklama 3" }
-    ]);
-  }
-
-  const productsRes = await pool.query(`
-    SELECT p.*, s.name as branch_name, s.slug as branch_slug 
-    FROM products p 
-    JOIN stores s ON p.store_id = s.id
-    WHERE (p.store_id = $1 OR s.parent_id = $1) 
-    AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
-    ORDER BY p.name ASC
-  `, [store.id]);
-
-  const vehiclesRes = await pool.query(`
-    SELECT v.*, s.name as branch_name, s.slug as branch_slug 
-    FROM vehicles v 
-    JOIN stores s ON v.store_id = s.id
-    WHERE (v.store_id = $1 OR s.parent_id = $1) 
-    AND v.status = 'for_sale'
-  `, [store.id]);
-
-  const realEstateRes = await pool.query(`
-    SELECT r.*, s.name as branch_name, s.slug as branch_slug 
-    FROM real_estate r 
-    JOIN stores s ON r.store_id = s.id
-    WHERE (r.store_id = $1 OR s.parent_id = $1) 
-    AND r.status = 'active'
-  `, [store.id]);
-
-  let allListings: any[] = [ ...productsRes.rows.map((p: any) => ({ ...p, type: 'product' })) ];
-
-  vehiclesRes.rows.forEach((v: any) => {
-    allListings.push({
-      id: `v_${v.id}`,
-      db_id: v.id,
-      store_id: v.store_id,
-      type: 'vehicle',
-      name: `${v.brand} ${v.model} (${v.year})`,
-      description: `Şasi: ${v.chassis_number}, Tip: ${v.type}, KM: ${v.current_mileage}`,
-      price: v.selling_price || 0,
-      currency: v.currency || 'TRY',
-      stock_quantity: 1,
-      category: "Araç İlanları",
-      brand: v.brand,
-      branch_name: v.branch_name,
-      branch_slug: v.branch_slug,
-      image_url: null,
-      sector_data: { hp: null, engine: null, transmission: null, fuel: null }
-    });
-  });
-
-  realEstateRes.rows.forEach((r: any) => {
-    allListings.push({
-      id: `re_${r.id}`,
-      db_id: r.id,
-      store_id: r.store_id,
-      type: 'real_estate',
-      name: r.title,
-      description: r.description,
-      price: r.price,
-      currency: r.currency || 'TRY',
-      stock_quantity: 1,
-      category: r.type,
-      brand: r.location,
-      branch_name: r.branch_name,
-      branch_slug: r.branch_slug,
-      image_url: r.images && r.images.length > 0 ? r.images[0] : null,
-      sector_data: {
-        square_meters: r.square_meters,
-        rooms: r.rooms,
-        virtual_tour_url: r.virtual_tour_url,
-        ai_tour_enabled: r.ai_tour_enabled
-      }
-    });
-  });
-  
-  // Convert prices to store's default currency
-  const defaultCurrency = store.default_currency || 'TRY';
-  const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
-  
-  const convertedProducts = allListings.map(p => {
-    let convertedPrice = p.price;
-    const fromCurrency = p.currency || 'TRY';
-    
-    if (fromCurrency !== defaultCurrency) {
-      if (defaultCurrency === 'TRY') {
-        const rate = rates[fromCurrency] || 1;
-        convertedPrice = p.price * rate;
-      } else if (fromCurrency === 'TRY') {
-        const rate = rates[defaultCurrency] || 1;
-        convertedPrice = p.price / rate;
-      } else {
-        const fromRate = rates[fromCurrency] || 1;
-        const toRate = rates[defaultCurrency] || 1;
-        convertedPrice = (p.price * fromRate) / toRate;
-      }
+    if (!store && (slug === 'demo-store' || slug === 'demo')) {
+      store = { id: -1, default_currency: 'TRY', currency_rates: { "USD": 45.0, "EUR": 48.5, "GBP": 56.2 } };
     }
-    
-    return {
-      ...p,
-      price: convertedPrice,
-      original_price: p.price,
-      original_currency: p.currency,
-      currency: defaultCurrency
-    };
-  });
 
-  const groupedProductsMap = new Map();
-  convertedProducts.forEach(p => {
-    const key = p.barcode ? `barcode_${p.barcode}` : `id_${p.id}`;
-    if (groupedProductsMap.has(key)) {
-      const existing = groupedProductsMap.get(key);
-      if (!existing.available_branches) {
-        existing.available_branches = [{
-          id: existing.id,
-          store_id: existing.store_id,
-          branch_name: existing.branch_name || store.name,
-          branch_slug: existing.branch_slug || store.slug
-        }];
-      }
-      existing.available_branches.push({
-        id: p.id,
-        store_id: p.store_id,
-        branch_name: p.branch_name || store.name,
-        branch_slug: p.branch_slug || store.slug
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    if (store.id === -1) {
+      // Return demo products
+      return res.json([
+        { id: 1, name: "Örnek Ürün 1", price: 100, currency: "TRY", barcode: "123", description: "Açıklama 1" },
+        { id: 2, name: "Örnek Ürün 2", price: 200, currency: "TRY", barcode: "456", description: "Açıklama 2" },
+        { id: 3, name: "Örnek Ürün 3", price: 300, currency: "TRY", barcode: "789", description: "Açıklama 3" }
+      ]);
+    }
+
+    const productsRes = await pool.query(`
+      SELECT p.*, s.name as branch_name, s.slug as branch_slug 
+      FROM products p 
+      JOIN stores s ON p.store_id = s.id
+      WHERE (p.store_id = $1 OR s.parent_id = $1) 
+      AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
+      ORDER BY p.name ASC
+    `, [store.id]);
+
+    let vehiclesRows: any[] = [];
+    try {
+      const vehiclesRes = await pool.query(`
+        SELECT v.*, s.name as branch_name, s.slug as branch_slug 
+        FROM vehicles v 
+        JOIN stores s ON v.store_id = s.id
+        WHERE (v.store_id = $1 OR s.parent_id = $1) 
+        AND v.status = 'for_sale'
+      `, [store.id]);
+      vehiclesRows = vehiclesRes.rows;
+    } catch (ve: any) {
+      console.warn("Vehicles query failed or table not found:", ve.message);
+    }
+
+    let realEstateRows: any[] = [];
+    try {
+      const realEstateRes = await pool.query(`
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+        FROM real_estate r 
+        JOIN stores s ON r.store_id = s.id
+        WHERE (r.store_id = $1 OR s.parent_id = $1) 
+        AND r.status = 'active'
+      `, [store.id]);
+      realEstateRows = realEstateRes.rows;
+    } catch (re: any) {
+      console.warn("Real Estate query failed or table not found:", re.message);
+    }
+
+    let allListings: any[] = [ ...productsRes.rows.map((p: any) => ({ ...p, type: 'product' })) ];
+
+    vehiclesRows.forEach((v: any) => {
+      allListings.push({
+        id: `v_${v.id}`,
+        db_id: v.id,
+        store_id: v.store_id,
+        type: 'vehicle',
+        name: `${v.brand || ''} ${v.model || ''} (${v.year || ''})`,
+        description: `Şasi: ${v.chassis_number || ''}, Tip: ${v.type || ''}, KM: ${v.current_mileage || 0}`,
+        price: v.selling_price || 0,
+        currency: v.currency || 'TRY',
+        stock_quantity: 1,
+        category: "Araç İlanları",
+        brand: v.brand || '',
+        branch_name: v.branch_name,
+        branch_slug: v.branch_slug,
+        image_url: null,
+        sector_data: { hp: null, engine: null, transmission: null, fuel: null }
       });
-    } else {
-      groupedProductsMap.set(key, { ...p });
-    }
-  });
+    });
 
-  res.json(Array.from(groupedProductsMap.values()));
+    realEstateRows.forEach((r: any) => {
+      allListings.push({
+        id: `re_${r.id}`,
+        db_id: r.id,
+        store_id: r.store_id,
+        type: 'real_estate',
+        name: r.title,
+        description: r.description,
+        price: r.price,
+        currency: r.currency || 'TRY',
+        stock_quantity: 1,
+        category: r.type,
+        brand: r.location,
+        branch_name: r.branch_name,
+        branch_slug: r.branch_slug,
+        image_url: r.images && r.images.length > 0 ? r.images[0] : null,
+        sector_data: {
+          square_meters: r.square_meters,
+          rooms: r.rooms,
+          virtual_tour_url: r.virtual_tour_url,
+          ai_tour_enabled: r.ai_tour_enabled
+        }
+      });
+    });
+    
+    // Convert prices to store's default currency
+    const defaultCurrency = store.default_currency || 'TRY';
+    const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+    
+    const convertedProducts = allListings.map(p => {
+      let convertedPrice = p.price;
+      const fromCurrency = p.currency || 'TRY';
+      
+      if (fromCurrency !== defaultCurrency) {
+        if (defaultCurrency === 'TRY') {
+          const rate = rates[fromCurrency] || 1;
+          convertedPrice = p.price * rate;
+        } else if (fromCurrency === 'TRY') {
+          const rate = rates[defaultCurrency] || 1;
+          convertedPrice = p.price / rate;
+        } else {
+          const fromRate = rates[fromCurrency] || 1;
+          const toRate = rates[defaultCurrency] || 1;
+          convertedPrice = (p.price * fromRate) / toRate;
+        }
+      }
+      
+      return {
+        ...p,
+        price: convertedPrice,
+        original_price: p.price,
+        original_currency: p.currency,
+        currency: defaultCurrency
+      };
+    });
+
+    const groupedProductsMap = new Map();
+    convertedProducts.forEach(p => {
+      const key = p.barcode ? `barcode_${p.barcode}` : `id_${p.id}`;
+      if (groupedProductsMap.has(key)) {
+        const existing = groupedProductsMap.get(key);
+        if (!existing.available_branches) {
+          existing.available_branches = [{
+            id: existing.id,
+            store_id: existing.store_id,
+            branch_name: existing.branch_name || store.name,
+            branch_slug: existing.branch_slug || store.slug
+          }];
+        }
+        existing.available_branches.push({
+          id: p.id,
+          store_id: p.store_id,
+          branch_name: p.branch_name || store.name,
+          branch_slug: p.branch_slug || store.slug
+        });
+      } else {
+        groupedProductsMap.set(key, { ...p });
+      }
+    });
+
+    res.json(Array.from(groupedProductsMap.values()));
+  } catch (error: any) {
+    console.error("Error in public products by slug:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Public: Facebook & Google Product Catalog XML Feed

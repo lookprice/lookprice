@@ -35,7 +35,7 @@ export const Marketplace = () => {
           {loading ? (
              <p className="text-slate-500 font-medium">İlanlar yükleniyor...</p>
           ) : (
-             listings.map((listing: any, index: number) => (
+             (Array.isArray(listings) ? listings : []).map((listing: any, index: number) => (
                 <div key={index} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
                    <div className="aspect-[4/3] bg-slate-100 rounded-2xl mb-4 overflow-hidden relative">
                       {listing.image_url ? (

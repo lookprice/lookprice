@@ -23,6 +23,7 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { RealEstateModal } from "../../components/RealEstateModal";
 import { VirtualTourViewer } from "../../components/VirtualTourViewer";
 import { RealEstateProperty } from "../../types";
+import { api } from "../../services/api";
 
 interface RealEstateTabProps {
   properties: RealEstateProperty[];

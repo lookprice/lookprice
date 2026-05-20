@@ -604,14 +604,73 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             
             <div className="bg-slate-50 p-5 rounded-2xl border border-indigo-100 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Kapak Fotoğrafı URL (Opsiyonel)</label>
-                <input
-                  type="text"
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full p-3 border rounded-xl text-xs font-medium"
-                  value={formData.images?.[0] || ''}
-                  onChange={(e) => setFormData({...formData, images: e.target.value ? [e.target.value] : []})}
-                />
+                <label className="block text-xs font-bold text-slate-500 mb-1">Fotoğraflar ve Medya Galerisi (En Az Bir Adet Gerekli)</label>
+                
+                {/* Visual grid of added image media */}
+                {formData.images && formData.images.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 bg-white p-3 rounded-xl border border-slate-200">
+                    {formData.images.map((url, idx) => (
+                      <div key={idx} className="relative group rounded-xl border border-slate-200 overflow-hidden bg-slate-50 aspect-video flex flex-col items-center justify-center">
+                        <img 
+                          src={url} 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => { (e.target as any).src='https://images.unsplash.com/photo-1560518883-ce09059eeffa'; }} 
+                        />
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...(formData.images || [])];
+                              updated.splice(idx, 1);
+                              setFormData({...formData, images: updated});
+                            }}
+                            className="p-1 px-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-black transition-all active:scale-95"
+                          >
+                            <Trash2 className="w-3 h-3 inline mr-1" /> Sil
+                          </button>
+                        </div>
+                        <span className="absolute bottom-1 right-1 bg-black/75 px-2 py-0.5 text-white text-[8px] font-extrabold rounded">
+                          {idx === 0 ? 'Kapak' : `Görsel #${idx + 1}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input to add a new image url */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    id="new_realestate_image_url"
+                    placeholder="Eklenecek fotoğraf veya video URL formatındaki medyayı yazın... (Örn: https://...)"
+                    className="flex-1 p-3 border rounded-xl text-xs font-semibold text-slate-705 text-slate-700"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const val = (e.target as any).value.trim();
+                        if (val) {
+                          setFormData({...formData, images: [...(formData.images || []), val]});
+                          (e.target as any).value = '';
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = document.getElementById('new_realestate_image_url') as HTMLInputElement;
+                      const val = input?.value.trim();
+                      if (val) {
+                        setFormData({...formData, images: [...(formData.images || []), val]});
+                        input.value = '';
+                      }
+                    }}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl transition duration-150 active:scale-95"
+                  >
+                    Resim Ekle
+                  </button>
+                </div>
 
                 {formData.images && formData.images.length > 0 && (
                   <div className="mt-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex flex-wrap items-center gap-2">
