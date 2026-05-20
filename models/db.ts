@@ -1002,6 +1002,50 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicle_documents' AND column_name='is_recurring') THEN
           ALTER TABLE vehicle_documents ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE;
         END IF;
+        
+        -- Automotive CRM new columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='selling_price') THEN
+          ALTER TABLE vehicles ADD COLUMN selling_price DECIMAL(12,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='currency') THEN
+          ALTER TABLE vehicles ADD COLUMN currency TEXT DEFAULT 'TRY';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='package_name') THEN
+          ALTER TABLE vehicles ADD COLUMN package_name TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='transmission') THEN
+          ALTER TABLE vehicles ADD COLUMN transmission TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='fuel_type') THEN
+          ALTER TABLE vehicles ADD COLUMN fuel_type TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='color') THEN
+          ALTER TABLE vehicles ADD COLUMN color TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='body_type') THEN
+          ALTER TABLE vehicles ADD COLUMN body_type TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='paint_report') THEN
+          ALTER TABLE vehicles ADD COLUMN paint_report TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='tramer_amount') THEN
+          ALTER TABLE vehicles ADD COLUMN tramer_amount DECIMAL(12,2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='tramer_currency') THEN
+          ALTER TABLE vehicles ADD COLUMN tramer_currency TEXT DEFAULT 'TRY';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='buying_price') THEN
+          ALTER TABLE vehicles ADD COLUMN buying_price DECIMAL(12,2) DEFAULT 0;
+        END if;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='expenses') THEN
+          ALTER TABLE vehicles ADD COLUMN expenses TEXT DEFAULT '[]';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='target_profit_margin') THEN
+          ALTER TABLE vehicles ADD COLUMN target_profit_margin DECIMAL(5,2) DEFAULT 0;
+        END IF;
+        
+        -- Relax state constraint
+        ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;
       END $$;
     `);
     console.log("Columns checked.");

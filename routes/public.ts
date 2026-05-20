@@ -128,7 +128,96 @@ function generateIyzicoSignature(apiKey: string, secretKey: string, randomString
   return hash;
 }
 
-// Helper for PayPal Access Token
+// Public: Mega Portal Marketplace combined listings
+router.get("/marketplace/listings", async (req, res) => {
+  try {
+    const productsRes = await pool.query(`
+      SELECT p.id, p.store_id, p.name, p.description, p.price, p.currency, p.image_url, p.category, p.brand, p.created_at, s.name as store_name, s.slug as store_slug
+      FROM products p 
+      JOIN stores s ON p.store_id = s.id
+      WHERE (p.is_web_sale = true OR p.is_web_sale IS NULL)
+      ORDER BY p.created_at DESC
+      LIMIT 100
+    `);
+
+    const vehiclesRes = await pool.query(`
+      SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.price, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, s.name as store_name, s.slug as store_slug
+      FROM vehicles v
+      JOIN stores s ON v.store_id = s.id
+      WHERE v.status = 'for_sale'
+      ORDER BY v.id DESC
+      LIMIT 100
+    `);
+
+    const realEstateRes = await pool.query(`
+      SELECT r.*, s.name as store_name, s.slug as store_slug
+      FROM real_estate r
+      JOIN stores s ON r.store_id = s.id
+      WHERE r.status = 'active'
+      ORDER BY r.created_at DESC
+      LIMIT 100
+    `);
+
+    const allListings: any[] = [];
+    productsRes.rows.forEach((p: any) => {
+      allListings.push({
+        id: `p_${p.id}`,
+        db_id: p.id,
+        listing_type: 'product',
+        title: p.name,
+        price: p.price,
+        currency: p.currency,
+        image_url: p.image_url,
+        store_name: p.store_name,
+        store_slug: p.store_slug,
+        category: p.category,
+        brand: p.brand,
+        created_at: p.created_at
+      });
+    });
+
+    vehiclesRes.rows.forEach((v: any) => {
+      allListings.push({
+        id: `v_${v.db_id}`,
+        db_id: v.db_id,
+        listing_type: 'vehicle',
+        title: `${v.brand} ${v.model} (${v.year})`,
+        price: v.selling_price || v.price,
+        currency: v.currency,
+        image_url: null,
+        store_name: v.store_name,
+        store_slug: v.store_slug,
+        category: 'Oto Galeri',
+        brand: v.brand,
+        created_at: new Date() // Fallback if no created_at
+      });
+    });
+
+    realEstateRes.rows.forEach((r: any) => {
+      allListings.push({
+        id: `re_${r.id}`,
+        db_id: r.id,
+        listing_type: 'real_estate',
+        title: r.title,
+        price: r.price,
+        currency: r.currency,
+        image_url: r.images && r.images.length > 0 ? r.images[0] : null,
+        store_name: r.store_name,
+        store_slug: r.store_slug,
+        category: 'Emlak',
+        brand: r.location,
+        created_at: r.created_at
+      });
+    });
+
+    // Shuffle or sort newest
+    allListings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    res.json(allListings);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 async function getPayPalAccessToken(clientId: string, secret: string, sandbox: boolean) {
   const baseUrl = sandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
   const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
@@ -410,12 +499,75 @@ router.get("/store/:slug/products", async (req, res) => {
     AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
     ORDER BY p.name ASC
   `, [store.id]);
+
+  const vehiclesRes = await pool.query(`
+    SELECT v.*, s.name as branch_name, s.slug as branch_slug 
+    FROM vehicles v 
+    JOIN stores s ON v.store_id = s.id
+    WHERE (v.store_id = $1 OR s.parent_id = $1) 
+    AND v.status = 'for_sale'
+  `, [store.id]);
+
+  const realEstateRes = await pool.query(`
+    SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+    FROM real_estate r 
+    JOIN stores s ON r.store_id = s.id
+    WHERE (r.store_id = $1 OR s.parent_id = $1) 
+    AND r.status = 'active'
+  `, [store.id]);
+
+  let allListings: any[] = [ ...productsRes.rows.map((p: any) => ({ ...p, type: 'product' })) ];
+
+  vehiclesRes.rows.forEach((v: any) => {
+    allListings.push({
+      id: `v_${v.id}`,
+      db_id: v.id,
+      store_id: v.store_id,
+      type: 'vehicle',
+      name: `${v.brand} ${v.model} (${v.year})`,
+      description: `Şasi: ${v.chassis_number}, Tip: ${v.type}, KM: ${v.current_mileage}`,
+      price: v.selling_price || 0,
+      currency: v.currency || 'TRY',
+      stock_quantity: 1,
+      category: "Araç İlanları",
+      brand: v.brand,
+      branch_name: v.branch_name,
+      branch_slug: v.branch_slug,
+      image_url: null,
+      sector_data: { hp: null, engine: null, transmission: null, fuel: null }
+    });
+  });
+
+  realEstateRes.rows.forEach((r: any) => {
+    allListings.push({
+      id: `re_${r.id}`,
+      db_id: r.id,
+      store_id: r.store_id,
+      type: 'real_estate',
+      name: r.title,
+      description: r.description,
+      price: r.price,
+      currency: r.currency || 'TRY',
+      stock_quantity: 1,
+      category: r.type,
+      brand: r.location,
+      branch_name: r.branch_name,
+      branch_slug: r.branch_slug,
+      image_url: r.images && r.images.length > 0 ? r.images[0] : null,
+      sector_data: {
+        square_meters: r.square_meters,
+        rooms: r.rooms,
+        virtual_tour_url: r.virtual_tour_url,
+        ai_tour_enabled: r.ai_tour_enabled
+      }
+    });
+  });
   
   // Convert prices to store's default currency
   const defaultCurrency = store.default_currency || 'TRY';
   const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
   
-  const convertedProducts = productsRes.rows.map(p => {
+  const convertedProducts = allListings.map(p => {
     let convertedPrice = p.price;
     const fromCurrency = p.currency || 'TRY';
     

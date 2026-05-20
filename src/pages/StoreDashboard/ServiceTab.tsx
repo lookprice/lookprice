@@ -327,19 +327,19 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       doc.text(fixTr(fullRecord.customer_name || '-'), 18, yPos + 12);
       doc.text(fixTr(`Tel: ${fullRecord.customer_phone || '-'}`), 18, yPos + 17);
 
-      // Device Info Box
+      // Device/Vehicle Info Box
       doc.setFillColor(249, 250, 251);
       doc.roundedRect(106, yPos, 90, 25, 1, 1, 'F');
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(79, 70, 229);
-      doc.text(fixTr(isTr ? "Cihaz Bilgileri" : "Device Information"), 110, yPos + 6);
+      doc.text(fixTr(isTr ? "Cihaz / Araç Bilgileri" : "Device / Vehicle Information"), 110, yPos + 6);
       
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(50);
       doc.text(fixTr(`${isTr ? "Model" : "Model"}: ${fullRecord.device_model}`), 110, yPos + 12);
-      doc.text(fixTr(`${isTr ? "Seri No" : "Serial No"}: ${fullRecord.device_serial || '-'}`), 110, yPos + 17);
+      doc.text(fixTr(`${isTr ? "Seri / Şasi / Plaka" : "Serial / Chassis / Plate"}: ${fullRecord.device_serial || '-'}`), 110, yPos + 17);
 
       yPos += 32;
 
@@ -347,7 +347,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(79, 70, 229);
-      doc.text(fixTr(isTr ? "Arıza Açıklaması" : "Issue Description"), 14, yPos);
+      doc.text(fixTr(isTr ? "Açıklama / Arıza / Talep" : "Issue / Request Description"), 14, yPos);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(50);
       doc.setFontSize(8);
@@ -1250,11 +1250,11 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
                 {/* Device Info */}
                 <div className="mb-4">
-                  <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'CİHAZ BİLGİLERİ & AÇIKLAMA' : 'DEVICE INFO & DESCRIPTION'}</p>
+                  <p className="font-bold border-b border-slate-900 pb-0.5 mb-1 text-[11px]">{isTr ? 'CİHAZ / ARAÇ BİLGİLERİ & AÇIKLAMA' : 'DEVICE/VEHICLE INFO & DESCRIPTION'}</p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p><span className="font-bold">{isTr ? 'Cihaz Modeli:' : 'Device Model:'}</span> {selectedRecord.device_model}</p>
-                      <p><span className="font-bold">{isTr ? 'Seri No:' : 'Serial No:'}</span> {selectedRecord.device_serial || '-'}</p>
+                      <p><span className="font-bold">{isTr ? 'Cihaz / Araç Modeli:' : 'Device/Vehicle Model:'}</span> {selectedRecord.device_model}</p>
+                      <p><span className="font-bold">{isTr ? 'Seri, Şasi veya Plaka:' : 'Serial, Chassis or Plate:'}</span> {selectedRecord.device_serial || '-'}</p>
                     </div>
                     <div>
                       <p><span className="font-bold">{isTr ? 'Açıklama:' : 'Description:'}</span> {selectedRecord.issue_description || '-'}</p>

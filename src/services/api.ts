@@ -184,6 +184,16 @@ export const api = {
     return api.get(url);
   },
   getSalesInvoice: (id: number, storeId?: number) => api.get(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  
+  // Real Estate Methods
+  getProperties: (storeId?: number) => api.get(`/api/real-estate/properties${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addProperty: (data: any) => api.post(`/api/real-estate/properties`, data),
+  updateProperty: (id: number, data: any) => api.put(`/api/real-estate/properties/${id}`, data),
+  deleteProperty: (id: number) => api.delete(`/api/real-estate/properties/${id}`),
+  
+  // AI Jobs
+  triggerAIJob: (data: any) => api.post(`/api/ai-jobs/trigger`, data),
+
   getSalesInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html?type=sales`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateSalesInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
@@ -276,6 +286,7 @@ export const api = {
   requestReturn: (orderId: number, reason: string) => api.post(`/api/user/orders/${orderId}/return`, { reason }),
   
   // Public Methods
+  getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
   getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products`),
   getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}`),
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),

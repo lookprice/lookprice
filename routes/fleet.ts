@@ -6,6 +6,22 @@ import multer from 'multer';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Self-Healing database schema updates for vehicle AI & showcase elements
+(async () => {
+  try {
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS description TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS images TEXT[];`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS virtual_tour_url TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS ai_tour_enabled BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS seller_type TEXT DEFAULT 'professional';`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'none';`);
+    console.log("Self-healing schema verification: vehicles table columns processed successfully.");
+  } catch (error) {
+    console.error("Self-healing schema error for vehicles table:", error);
+  }
+})();
+
 async function uploadToSupabase(file: any) {
   try {
     const { supabase } = await import('../src/services/supabaseService.ts');
@@ -54,14 +70,36 @@ router.get('/vehicles', authenticate, async (req: any, res) => {
 
 // Create a new vehicle
 router.post('/vehicles', authenticate, async (req: any, res) => {
-  const { plate, brand, model, year, type, chassis_number, engine_number, current_mileage } = req.body;
+  const { 
+    plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
+    package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
+    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status
+  } = req.body;
   const storeId = req.body.store_id || req.user.store_id;
 
   try {
     const result = await pool.query(
-      `INSERT INTO vehicles (store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [storeId, plate, brand, model, year, type, chassis_number, engine_number, current_mileage]
+      `INSERT INTO vehicles (
+        store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
+        package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
+        description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30) RETURNING *`,
+      [
+        storeId, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status || 'active',
+        package_name, transmission, fuel_type, color, body_type, 
+        typeof paint_report === 'string' ? paint_report : JSON.stringify(paint_report || {}), 
+        tramer_amount || 0, tramer_currency || 'TRY', buying_price || 0, 
+        typeof expenses === 'string' ? expenses : JSON.stringify(expenses || []), 
+        target_profit_margin || 0,
+        description || '',
+        images || [],
+        virtual_tour_url || '',
+        !!ai_tour_enabled,
+        seller_type || 'professional',
+        !!is_verified,
+        verification_status || 'none'
+      ]
     );
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
@@ -76,14 +114,38 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
 // Update a vehicle
 router.put('/vehicles/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status } = req.body;
+  const { 
+    plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
+    package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
+    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status
+  } = req.body;
 
   try {
     const result = await pool.query(
       `UPDATE vehicles 
-       SET plate = $1, brand = $2, model = $3, year = $4, type = $5, chassis_number = $6, engine_number = $7, current_mileage = $8, status = $9, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $10 RETURNING *`,
-      [plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, id]
+       SET plate = $1, brand = $2, model = $3, year = $4, type = $5, chassis_number = $6, engine_number = $7, current_mileage = $8, status = $9, selling_price = $10, currency = $11,
+           package_name = $12, transmission = $13, fuel_type = $14, color = $15, body_type = $16, 
+           paint_report = $17, tramer_amount = $18, tramer_currency = $19, buying_price = $20, expenses = $21, target_profit_margin = $22,
+           description = $23, images = $24, virtual_tour_url = $25, ai_tour_enabled = $26,
+           seller_type = $27, is_verified = $28, verification_status = $29,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $30 RETURNING *`,
+      [
+        plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
+        package_name, transmission, fuel_type, color, body_type, 
+        typeof paint_report === 'string' ? paint_report : JSON.stringify(paint_report || {}), 
+        tramer_amount || 0, tramer_currency || 'TRY', buying_price || 0, 
+        typeof expenses === 'string' ? expenses : JSON.stringify(expenses || []), 
+        target_profit_margin || 0,
+        description || '',
+        images || [],
+        virtual_tour_url || '',
+        !!ai_tour_enabled,
+        seller_type || 'professional',
+        !!is_verified,
+        verification_status || 'none',
+        id
+      ]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vehicle not found' });
@@ -96,18 +158,12 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
 });
 
 // Delete a vehicle
-router.put('/vehicles/:id', authenticate, async (req: any, res) => {
+router.delete('/vehicles/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status } = req.body;
   try {
-    const result = await pool.query(
-      `UPDATE vehicles 
-       SET plate = $1, brand = $2, model = $3, year = $4, type = $5, chassis_number = $6, engine_number = $7, current_mileage = $8, status = $9, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $10 RETURNING *`,
-      [plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, id]
-    );
+    const result = await pool.query('DELETE FROM vehicles WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Vehicle not found' });
-    res.json(result.rows[0]);
+    res.json({ message: 'Vehicle deleted successfully' });
   } catch (error) {
     console.error("Error updating vehicle:", error);
     res.status(500).json({ error: 'Internal server error' });
@@ -339,12 +395,12 @@ router.get('/vehicles/:id/mileage', authenticate, async (req: any, res) => {
 
 router.post('/vehicles/:id/mileage', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { date, mileage, notes } = req.body;
+  const { date, mileage, notes, purpose, expense_amount, expense_type, duration_minutes } = req.body;
   const userId = req.user.id;
   try {
     const result = await pool.query(
-      'INSERT INTO vehicle_mileage_logs (vehicle_id, date, mileage, user_id, notes) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, date || null, mileage, userId, notes]
+      'INSERT INTO vehicle_mileage_logs (vehicle_id, date, mileage, user_id, notes, purpose, expense_amount, expense_type, duration_minutes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [id, date || null, mileage, userId, notes, purpose, expense_amount, expense_type, duration_minutes]
     );
     // Also update current_mileage in vehicles table
     await pool.query('UPDATE vehicles SET current_mileage = $1 WHERE id = $2', [mileage, id]);
