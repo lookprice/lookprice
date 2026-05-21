@@ -26,6 +26,8 @@ import {
   Phone,
   Info,
   ArrowLeft,
+  ArrowRight,
+  Box,
   ShieldCheck,
   Shield,
   Globe,
@@ -145,11 +147,10 @@ const ProductCard: React.FC<{
           ))}
         </div>
       )}
-
-      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
+       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
         <button 
           onClick={() => {
-            if (product.type === 'vehicle' || product.type === 'real_estate' || (product.available_branches && product.available_branches.length > 1)) {
+            if (product.type === 'vehicle' || product.type === 'real_estate' || sector === 'real_estate' || (product.available_branches && product.available_branches.length > 1)) {
               onView(product);
             } else {
               addToBasket(product);
@@ -157,7 +158,7 @@ const ProductCard: React.FC<{
           }}
           className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
         >
-          {product.type === 'vehicle' || product.type === 'real_estate' ? (
+          {product.type === 'vehicle' || product.type === 'real_estate' || sector === 'real_estate' ? (
             <><Eye className="w-4 h-4" /> {lang === 'tr' ? 'Detayları İncele' : 'View Details'}</>
           ) : (
             <><Plus className="w-4 h-4" /> {(product.available_branches && product.available_branches.length > 1) ? (lang === 'tr' ? 'Seçenekleri Gör' : 'View Options') : t.dashboard.addToBasket}</>
@@ -288,24 +289,60 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.square_meters && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE' : 'SQUARE METERS'}</p>
+          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE (NET)' : 'SQUARE METERS (NET)'}</p>
           <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.square_meters} m²</p>
         </div>
       )}
-      {data.rooms && (
+      {data.sqm_gross && (
+        <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
+          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE (BRÜT)' : 'SQUARE METERS (GROSS)'}</p>
+          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.sqm_gross} m²</p>
+        </div>
+      )}
+      {(data.rooms || data.room_count) && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'ODA SAYISI' : 'ROOMS'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.rooms}</p>
+          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.rooms || data.room_count}</p>
+        </div>
+      )}
+      {data.kktc_region && (
+        <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100 group hover:border-amber-300 transition-all">
+          <p className="text-[8px] font-semibold text-amber-600 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Bölge' : 'Region'}</p>
+          <p className="text-sm font-semibold text-amber-900 transition-colors uppercase">{data.kktc_region}</p>
+        </div>
+      )}
+      {data.kktc_title_type && (
+        <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-semibold text-indigo-600 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Koçan Tipi' : 'Title Deed'}</p>
+          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.kktc_title_type}</p>
+        </div>
+      )}
+      {data.facade && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-slate-300 transition-all">
+          <p className="text-[8px] font-semibold text-slate-500 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Cephe' : 'Facade'}</p>
+          <p className="text-sm font-semibold text-slate-900 transition-colors uppercase">{data.facade}</p>
+        </div>
+      )}
+      {data.in_gated_community && (
+        <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
+          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Durum' : 'Status'}</p>
+          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{lang === 'tr' ? 'Site İçi' : 'In Gated Community'}</p>
         </div>
       )}
       {data.virtual_tour_url && (
-        <div className="col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
-          <div>
-             <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">{lang === 'tr' ? 'SANAL TUR' : 'VIRTUAL TOUR'}</p>
-             <p className="text-sm font-bold text-indigo-900">{lang === 'tr' ? '3D Gezinti Mevcut' : '3D Tour Available'}</p>
+        <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/80 rounded-2xl border border-indigo-200 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center animate-pulse shadow-lg shadow-indigo-200">
+                <Box className="w-6 h-6" />
+             </div>
+             <div>
+                <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">{lang === 'tr' ? 'TEKNOLOJİ' : 'TECHNOLOGY'}</p>
+                <p className="text-sm font-bold text-indigo-900">{lang === 'tr' ? '3D Matterport Sanal Tur' : '3D Matterport Virtual Tour'}</p>
+             </div>
           </div>
-          <button onClick={() => window.open(data.virtual_tour_url, '_blank')} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all">
-             {lang === 'tr' ? 'Turu Başlat' : 'Start Tour'}
+          <button onClick={() => window.open(data.virtual_tour_url, '_blank')} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-2">
+             {lang === 'tr' ? 'TURU BAŞLAT' : 'START TOUR'}
+             <ArrowRight className="w-3 h-3" />
           </button>
         </div>
       )}
@@ -883,12 +920,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
   
-  const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
-  const brandsLabel = store?.brand_label ? store.brand_label.toUpperCase() : (lang === 'tr' ? 'MARKALAR' : 'BRANDS');
-  const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
-  const categoriesLabel = store?.category_label ? store.category_label.toUpperCase() : (lang === 'tr' ? 'KATEGORİLER' : 'CATEGORIES');
-  const productLabel = store?.product_label || (lang === 'tr' ? 'Ürün' : 'Product');
-  const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
+  let brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
+  let brandsLabel = store?.brand_label ? store.brand_label.toUpperCase() : (lang === 'tr' ? 'MARKALAR' : 'BRANDS');
+  let categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
+  let categoriesLabel = store?.category_label ? store.category_label.toUpperCase() : (lang === 'tr' ? 'KATEGORİLER' : 'CATEGORIES');
+  let productLabel = store?.product_label || (lang === 'tr' ? 'Ürün' : 'Product');
+  let stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1040,6 +1077,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const isBold = layoutSettings.theme_variety === 'bold';
   
   const sector = layoutSettings.sector || 'general';
+  const isRealEstate = (layoutSettings.sector === 'real_estate' || (store as any)?.sector === 'real_estate' || (store as any)?.branding?.sector === 'real_estate');
+
+  categoriesLabel = isRealEstate ? (lang === 'tr' ? 'Gayrimenkul Kategorileri' : 'Property Categories') : (lang === 'tr' ? 'Kategoriler' : 'Categories');
+  productLabel = isRealEstate ? (lang === 'tr' ? 'İlan' : 'Listing') : (lang === 'tr' ? 'Ürün' : 'Product');
+  brandsLabel = isRealEstate ? (lang === 'tr' ? 'Bölgeler' : 'Locations') : (lang === 'tr' ? 'Markalar' : 'Brands');
+  brandLabel = isRealEstate ? (lang === 'tr' ? 'Bölge' : 'Location') : (lang === 'tr' ? 'Marka' : 'Brand');
+
   const isAuto = sector === 'automotive';
   const isFashion = sector === 'fashion' || isLuxury;
   const isTech = sector === 'tech';
@@ -1675,7 +1719,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input 
               type="text"
-              placeholder={t.dashboard.searchProducts}
+              placeholder={isRealEstate ? (lang === 'tr' ? 'İlan Ara...' : 'Search Listings...') : t.dashboard.searchProducts}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-lg transition-all outline-none text-sm font-medium"
@@ -1707,9 +1751,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       <button onClick={() => { navigate(getStorePath("/profile")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
                         <User className="w-4 h-4" /> {lang === 'tr' ? 'Profilim' : 'My Profile'}
                       </button>
-                      <button onClick={() => { navigate(getStorePath("/orders")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
-                        <Package className="w-4 h-4" /> {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
-                      </button>
+                      {!isRealEstate && (
+                        <button onClick={() => { navigate(getStorePath("/orders")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
+                          <Package className="w-4 h-4" /> {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
+                        </button>
+                      )}
                       <button onClick={handleLogout} className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2">
                         <LogOut className="w-4 h-4" /> {lang === 'tr' ? 'Çıkış Yap' : 'Logout'}
                       </button>
@@ -1726,20 +1772,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Giriş Yap' : 'Login'}</span>
               </button>
             )}
-            <button 
-              onClick={() => setIsBasketOpen(true)}
-              className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
-            >
-              <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
-              {basketCount > 0 && (
-                <span 
-                  className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  {basketCount}
-                </span>
-              )}
-            </button>
+            {!isRealEstate && (
+              <button 
+                onClick={() => setIsBasketOpen(true)}
+                className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
+              >
+                <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
+                {basketCount > 0 && (
+                  <span 
+                    className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {basketCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -1897,11 +1945,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   className="flex flex-wrap gap-4"
                 >
                   <button 
-                    onClick={() => setShowDiscoverModal(true)}
+                    onClick={() => {
+                        if (isRealEstate) {
+                            document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                        } else {
+                            setShowDiscoverModal(true);
+                        }
+                    }}
                     className="px-10 py-5 bg-white text-slate-950 rounded-lg font-semibold text-sm tracking-wide hover:bg-opacity-90 transition-all active:scale-95 shadow-lg flex items-center gap-3"
                   >
                     <Sparkles className="w-5 h-5 text-indigo-500" />
-                    {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
+                    {isRealEstate ? (lang === 'tr' ? 'İlanları Gör' : 'View Listings') : (lang === 'tr' ? 'Keşfet' : 'Discover Now')}
                   </button>
                 </motion.div>
               </div>
@@ -1920,7 +1974,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           </section>
 
           {/* Featured / Campaign Section */}
-          {layoutSettings.show_campaigns && (
+          {layoutSettings.show_campaigns && !isRealEstate && (
           <section className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-32">
             <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-16">
               <div className="space-y-3">
@@ -1969,8 +2023,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />
                     
                     <div className="absolute bottom-8 left-8 right-8 flex justify-center translate-y-20 group-hover:translate-y-0 transition-transform duration-700">
-                       <button className="w-full py-4 bg-white text-slate-950 rounded-2xl font-semibold text-[10px] tracking-wide shadow-lg">
-                         {lang === 'tr' ? 'İncele' : 'View Details'}
+                       <button 
+                         className="w-full py-4 bg-white text-slate-950 rounded-2xl font-semibold text-[10px] tracking-wide shadow-lg"
+                         onClick={(e) => {
+                             e.stopPropagation();
+                             setSelectedProduct(product);
+                         }}
+                       >
+                         {isRealEstate ? (lang === 'tr' ? 'İlan Detayı' : 'Listing Details') : (lang === 'tr' ? 'İncele' : 'View Details')}
                        </button>
                     </div>
                   </div>
@@ -2489,7 +2549,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         )}
 
         {/* Best Sellers Section */}
-        {!selectedCategory && !searchQuery && bestSellers.length > 0 && (
+        {!isRealEstate && !selectedCategory && !searchQuery && bestSellers.length > 0 && (
           <section className="mt-32">
             <div className="flex items-center justify-between mb-10">
               <div>
@@ -3266,6 +3326,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           {/* Bottom Footer */}
           <div className="pt-12 border-t border-white/5">
             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            {!isRealEstate && (
               <div className="flex flex-wrap items-center justify-center gap-8 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
                 <div className="flex items-center gap-6">
                   <span className="text-[10px] font-semibold text-white tracking-wide underline underline-offset-8 decoration-blue-600">Secure Payments</span>
@@ -3276,6 +3337,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   </div>
                 </div>
               </div>
+            )}
 
               <p className="text-gray-600 font-bold text-[10px] tracking-wide">
                 © {new Date().getFullYear()} {store?.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
@@ -3300,7 +3362,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       </footer>
 
       {/* Floating Basket Summary (Mobile) */}
-      {basketCount > 0 && !isBasketOpen && (
+      {!isRealEstate && basketCount > 0 && !isBasketOpen && (
         <motion.div 
           initial={{ y: 100 }}
           animate={{ y: 0 }}
@@ -4374,8 +4436,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-400 text-xs font-semibold">
         <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 uppercase tracking-widest">
           <a href={`/api/public/store/${store?.slug}/about-us`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</a>
-          <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
-          <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
+          {!isRealEstate && (
+            <>
+              <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
+              <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
+            </>
+          )}
           <a href={`/api/public/store/${store?.slug}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}</a>
         </div>
         <div className="text-center md:text-right">

@@ -151,7 +151,7 @@ router.get("/marketplace/listings", async (req, res) => {
 
     const realEstateRes = await pool.query(`
       SELECT r.*, s.name as store_name, s.slug as store_slug
-      FROM real_estate r
+      FROM real_estate_properties r
       JOIN stores s ON r.store_id = s.id
       WHERE r.status = 'active'
       ORDER BY r.created_at DESC
@@ -206,7 +206,12 @@ router.get("/marketplace/listings", async (req, res) => {
         store_slug: r.store_slug,
         category: 'Emlak',
         brand: r.location,
-        created_at: r.created_at
+        created_at: r.created_at,
+        sector_data: {
+          square_meters: r.square_meters,
+          room_count: r.room_count,
+          type: r.type
+        }
       });
     });
 
@@ -524,7 +529,7 @@ router.get("/store/:slug/products", async (req, res) => {
     try {
       const realEstateRes = await pool.query(`
         SELECT r.*, s.name as branch_name, s.slug as branch_slug 
-        FROM real_estate r 
+        FROM real_estate_properties r 
         JOIN stores s ON r.store_id = s.id
         WHERE (r.store_id = $1 OR s.parent_id = $1) 
         AND r.status = 'active'
@@ -574,7 +579,7 @@ router.get("/store/:slug/products", async (req, res) => {
         image_url: r.images && r.images.length > 0 ? r.images[0] : null,
         sector_data: {
           square_meters: r.square_meters,
-          rooms: r.rooms,
+          room_count: r.room_count,
           virtual_tour_url: r.virtual_tour_url,
           ai_tour_enabled: r.ai_tour_enabled
         }

@@ -190,6 +190,26 @@ export const api = {
   addProperty: (data: any) => api.post(`/api/real-estate/properties`, data),
   updateProperty: (id: number, data: any) => api.put(`/api/real-estate/properties/${id}`, data),
   deleteProperty: (id: number) => api.delete(`/api/real-estate/properties/${id}`),
+
+  getRealEstateLeads: (storeId?: number) => api.get(`/api/real-estate/leads${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addRealEstateLead: (data: any) => api.post(`/api/real-estate/leads`, data),
+  updateRealEstateLead: (id: number | string, data: any) => api.put(`/api/real-estate/leads/${id}`, data),
+  deleteRealEstateLead: (id: number | string) => api.delete(`/api/real-estate/leads/${id}`),
+
+  getRealEstateOwners: (storeId?: number) => api.get(`/api/real-estate/owners${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addRealEstateOwner: (data: any) => api.post(`/api/real-estate/owners`, data),
+  updateRealEstateOwner: (id: number | string, data: any) => api.put(`/api/real-estate/owners/${id}`, data),
+  deleteRealEstateOwner: (id: number | string) => api.delete(`/api/real-estate/owners/${id}`),
+
+  getRealEstateActivities: (storeId?: number) => api.get(`/api/real-estate/activities${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addRealEstateActivity: (data: any) => api.post(`/api/real-estate/activities`, data),
+  updateRealEstateActivity: (id: number | string, data: any) => api.put(`/api/real-estate/activities/${id}`, data),
+  deleteRealEstateActivity: (id: number | string) => api.delete(`/api/real-estate/activities/${id}`),
+
+  getRealEstateAgents: (storeId?: number) => api.get(`/api/real-estate/agents${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addRealEstateAgent: (data: any) => api.post(`/api/real-estate/agents`, data),
+  updateRealEstateAgent: (id: number | string, data: any) => api.put(`/api/real-estate/agents/${id}`, data),
+  deleteRealEstateAgent: (id: number | string) => api.delete(`/api/real-estate/agents/${id}`),
   
   // AI Jobs
   triggerAIJob: (data: any) => api.post(`/api/ai-jobs/trigger`, data),

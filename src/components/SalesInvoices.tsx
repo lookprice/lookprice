@@ -35,7 +35,7 @@ import { useReactToPrint } from 'react-to-print';
 
 import { AutocompleteSelect } from "./AutocompleteSelect";
 
-export default function SalesInvoices({ storeId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
+export default function SalesInvoices({ storeId, role, lang, api, branding, onSave, initialData, onCloseInitialData, sector }: any) {
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -214,6 +214,37 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [saleId, setSaleId] = useState<number | null>(null);
   const [isTaxInclusive, setIsTaxInclusive] = useState(true);
+
+  const [customIncomeDesc, setCustomIncomeDesc] = useState("");
+  const [customIncomePrice, setCustomIncomePrice] = useState("");
+  const [customIncomeQty, setCustomIncomeQty] = useState("1");
+  const [customIncomeTax, setCustomIncomeTax] = useState("20");
+
+  const handleAddCustomIncome = () => {
+    if (!customIncomeDesc.trim()) {
+      toast.error(lang === 'tr' ? "Lütfen bir gelir açıklaması yazın." : "Please write an income description.");
+      return;
+    }
+    const up = Number(customIncomePrice.replace(",", ".")) || 0;
+    if (up <= 0) {
+      toast.error(lang === 'tr' ? "Geçerli bir tutar yazın." : "Please enter a valid amount.");
+      return;
+    }
+
+    setItems(prev => [...prev, {
+      product_id: null,
+      product_name: customIncomeDesc.trim(),
+      barcode: "GELIR-" + Math.floor(1000 + Math.random() * 9000),
+      quantity: String(customIncomeQty || "1"),
+      unit_price: String(up),
+      tax_rate: String(customIncomeTax || "20")
+    }]);
+
+    setCustomIncomeDesc("");
+    setCustomIncomePrice("");
+    setCustomIncomeQty("1");
+    toast.success(lang === 'tr' ? "Gelir kalemi eklendi." : "Income item added.");
+  };
 
   // New states for customer/company info update
   const [editTaxNumber, setEditTaxNumber] = useState("");
@@ -958,7 +989,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
             <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Satış Matrahı" : "Total Sales Subtotal"}</p>
+            <p className="text-sm font-medium text-slate-500">{sector === 'real_estate' ? (isTr ? "Toplam Gelir Matrahı" : "Total Income Subtotal") : (isTr ? "Toplam Satış Matrahı" : "Total Sales Subtotal")}</p>
             <p className="text-2xl font-black text-slate-900">
               {totalSalesAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: branding?.default_currency || 'TRY' })}
             </p>
@@ -1056,7 +1087,10 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg"
           >
             <Plus className="h-4 w-4" />
-            {isTr ? "Yeni Satış Faturası" : "New Sales Invoice"}
+            {sector === 'real_estate'
+              ? (isTr ? "Yeni Gelir / Komisyon" : "New Income / Commission")
+              : (isTr ? "Yeni Satış Faturası" : "New Sales Invoice")
+            }
           </button>
         </div>
       </div>
@@ -1645,67 +1679,130 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                   {/* Product Search & Items Table */}
                   <div className="space-y-6">
                     <div className="flex flex-col md:flex-row justify-between items-end gap-4">
-                      <div className="flex-1 w-full space-y-4">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Ürün Ekle' : 'Add Product'}</label>
-                        <div className="relative">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                          <input 
-                            type="text"
-                            placeholder={isTr ? "Ürün adı veya barkod ara..." : "Search product or barcode..."}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
-                            value={productSearch}
-                            onChange={(e) => {
-                              setProductSearch(e.target.value);
-                              setShowProductDropdown(true);
-                            }}
-                            onFocus={() => setShowProductDropdown(true)}
-                          />
-                          
-                          {showProductDropdown && productSearch && (
-                            <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-64 overflow-y-auto p-2">
-                              {filteredProducts.map((p: any) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded-xl transition-colors flex items-center justify-between group"
-                                  onClick={() => handleAddProduct(p)}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                                      <Package className="h-4 w-4 text-slate-500 group-hover:text-indigo-600" />
-                                    </div>
-                                    <div>
-                                      <div className="text-sm font-bold text-slate-700">{p.name}</div>
-                                      <div className="text-[10px] text-slate-400 font-medium">{p.barcode}</div>
-                                    </div>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-sm font-black text-indigo-600">{Number(p.price).toLocaleString('tr-TR')} {p.currency || branding?.default_currency || 'TRY'}</div>
-                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Stok' : 'Stock'}: {p.stock}</div>
-                                  </div>
-                                </button>
-                              ))}
-                              {filteredProducts.length === 0 && (
-                                <div className="p-4 text-center">
-                                  <p className="text-sm text-slate-500 mb-2">{isTr ? "Ürün bulunamadı" : "Product not found"}</p>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setQuickProductForm(prev => ({ ...prev, name: productSearch }));
-                                      setShowQuickProductModal(true);
-                                      setShowProductDropdown(false);
-                                    }}
-                                    className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center gap-1 w-full"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                    {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
-                                  </button>
-                                </div>
-                              )}
+                      {sector === 'real_estate' ? (
+                        <div className="flex-1 w-full space-y-4 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">
+                          <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+                            <Plus className="h-4 w-4 text-indigo-600" />
+                            {isTr ? "Yeni Gelir / Komisyon Kalemi Ekle" : "Add New Income / Commission Item"}
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                            <div className="md:col-span-5 space-y-1.5">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? "Açıklama" : "Description"}</label>
+                              <input
+                                type="text"
+                                placeholder={isTr ? "Örn: Emlak Satış Komisyon Bedeli, Danışmanlık Ücreti" : "e.g. Real Estate Sales Commission, Consultancy Fee"}
+                                value={customIncomeDesc}
+                                onChange={(e) => setCustomIncomeDesc(e.target.value)}
+                                className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none font-bold text-slate-700"
+                              />
                             </div>
-                          )}
+                            <div className="md:col-span-3 space-y-1.5">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? "Tutar" : "Amount"}</label>
+                              <input
+                                type="text"
+                                placeholder="0.00"
+                                value={customIncomePrice}
+                                onChange={(e) => setCustomIncomePrice(e.target.value)}
+                                className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none font-black text-slate-800"
+                              />
+                            </div>
+                            <div className="md:col-span-1.5 space-y-1.5">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? "Adet" : "Qty"}</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={customIncomeQty}
+                                onChange={(e) => setCustomIncomeQty(e.target.value)}
+                                className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-center font-black text-slate-800"
+                              />
+                            </div>
+                            <div className="md:col-span-1.5 space-y-1.5">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">KDV</label>
+                              <select
+                                value={customIncomeTax}
+                                onChange={(e) => setCustomIncomeTax(e.target.value)}
+                                className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none font-black text-slate-800"
+                              >
+                                <option value="20">%20</option>
+                                <option value="10">%10</option>
+                                <option value="1">%1</option>
+                                <option value="0">%0</option>
+                              </select>
+                            </div>
+                            <div className="md:col-span-1">
+                              <button
+                                type="button"
+                                onClick={handleAddCustomIncome}
+                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-150 transform active:scale-95 shadow-md shadow-indigo-600/10"
+                              >
+                                {isTr ? "Ekle" : "Add"}
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex-1 w-full space-y-4">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Ürün Ekle' : 'Add Product'}</label>
+                          <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <input 
+                              type="text"
+                              placeholder={isTr ? "Ürün adı veya barkod ara..." : "Search product or barcode..."}
+                              className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                              value={productSearch}
+                              onChange={(e) => {
+                                setProductSearch(e.target.value);
+                                setShowProductDropdown(true);
+                              }}
+                              onFocus={() => setShowProductDropdown(true)}
+                            />
+                            
+                            {showProductDropdown && productSearch && (
+                              <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-64 overflow-y-auto p-2">
+                                {filteredProducts.map((p: any) => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded-xl transition-colors flex items-center justify-between group"
+                                    onClick={() => handleAddProduct(p)}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-indigo-100 transition-colors">
+                                        <Package className="h-4 w-4 text-slate-500 group-hover:text-indigo-600" />
+                                      </div>
+                                      <div>
+                                        <div className="text-sm font-bold text-slate-700">{p.name}</div>
+                                        <div className="text-[10px] text-slate-400 font-medium">{p.barcode}</div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-black text-indigo-600">{Number(p.price).toLocaleString('tr-TR')} {p.currency || branding?.default_currency || 'TRY'}</div>
+                                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Stok' : 'Stock'}: {p.stock}</div>
+                                    </div>
+                                  </button>
+                                ))}
+                                {filteredProducts.length === 0 && (
+                                  <div className="p-4 text-center">
+                                    <p className="text-sm text-slate-500 mb-2">{isTr ? "Ürün bulunamadı" : "Product not found"}</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setQuickProductForm(prev => ({ ...prev, name: productSearch }));
+                                        setShowQuickProductModal(true);
+                                        setShowProductDropdown(false);
+                                      }}
+                                      className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center gap-1 w-full"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                      {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       <div className="flex gap-4 w-full md:w-auto">
                         <div className="space-y-4 flex-1">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Ödeme' : 'Payment'}</label>
@@ -1756,7 +1853,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                       <table className="w-full text-left border-collapse min-w-[600px]">
                         <thead>
                           <tr className="bg-slate-100/50">
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{isTr ? 'Ürün' : 'Product'}</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{sector === 'real_estate' ? (isTr ? 'Açıklama / Gelir' : 'Description / Income') : (isTr ? 'Ürün' : 'Product')}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-32">{isTr ? 'Adet' : 'Qty'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-40">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-32">{isTr ? 'KDV %' : 'VAT %'}</th>
@@ -1768,7 +1865,7 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
                           {items.length === 0 ? (
                             <tr>
                               <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm font-bold uppercase tracking-widest">
-                                {isTr ? "Henüz ürün eklenmedi" : "No products added yet"}
+                                {sector === 'real_estate' ? (isTr ? "Henüz Gelir kalemi eklenmedi" : "No income items added yet") : (isTr ? "Henüz ürün eklenmedi" : "No products added yet")}
                               </td>
                             </tr>
                           ) : (

@@ -48,7 +48,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
-    documents: []
+    documents: [],
+    listing_agent_name: '',
+    owner_name: '',
+    owner_phone: '',
+    owner_email: '',
+    commission_rate: 2
   });
 
   // Mock Upload state
@@ -412,6 +417,77 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Mal Sahibi ve Danışman Bilgileri (CRM Fields) */}
+          <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+            <h4 className="text-sm font-black text-indigo-700 flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Yönetici Paneli (Mal Sahibi & CRM)
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Mal Sahibi Adı / Soyadı</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">👤</span>
+                  <input
+                    type="text"
+                    placeholder="Mülk Sahibi Bilgisi (Gizli)"
+                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    value={formData.owner_name || ''}
+                    onChange={(e) => setFormData({...formData, owner_name: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Mal Sahibi Telefon</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">📞</span>
+                  <input
+                    type="text"
+                    placeholder="0533..."
+                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold font-mono"
+                    value={formData.owner_phone || ''}
+                    onChange={(e) => setFormData({...formData, owner_phone: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Sorumlu Danışman (Agent)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">👔</span>
+                  <input
+                    type="text"
+                    placeholder="Portföy Sorumlusu Danışman"
+                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    value={formData.listing_agent_name || ''}
+                    onChange={(e) => setFormData({...formData, listing_agent_name: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Hizmet Bedeli % (Komisyon)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-black">%</span>
+                  <input
+                    type="number"
+                    placeholder="2"
+                    step="0.5"
+                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    value={formData.commission_rate || ''}
+                    onChange={(e) => setFormData({...formData, commission_rate: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-400 leading-tight">
+              * Bu bölümdeki bilgiler sadece ofis yöneticileri ve brokerlar tarafından görülebilir. Public ilan sayfasında yayınlanmaz.
+            </p>
           </div>
 
           {/* Detaylı Metrikler */}

@@ -221,6 +221,21 @@ export interface Sale {
   items?: any[];
 }
 
+export interface RealEstateLead {
+  id: string;
+  property_id?: number;
+  property_title?: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  source: 'portal' | 'website' | 'call' | 'whatsapp' | 'reference';
+  status: 'new' | 'contacted' | 'showing' | 'offer' | 'contract' | 'sold' | 'lost';
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  assigned_agent_name?: string;
+}
+
 export interface RealEstateProperty {
   id: number;
   store_id: number;
@@ -256,6 +271,13 @@ export interface RealEstateProperty {
   verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
   listing_features?: string[];
   status: 'active' | 'rented' | 'sold' | 'optioned'; // Satılık, Kiralık, Opsiyonlu (Kapora Alındı), Satıldı
+  listing_agent_id?: string;
+  listing_agent_name?: string;
+  owner_name?: string;
+  owner_phone?: string;
+  owner_email?: string;
+  commission_rate?: number;
+  leads?: RealEstateLead[];
   documents?: {
     id: string;
     name: string;

@@ -63,7 +63,8 @@ import {
   Building2,
   Facebook,
   BookOpen,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -190,7 +191,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     if (!branding) return;
     const currentSector = branding.page_layout_settings?.sector || branding.sector || 'general';
     
-    if (currentSector === 'real_estate' && !['real_estate', 'analytics', 'quotations', 'settings', 'companies', 'blog', 'sales_invoices'].includes(activeTab)) {
+    if (currentSector === 'real_estate' && !['real_estate', 'fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(activeTab)) {
       setActiveTab('real_estate');
     } else if (currentSector === 'automotive' && !['fleet', 'products', 'analytics', 'quotations', 'pos', 'settings', 'companies', 'service', 'sales_invoices'].includes(activeTab)) {
       setActiveTab('fleet');
@@ -965,7 +966,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const sector = branding?.page_layout_settings?.sector || 'general';
+  const sector = branding?.page_layout_settings?.sector || branding?.sector || 'general';
 
   const allNavItems = [
     { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
@@ -975,8 +976,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "procurements", label: t.procurements, icon: Truck },
     { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
     { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
-    { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
-    { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
+    { id: "purchase_invoices", label: sector === 'real_estate' ? (isTr ? 'Giderler' : 'Expenses') : t.purchase_invoices, icon: FileDown },
+    { id: "sales_invoices", label: sector === 'real_estate' ? (isTr ? 'Gelirler' : 'Incomes') : t.sales_invoices, icon: FileText },
     { id: "companies", label: t.companies, icon: Store },
     { id: "fleet", label: t.fleet, icon: Car, badge: notifications.fleet },
     { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
@@ -990,7 +991,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const filteredNavItems = allNavItems.filter(item => {
     if (sector === 'real_estate') {
-      return ['real_estate', 'analytics', 'quotations', 'settings', 'companies', 'blog', 'sales_invoices'].includes(item.id);
+      return ['real_estate', 'fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(item.id);
     }
     if (sector === 'automotive') {
       return ['fleet', 'products', 'analytics', 'quotations', 'pos', 'settings', 'companies', 'service', 'sales_invoices'].includes(item.id);
@@ -1097,25 +1098,38 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <span className="tracking-tight">{t.storeWebsite}</span>
               </a>
               <a
-                href={scanUrl}
+                href="/portal"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
+                className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-black text-indigo-400 hover:bg-white/5 hover:text-indigo-300 transition-all duration-300"
               >
-                <Scan className="h-4.5 w-4.5 text-slate-500" />
-                <span className="tracking-tight">{t.barcodeScanner}</span>
+                <Sparkles className="h-4.5 w-4.5 text-indigo-500 animate-pulse" />
+                <span className="tracking-tight uppercase">Amiral Site (Portal)</span>
               </a>
+              {sector !== 'real_estate' && (
+                <a
+                  href={scanUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
+                >
+                  <Scan className="h-4.5 w-4.5 text-slate-500" />
+                  <span className="tracking-tight">{t.barcodeScanner}</span>
+                </a>
+              )}
             </div>
           </nav>
           
       <div className="p-4 md:p-6 border-t border-white/5 bg-slate-900/30">
-            <button
-              onClick={() => setShowQrModal(true)}
-              className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
-            >
-              <QrCode className="h-4 w-4 md:h-3 md:w-3" />
-              <span>{t.storeQR || "QR Kodu"}</span>
-            </button>
+            {sector !== 'real_estate' && (
+              <button
+                onClick={() => setShowQrModal(true)}
+                className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
+              >
+                <QrCode className="h-4 w-4 md:h-3 md:w-3" />
+                <span>{t.storeQR || "QR Kodu"}</span>
+              </button>
+            )}
             <button
               onClick={onLogout}
               className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] md:text-xs font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"
@@ -1325,6 +1339,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           api={api} 
                           branding={branding}
                           onSave={fetchData}
+                          sector={sector}
                         />
                       </Suspense>
                     )}
@@ -1339,6 +1354,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onSave={fetchData}
                           initialData={invoiceInitialData}
                           onCloseInitialData={() => setInvoiceInitialData(null)}
+                          sector={sector}
                         />
                       </Suspense>
                     )}
@@ -1548,6 +1564,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       >
                         {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-gray-400" />}
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Flagship Portal Link */}
+                  <div className="text-left">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">AMİRAL WEB SİTE (İLANI BURADA GÖRÜNÜR)</p>
+                    <div className="flex items-center space-x-2 p-3 sm:p-4 bg-indigo-50 rounded-2xl border border-indigo-100 group">
+                      <Sparkles className="h-5 w-5 text-indigo-600 shrink-0" />
+                      <a 
+                        href="/portal" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm font-black text-indigo-700 hover:underline truncate flex-1 text-left"
+                      >
+                        enrakipsiz.com
+                      </a>
+                      <ExternalLink className="h-4 w-4 text-indigo-400" />
                     </div>
                   </div>
 
