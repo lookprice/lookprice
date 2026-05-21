@@ -34,7 +34,7 @@ export class MySoftService {
     try {
       // Use URLSearchParams for x-www-form-urlencoded format
       const params = new URLSearchParams();
-      params.append('username', this.credentials.username || '');
+      params.append('username', this.credentials.earchive_username || this.credentials.username || '');
       params.append('password', this.credentials.password || '');
       params.append('grant_type', 'password');
 
@@ -45,8 +45,6 @@ export class MySoftService {
       } else {
         authUrl = this.baseUrl + '/oauth/token';
       }
-      
-      console.log(`Authenticating with MySoft OAuth at: ${authUrl}`);
       
       const response = await axios.post(authUrl, params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
