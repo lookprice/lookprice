@@ -43,6 +43,7 @@ export interface Product {
   brand?: string;
   author?: string;
   labels?: string[];
+  images?: string[] | string;
   sector_data?: any;
   is_web_sale?: boolean;
   product_type?: 'product' | 'service';

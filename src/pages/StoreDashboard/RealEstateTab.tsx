@@ -140,10 +140,10 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
         api.getRealEstateAgents(),
         api.getRealEstateOwners()
       ]);
-      setLeads(leadsRes.data);
-      setActivities(activitiesRes.data);
-      setStaffAgents(agentsRes.data);
-      setOwners(ownersRes.data);
+      setLeads(Array.isArray(leadsRes) ? leadsRes : []);
+      setActivities(Array.isArray(activitiesRes) ? activitiesRes : []);
+      setStaffAgents(Array.isArray(agentsRes) ? agentsRes : []);
+      setOwners(Array.isArray(ownersRes) ? ownersRes : []);
     } catch (error) {
       console.error("Error fetching CRM data:", error);
     } finally {
@@ -478,39 +478,39 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div className="flex items-center bg-white p-1 rounded-2xl shadow-sm border border-slate-150">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 max-w-full">
+        <div className="flex items-center bg-white p-1 rounded-2xl shadow-sm border border-slate-150 overflow-x-auto no-scrollbar w-full md:w-auto">
            <button 
              onClick={() => setActiveView('listings')}
-             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeView === 'listings' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap ${activeView === 'listings' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
            >
              <Briefcase className="w-3.5 h-3.5" />
              PORTFÖY
            </button>
            <button 
              onClick={() => setActiveView('leads')}
-             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeView === 'leads' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap ${activeView === 'leads' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
            >
              <Users className="w-3.5 h-3.5" />
              ALICI LEADLERİ
            </button>
            <button 
              onClick={() => setActiveView('owners')}
-             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeView === 'owners' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap ${activeView === 'owners' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
            >
              <FolderLock className="w-3.5 h-3.5" />
              MÜLK SAHİPLERİ
            </button>
            <button 
              onClick={() => setActiveView('agents')}
-             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeView === 'agents' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap ${activeView === 'agents' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
            >
              <Shield className="w-3.5 h-3.5" />
              DANIŞMANLAR
            </button>
            <button 
              onClick={() => setActiveView('crm')}
-             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeView === 'crm' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap ${activeView === 'crm' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
            >
              <Clock className="w-3.5 h-3.5" />
              AJANDA & ANALİZ

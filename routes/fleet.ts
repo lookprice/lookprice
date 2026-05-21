@@ -9,7 +9,20 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Self-Healing database schema updates for vehicle AI & showcase elements
 (async () => {
   try {
-    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS description TEXT;`);
+    await pool.query(`ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS body_type TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS selling_price DECIMAL(12,2);`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'TRY';`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS package_name TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS transmission TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS fuel_type TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS color TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS paint_report TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tramer_amount DECIMAL(12,2) DEFAULT 0;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tramer_currency TEXT DEFAULT 'TRY';`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS buying_price DECIMAL(12,2) DEFAULT 0;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS expenses TEXT DEFAULT '[]';`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS target_profit_margin DECIMAL(5,2) DEFAULT 0;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS images TEXT[];`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS virtual_tour_url TEXT;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS ai_tour_enabled BOOLEAN DEFAULT FALSE;`);

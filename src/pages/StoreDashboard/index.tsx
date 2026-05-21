@@ -191,9 +191,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     if (!branding) return;
     const currentSector = branding.page_layout_settings?.sector || branding.sector || 'general';
     
-    if (currentSector === 'real_estate' && !['real_estate', 'fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(activeTab)) {
+    if (currentSector === 'real_estate' && !['real_estate', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(activeTab)) {
       setActiveTab('real_estate');
-    } else if (currentSector === 'automotive' && !['fleet', 'products', 'analytics', 'quotations', 'pos', 'settings', 'companies', 'service', 'sales_invoices'].includes(activeTab)) {
+    } else if (currentSector === 'automotive' && !['fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(activeTab)) {
       setActiveTab('fleet');
     } else if (currentSector === 'general' && ['real_estate', 'fleet'].includes(activeTab)) {
       setActiveTab('products');
@@ -476,9 +476,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [reportLoading, setReportLoading] = useState(false);
 
   const isViewer = user.role === 'viewer';
+  const sector = branding?.page_layout_settings?.sector || branding?.sector || 'general';
   const effectiveSlug = branding.parent_slug || slug || user.store_slug;
   const publicUrl = `${window.location.origin}/s/${effectiveSlug}`;
   const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
+
+  const isShowcaseQr = sector === 'real_estate' || sector === 'automotive';
+  const qrVal = isShowcaseQr ? publicUrl : scanUrl;
+  const qrTitle = isShowcaseQr ? (isTr ? "Vitrin QR Kodu" : "Showcase QR") : (t.storeQR || "Mağaza QR Kodu");
+  const qrSubtitle = isShowcaseQr ? (isTr ? "PORTFOLYO ADRESİNİ PAYLAŞIN" : "SHARE YOUR PORTFOLIO") : (t.shareWithCustomers || "Müşterilerinizle Paylaşın");
+  const qrLabel = isShowcaseQr ? (isTr ? "Vitrin URL Adresi" : "Showcase URL") : (t.storeQR || "Mağaza QR Kodu");
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicUrl);
@@ -966,8 +973,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const sector = branding?.page_layout_settings?.sector || branding?.sector || 'general';
-
   const allNavItems = [
     { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
     { id: "products", label: t.products, icon: Package },
@@ -991,32 +996,67 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const filteredNavItems = allNavItems.filter(item => {
     if (sector === 'real_estate') {
-      return ['real_estate', 'fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(item.id);
+      return ['real_estate', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(item.id);
     }
     if (sector === 'automotive') {
-      return ['fleet', 'products', 'analytics', 'quotations', 'pos', 'settings', 'companies', 'service', 'sales_invoices'].includes(item.id);
+      return ['fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(item.id);
     }
     // Default / general / retail stores: hide automotive fleet/service and real estate
     return !['real_estate', 'fleet', 'service'].includes(item.id);
   });
   
   const navItems = filteredNavItems;
-  console.log("navItems:", navItems);
+
+  if (!branding) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50 font-sans">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative">
-      {/* Zebra/Barcode Background Pattern */}
-      <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden select-none flex flex-wrap gap-8 p-8">
-        {Array.from({ length: 150 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center rotate-12">
-            <div className="w-16 h-1 bg-slate-900 mb-0.5" />
-            <div className="w-16 h-2 bg-slate-900 mb-0.5" />
-            <div className="w-16 h-0.5 bg-slate-900 mb-0.5" />
-            <div className="w-16 h-3 bg-slate-900 mb-0.5" />
-            <div className="text-[10px] font-mono mt-1 text-slate-900">LOOKPRICE BARCODE</div>
-          </div>
-        ))}
-      </div>
+      {/* Dynamic Background Pattern depending on sector */}
+      {sector === 'real_estate' ? (
+        <div className="fixed inset-0 z-0 opacity-[0.02] pointer-events-none overflow-hidden select-none flex flex-wrap gap-12 p-8 justify-around">
+          {Array.from({ length: 60 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center rotate-45 transform text-slate-900">
+              <svg className="w-14 h-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+              <div className="text-[9px] font-mono mt-1">PORTFOLIO STYLE</div>
+            </div>
+          ))}
+        </div>
+      ) : sector === 'automotive' ? (
+        <div className="fixed inset-0 z-0 opacity-[0.02] pointer-events-none overflow-hidden select-none flex flex-wrap gap-12 p-8 justify-around">
+          {Array.from({ length: 60 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center -rotate-12 transform text-slate-900">
+              <svg className="w-14 h-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+                <circle cx="7" cy="17" r="2" />
+                <path d="M9 17h6" />
+                <circle cx="17" cy="17" r="2" />
+              </svg>
+              <div className="text-[9px] font-mono mt-1">FLEET DRIVE</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden select-none flex flex-wrap gap-8 p-8">
+          {Array.from({ length: 150 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center rotate-12">
+              <div className="w-16 h-1 bg-slate-900 mb-0.5" />
+              <div className="w-16 h-2 bg-slate-900 mb-0.5" />
+              <div className="w-16 h-0.5 bg-slate-900 mb-0.5" />
+              <div className="w-16 h-3 bg-slate-900 mb-0.5" />
+              <div className="text-[10px] font-mono mt-1 text-slate-900">LOOKPRICE BARCODE</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
@@ -1121,15 +1161,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </nav>
           
       <div className="p-4 md:p-6 border-t border-white/5 bg-slate-900/30">
-            {sector !== 'real_estate' && (
-              <button
-                onClick={() => setShowQrModal(true)}
-                className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
-              >
-                <QrCode className="h-4 w-4 md:h-3 md:w-3" />
-                <span>{t.storeQR || "QR Kodu"}</span>
-              </button>
-            )}
+            <button
+              onClick={() => setShowQrModal(true)}
+              className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
+            >
+              <QrCode className="h-4 w-4 md:h-3 md:w-3" />
+              <span>{sector === 'real_estate' || sector === 'automotive' ? (isTr ? "VİTRİN QR KODU" : "SHOWCASE QR") : (t.storeQR || "QR Kodu")}</span>
+            </button>
             <button
               onClick={onLogout}
               className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] md:text-xs font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"
@@ -1181,7 +1219,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <div className="flex items-center justify-between w-full md:block">
                   <div className="relative inline-block">
                     <h3 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none mb-2">
-                      {t[activeTab as keyof typeof t] || activeTab}
+                      {activeTab === 'purchase_invoices' && sector === 'real_estate' 
+                        ? (isTr ? 'Giderler' : 'Expenses')
+                        : activeTab === 'sales_invoices' && sector === 'real_estate'
+                        ? (isTr ? 'Gelirler & Komisyonlar' : 'Incomes & Commissions')
+                        : (t[activeTab as keyof typeof t] || activeTab)}
                     </h3>
                     <div className="h-1.5 w-full bg-indigo-600/10 absolute -bottom-1 left-0 rounded-full" />
                   </div>
@@ -1504,8 +1546,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="p-4 sm:p-8 text-center flex-1 overflow-y-auto">
                 <div className="flex justify-between items-center mb-6 sm:mb-8">
                   <div className="text-left">
-                    <h3 className="text-xl sm:text-2xl font-black text-gray-900">{t.storeQR}</h3>
-                    <p className="text-[10px] sm:text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">{t.shareWithCustomers}</p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900">{qrTitle}</h3>
+                    <p className="text-[10px] sm:text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">{qrSubtitle}</p>
                   </div>
                   <button onClick={() => setShowQrModal(false)} className="p-2 sm:p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
                     <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
@@ -1518,10 +1560,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       <h4 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tighter">
                         {branding.store_name || branding.name || "LookPrice"}
                       </h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.storeQR || "Mağaza QR Kodu"}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{qrLabel}</p>
                     </div>
                     <QRCodeSVG 
-                      value={scanUrl}
+                      value={qrVal}
                       size={200}
                       style={{ width: '100%', height: 'auto', maxWidth: '240px' }}
                       level="H"
@@ -1543,20 +1585,20 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                 <div className="space-y-4">
                   <div className="text-left">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.website?.toUpperCase() || 'WEBSITE'}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{(isShowcaseQr ? (isTr ? "VİTRİN LİNKİ" : "SHOWCASE LINK") : (t.website?.toUpperCase() || 'WEBSITE'))}</p>
                     <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
                       <Globe className="h-5 w-5 text-indigo-500 shrink-0" />
                       <a 
-                        href={publicUrl} 
+                        href={qrVal} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-sm font-bold text-indigo-600 hover:underline truncate flex-1 text-left"
                       >
-                        {publicUrl}
+                        {qrVal}
                       </a>
                       <button 
                         onClick={() => {
-                          navigator.clipboard.writeText(publicUrl);
+                          navigator.clipboard.writeText(qrVal);
                           setCopied(true);
                           setTimeout(() => setCopied(false), 2000);
                         }}
@@ -1584,30 +1626,32 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     </div>
                   </div>
 
-                  <div className="text-left">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.barcodeScanner?.toUpperCase()}</p>
-                    <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
-                      <Scan className="h-5 w-5 text-slate-500 shrink-0" />
-                      <a 
-                        href={scanUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm font-bold text-slate-600 hover:underline truncate flex-1 text-left"
-                      >
-                        {scanUrl}
-                      </a>
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(scanUrl);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }}
-                        className="p-2 hover:bg-white rounded-xl transition-all shadow-sm"
-                      >
-                        {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-gray-400" />}
-                      </button>
+                  {sector !== 'real_estate' && sector !== 'automotive' && (
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.barcodeScanner?.toUpperCase()}</p>
+                      <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                        <Scan className="h-5 w-5 text-slate-500 shrink-0" />
+                        <a 
+                          href={scanUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm font-bold text-slate-600 hover:underline truncate flex-1 text-left"
+                        >
+                          {scanUrl}
+                        </a>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(scanUrl);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          className="p-2 hover:bg-white rounded-xl transition-all shadow-sm"
+                        >
+                          {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-gray-400" />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <button 

@@ -22,10 +22,11 @@ export const useRealEstate = (storeId?: number) => {
 
   const saveProperty = async (property: Partial<RealEstateProperty>) => {
     try {
+      const payload = { ...property, store_id: storeId, storeId };
       if (property.id) {
-        await api.updateProperty(property.id, property);
+        await api.updateProperty(property.id, payload);
       } else {
-        await api.addProperty(property);
+        await api.addProperty(payload);
       }
       await fetchProperties();
     } catch (error) {
@@ -36,7 +37,7 @@ export const useRealEstate = (storeId?: number) => {
   
   const deleteProperty = async (id: number) => {
     try {
-      await api.deleteProperty(id);
+      await api.deleteProperty(id, storeId);
       await fetchProperties();
     } catch (error) {
       console.error('Error deleting property:', error);

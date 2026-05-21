@@ -224,8 +224,8 @@ const ProductCard: React.FC<{
 };
 
 const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) => {
-  if (!data || typeof data !== 'object') return null;
   const { lang } = useLanguage();
+  if (!data || typeof data !== 'object') return null;
 
   const renderAutomotive = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -562,6 +562,57 @@ const ProductDetailModal: React.FC<{
   const [selectedBranchIdx, setSelectedBranchIdx] = useState(0);
   const [convertedPrice, setConvertedPrice] = useState<number>(product?.price || 0);
 
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [isFullscreenMode, setIsFullscreenMode] = useState(false);
+
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+    
+    // Attempt to parse product.images if it is a string
+    let parsedImages: string[] = [];
+    if (product.images) {
+      if (typeof product.images === 'string') {
+        try {
+          parsedImages = JSON.parse(product.images);
+        } catch (e) {
+          console.error("Failed to parse product.images", e);
+        }
+      } else if (Array.isArray(product.images)) {
+        parsedImages = product.images;
+      }
+    }
+
+    const imgs: string[] = [];
+    if (product.image_url && typeof product.image_url === 'string') imgs.push(product.image_url);
+    
+    if (Array.isArray(parsedImages)) {
+       parsedImages.forEach((img: any) => {
+          if (typeof img === 'string' && !imgs.includes(img) && img) imgs.push(img);
+       });
+    }
+
+    // Default placeholders if only 0 or 1 image exists (specifically requested for real estate/automotive multiple image gallery visualization)
+    if (imgs.length <= 1) {
+      const isRealEstate = product.type === 'real_estate' || (store?.page_layout_settings?.sector === 'real_estate');
+      const isAutomotive = product.type === 'vehicle' || (store?.page_layout_settings?.sector === 'automotive');
+      
+      if (isRealEstate) {
+        imgs.push("https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&fit=crop");
+        imgs.push("https://images.unsplash.com/photo-1600607687931-cecebd808c34?w=800&fit=crop");
+        imgs.push("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&fit=crop");
+      } else if (isAutomotive) {
+        imgs.push("https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&fit=crop");
+        imgs.push("https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&fit=crop");
+        imgs.push("https://images.unsplash.com/photo-1503376710344-be1f5a510d86?w=800&fit=crop");
+      } else if (imgs.length === 0) {
+        // generic fallback
+        imgs.push("https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&fit=crop");
+      }
+    }
+
+    return Array.from(new Set(imgs)); // ensure uniqueness
+  }, [product, store?.page_layout_settings?.sector]);
+
   const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
   const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
   const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
@@ -728,13 +779,59 @@ const ProductDetailModal: React.FC<{
               </div>
             </button>
           </div>
-          {product.image_url ? (
-            <img 
-              src={product.image_url} 
-              alt={product.name} 
-              className="w-full h-full object-contain p-8 bg-white"
-              referrerPolicy="no-referrer"
-            />
+          {galleryImages.length > 0 ? (
+            <div className="relative w-full h-full flex flex-col bg-white">
+              <div 
+                className="flex-1 relative cursor-zoom-in overflow-hidden group/gallery"
+                onClick={() => setIsFullscreenMode(true)}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.img 
+                    key={currentImageIdx}
+                    initial={{ opacity: 0, scale: 1.05 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    src={galleryImages[currentImageIdx]} 
+                    alt={product.name} 
+                    className="w-full h-full object-contain p-4 bg-white"
+                    referrerPolicy="no-referrer"
+                  />
+                </AnimatePresence>
+                {/* Arrow navigation if more than 1 image */}
+                {galleryImages.length > 1 && (
+                  <>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(p => (p - 1 + galleryImages.length) % galleryImages.length); }} 
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-800" />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(p => (p + 1) % galleryImages.length); }} 
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-800" />
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {/* Thumbnail strip */}
+              {galleryImages.length > 1 && (
+                <div className="h-24 p-2 bg-gray-50 border-t border-gray-100 flex gap-2 overflow-x-auto no-scrollbar">
+                  {galleryImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(idx); }}
+                      className={`relative flex-shrink-0 w-20 h-full rounded-lg overflow-hidden border-2 transition-all ${idx === currentImageIdx ? 'border-indigo-600 shadow-md ring-2 ring-indigo-100' : 'border-transparent hover:border-gray-300 opacity-60 hover:opacity-100'}`}
+                    >
+                      <img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-200">
               <Package className="w-32 h-32" />
@@ -884,6 +981,62 @@ const ProductDetailModal: React.FC<{
         </div>
       </motion.div>
       {/* Removed About Modal functionality */}
+
+      {isFullscreenMode && (
+        <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center p-0 m-0">
+          <button 
+            onClick={() => setIsFullscreenMode(false)}
+            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-20"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          
+          <div className="relative w-full h-full flex flex-col justify-center">
+            <AnimatePresence mode="wait">
+              <motion.img 
+                key={currentImageIdx}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+                src={galleryImages[currentImageIdx]} 
+                alt={product.name} 
+                className="w-full max-h-screen object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </AnimatePresence>
+            
+            {galleryImages.length > 1 && (
+              <>
+                <button 
+                  onClick={() => setCurrentImageIdx(p => (p - 1 + galleryImages.length) % galleryImages.length)} 
+                  className="absolute left-6 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/5 hover:bg-white/20 rounded-full flex items-center justify-center transition-opacity text-white backdrop-blur-sm z-10"
+                >
+                  <ChevronLeft className="w-8 h-8 opacity-70 hover:opacity-100" />
+                </button>
+                <button 
+                  onClick={() => setCurrentImageIdx(p => (p + 1) % galleryImages.length)} 
+                  className="absolute right-6 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/5 hover:bg-white/20 rounded-full flex items-center justify-center transition-opacity text-white backdrop-blur-sm z-10"
+                >
+                  <ChevronRight className="w-8 h-8 opacity-70 hover:opacity-100" />
+                </button>
+                
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3 px-4 z-10">
+                  {galleryImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentImageIdx(idx)}
+                      className={`w-12 h-12 rounded overflow-hidden border-2 transition-all ${idx === currentImageIdx ? 'border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'border-transparent opacity-40 hover:opacity-100 bg-white/10'}`}
+                    >
+                      <img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2334,6 +2487,45 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
           {/* Main Content */}
           <div className="flex-1">
+            {/* Added Hero Ad Banner Slider */}
+            {(!selectedCategory && !searchQuery) && (
+              <div className="mb-12 relative w-full h-[300px] sm:h-[450px] overflow-hidden rounded-[2rem] shadow-sm group border border-slate-100">
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={0}
+                    className="absolute inset-0 w-full h-full"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1 }}
+                  >
+                    <img 
+                      src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1600&auto=format&fit=crop" 
+                      className="w-full h-full object-cover blur-[2px] scale-105" 
+                      alt="Banner" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+                    <div className="absolute inset-0 flex flex-col justify-center p-8 md:p-16">
+                      <span className="text-emerald-400 font-bold tracking-widest text-xs mb-4 uppercase inline-flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" /> 
+                        {lang === 'tr' ? 'Öne Çıkan Proje' : 'Featured Project'}
+                      </span>
+                      <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight max-w-2xl drop-shadow-lg">
+                        {lang === 'tr' ? 'Lüks Yaşam Yeniden Tanımlanıyor' : 'Luxury Living Redefined'}
+                      </h2>
+                      <button className="px-8 py-4 bg-white text-slate-900 rounded-full font-bold w-fit shadow-xl hover:scale-105 transition-transform flex items-center gap-2">
+                        {lang === 'tr' ? 'Keşfet' : 'Discover'} <ArrowRight className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+                {/* Ad Space Tag */}
+                <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10">
+                   <span className="text-[9px] text-white/70 font-black tracking-widest uppercase">ADVERTISEMENT</span>
+                </div>
+              </div>
+            )}
+
             {store?.page_layout && store.page_layout.length > 0 ? (
               <div className="space-y-24">
                 {store.page_layout.map((section: any) => {
@@ -2449,9 +2641,23 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-6">
                     <AnimatePresence mode="popLayout">
-                      {paginatedProducts.map((product) => (
+                      {paginatedProducts.map((product, idx) => (
+                        <React.Fragment key={product.id}>
+                          {idx === 2 && (
+                             <div className="col-span-1 sm:col-span-2 xl:col-span-3 rounded-2xl overflow-hidden relative h-[250px] shadow-sm my-4 border border-indigo-100 group">
+                                <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&h=400&fit=crop" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Inline Ad" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/90 to-transparent" />
+                                <div className="absolute inset-0 p-8 flex flex-col justify-center">
+                                   <span className="text-[10px] text-white/70 font-black tracking-widest uppercase mb-2">SPONSORED</span>
+                                   <h3 className="text-2xl font-black text-white mb-2 max-w-sm">Premium Mortgage Solutions</h3>
+                                   <p className="text-indigo-100 text-xs max-w-xs mb-4">Unlock unparalleled financing options tailored precisely for luxury estates processing in USD and GBP.</p>
+                                   <button className="px-5 py-2.5 bg-white text-indigo-900 font-bold text-xs rounded-full w-fit hover:bg-indigo-50 transition-colors">
+                                     Learn More
+                                   </button>
+                                </div>
+                             </div>
+                          )}
                           <ProductCard 
-                            key={product.id} 
                             product={product} 
                             store={store} 
                             t={t} 
@@ -2461,6 +2667,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             isLuxury={isLuxury}
                             sector={sector}
                           />
+                        </React.Fragment>
                       ))}
                     </AnimatePresence>
                   </div>

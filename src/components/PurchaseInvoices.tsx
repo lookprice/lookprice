@@ -982,9 +982,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   />
                 </th>
                 <th className="p-4 font-bold">{isTr ? "Tarih" : "Date"}</th>
-                <th className="p-4 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
-                <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>
-                <th className="p-4 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
+                <th className="p-4 font-bold">{sector === 'real_estate' ? (isTr ? "Belge / Fiş No" : "Doc / Receipt No") : (isTr ? "Fatura No" : "Inv No")}</th>
+                {sector !== 'real_estate' && <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>}
+                <th className="p-4 font-bold">{sector === 'real_estate' ? (isTr ? "Cari / Alıcı" : "Ref / Supplier") : (isTr ? "Satıcı" : "Supplier")}</th>
                 <th className="p-4 font-bold">{isTr ? "Vergi No" : "Tax No"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
@@ -1020,9 +1020,11 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   <td className="p-4 text-xs font-bold text-slate-900">
                     {invoice.invoice_number}
                   </td>
-                  <td className="p-4 text-xs text-slate-500">
-                    {invoice.waybill_number || '-'}
-                  </td>
+                  {sector !== 'real_estate' && (
+                    <td className="p-4 text-xs text-slate-500">
+                      {invoice.waybill_number || '-'}
+                    </td>
+                  )}
                   <td className="p-4 text-xs font-medium text-slate-700">
                     <div>{invoice.company_name}</div>
                     {invoice.is_expense && (
@@ -1179,9 +1181,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               <div className="flex items-center justify-between p-6 border-b border-slate-100">
                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <FileDown className="h-5 w-5 text-indigo-600" />
-                  {editingInvoiceId 
-                    ? (isTr ? "Fatura Revize Et" : "Revise Invoice")
-                    : (isTr ? "Yeni Alış Faturası" : "New Purchase Invoice")
+                  {sector === 'real_estate'
+                    ? (editingInvoiceId ? (isTr ? "Gider Düzenle" : "Edit Expense") : (isTr ? "Yeni Gider Girişi" : "New Expense Entry"))
+                    : (editingInvoiceId ? (isTr ? "Fatura Revize Et" : "Revise Invoice") : (isTr ? "Yeni Alış Faturası" : "New Purchase Invoice"))
                   }
                 </h3>
                 <button

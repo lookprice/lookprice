@@ -111,7 +111,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Basic GET route to list properties
 router.get('/properties', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.user.store_id;
   try {
     const result = await pool.query(
       `SELECT * FROM real_estate_properties WHERE store_id = $1 ORDER BY created_at DESC`,
@@ -126,7 +126,7 @@ router.get('/properties', authenticate, async (req: any, res) => {
 
 // POST route to add a property
 router.post('/properties', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.user.role === 'superadmin' ? (req.body.store_id || req.body.storeId || req.query.storeId || req.user.store_id) : req.user.store_id;
   const property = req.body;
   
   try {
@@ -155,7 +155,7 @@ router.post('/properties', authenticate, async (req: any, res) => {
 router.put('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const property = req.body;
-  const storeId = req.user.store_id;
+  const storeId = req.user.role === 'superadmin' ? (req.body.store_id || req.body.storeId || req.query.storeId || req.user.store_id) : req.user.store_id;
 
   try {
     const result = await pool.query(
@@ -185,7 +185,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
 // DELETE route
 router.delete('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.user.store_id;
+  const storeId = req.user.role === 'superadmin' ? (req.query.store_id || req.query.storeId || req.user.store_id) : req.user.store_id;
 
   try {
     const result = await pool.query(
@@ -204,7 +204,7 @@ router.delete('/properties/:id', authenticate, async (req: any, res) => {
 
 // Leads
 router.get('/leads', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.user.store_id;
   try {
     const result = await pool.query('SELECT * FROM real_estate_leads WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
     res.json(result.rows);
@@ -258,7 +258,7 @@ router.delete('/leads/:id', authenticate, async (req: any, res) => {
 
 // Owners
 router.get('/owners', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.user.store_id;
   try {
     const result = await pool.query('SELECT * FROM real_estate_owners WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
     res.json(result.rows);
@@ -309,7 +309,7 @@ router.delete('/owners/:id', authenticate, async (req: any, res) => {
 
 // Activities
 router.get('/activities', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.user.store_id;
   try {
     const result = await pool.query('SELECT * FROM real_estate_activities WHERE store_id = $1 ORDER BY date DESC', [storeId]);
     res.json(result.rows);
@@ -360,7 +360,7 @@ router.delete('/activities/:id', authenticate, async (req: any, res) => {
 
 // Agents
 router.get('/agents', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.user.store_id;
   try {
     const result = await pool.query('SELECT * FROM real_estate_agents WHERE store_id = $1 ORDER BY name ASC', [storeId]);
     res.json(result.rows);

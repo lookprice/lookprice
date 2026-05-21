@@ -181,6 +181,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newExpenseName, setNewExpenseName] = useState('');
   const [newExpenseAmount, setNewExpenseAmount] = useState('');
+  const [expenseCurrency, setExpenseCurrency] = useState('TRY');
+  const [exchangeRate, setExchangeRate] = useState(45.0);
   
   // Custom Loan Calculator States
   const [loanAmount, setLoanAmount] = useState<number>(0);
@@ -448,6 +450,85 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     virtual_tour_url: '',
     ai_tour_enabled: false
   });
+
+  const paintReportData = (() => {
+    try {
+      return typeof formData.paint_report === 'string' 
+        ? JSON.parse(formData.paint_report || '{}') 
+        : (formData.paint_report || {});
+    } catch (e) {
+      return {};
+    }
+  })();
+
+  const togglePartState = (partId: string) => {
+    const current = paintReportData[partId] || 'original';
+    const next = current === 'original' ? 'painted' : current === 'painted' ? 'replaced' : 'original';
+    const updated = { ...paintReportData, [partId]: next };
+    setFormData(prev => ({ ...prev, paint_report: JSON.stringify(updated) }));
+  };
+
+  const expensesListData = (() => {
+    try {
+      return typeof formData.expenses === 'string' 
+        ? JSON.parse(formData.expenses || '[]') 
+        : (formData.expenses || []);
+    } catch (e) {
+      return [];
+    }
+  })();
+
+  const triggerAddExpense = () => {
+    if (!newExpenseName || !newExpenseAmount) return;
+    const newExpItem = {
+      id: Date.now().toString(),
+      name: newExpenseName,
+      amount: parseFloat(newExpenseAmount) || 0,
+      currency: expenseCurrency,
+      rate: exchangeRate,
+      date: new Date().toISOString()
+    };
+    const updated = [...expensesListData, newExpItem];
+    setFormData(prev => ({ ...prev, expenses: JSON.stringify(updated) }));
+    setNewExpenseName('');
+    setNewExpenseAmount('');
+  };
+
+  const triggerRemoveExpense = (id: string) => {
+    const updated = expensesListData.filter((item: any) => item.id !== id);
+    setFormData(prev => ({ ...prev, expenses: JSON.stringify(updated) }));
+  };
+
+  const totalExpenses = expensesListData.reduce((sum: number, item: any) => {
+    let amt = Number(item.amount) || 0;
+    const targetCurr = formData.currency || 'TRY';
+    if (item.currency === 'TRY' && targetCurr === 'GBP') {
+       amt = amt / (item.rate || exchangeRate || 45);
+    } else if (item.currency === 'GBP' && targetCurr === 'TRY') {
+       amt = amt * (item.rate || exchangeRate || 45);
+    }
+    return sum + amt;
+  }, 0);
+  const baseBuyingPrice = Number(formData.buying_price) || 0;
+  const calculatedTotalCost = baseBuyingPrice + totalExpenses;
+  const targetMarginPercent = Number(formData.target_profit_margin) || 0;
+  const suggestedRetailPrice = calculatedTotalCost * (1 + targetMarginPercent / 100);
+
+  const partsDefinition = [
+    { id: 'hood', label: 'Kaput' },
+    { id: 'roof', label: 'Tavan' },
+    { id: 'trunk', label: 'Bagaj Kapağı' },
+    { id: 'front_bumper', label: 'Ön Tampon' },
+    { id: 'rear_bumper', label: 'Arka Tampon' },
+    { id: 'fender_fl', label: 'Sol Ön Çamurluk' },
+    { id: 'door_fl', label: 'Sol Ön Kapı' },
+    { id: 'door_rl', label: 'Sol Arka Kapı' },
+    { id: 'fender_rl', label: 'Sol Arka Çamurluk' },
+    { id: 'fender_fr', label: 'Sağ Ön Çamurluk' },
+    { id: 'door_fr', label: 'Sağ Ön Kapı' },
+    { id: 'door_rr', label: 'Sağ Arka Kapı' },
+    { id: 'fender_rr', label: 'Sağ Arka Çamurluk' }
+  ];
 
   useEffect(() => {
     fetchVehicles();
@@ -2081,77 +2162,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
 
       {/* Add/Edit Modal */}
       <AnimatePresence>
-        {showAddModal && (() => {
-          const paintReportData = (() => {
-            try {
-              return typeof formData.paint_report === 'string' 
-                ? JSON.parse(formData.paint_report || '{}') 
-                : (formData.paint_report || {});
-            } catch (e) {
-              return {};
-            }
-          })();
-
-          const togglePartState = (partId: string) => {
-            const current = paintReportData[partId] || 'original';
-            const next = current === 'original' ? 'painted' : current === 'painted' ? 'replaced' : 'original';
-            const updated = { ...paintReportData, [partId]: next };
-            setFormData(prev => ({ ...prev, paint_report: JSON.stringify(updated) }));
-          };
-
-          const expensesListData = (() => {
-            try {
-              return typeof formData.expenses === 'string' 
-                ? JSON.parse(formData.expenses || '[]') 
-                : (formData.expenses || []);
-            } catch (e) {
-              return [];
-            }
-          })();
-
-          const triggerAddExpense = () => {
-            if (!newExpenseName || !newExpenseAmount) return;
-            const newExpItem = {
-              id: Date.now().toString(),
-              name: newExpenseName,
-              amount: parseFloat(newExpenseAmount) || 0,
-              date: new Date().toISOString()
-            };
-            const updated = [...expensesListData, newExpItem];
-            setFormData(prev => ({ ...prev, expenses: JSON.stringify(updated) }));
-            setNewExpenseName('');
-            setNewExpenseAmount('');
-          };
-
-          const triggerRemoveExpense = (id: string) => {
-            const updated = expensesListData.filter((item: any) => item.id !== id);
-            setFormData(prev => ({ ...prev, expenses: JSON.stringify(updated) }));
-          };
-
-          const totalExpenses = expensesListData.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
-          const baseBuyingPrice = Number(formData.buying_price) || 0;
-          const calculatedTotalCost = baseBuyingPrice + totalExpenses;
-          const targetMarginPercent = Number(formData.target_profit_margin) || 0;
-          const suggestedRetailPrice = calculatedTotalCost * (1 + targetMarginPercent / 100);
-
-          const partsDefinition = [
-            { id: 'hood', label: 'Kaput' },
-            { id: 'roof', label: 'Tavan' },
-            { id: 'trunk', label: 'Bagaj Kapağı' },
-            { id: 'front_bumper', label: 'Ön Tampon' },
-            { id: 'rear_bumper', label: 'Arka Tampon' },
-            { id: 'fender_fl', label: 'Sol Ön Çamurluk' },
-            { id: 'door_fl', label: 'Sol Ön Kapı' },
-            { id: 'door_rl', label: 'Sol Arka Kapı' },
-            { id: 'fender_rl', label: 'Sol Arka Çamurluk' },
-            { id: 'fender_fr', label: 'Sağ Ön Çamurluk' },
-            { id: 'door_fr', label: 'Sağ Ön Kapı' },
-            { id: 'door_rr', label: 'Sağ Arka Kapı' },
-            { id: 'fender_rr', label: 'Sağ Arka Çamurluk' }
-          ];
-
-          return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
+        {showAddModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -2495,8 +2507,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             />
                             <select
                               value={formData.currency || 'TRY'}
-                              disabled
-                              className="px-2.5 py-2.5 bg-indigo-100/50 border border-indigo-200 rounded-xl outline-none font-bold text-xs text-indigo-800 cursor-not-allowed"
+                              onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                              className="px-2.5 py-2.5 bg-white border border-indigo-200 rounded-xl outline-none font-bold text-xs text-indigo-800"
                             >
                               <option value="TRY">TRY</option>
                               <option value="USD">USD</option>
@@ -2524,6 +2536,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               className="w-24 px-3.5 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-right font-bold text-indigo-900"
                               placeholder="0"
                             />
+                            <select
+                               value={expenseCurrency}
+                               onChange={(e) => setExpenseCurrency(e.target.value)}
+                               className="px-2 bg-white border border-indigo-200 rounded-xl outline-none font-bold text-xs"
+                            >
+                               <option value="TRY">TRY</option>
+                               <option value="GBP">GBP</option>
+                               <option value="USD">USD</option>
+                               <option value="EUR">EUR</option>
+                            </select>
                             <button
                               type="button"
                               onClick={triggerAddExpense}
@@ -2532,6 +2554,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               Masraf Ekle
                             </button>
                           </div>
+                          {(formData.currency === 'GBP' || formData.currency === 'USD' || formData.currency === 'EUR') && expenseCurrency === 'TRY' && (
+                             <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] font-bold text-indigo-700">1 {formData.currency} = </span>
+                                <input type="number" value={exchangeRate} onChange={(e) => setExchangeRate(Number(e.target.value) || 0)} className="w-16 px-1 py-0.5 border border-indigo-200 rounded text-[10px] text-center" />
+                                <span className="text-[10px] font-bold text-indigo-700">TRY (Çapraz Kur)</span>
+                             </div>
+                          )}
                         </div>
 
                       </div>
@@ -2548,7 +2577,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                   <span className="font-semibold text-gray-700">{item.name}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {formData.currency || 'TRY'}</span>
+                                  <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {item.currency || 'TRY'}</span>
                                   <button
                                     type="button"
                                     onClick={() => triggerRemoveExpense(item.id)}
@@ -2854,8 +2883,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 </div>
               </motion.div>
             </div>
-          );
-        })()}
+          )}
       </AnimatePresence>
 
       {/* Detail Modal */}
