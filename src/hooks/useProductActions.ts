@@ -77,7 +77,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     const savePromise = (async () => {
       let res;
       if (editingProduct) {
-        res = await api.updateProduct(Number(editingProduct.id), data, targetStoreId);
+        res = await api.updateProduct(editingProduct.id, data, targetStoreId);
       } else {
         res = await api.addProduct(data, targetStoreId);
       }

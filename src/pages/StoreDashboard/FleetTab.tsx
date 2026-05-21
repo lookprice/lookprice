@@ -31,12 +31,7 @@ import {
   Phone,
   ClipboardList,
   RefreshCw,
-  ShieldCheck,
-  Sparkles,
-  Compass,
-  Cpu,
-  Image,
-  Shield
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
@@ -75,24 +70,7 @@ interface Vehicle {
   chassis_number: string;
   engine_number: string;
   current_mileage: number;
-  status: 'active' | 'in_service' | 'broken' | 'sold' | 'for_sale';
-  selling_price?: number;
-  currency?: string;
-  package_name?: string;
-  transmission?: 'manual' | 'automatic' | 'dual_clutch' | 'semi_automatic';
-  fuel_type?: 'gasoline' | 'diesel' | 'lpg' | 'hybrid' | 'electric';
-  color?: string;
-  body_type?: string;
-  paint_report?: string | Record<string, 'original' | 'painted' | 'replaced'>;
-  tramer_amount?: number;
-  tramer_currency?: string;
-  buying_price?: number;
-  expenses?: string | { id: string; name: string; amount: number; date: string }[];
-  target_profit_margin?: number;
-  description?: string;
-  images?: string[];
-  virtual_tour_url?: string;
-  ai_tour_enabled?: boolean;
+  status: 'active' | 'in_service' | 'broken' | 'sold';
   created_at: string;
   updated_at: string;
   expiring_docs?: number;
@@ -148,10 +126,6 @@ interface VehicleMileageLog {
   mileage: number;
   user_id: number;
   notes: string;
-  purpose?: string;
-  expense_amount?: number;
-  expense_type?: string;
-  duration_minutes?: number;
 }
 
 interface VehicleIncident {
@@ -179,20 +153,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newExpenseName, setNewExpenseName] = useState('');
-  const [newExpenseAmount, setNewExpenseAmount] = useState('');
-  
-  // Custom Loan Calculator States
-  const [loanAmount, setLoanAmount] = useState<number>(0);
-  const [loanTerm, setLoanTerm] = useState<number>(36);
-  const [loanRate, setLoanRate] = useState<number>(2.49);
-
-  useEffect(() => {
-    if (selectedVehicle?.selling_price) {
-      setLoanAmount(Math.round(selectedVehicle.selling_price * 0.7));
-    }
-  }, [selectedVehicle]);
-
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDriverDetailModal, setShowDriverDetailModal] = useState(false);
   const [activeMainTab, setActiveMainTab] = useState<'vehicles' | 'drivers' | 'maintenance' | 'assignments' | 'mileage' | 'incidents' | 'obligations'>('vehicles');
@@ -299,128 +259,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [incidentFormData, setIncidentFormData] = useState<Partial<VehicleIncident>>({ type: 'accident', status: 'open' });
   const [driverFormData, setDriverFormData] = useState<Partial<Driver>>({ status: 'active' });
 
-  // AI & Luxury Presentation States
-  const [generatingVehicleDesc, setGeneratingVehicleDesc] = useState(false);
-  const [processingVehicleMedia, setProcessingVehicleMedia] = useState<string | null>(null); // 'staging' | 'enhance' | 'blur'
-  const [vehicleAiNotice, setVehicleAiNotice] = useState<string | null>(null);
-
-  const [generatingVehicleTour, setGeneratingVehicleTour] = useState(false);
-  const [activeVehicleTourNode, setActiveVehicleTourNode] = useState<any>(null);
-  const [vehicleTourBlueprint, setVehicleTourBlueprint] = useState<any>(null);
-
-  const handleGenerateVehicleDesc = async () => {
-    if (!formData.brand || !formData.model) {
-      alert("Lütfen önce marka ve model bilgilerini giriniz.");
-      return;
-    }
-    setGeneratingVehicleDesc(true);
-    try {
-      const res = await api.post("/api/store/generate-vehicle-desc", {
-        brand: formData.brand,
-        model: formData.model,
-        year: formData.year,
-        currentMileage: formData.current_mileage,
-        transmission: formData.transmission,
-        fuelType: formData.fuel_type,
-        color: formData.color,
-        bodyType: formData.body_type,
-        paintReport: formData.paint_report,
-        tramerAmount: formData.tramer_amount,
-        tramerCurrency: formData.tramer_currency,
-        sellingPrice: formData.selling_price,
-        currency: formData.currency,
-        lang: 'tr'
-      });
-      if (res.text) {
-        setFormData(prev => ({ ...prev, description: res.text }));
-        setVehicleAiNotice("✅ Araç portföy hikayesi ve teknik açıklama yapay zeka tarafından başarıyla oluşturuldu!");
-        setTimeout(() => setVehicleAiNotice(null), 5000);
-      } else if (res.error) {
-        alert("Açıklama üretilirken hata oluştu: " + res.error);
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert("Açıklama üretme isteği başarısız oldu.");
-    } finally {
-      setGeneratingVehicleDesc(false);
-    }
-  };
-
-  const handleAIVariantStaging = async (style: string) => {
-    setProcessingVehicleMedia('staging');
-    try {
-      const coverUrl = (formData.images && formData.images[0]) || '';
-      const res = await api.post("/api/store/ai-virtual-staging", { imageUrl: coverUrl, style });
-      if (res.stagedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.stagedUrl] }));
-        setVehicleAiNotice(`✅ Aracın ortam kalitesi ve yansımaları "${style.toUpperCase()}" showroom moduna ölçeklendi!`);
-        setTimeout(() => setVehicleAiNotice(null), 6000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setProcessingVehicleMedia(null);
-    }
-  };
-
-  const handleAIEnhanceExposure = async () => {
-    setProcessingVehicleMedia('enhance');
-    try {
-      const coverUrl = (formData.images && formData.images[0]) || '';
-      const res = await api.post("/api/store/ai-image-enhance", { imageUrl: coverUrl });
-      if (res.enhancedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.enhancedUrl] }));
-        setVehicleAiNotice("✅ Aracın parlamaları, gölge dengesi ve ortam ışığı yapay zeka ile optimize edildi!");
-        setTimeout(() => setVehicleAiNotice(null), 6000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setProcessingVehicleMedia(null);
-    }
-  };
-
-  const handleAIAnonymizePlate = async () => {
-    setProcessingVehicleMedia('blur');
-    try {
-      const coverUrl = (formData.images && formData.images[0]) || '';
-      const res = await api.post("/api/store/ai-blur-privacy", { imageUrl: coverUrl, type: 'vehicle' });
-      if (res.anonymizedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.anonymizedUrl] }));
-        setVehicleAiNotice("✅ Araç plaka ve cam yansımalarındaki insan yüzleri yapay zeka ile blurlanarak gizlendi!");
-        setTimeout(() => setVehicleAiNotice(null), 6000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setProcessingVehicleMedia(null);
-    }
-  };
-
-  const handleGenerateVehicle360Tour = async () => {
-    setGeneratingVehicleTour(true);
-    try {
-      const res = await api.post("/api/store/ai-3d-tour", { name: `${formData.brand} ${formData.model}`, type: 'automotive' });
-      if (res.success) {
-        setVehicleTourBlueprint(res);
-        if (res.nodes && res.nodes.length > 0) {
-          setActiveVehicleTourNode(res.nodes[0]);
-        }
-        setFormData(prev => ({ 
-          ...prev, 
-          virtual_tour_url: res.targetIframeUrl,
-          ai_tour_enabled: true 
-        }));
-        setVehicleAiNotice("🏠 Yapay zeka tüm araç açılarından 360 derecelik sanal kokpit ve kaporta turunu oluşturdu!");
-        setTimeout(() => setVehicleAiNotice(null), 6000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setGeneratingVehicleTour(false);
-    }
-  };
-
   // Form States
   const [formData, setFormData] = useState<Partial<Vehicle>>({
     plate: '',
@@ -431,22 +269,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     chassis_number: '',
     engine_number: '',
     current_mileage: 0,
-    status: 'active',
-    package_name: '',
-    transmission: 'manual',
-    fuel_type: 'gasoline',
-    color: '',
-    body_type: '',
-    paint_report: '{}',
-    tramer_amount: 0,
-    tramer_currency: 'TRY',
-    buying_price: 0,
-    expenses: '[]',
-    target_profit_margin: 0,
-    description: '',
-    images: [],
-    virtual_tour_url: '',
-    ai_tour_enabled: false
+    status: 'active'
   });
 
   useEffect(() => {
@@ -549,18 +372,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         chassis_number: '',
         engine_number: '',
         current_mileage: 0,
-        status: 'active',
-        package_name: '',
-        transmission: 'manual',
-        fuel_type: 'gasoline',
-        color: '',
-        body_type: '',
-        paint_report: '{}',
-        tramer_amount: 0,
-        tramer_currency: 'TRY',
-        buying_price: 0,
-        expenses: '[]',
-        target_profit_margin: 0
+        status: 'active'
       });
     } catch (error) {
       alert(t.errorOccurred);
@@ -895,7 +707,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       case 'in_service': return 'bg-blue-100 text-blue-700';
       case 'broken': return 'bg-red-100 text-red-700';
       case 'sold': return 'bg-gray-100 text-gray-700';
-      case 'for_sale': return 'bg-purple-100 text-purple-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -906,7 +717,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       case 'in_service': return t.inService;
       case 'broken': return t.broken;
       case 'sold': return t.sold;
-      case 'for_sale': return lang === 'tr' ? 'Satışta' : 'For Sale';
       default: return status;
     }
   };
@@ -992,16 +802,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <p className="text-xs text-gray-500 font-medium">{vehicle.brand} {vehicle.model}</p>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 items-end">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(vehicle.status)}`}>
-                    {getStatusText(vehicle.status)}
-                  </span>
-                  {vehicle.status === 'for_sale' && vehicle.selling_price && (
-                    <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                      {vehicle.selling_price.toLocaleString()} {vehicle.currency}
-                    </span>
-                  )}
-                </div>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(vehicle.status)}`}>
+                  {getStatusText(vehicle.status)}
+                </span>
               </div>
               
               <div className="grid grid-cols-2 gap-4 py-3 border-y border-gray-50">
@@ -1071,20 +874,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             chassis_number: vehicle.chassis_number,
                             engine_number: vehicle.engine_number,
                             current_mileage: vehicle.current_mileage,
-                            status: vehicle.status,
-                            selling_price: vehicle.selling_price,
-                            currency: vehicle.currency || 'TRY',
-                            package_name: vehicle.package_name || '',
-                            transmission: vehicle.transmission || 'manual',
-                            fuel_type: vehicle.fuel_type || 'gasoline',
-                            color: vehicle.color || '',
-                            body_type: vehicle.body_type || '',
-                            paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
-                            tramer_amount: vehicle.tramer_amount || 0,
-                            tramer_currency: vehicle.tramer_currency || 'TRY',
-                            buying_price: vehicle.buying_price || 0,
-                            expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
-                            target_profit_margin: vehicle.target_profit_margin || 0
+                            status: vehicle.status
                           });
                           setShowAddModal(true);
                         }}
@@ -1134,16 +924,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getStatusColor(vehicle.status)}`}>
-                            {getStatusText(vehicle.status)}
-                          </span>
-                          {vehicle.status === 'for_sale' && vehicle.selling_price && (
-                            <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                              {vehicle.selling_price.toLocaleString()} {vehicle.currency}
-                            </span>
-                          )}
-                        </div>
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getStatusColor(vehicle.status)}`}>
+                          {getStatusText(vehicle.status)}
+                        </span>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
@@ -1191,27 +974,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          {vehicle.status === 'for_sale' && (
-                            <button
-                              onClick={() => window.open(`https://enrakipsiz.com/arac/${vehicle.id}`, '_blank')}
-                              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold"
-                              title="Portalda Gör"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              setSelectedVehicle(vehicle);
-                              fetchVehicleDetails(vehicle);
-                              setShowDetailModal(true);
-                            }}
-                            className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedVehicle(vehicle);
+                            fetchVehicleDetails(vehicle);
+                            setShowDetailModal(true);
+                          }}
+                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1943,22 +1715,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   chassis_number: '',
                   engine_number: '',
                   current_mileage: 0,
-                  status: 'active',
-                  package_name: '',
-                  transmission: 'manual',
-                  fuel_type: 'gasoline',
-                  color: '',
-                  body_type: '',
-                  paint_report: '{}',
-                  tramer_amount: 0,
-                  tramer_currency: 'TRY',
-                  buying_price: 0,
-                  expenses: '[]',
-                  target_profit_margin: 0,
-                  description: '',
-                  images: [],
-                  virtual_tour_url: '',
-                  ai_tour_enabled: false
+                  status: 'active'
                 });
                 setSelectedVehicle(null);
                 setShowAddModal(true);
@@ -2064,7 +1821,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 <option value="active">{t.active}</option>
                 <option value="in_service">{t.inService}</option>
                 <option value="broken">{t.broken}</option>
-                <option value="for_sale">{lang === 'tr' ? 'Satışta' : 'For Sale'}</option>
                 <option value="sold">{t.sold}</option>
               </select>
             </div>
@@ -2081,781 +1837,141 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
 
       {/* Add/Edit Modal */}
       <AnimatePresence>
-        {showAddModal && (() => {
-          const paintReportData = (() => {
-            try {
-              return typeof formData.paint_report === 'string' 
-                ? JSON.parse(formData.paint_report || '{}') 
-                : (formData.paint_report || {});
-            } catch (e) {
-              return {};
-            }
-          })();
-
-          const togglePartState = (partId: string) => {
-            const current = paintReportData[partId] || 'original';
-            const next = current === 'original' ? 'painted' : current === 'painted' ? 'replaced' : 'original';
-            const updated = { ...paintReportData, [partId]: next };
-            setFormData(prev => ({ ...prev, paint_report: JSON.stringify(updated) }));
-          };
-
-          const expensesListData = (() => {
-            try {
-              return typeof formData.expenses === 'string' 
-                ? JSON.parse(formData.expenses || '[]') 
-                : (formData.expenses || []);
-            } catch (e) {
-              return [];
-            }
-          })();
-
-          const triggerAddExpense = () => {
-            if (!newExpenseName || !newExpenseAmount) return;
-            const newExpItem = {
-              id: Date.now().toString(),
-              name: newExpenseName,
-              amount: parseFloat(newExpenseAmount) || 0,
-              date: new Date().toISOString()
-            };
-            const updated = [...expensesListData, newExpItem];
-            setFormData(prev => ({ ...prev, expenses: JSON.stringify(updated) }));
-            setNewExpenseName('');
-            setNewExpenseAmount('');
-          };
-
-          const triggerRemoveExpense = (id: string) => {
-            const updated = expensesListData.filter((item: any) => item.id !== id);
-            setFormData(prev => ({ ...prev, expenses: JSON.stringify(updated) }));
-          };
-
-          const totalExpenses = expensesListData.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
-          const baseBuyingPrice = Number(formData.buying_price) || 0;
-          const calculatedTotalCost = baseBuyingPrice + totalExpenses;
-          const targetMarginPercent = Number(formData.target_profit_margin) || 0;
-          const suggestedRetailPrice = calculatedTotalCost * (1 + targetMarginPercent / 100);
-
-          const partsDefinition = [
-            { id: 'hood', label: 'Kaput' },
-            { id: 'roof', label: 'Tavan' },
-            { id: 'trunk', label: 'Bagaj Kapağı' },
-            { id: 'front_bumper', label: 'Ön Tampon' },
-            { id: 'rear_bumper', label: 'Arka Tampon' },
-            { id: 'fender_fl', label: 'Sol Ön Çamurluk' },
-            { id: 'door_fl', label: 'Sol Ön Kapı' },
-            { id: 'door_rl', label: 'Sol Arka Kapı' },
-            { id: 'fender_rl', label: 'Sol Arka Çamurluk' },
-            { id: 'fender_fr', label: 'Sağ Ön Çamurluk' },
-            { id: 'door_fr', label: 'Sağ Ön Kapı' },
-            { id: 'door_rr', label: 'Sağ Arka Kapı' },
-            { id: 'fender_rr', label: 'Sağ Arka Çamurluk' }
-          ];
-
-          return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col"
-              >
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-                      <Car className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-extrabold text-gray-900">
-                        {selectedVehicle ? t.editVehicle : t.addVehicle}
-                      </h3>
-                      <p className="text-xs text-gray-500 font-medium">B2B/B2C Portföy ve Teknik Veri Kartı</p>
-                    </div>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 className="text-xl font-bold text-gray-800">
+                  {selectedVehicle ? t.editVehicle : t.addVehicle}
+                </h3>
+                <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={selectedVehicle ? handleUpdateVehicle : handleCreateVehicle} className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.plate}</label>
+                    <input
+                      required
+                      type="text"
+                      value={formData.plate}
+                      onChange={(e) => setFormData({ ...formData, plate: e.target.value.toUpperCase() })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder={t.example_plate}
+                    />
                   </div>
-                  <button onClick={() => setShowAddModal(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all">
-                    <X className="w-6 h-6" />
-                  </button>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.vehicleType}</label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="company">{t.company}</option>
+                      <option value="personal">{t.personal}</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.brand}</label>
+                    <input
+                      required
+                      type="text"
+                      value={formData.brand}
+                      onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder={t.example_ford}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.model}</label>
+                    <input
+                      required
+                      type="text"
+                      value={formData.model}
+                      onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder={t.example_focus}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.year}</label>
+                    <input
+                      type="number"
+                      value={formData.year}
+                      onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.currentKM}</label>
+                    <input
+                      type="text"
+                      value={formData.current_mileage.toLocaleString()}
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/\./g, '');
+                        const parsedValue = parseFloat(rawValue);
+                        setFormData({ ...formData, current_mileage: isNaN(parsedValue) ? 0 : parsedValue });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.chassisNumber}</label>
+                    <input
+                      type="text"
+                      value={formData.chassis_number}
+                      onChange={(e) => setFormData({ ...formData, chassis_number: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">{t.engineNumber}</label>
+                    <input
+                      type="text"
+                      value={formData.engine_number}
+                      onChange={(e) => setFormData({ ...formData, engine_number: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
                 </div>
-
-                <form onSubmit={selectedVehicle ? handleUpdateVehicle : handleCreateVehicle} className="flex-1 overflow-y-auto p-6 space-y-8">
-                  
-                  {/* SECTION 1: CORE VEHICLE DATA */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-blue-700 tracking-wider uppercase border-l-4 border-blue-600 pl-2.5">
-                      1. Ruhsat ve Kayıt Bilgileri
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Plaka *</label>
-                        <input
-                          required
-                          type="text"
-                          value={formData.plate}
-                          onChange={(e) => setFormData({ ...formData, plate: e.target.value.toUpperCase() })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold"
-                          placeholder={t.example_plate}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Araç Tipi *</label>
-                        <select
-                          value={formData.type}
-                          onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
-                        >
-                          <option value="company">{t.company}</option>
-                          <option value="personal">{t.personal}</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Marka *</label>
-                        <input
-                          required
-                          type="text"
-                          value={formData.brand}
-                          onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          placeholder={t.example_ford}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Model Adı *</label>
-                        <input
-                          required
-                          type="text"
-                          value={formData.model}
-                          onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          placeholder={t.example_focus}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Üretim Yılı *</label>
-                        <input
-                          required
-                          type="number"
-                          value={formData.year}
-                          onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) || new Date().getFullYear() })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Kilometre (Güncel) *</label>
-                        <input
-                          required
-                          type="number"
-                          value={formData.current_mileage || 0}
-                          onChange={(e) => setFormData({ ...formData, current_mileage: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Şasi Numarası</label>
-                        <input
-                          type="text"
-                          value={formData.chassis_number || ''}
-                          onChange={(e) => setFormData({ ...formData, chassis_number: e.target.value.toUpperCase() })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-mono"
-                          placeholder="WBA123..."
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Motor Numarası</label>
-                        <input
-                          type="text"
-                          value={formData.engine_number || ''}
-                          onChange={(e) => setFormData({ ...formData, engine_number: e.target.value.toUpperCase() })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-mono"
-                          placeholder="N47D..."
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Operasyonel Durumu *</label>
-                        <select
-                          value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
-                        >
-                          <option value="active">{t.active}</option>
-                          <option value="in_service">{t.inService}</option>
-                          <option value="broken">{t.broken}</option>
-                          <option value="for_sale">Satışta (Portföy)</option>
-                          <option value="sold">{t.sold}</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SECTION 2: EXTENDED SPECS & CATEGORIES */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-blue-700 tracking-wider uppercase border-l-4 border-blue-600 pl-2.5">
-                      2. Donanım ve Teknik Özellikler (Müşteri Detay)
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Donanım Paketi</label>
-                        <input
-                          type="text"
-                          value={formData.package_name || ''}
-                          onChange={(e) => setFormData({ ...formData, package_name: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          placeholder="Örn: Titanium, M Sport"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Şanzıman Tipi</label>
-                        <select
-                          value={formData.transmission || 'manual'}
-                          onChange={(e) => setFormData({ ...formData, transmission: e.target.value as any })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                        >
-                          <option value="manual">Manuel</option>
-                          <option value="automatic">Otomatik</option>
-                          <option value="semi_automatic">Yarı Otomatik</option>
-                          <option value="dual_clutch">Çift Kavrama (DCT/DSG)</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Yakıt Türü</label>
-                        <select
-                          value={formData.fuel_type || 'gasoline'}
-                          onChange={(e) => setFormData({ ...formData, fuel_type: e.target.value as any })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                        >
-                          <option value="gasoline">Benzin</option>
-                          <option value="diesel">Dizel</option>
-                          <option value="hybrid">Hibrit</option>
-                          <option value="electric">Elektrik</option>
-                          <option value="lpg">LPG</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Dış Renk</label>
-                        <input
-                          type="text"
-                          value={formData.color || ''}
-                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          placeholder="Örn: Metalik Füme, Opak Beyaz"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600">Gövde / Kasa Sınıfı</label>
-                        <select
-                          value={formData.body_type || ''}
-                          onChange={(e) => setFormData({ ...formData, body_type: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                        >
-                          <option value="">Seçiniz...</option>
-                          <option value="Sedan">Sedan</option>
-                          <option value="Hatchback">Hatchback</option>
-                          <option value="SUV">SUV (Arazi Grubu)</option>
-                          <option value="Coupe">Coupe</option>
-                          <option value="Station Wagon">Station Wagon</option>
-                          <option value="Kabrio">Kabrio (Açık Kasa)</option>
-                          <option value="Light Commercial">Hafif Ticari</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        {formData.status === 'for_sale' && (
-                          <>
-                            <label className="text-xs font-bold text-emerald-700">Açık İlan Satış Fiyatı *</label>
-                            <div className="flex gap-1.5">
-                              <input
-                                required
-                                type="number"
-                                value={formData.selling_price || ''}
-                                onChange={(e) => setFormData({ ...formData, selling_price: Number(e.target.value) })}
-                                placeholder="0"
-                                className="w-full px-3.5 py-2.5 bg-emerald-50/30 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-extrabold text-emerald-900"
-                              />
-                              <select
-                                value={formData.currency || 'TRY'}
-                                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                className="px-2.5 py-2.5 bg-emerald-50/55 border border-emerald-200 rounded-xl outline-none font-bold text-xs text-emerald-800"
-                              >
-                                <option value="TRY">₺ TRY</option>
-                                <option value="USD">$ USD</option>
-                                <option value="EUR">€ EUR</option>
-                                <option value="GBP">£ GBP</option>
-                              </select>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SECTION 3: PAINT REPORT AND INSURANCE INTERACTION */}
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-sm font-bold text-blue-700 tracking-wider uppercase border-l-4 border-blue-600 pl-2.5 flex items-center gap-1.5">
-                        3. Ekspertiz Kaporta Hasar & Tramer Haritası
-                      </h4>
-                      <p className="text-[10px] text-gray-500 font-bold bg-white border border-gray-200 px-3 py-1.5 rounded-full shadow-sm">
-                        💡 Durum değiştirme için parçalar üzerine tıklayınız.
-                      </p>
-                    </div>
-
-                    <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-6">
-                      
-                      {/* Grid representation of car panels */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        {partsDefinition.map((p) => {
-                          const state = paintReportData[p.id] || 'original';
-                          let bgClass = "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100";
-                          let dotClass = "bg-emerald-500";
-                          let labelText = "Orijinal";
-
-                          if (state === 'painted') {
-                            bgClass = "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100";
-                            dotClass = "bg-amber-500";
-                            labelText = "Boyalı";
-                          } else if (state === 'replaced') {
-                            bgClass = "bg-red-50 text-red-800 border-red-200 hover:bg-red-100";
-                            dotClass = "bg-red-500";
-                            labelText = "Değişmiş";
-                          }
-
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => togglePartState(p.id)}
-                              className={`p-3 border rounded-xl flex flex-col items-start gap-1 justify-between transition-all duration-150 text-left relative overflow-hidden shadow-sm hover:shadow active:scale-95 ${bgClass}`}
-                            >
-                              <span className="text-xs font-bold leading-tight line-clamp-1">{p.label}</span>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-                                <span className="text-[9px] font-extrabold uppercase tracking-wider opacity-90">{labelText}</span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* TRAMER INPUTS */}
-                      <div className="pt-2 border-t border-gray-200/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <div className="flex-1 space-y-1">
-                          <label className="text-xs font-bold text-gray-700">Tramer Hasar Rekoru Tutarı (Kayıtlı Toplam Hasar)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              value={formData.tramer_amount || 0}
-                              onChange={(e) => setFormData({ ...formData, tramer_amount: parseFloat(e.target.value) || 0 })}
-                              className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
-                              placeholder="0.00"
-                            />
-                            <select
-                              value={formData.tramer_currency || 'TRY'}
-                              onChange={(e) => setFormData({ ...formData, tramer_currency: e.target.value })}
-                              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none font-bold text-xs"
-                            >
-                              <option value="TRY">₺ TRY</option>
-                              <option value="USD">$ USD</option>
-                              <option value="EUR">€ EUR</option>
-                              <option value="GBP">£ GBP</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3 shadow-sm shrink-0">
-                          <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
-                          <div>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hasar Tespiti</p>
-                            <p className="text-xs font-bold text-gray-800">
-                              {(formData.tramer_amount || 0) > 0 
-                                ? `${(formData.tramer_amount || 0).toLocaleString()} ${formData.tramer_currency || 'TRY'} Kayıtlı Tramer` 
-                                : "Hasar Kaydı Bulunmuyor"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* SECTION 4: MALIYET VE KARLILIK (CONFIDENTIAL) */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-indigo-700 tracking-wider uppercase border-l-4 border-indigo-600 pl-2.5 flex items-center gap-1.5">
-                      <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                      4. Maliyet ve Karlılık Defteri (Sadece Galericiler Tarafından Görülür)
-                    </h4>
-                    
-                    <div className="bg-indigo-50/40 p-5 rounded-3xl border border-indigo-100 space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        
-                        {/* Buying Price */}
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-indigo-950">Araç Alış Geliş Fiyatı</label>
-                          <div className="flex gap-1.5">
-                            <input
-                              type="number"
-                              value={baseBuyingPrice || ''}
-                              onChange={(e) => setFormData({ ...formData, buying_price: parseFloat(e.target.value) || 0 })}
-                              className="w-full px-3.5 py-2.5 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-extrabold text-indigo-900"
-                              placeholder="0"
-                            />
-                            <select
-                              value={formData.currency || 'TRY'}
-                              disabled
-                              className="px-2.5 py-2.5 bg-indigo-100/50 border border-indigo-200 rounded-xl outline-none font-bold text-xs text-indigo-800 cursor-not-allowed"
-                            >
-                              <option value="TRY">TRY</option>
-                              <option value="USD">USD</option>
-                              <option value="EUR">EUR</option>
-                              <option value="GBP">GBP</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Extra expenses dynamic adder */}
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="text-xs font-bold text-indigo-950">Ekspertiz, Bakım, Kuaför, Boya Masrafları Yönetimi</label>
-                          <div className="flex gap-1.5">
-                            <input
-                              type="text"
-                              value={newExpenseName}
-                              onChange={(e) => setNewExpenseName(e.target.value)}
-                              className="flex-1 px-3.5 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                              placeholder="Masraf Açıklaması (Örn: Pasta Cila, Detaylı Temizlik)"
-                            />
-                            <input
-                              type="number"
-                              value={newExpenseAmount}
-                              onChange={(e) => setNewExpenseAmount(e.target.value)}
-                              className="w-24 px-3.5 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-right font-bold text-indigo-900"
-                              placeholder="0"
-                            />
-                            <button
-                              type="button"
-                              onClick={triggerAddExpense}
-                              className="px-4 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors shrink-0"
-                            >
-                              Masraf Ekle
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-
-                      {/* Display added expenses */}
-                      {expensesListData.length > 0 && (
-                        <div className="bg-white/80 p-3.5 rounded-2xl border border-indigo-200/50 space-y-2">
-                          <p className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-widest border-b pb-1">Yapılmış Masraf Kalemleri Listesi</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
-                            {expensesListData.map((item: any) => (
-                              <div key={item.id} className="flex justify-between items-center p-2 bg-indigo-50/20 hover:bg-indigo-50/50 border border-gray-100 rounded-lg text-xs">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-                                  <span className="font-semibold text-gray-700">{item.name}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {formData.currency || 'TRY'}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => triggerRemoveExpense(item.id)}
-                                    className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Target profit margin range */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-3 border-t border-indigo-200/50">
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center text-xs font-bold text-indigo-950">
-                            <span>Hedeflenen Saf Kâr Marjı (%)</span>
-                            <span className="text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-100">% {targetMarginPercent}</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            step="1"
-                            value={targetMarginPercent}
-                            onChange={(e) => setFormData({ ...formData, target_profit_margin: parseFloat(e.target.value) || 0 })}
-                            className="w-full accent-indigo-600 h-2 bg-indigo-100 rounded-lg outline-none"
-                          />
-                        </div>
-
-                        {/* Interactive Financial Math Display Board */}
-                        <div className="bg-indigo-900 text-indigo-50 p-4 rounded-2xl grid grid-cols-2 gap-2 shadow-inner">
-                          <div>
-                            <p className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Aracın Fiyat Maliyeti</p>
-                            <p className="text-sm font-black">{calculatedTotalCost.toLocaleString()} {formData.currency || 'TRY'}</p>
-                            <span className="text-[8px] text-indigo-400 font-medium">Alış + Toplam Masraflar</span>
-                          </div>
-                          <div>
-                            <p className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Önerilen Hedef Liste Fiyatı</p>
-                            <p className="text-sm font-black text-amber-300">{suggestedRetailPrice.toLocaleString()} {formData.currency || 'TRY'}</p>
-                            <span className="text-[8px] text-indigo-400 font-medium">Maliyet * (1 + %{targetMarginPercent} Marj)</span>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* SECTION 5: LOOKPRICE ELITE AI & LUXURY SHOWCASE SUITE */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-indigo-700 tracking-wider uppercase border-l-4 border-indigo-600 pl-2.5 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-indigo-600" />
-                      5. LookPrice AI Premium Sunum & Görünüm Paneli
-                    </h4>
-
-                    {vehicleAiNotice && (
-                      <div className="bg-emerald-500/10 text-emerald-800 text-xs font-bold border border-emerald-500/20 p-4 rounded-xl flex items-center justify-between shadow-xs z-20">
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                          {vehicleAiNotice}
-                        </span>
-                        <button type="button" onClick={() => setVehicleAiNotice(null)} className="p-1 hover:bg-emerald-500/15 rounded-full shrink-0">
-                          <X className="w-3.5 h-3.5 text-emerald-700" />
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="bg-gradient-to-br from-indigo-50/60 to-purple-50/60 p-5 rounded-2xl border border-indigo-100/80 space-y-5">
-                      
-                      {/* Sub-section 5a: Image and lookprice filters */}
-                      <div className="space-y-2">
-                        <label className="block text-xs font-bold text-indigo-950">Araç Vitrin / Kapak Fotoğrafı URL</label>
-                        <input
-                          type="text"
-                          value={formData.images?.[0] || ''}
-                          onChange={(e) => setFormData({ ...formData, images: e.target.value ? [e.target.value] : [] })}
-                          placeholder="https://images.unsplash.com/photo-..."
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-medium"
-                        />
-
-                        {formData.images && formData.images.length > 0 && (
-                          <div className="pt-2 p-3 bg-white/40 border border-indigo-100/50 rounded-xl flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-black text-indigo-950 flex items-center gap-1.5 uppercase tracking-wide">
-                              <Cpu className="w-3 h-3 text-indigo-600" />
-                              AI Fotoğraf Laboratuvarı:
-                            </span>
-                            <button
-                              type="button"
-                              disabled={processingVehicleMedia !== null}
-                              onClick={handleAIEnhanceExposure}
-                              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-xs"
-                            >
-                              {processingVehicleMedia === 'enhance' ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-505" />
-                              ) : (
-                                <Sparkles className="w-3 h-3 text-yellow-500" />
-                              )}
-                              Renk/Kontrast Parlat (Enhance)
-                            </button>
-                            <button
-                              type="button"
-                              disabled={processingVehicleMedia !== null}
-                              onClick={() => handleAIVariantStaging('luxury')}
-                              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-xs"
-                            >
-                              {processingVehicleMedia === 'staging' ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-505" />
-                              ) : (
-                                <Image className="w-3 h-3 text-slate-500" />
-                              )}
-                              Showroom Moduna Taşı (Staging)
-                            </button>
-                            <button
-                              type="button"
-                              disabled={processingVehicleMedia !== null}
-                              onClick={handleAIAnonymizePlate}
-                              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-xs"
-                            >
-                              {processingVehicleMedia === 'blur' ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-505" />
-                              ) : (
-                                <Shield className="w-3 h-3 text-red-500" />
-                              )}
-                              Plaka / Cam Gizle (Privacy Blur)
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Sub-section 5b: Description Assistant */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center flex-wrap gap-2">
-                          <label className="text-xs font-bold text-indigo-950">Pazar Hikayesi & Teknik İlan Açıklaması</label>
-                          <button
-                            type="button"
-                            disabled={generatingVehicleDesc}
-                            onClick={handleGenerateVehicleDesc}
-                            className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition-all shadow-sm active:scale-95 disabled:opacity-50"
-                          >
-                            {generatingVehicleDesc ? (
-                              <>
-                                <RefreshCw className="w-3 h-3 animate-spin text-white-500 shrink-0" />
-                                Yazılıyor...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="w-3 h-3 text-amber-300 shrink-0" />
-                                AI İlan Hikayesi Oluştur
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <textarea
-                          placeholder="Aracın yol sürüş kalitesi, kondisyon detayları ve satış sunumunu yapay zekayla yazın veya buraya ekleyin..."
-                          value={formData.description || ''}
-                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          className="w-full p-3.5 bg-white border border-gray-200 rounded-xl min-h-[100px] text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"
-                        />
-                      </div>
-
-                      {/* Sub-section 5c: 360 degree virtual staging HUD */}
-                      <div className="space-y-4 pt-3 border-t border-indigo-100">
-                        <div className="flex justify-between items-center gap-4 flex-wrap">
-                          <div className="space-y-0.5">
-                            <span className="block text-xs font-extrabold text-indigo-950">360° Sanal Sürüş Kabini Gezintisi</span>
-                            <span className="block text-[10px] text-indigo-600/70">Ziyaretçiler için kokpit ve kabin içi 3D panoramik gezi turları</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="text"
-                              value={formData.virtual_tour_url || ''}
-                              onChange={(e) => setFormData({ ...formData, virtual_tour_url: e.target.value })}
-                              placeholder="360° link veya Matterport URL"
-                              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[11px] font-medium outline-none text-slate-700"
-                            />
-                            <button
-                              type="button"
-                              disabled={generatingVehicleTour}
-                              onClick={handleGenerateVehicle360Tour}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
-                            >
-                              {generatingVehicleTour ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
-                              ) : (
-                                <Compass className="w-3.5 h-3.5 text-white" />
-                              )}
-                              AI 360° Panorama Üret
-                            </button>
-                          </div>
-                        </div>
-
-                        {formData.virtual_tour_url && (
-                          <div className="bg-slate-900 text-white rounded-2xl overflow-hidden p-4 border border-slate-800 space-y-3">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                </span>
-                                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                                  360° SÜRÜŞ KABİNİ CANLI HUD ÖNİZLEME
-                                </span>
-                              </div>
-                              <span className="text-[9px] bg-indigo-600 font-extrabold px-2 py-0.5 rounded uppercase font-mono">
-                                LookPrice 360 VR
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="md:col-span-1 bg-black/40 rounded-xl p-2 border border-slate-800/60 flex flex-col gap-1.5 max-h-[140px] overflow-y-auto">
-                                <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase px-1">
-                                  GÖRÜNTÜ NOKTALARI
-                                </span>
-                                {vehicleTourBlueprint?.nodes ? (
-                                  vehicleTourBlueprint.nodes.map((node: any, idx: number) => (
-                                    <button
-                                      key={idx}
-                                      type="button"
-                                      onClick={() => setActiveVehicleTourNode(node)}
-                                      className={`w-full text-left p-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center justify-between ${
-                                        activeVehicleTourNode?.name === node.name 
-                                          ? 'bg-indigo-600 text-white shadow' 
-                                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                                      }`}
-                                    >
-                                      <span>🛋️ {node.name}</span>
-                                    </button>
-                                  ))
-                                ) : (
-                                  <div className="space-y-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveVehicleTourNode({
-                                        name: "Kokpit Dashboard",
-                                        description: "Dijital sürüş göstergeleri, karbon kaplama direksiyon ve premium dikişli deri detaylar."
-                                      })}
-                                      className={`w-full text-left p-1.5 rounded-md text-[10px] font-bold ${activeVehicleTourNode?.name === "Kokpit Dashboard" || !activeVehicleTourNode ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400"}`}
-                                    >
-                                      🛋️ Kokpit Dashboard
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveVehicleTourNode({
-                                        name: "Nappa Deri Arka Koltuk",
-                                        description: "Arka makam perdeleri, ısıtmalı ve havalandırmalı delikli Nappa deri koltuk kafaları ve klima kontrol üniteleri."
-                                      })}
-                                      className={`w-full text-left p-1.5 rounded-md text-[10px] font-bold ${activeVehicleTourNode?.name === "Nappa Deri Arka Koltuk" ? "bg-indigo-600 text-white shadow" : "bg-slate-800 text-slate-400"}`}
-                                    >
-                                      🛋️ Arka Makam Alanı
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="md:col-span-2 bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex flex-col justify-between min-h-[145px] text-left">
-                                <div className="space-y-1">
-                                  <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-                                    AKTİF KAMERA BAKIŞ AÇISI
-                                  </span>
-                                  <h5 className="text-xs font-extrabold text-white animate-fade-in">
-                                    {activeVehicleTourNode?.name || "Kokpit Dashboard"}
-                                  </h5>
-                                  <p className="text-[10px] text-slate-300 leading-relaxed max-h-[60px] overflow-y-auto style-scrollbar">
-                                    {activeVehicleTourNode?.description || "Dijital sürüş göstergeleri, karbon kaplama direksiyon ve premium dikişli deri detaylar."}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="text-[9px] text-slate-500 flex justify-between items-center pt-1.5 border-t border-slate-800">
-                              <span>360° Key: {formData.virtual_tour_url}</span>
-                              <span className="text-indigo-400 font-extrabold text-[10px] cursor-pointer hover:underline animate-pulse" onClick={() => window.open(formData.virtual_tour_url, '_blank')}>
-                                Sürüş Simülatöründe Aç ↗
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-
-                </form>
-
-                {/* Footer Buttons */}
-                <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">{t.status}</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="active">{t.active}</option>
+                    <option value="in_service">{t.inService}</option>
+                    <option value="broken">{t.broken}</option>
+                    <option value="sold">{t.sold}</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-6 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-100 text-sm font-semibold text-gray-700 transition-colors"
+                    className="px-6 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"
                   >
                     {t.cancel}
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-extrabold shadow-lg shadow-blue-200 transition-all active:scale-95"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     {selectedVehicle ? t.update : t.save}
                   </button>
                 </div>
-              </motion.div>
-            </div>
-          );
-        })()}
+              </form>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       {/* Detail Modal */}
@@ -2883,34 +1999,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   {!isViewer && (
                     <button
                       onClick={() => {
-                        setFormData({
-                          plate: selectedVehicle.plate,
-                          brand: selectedVehicle.brand,
-                          model: selectedVehicle.model,
-                          year: selectedVehicle.year,
-                          type: selectedVehicle.type,
-                          chassis_number: selectedVehicle.chassis_number,
-                          engine_number: selectedVehicle.engine_number,
-                          current_mileage: selectedVehicle.current_mileage,
-                          status: selectedVehicle.status,
-                          selling_price: selectedVehicle.selling_price,
-                          currency: selectedVehicle.currency || 'TRY',
-                          package_name: selectedVehicle.package_name || '',
-                          transmission: selectedVehicle.transmission || 'manual',
-                          fuel_type: selectedVehicle.fuel_type || 'gasoline',
-                          color: selectedVehicle.color || '',
-                          body_type: selectedVehicle.body_type || '',
-                          paint_report: typeof selectedVehicle.paint_report === 'string' ? selectedVehicle.paint_report : JSON.stringify(selectedVehicle.paint_report || {}),
-                          tramer_amount: selectedVehicle.tramer_amount || 0,
-                          tramer_currency: selectedVehicle.tramer_currency || 'TRY',
-                          buying_price: selectedVehicle.buying_price || 0,
-                          expenses: typeof selectedVehicle.expenses === 'string' ? selectedVehicle.expenses : JSON.stringify(selectedVehicle.expenses || []),
-                          target_profit_margin: selectedVehicle.target_profit_margin || 0,
-                          description: selectedVehicle.description || '',
-                          images: selectedVehicle.images || [],
-                          virtual_tour_url: selectedVehicle.virtual_tour_url || '',
-                          ai_tour_enabled: !!selectedVehicle.ai_tour_enabled
-                        });
+                        setFormData(selectedVehicle);
                         setShowAddModal(true);
                       }}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
@@ -2952,450 +2041,44 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
 
               {/* Tab Content */}
               <div className="flex-1 overflow-y-auto p-6">
-                {activeDetailTab === 'info' && (() => {
-                  const paintReportData = (() => {
-                    try {
-                      return typeof selectedVehicle.paint_report === 'string' 
-                        ? JSON.parse(selectedVehicle.paint_report || '{}') 
-                        : (selectedVehicle.paint_report || {});
-                    } catch (e) {
-                      return {};
-                    }
-                  })();
-
-                  const expensesListData = (() => {
-                    try {
-                      return typeof selectedVehicle.expenses === 'string' 
-                        ? JSON.parse(selectedVehicle.expenses || '[]') 
-                        : (selectedVehicle.expenses || []);
-                    } catch (e) {
-                      return [];
-                    }
-                  })();
-
-                  const totalExpenses = expensesListData.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
-                  const baseBuyingPrice = Number(selectedVehicle.buying_price) || 0;
-                  const calculatedTotalCost = baseBuyingPrice + totalExpenses;
-
-                  const partsDefinition = [
-                    { id: 'hood', label: 'Kaput' },
-                    { id: 'roof', label: 'Tavan' },
-                    { id: 'trunk', label: 'Bagaj' },
-                    { id: 'front_bumper', label: 'Ön Tampon' },
-                    { id: 'rear_bumper', label: 'Arka Tampon' },
-                    { id: 'fender_fl', label: 'Sol Ön Çamurluk' },
-                    { id: 'door_fl', label: 'Sol Ön Kapı' },
-                    { id: 'door_rl', label: 'Sol Arka Kapı' },
-                    { id: 'fender_rl', label: 'Sol Arka Çamurluk' },
-                    { id: 'fender_fr', label: 'Sağ Ön Çamurluk' },
-                    { id: 'door_fr', label: 'Sağ Ön Kapı' },
-                    { id: 'door_rr', label: 'Sağ Arka Kapı' },
-                    { id: 'fender_rr', label: 'Sağ Arka Çamurluk' }
-                  ];
-
-                  // Loan payment math:
-                  const rRate = (loanRate || 0) / 100;
-                  const installTerm = Number(loanTerm) || 12;
-                  const principal = Number(loanAmount) || 0;
-                  const calculatedMonthlyInstallment = rRate === 0 
-                    ? principal / installTerm 
-                    : principal * (rRate * Math.pow(1 + rRate, installTerm)) / (Math.pow(1 + rRate, installTerm) - 1);
-                  const totalRepay = calculatedMonthlyInstallment * installTerm;
-                  const totalIntPaid = totalRepay - principal;
-
-                  return (
-                    <div className="space-y-8 animate-fade-in text-gray-800">
-                      
-                      {/* SUB GRID: GENERAL SPECS */}
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        {/* Box 1: Technical specs */}
-                        <div className="lg:col-span-2 bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-4">
-                          <h4 className="text-sm font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                            Donanım ve Tescil Detayları
-                          </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6 text-sm">
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Marka & Model</p>
-                              <p className="font-extrabold text-gray-950">{selectedVehicle.brand} {selectedVehicle.model}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Donanım Paketi</p>
-                              <p className="font-semibold text-gray-800">{selectedVehicle.package_name || "Belirtilmemiş"}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Model Yılı</p>
-                              <p className="font-bold text-gray-800">{selectedVehicle.year}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Şanzıman Sistemi</p>
-                              <p className="font-medium text-gray-800">
-                                {selectedVehicle.transmission === 'manual' && 'Manuel'}
-                                {selectedVehicle.transmission === 'automatic' && 'Otomatik'}
-                                {selectedVehicle.transmission === 'semi_automatic' && 'Yarı Otomatik'}
-                                {selectedVehicle.transmission === 'dual_clutch' && 'Çift Kavrama (DCT/DSG)'}
-                                {!selectedVehicle.transmission && 'Manuel'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Yakıt Grubu</p>
-                              <p className="font-medium text-gray-800">
-                                {selectedVehicle.fuel_type === 'gasoline' && 'Benzin'}
-                                {selectedVehicle.fuel_type === 'diesel' && 'Dizel'}
-                                {selectedVehicle.fuel_type === 'hybrid' && 'Hibrit'}
-                                {selectedVehicle.fuel_type === 'electric' && 'Elektrik'}
-                                {selectedVehicle.fuel_type === 'lpg' && 'LPG'}
-                                {!selectedVehicle.fuel_type && 'Benzin'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Dış Gövde Rengi</p>
-                              <p className="font-medium text-gray-800">{selectedVehicle.color || "Belirtilmemiş"}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Kasa Sınıfı</p>
-                              <p className="font-medium text-gray-800">{selectedVehicle.body_type || "Belirtilmemiş"}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Şasi Numarası</p>
-                              <p className="font-mono text-xs font-bold text-gray-800 break-all">{selectedVehicle.chassis_number || "Belirtilmemiş"}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Motor Numarası</p>
-                              <p className="font-mono text-xs font-bold text-gray-800 break-all">{selectedVehicle.engine_number || "Belirtilmemiş"}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Tescil Tarihi</p>
-                              <p className="font-medium text-gray-800">{safeFormatDate(selectedVehicle.created_at, 'dd MMMM yyyy', { locale: tr })}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-0.5">Araç Tescil Tipi</p>
-                              <p className="font-medium text-gray-800">{selectedVehicle.type === 'company' ? 'Şirket Özmalı' : 'Kişisel / Kiralık'}</p>
-                            </div>
-                          </div>
+                {activeDetailTab === 'info' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <h4 className="text-lg font-bold text-gray-800 border-b pb-2">{t.technicalDetails}</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.chassisNumber}</p>
+                          <p className="font-medium text-gray-700">{selectedVehicle.chassis_number || t.notSpecified}</p>
                         </div>
-
-                        {/* Box 2: Quick KM and Status Indicators */}
-                        <div className="space-y-4">
-                          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 rounded-2xl border border-blue-100 flex flex-col justify-between h-[45%] shadow-sm">
-                            <div>
-                              <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">Güncel Kilometre Sayacı</p>
-                              <p className="text-3xl font-black text-blue-900">{(selectedVehicle.current_mileage || 0).toLocaleString()} {t.km}</p>
-                            </div>
-                            <span className="text-[10px] text-blue-500 font-bold mt-2">📊 Son güncelleme tescil tarihi itibariyledir.</span>
-                          </div>
-
-                          <div className={`p-6 rounded-2xl border shadow-sm flex flex-col justify-between h-[50%] ${
-                            selectedVehicle.status === 'for_sale' ? 'bg-emerald-50 border-emerald-100 text-emerald-950' : 'bg-gray-50 border-gray-100 text-gray-900'
-                          }`}>
-                            <div>
-                              <p className="text-xs uppercase font-bold tracking-wider opacity-70 mb-1">Operasyonel Statüsü</p>
-                              <p className="text-2xl font-extrabold">{getStatusText(selectedVehicle.status)}</p>
-                            </div>
-                            {selectedVehicle.selling_price && (
-                              <div className="mt-2 pt-2 border-t border-emerald-200/50 flex justify-between items-center bg-white/60 p-2 rounded-xl">
-                                <span className="text-xs font-bold text-emerald-800">İlan İstenen Fiyat:</span>
-                                <span className="text-base font-black text-emerald-900">
-                                  {selectedVehicle.selling_price.toLocaleString()} {selectedVehicle.currency || 'TRY'}
-                                </span>
-                              </div>
-                            )}
-                          </div>
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.engineNumber}</p>
+                          <p className="font-medium text-gray-700">{selectedVehicle.engine_number || t.notSpecified}</p>
                         </div>
-
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.vehicleType}</p>
+                          <p className="font-medium text-gray-700">{selectedVehicle.type === 'company' ? t.company : t.personal}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase font-bold">{t.registrationDate}</p>
+                          <p className="font-medium text-gray-700">{safeFormatDate(selectedVehicle.created_at, 'dd MMMM yyyy', { locale: tr })}</p>
+                        </div>
                       </div>
-
-                      {/* LookPrice Elite AI Presentation Integration */}
-                      {(selectedVehicle.description || selectedVehicle.virtual_tour_url) && (
-                        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-3xl border border-indigo-950 shadow-xl space-y-6">
-                          <div className="flex justify-between items-center border-b border-indigo-800 pb-3 flex-wrap gap-2">
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
-                              <h4 className="text-sm font-black tracking-widest uppercase text-indigo-100">
-                                LookPrice Elite AI Portföy & Sanal Kokpit Deneyimi
-                              </h4>
-                            </div>
-                            <span className="text-[10px] bg-indigo-600/50 backdrop-blur-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider text-indigo-300 border border-indigo-500/30">
-                              3D VR Active
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-                            {/* AI Narrative Section */}
-                            {selectedVehicle.description && (
-                              <div className="bg-black/35 rounded-2xl p-5 border border-indigo-500/10 space-y-3 flex flex-col justify-between">
-                                <div className="space-y-1.5 text-left">
-                                  <span className="text-[10px] font-black tracking-widest text-indigo-400 uppercase block">
-                                    YAPAY ZEKA PORTFÖY HİKAYESİ
-                                  </span>
-                                  <p className="text-xs text-indigo-100 leading-relaxed font-medium whitespace-pre-wrap">
-                                    {selectedVehicle.description}
-                                  </p>
-                                </div>
-                                <span className="text-[10px] text-slate-400 flex items-center gap-1 pt-2">
-                                  <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-                                  LookPrice Gemini AI tarafından üretilmiştir.
-                                </span>
-                              </div>
-                            )}
-
-                            {/* 360 Cockpit Section */}
-                            {selectedVehicle.virtual_tour_url && (
-                              <div className="bg-indigo-950/60 rounded-2xl p-5 border border-indigo-500/10 flex flex-col justify-between space-y-4">
-                                <div className="space-y-2 text-left">
-                                  <span className="text-[10px] font-black tracking-widest text-indigo-400 uppercase flex items-center gap-1">
-                                    <Compass className="w-3.5 h-3.5 animate-spin" />
-                                    360° ETKİLEŞİMLİ SÜRÜŞ KABİNİ SİMÜLATÖRÜ
-                                  </span>
-                                  <p className="text-[11px] text-indigo-200 leading-relaxed font-semibold">
-                                    Ziyaretçileriniz, aracın içine girmeden önce tüm sürüş paneli, Nappa deri makam koltukları ve kontrol aksamlarını 3D olarak simülasyonda gezinebilir.
-                                  </p>
-                                </div>
-
-                                <div className="p-3 bg-black/45 hover:bg-black/60 border border-slate-800 rounded-xl flex items-center justify-between transition-all group cursor-pointer text-left" onClick={() => window.open(selectedVehicle.virtual_tour_url, '_blank')}>
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-extrabold text-xs shrink-0">
-                                      VR
-                                    </div>
-                                    <div className="space-y-0.5">
-                                      <span className="block text-[11px] font-bold text-white group-hover:text-indigo-400 transition-colors">
-                                        3D Sürüş Turunu Başlat
-                                      </span>
-                                      <span className="block text-[8px] text-slate-400 break-all max-w-[200px] truncate">
-                                        {selectedVehicle.virtual_tour_url}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-all transform group-hover:translate-x-1" />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* SUB GRID: PAINT EXPERT ASSESSMENT DISPLAY CARD */}
-                      <div className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100 space-y-4">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3 border-gray-200/50">
-                          <div>
-                            <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                              Kaporta Ekspertiz Expert Kayıtları
-                            </h4>
-                            <p className="text-xs text-gray-500 font-medium">Boya ve değişen parçaların topografik durum özeti</p>
-                          </div>
-                          
-                          <div className="flex gap-4 text-xs font-bold bg-white px-3 py-1.5 rounded-xl border border-gray-200/60 shadow-sm">
-                            <span className="flex items-center gap-1 text-emerald-700">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Orijinal
-                            </span>
-                            <span className="flex items-center gap-1 text-amber-700">
-                              <span className="w-2 h-2 rounded-full bg-amber-500" /> Boyalı
-                            </span>
-                            <span className="flex items-center gap-1 text-red-700">
-                              <span className="w-2 h-2 rounded-full bg-red-500" /> Değişmiş
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Read-only board layout of parts */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-                          {partsDefinition.map((p) => {
-                            const state = paintReportData[p.id] || 'original';
-                            let stateBg = "bg-white text-gray-800 border-gray-200";
-                            let stateDot = "bg-emerald-500";
-                            let stateLabel = "Orijinal";
-
-                            if (state === 'painted') {
-                              stateBg = "bg-amber-50/50 border-amber-100 text-amber-800";
-                              stateDot = "bg-amber-500";
-                              stateLabel = "Boyalı";
-                            } else if (state === 'replaced') {
-                              stateBg = "bg-red-50/50 border-red-100 text-red-800";
-                              stateDot = "bg-red-500";
-                              stateLabel = "Değişmiş";
-                            }
-
-                            return (
-                              <div key={p.id} className={`p-2.5 border rounded-xl flex flex-col justify-between h-14 ${stateBg}`}>
-                                <span className="text-xs font-bold leading-tight truncate text-gray-700">{p.label}</span>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  <span className={`w-1.5 h-1.5 rounded-full ${stateDot}`} />
-                                  <span className="text-[8px] font-extrabold uppercase tracking-wide opacity-80">{stateLabel}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* TRAMER SHIELD STATUS */}
-                        <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <ShieldCheck className="w-7 h-7 text-emerald-600" />
-                            <div>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider font-mono">Tramer Sigorta Sorgusu</p>
-                              <h5 className="text-sm font-extrabold text-gray-800">
-                                {(selectedVehicle.tramer_amount || 0) > 0 
-                                  ? `${(selectedVehicle.tramer_amount || 0).toLocaleString()} ${selectedVehicle.tramer_currency || 'TRY'} Hasar Kaydı` 
-                                  : "Hasar Kaydı Temiz (Tramer kaydı bulunmuyor)"}
-                              </h5>
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-
-                      {/* CONFIDENTIAL COSTING SHEET (FOR DEALERS ONLY) */}
-                      {!isViewer && (
-                        <div className="bg-indigo-50/30 p-6 rounded-3xl border border-indigo-100/60 space-y-4">
-                          <h4 className="text-sm font-bold text-indigo-950 flex items-center gap-2">
-                            <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                            Galerici Mali Defteri (Yalnızca Mağaza Yöneticilerine Görünür)
-                          </h4>
-
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
-                              <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Alış Alım Geliş Tutarı</p>
-                              <p className="text-lg font-black text-indigo-950">{(selectedVehicle.buying_price || 0).toLocaleString()} {selectedVehicle.currency || 'TRY'}</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
-                              <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Harcama ve Ekstra Masraflar</p>
-                              <p className="text-lg font-black text-indigo-950">{totalExpenses.toLocaleString()} {selectedVehicle.currency || 'TRY'}</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
-                              <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Toplam İşletme Maliyeti</p>
-                              <p className="text-lg font-black text-indigo-950">{calculatedTotalCost.toLocaleString()} {selectedVehicle.currency || 'TRY'}</p>
-                            </div>
-                            <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 p-4 rounded-2xl shadow text-center text-white">
-                              <p className="text-[10px] text-indigo-200 font-bold uppercase mb-0.5">Hedef Liste Fiyatı (%{selectedVehicle.target_profit_margin || 0} Marj)</p>
-                              <p className="text-lg font-black text-amber-300">
-                                {(calculatedTotalCost * (1 + (selectedVehicle.target_profit_margin || 0) / 100)).toLocaleString()} {selectedVehicle.currency || 'TRY'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Itemized expenses database print */}
-                          {expensesListData.length > 0 && (
-                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 text-xs">
-                              <p className="font-bold text-gray-800 border-b pb-1.5 mb-2">Masraf Kalemleri Özeti ({expensesListData.length} Adet)</p>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {expensesListData.map((item: any) => (
-                                  <div key={item.id} className="flex justify-between items-center p-2 bg-indigo-50/15 rounded-lg border border-gray-100">
-                                    <span className="font-semibold text-gray-600">{item.name}</span>
-                                    <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {selectedVehicle.currency || 'TRY'}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* LOAN CALCULATOR SECTION (FOR CUSTOMERS) */}
-                      {selectedVehicle.selling_price && (
-                        <div className="bg-emerald-50/35 p-6 rounded-3xl border border-emerald-100 space-y-4">
-                          <h4 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-emerald-600" />
-                            Anında Taşıt Kredisi Finansman Hesaplama Aracı
-                          </h4>
-
-                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                            
-                            {/* Inputs column */}
-                            <div className="lg:col-span-8 space-y-4 text-xs font-semibold">
-                              
-                              {/* Sliders 1: Loan Amount */}
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-emerald-900">
-                                  <span>Kullanılacak Kredi Tutarı</span>
-                                  <span className="font-extrabold text-emerald-800">{loanAmount.toLocaleString()} {selectedVehicle.currency || 'TRY'}</span>
-                                </div>
-                                <input
-                                  type="range"
-                                  min="10000"
-                                  max={selectedVehicle.selling_price}
-                                  step="5000"
-                                  value={loanAmount || 0}
-                                  onChange={(e) => setLoanAmount(Number(e.target.value))}
-                                  className="w-full accent-emerald-600 bg-emerald-100 h-1.5 rounded-lg"
-                                />
-                                <div className="flex justify-between text-[10px] text-emerald-600">
-                                  <span>%0</span>
-                                  <span>Maksimum İlan Fiyatı (%100)</span>
-                                </div>
-                              </div>
-
-                              {/* Row of sliders */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-emerald-900">
-                                    <span>Vade (Ay Sayısı)</span>
-                                    <span className="font-extrabold text-emerald-800">{loanTerm} Ay</span>
-                                  </div>
-                                  <select
-                                    value={loanTerm}
-                                    onChange={(e) => setLoanTerm(Number(e.target.value))}
-                                    className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl outline-none font-bold"
-                                  >
-                                    <option value={12}>12 Ay</option>
-                                    <option value="24">24 Ay</option>
-                                    <option value="36">36 Ay</option>
-                                    <option value="48">48 Ay</option>
-                                  </select>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-emerald-900">
-                                    <span>Aylık Faiz Oranı (%)</span>
-                                    <span className="font-extrabold text-emerald-800">% {loanRate}</span>
-                                  </div>
-                                  <input
-                                    type="range"
-                                    min="0.5"
-                                    max="5"
-                                    step="0.05"
-                                    value={loanRate}
-                                    onChange={(e) => setLoanRate(Number(e.target.value))}
-                                    className="w-full accent-emerald-600 bg-emerald-100 h-1.5 rounded-lg"
-                                  />
-                                  <div className="flex justify-between text-[8px] text-emerald-500">
-                                    <span>%0.5 Min</span>
-                                    <span>%5.0 Maks</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                            </div>
-
-                            {/* Outputs display card */}
-                            <div className="lg:col-span-4 bg-emerald-900 text-white rounded-2xl p-5 space-y-4 shadow flex flex-col justify-between">
-                              <div className="space-y-1 text-center">
-                                <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Aylık Taksit Ödemeniz</p>
-                                <p className="text-3xl font-black text-amber-300">
-                                  {Math.round(calculatedMonthlyInstallment).toLocaleString()} {selectedVehicle.currency || 'TRY'}
-                                </p>
-                              </div>
-
-                              <div className="border-t border-emerald-800 pt-3 space-y-1.5 text-xs text-emerald-100">
-                                <div className="flex justify-between">
-                                  <span>Toplam Geri Ödeme:</span>
-                                  <span className="font-bold text-white">{Math.round(totalRepay).toLocaleString()} {selectedVehicle.currency || 'TRY'}</span>
-                                </div>
-                                <div className="flex justify-between text-[11px] text-emerald-200">
-                                  <span>Toplam Faiz Yükü:</span>
-                                  <span className="font-bold text-white">{Math.round(totalIntPaid).toLocaleString()} {selectedVehicle.currency || 'TRY'}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                          </div>
-                        </div>
-                      )}
-
                     </div>
-                  );
-                })()}
+                    <div className="space-y-6">
+                      <h4 className="text-lg font-bold text-gray-800 border-b pb-2">{t.quickStatus}</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                          <p className="text-xs text-blue-600 uppercase font-bold mb-1">{t.currentKM}</p>
+                          <p className="text-2xl font-bold text-blue-800">{(selectedVehicle.current_mileage || 0).toLocaleString()} {t.km}</p>
+                        </div>
+                        <div className={`p-4 rounded-xl border ${getStatusColor(selectedVehicle.status)}`}>
+                          <p className="text-xs uppercase font-bold mb-1 opacity-70">{t.status}</p>
+                          <p className="text-2xl font-bold">{getStatusText(selectedVehicle.status)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {activeDetailTab === 'docs' && (
                   <div className="space-y-6">
@@ -3594,73 +2277,26 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="flex justify-between items-center">
                       <h4 className="text-lg font-bold text-gray-800">{t.mileageHistory}</h4>
                       {!isViewer && (
-                        <button onClick={() => setShowMileageModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-sm shadow-blue-600/20">
+                        <button onClick={() => setShowMileageModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                           <History className="w-4 h-4" />
-                          {lang === 'tr' ? 'Sefer / KM Ekle' : 'Add Trip / KM'}
+                          {t.updateKM}
                         </button>
                       )}
                     </div>
-                    
-                    {mileageLogs.length > 0 && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100/50 shadow-sm">
-                        <div className="bg-white/60 p-4 rounded-xl border border-white">
-                          <p className="text-xs text-blue-600 font-black uppercase tracking-wider mb-1">{lang === 'tr' ? 'Toplam Sefer / İşlem' : 'Total Trips'}</p>
-                          <p className="text-2xl font-black text-blue-950">{mileageLogs.length}</p>
-                        </div>
-                        <div className="bg-white/60 p-4 rounded-xl border border-white">
-                          <p className="text-xs text-blue-600 font-black uppercase tracking-wider mb-1">{lang === 'tr' ? 'Saha Çalışma Süresi' : 'Field Time'}</p>
-                          <p className="text-2xl font-black text-blue-950">
-                            {Math.floor(mileageLogs.reduce((acc, log) => acc + (log.duration_minutes || 0), 0) / 60)}s {mileageLogs.reduce((acc, log) => acc + (log.duration_minutes || 0), 0) % 60}d
-                          </p>
-                        </div>
-                        <div className="bg-white/60 p-4 rounded-xl border border-white">
-                          <p className="text-xs text-blue-600 font-black uppercase tracking-wider mb-1">{lang === 'tr' ? 'Toplam Harcama' : 'Total Expense'}</p>
-                          <p className="text-2xl font-black text-blue-950">
-                            {mileageLogs.reduce((acc, log) => acc + (log.expense_amount || 0), 0).toLocaleString()} ₺
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="relative pl-2">
+                    <div className="relative">
                       <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100"></div>
                       <div className="space-y-6 relative">
                         {mileageLogs.map((log) => (
-                          <div key={log.id} className="flex relative">
-                            <div className="flex flex-col items-center mr-4">
-                              <div className="w-8 h-8 bg-white border-2 border-blue-600 rounded-full flex items-center justify-center z-10 shrink-0">
-                                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                              </div>
-                              <div className="w-0.5 h-full bg-blue-100 mt-2"></div>
+                          <div key={log.id} className="flex items-center gap-4">
+                            <div className="w-8 h-8 bg-white border-2 border-blue-600 rounded-full flex items-center justify-center z-10">
+                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                             </div>
-                            <div className="flex-1 p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-2 mb-4">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="font-bold text-gray-800 text-lg">{(log.mileage || 0).toLocaleString()} {t.km}</p>
-                                  <p className="text-sm font-medium text-blue-600">{safeFormatDate(log.date, 'dd MMMM yyyy', { locale: tr })}</p>
-                                </div>
-                                {log.expense_amount ? (
-                                  <div className="text-right">
-                                    <span className="inline-block px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-md">
-                                      {log.expense_type} - {log.expense_amount} ₺
-                                    </span>
-                                  </div>
-                                ) : null}
+                            <div className="flex-1 p-3 bg-gray-50 rounded-lg border border-gray-100 flex justify-between items-center">
+                              <div>
+                                <p className="font-bold text-gray-800">{(log.mileage || 0).toLocaleString()} {t.km}</p>
+                                <p className="text-xs text-gray-500">{safeFormatDate(log.date, 'dd MMMM yyyy', { locale: tr })}</p>
                               </div>
-                              
-                              {(log.purpose || log.duration_minutes || log.notes) && (
-                                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-200">
-                                  {log.purpose && (
-                                    <p className="text-xs text-gray-600"><strong>Amacı:</strong> {log.purpose}</p>
-                                  )}
-                                  {log.duration_minutes && (
-                                    <p className="text-xs text-gray-600"><strong>Süre:</strong> {log.duration_minutes} dk</p>
-                                  )}
-                                  {log.notes && (
-                                    <p className="text-xs text-gray-500 italic col-span-2">"{log.notes}"</p>
-                                  )}
-                                </div>
-                              )}
+                              {log.notes && <p className="text-xs text-gray-400 italic">"{log.notes}"</p>}
                             </div>
                           </div>
                         ))}
@@ -4466,84 +3102,27 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              <form onSubmit={handleAddMileage} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.date}</label>
-                    <input
-                      type="date"
-                      required
-                      value={mileageFormData.date || ''}
-                      onChange={(e) => setMileageFormData({ ...mileageFormData, date: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.newKM}</label>
-                    <input
-                      type="number"
-                      required
-                      value={mileageFormData.mileage || ''}
-                      onChange={(e) => setMileageFormData({ ...mileageFormData, mileage: Number(e.target.value) })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+              <form onSubmit={handleAddMileage} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.date}</label>
+                  <input
+                    type="date"
+                    required
+                    value={mileageFormData.date || ''}
+                    onChange={(e) => setMileageFormData({ ...mileageFormData, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'tr' ? 'Sefer Türü / Amacı' : 'Trip Purpose'}</label>
-                    <select
-                      value={mileageFormData.purpose || ''}
-                      onChange={(e) => setMileageFormData({ ...mileageFormData, purpose: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">{lang === 'tr' ? 'Seçiniz' : 'Select'}</option>
-                      <option value="test_drive">{lang === 'tr' ? 'Test Sürüşü' : 'Test Drive'}</option>
-                      <option value="client_meeting">{lang === 'tr' ? 'Müşteri Görüşmesi / Emlak Gezisi' : 'Client/Property Visit'}</option>
-                      <option value="delivery">{lang === 'tr' ? 'Teslimat / Sevkiyat' : 'Delivery'}</option>
-                      <option value="other">{lang === 'tr' ? 'Diğer' : 'Other'}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'tr' ? 'Süre (Dakika)' : 'Duration (Mins)'}</label>
-                    <input
-                      type="number"
-                      value={mileageFormData.duration_minutes || ''}
-                      onChange={(e) => setMileageFormData({ ...mileageFormData, duration_minutes: Number(e.target.value) })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.newKM}</label>
+                  <input
+                    type="number"
+                    required
+                    value={mileageFormData.mileage || ''}
+                    onChange={(e) => setMileageFormData({ ...mileageFormData, mileage: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'tr' ? 'Harcama Türü' : 'Expense Type'}</label>
-                    <select
-                      value={mileageFormData.expense_type || ''}
-                      onChange={(e) => setMileageFormData({ ...mileageFormData, expense_type: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">{lang === 'tr' ? 'Yok' : 'None'}</option>
-                      <option value="fuel">{lang === 'tr' ? 'Yakıt' : 'Fuel'}</option>
-                      <option value="parking">{lang === 'tr' ? 'Otopark / Vale' : 'Parking/Valet'}</option>
-                      <option value="toll">{lang === 'tr' ? 'Köprü / Otoyol' : 'Toll'}</option>
-                      <option value="cleaning">{lang === 'tr' ? 'Yıkama / Temizlik' : 'Cleaning'}</option>
-                      <option value="other">{lang === 'tr' ? 'Diğer' : 'Other'}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
-                    <input
-                      type="number"
-                      value={mileageFormData.expense_amount || ''}
-                      onChange={(e) => setMileageFormData({ ...mileageFormData, expense_amount: Number(e.target.value) })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                      disabled={!mileageFormData.expense_type}
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t.notes}</label>
                   <textarea

@@ -119,14 +119,11 @@ const ProductCard: React.FC<{
       {/* Sector Specific Mini Specs */}
       {product.sector_data && (
         <div className="absolute top-24 left-4 flex flex-col gap-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-           {(sector === 'automotive' || product.type === 'vehicle') && product.sector_data.hp && (
+           {sector === 'automotive' && product.sector_data.hp && (
              <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-white/10 tracking-wide">{product.sector_data.hp} HP</span>
            )}
            {sector === 'tech' && product.sector_data.ram && (
              <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-indigo-500/20 tracking-wide">{product.sector_data.ram} RAM</span>
-           )}
-           {product.type === 'real_estate' && product.sector_data.square_meters && (
-             <span className="px-2 py-1 bg-emerald-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-emerald-500/20 tracking-wide">{product.sector_data.square_meters} m²</span>
            )}
         </div>
       )}
@@ -149,7 +146,7 @@ const ProductCard: React.FC<{
       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
         <button 
           onClick={() => {
-            if (product.type === 'vehicle' || product.type === 'real_estate' || (product.available_branches && product.available_branches.length > 1)) {
+            if (product.available_branches && product.available_branches.length > 1) {
               onView(product);
             } else {
               addToBasket(product);
@@ -157,11 +154,8 @@ const ProductCard: React.FC<{
           }}
           className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
         >
-          {product.type === 'vehicle' || product.type === 'real_estate' ? (
-            <><Eye className="w-4 h-4" /> {lang === 'tr' ? 'Detayları İncele' : 'View Details'}</>
-          ) : (
-            <><Plus className="w-4 h-4" /> {(product.available_branches && product.available_branches.length > 1) ? (lang === 'tr' ? 'Seçenekleri Gör' : 'View Options') : t.dashboard.addToBasket}</>
-          )}
+          <Plus className="w-4 h-4" />
+          {product.available_branches && product.available_branches.length > 1 ? (lang === 'tr' ? 'Seçenekleri Gör' : 'View Options') : t.dashboard.addToBasket}
         </button>
       </div>
     </div>
@@ -284,34 +278,6 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     </div>
   );
 
-  const renderRealEstate = () => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {data.square_meters && (
-        <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE' : 'SQUARE METERS'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.square_meters} m²</p>
-        </div>
-      )}
-      {data.rooms && (
-        <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'ODA SAYISI' : 'ROOMS'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.rooms}</p>
-        </div>
-      )}
-      {data.virtual_tour_url && (
-        <div className="col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
-          <div>
-             <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">{lang === 'tr' ? 'SANAL TUR' : 'VIRTUAL TOUR'}</p>
-             <p className="text-sm font-bold text-indigo-900">{lang === 'tr' ? '3D Gezinti Mevcut' : '3D Tour Available'}</p>
-          </div>
-          <button onClick={() => window.open(data.virtual_tour_url, '_blank')} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all">
-             {lang === 'tr' ? 'Turu Başlat' : 'Start Tour'}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
   const renderTech = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.cpu && (
@@ -344,7 +310,6 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
       {sector === 'automotive' && renderAutomotive()}
       {sector === 'fashion' && renderFashion()}
       {sector === 'tech' && renderTech()}
-      {sector === 'real_estate' && renderRealEstate()}
       {sector === 'general' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {Object.entries(data).map(([key, value]: [string, any]) => (
@@ -765,7 +730,7 @@ const ProductDetailModal: React.FC<{
             </p>
           </div>
 
-          <SectorSpecs sector={product?.type === 'vehicle' ? 'automotive' : (product?.type === 'real_estate' ? 'real_estate' : sector)} data={product.sector_data} />
+          <SectorSpecs sector={sector} data={product.sector_data} />
           
           <DigitalSignature storeName={store?.name || ''} lang={lang} />
 
@@ -799,51 +764,33 @@ const ProductDetailModal: React.FC<{
             </div>
           )}
 
-          {product.type === 'vehicle' || product.type === 'real_estate' ? (
-            <button 
-              onClick={() => {
-                const phone = store?.whatsapp_number || store?.phone;
-                if (phone) {
-                  window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Merhaba, ${product.name} ilanı hakkında bilgi almak istiyorum.`)}`, '_blank');
-                } else {
-                  alert(lang === 'tr' ? 'İletişim numarası bulunamadı.' : 'No contact number found.');
-                }
-              }}
-              className="w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg flex items-center justify-center gap-4 group active:scale-95"
-              style={{ backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
-            >
-              <MessageCircle className="w-7 h-7 group-hover:scale-110 transition-transform" />
-              {lang === 'tr' ? 'WhatsApp ile Bilgi Al' : 'Inquire via WhatsApp'}
-            </button>
-          ) : (
-            <button 
-              disabled={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0}
-              onClick={() => {
-                if (branchStocks.length > 0) {
-                  const selectedBranch = branchStocks[selectedBranchIdx];
-                  if (selectedBranch.stock > 0) {
-                    addToBasket({
-                      ...product,
-                      id: selectedBranch.product_id,
-                      store_id: selectedBranch.store_id,
-                      branch_name: selectedBranch.branch_name,
-                      branch_slug: selectedBranch.branch_slug,
-                      stock_quantity: selectedBranch.stock
-                    });
-                    onClose();
-                  }
-                } else {
-                  addToBasket(product);
+          <button 
+            disabled={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0}
+            onClick={() => {
+              if (branchStocks.length > 0) {
+                const selectedBranch = branchStocks[selectedBranchIdx];
+                if (selectedBranch.stock > 0) {
+                  addToBasket({
+                    ...product,
+                    id: selectedBranch.product_id,
+                    store_id: selectedBranch.store_id,
+                    branch_name: selectedBranch.branch_name,
+                    branch_slug: selectedBranch.branch_slug,
+                    stock_quantity: selectedBranch.stock
+                  });
                   onClose();
                 }
-              }}
-              className={`w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg flex items-center justify-center gap-4 group ${branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? 'opacity-50 cursor-not-allowed grayscale' : 'active:scale-95'}`}
-              style={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? { backgroundColor: '#9ca3af' } : { backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
-            >
-              <ShoppingBag className="w-7 h-7 group-hover:scale-110 transition-transform" />
-              {branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? t.dashboard.outOfStock : t.dashboard.addToCart}
-            </button>
-          )}
+              } else {
+                addToBasket(product);
+                onClose();
+              }
+            }}
+            className={`w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg flex items-center justify-center gap-4 group ${branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? 'opacity-50 cursor-not-allowed grayscale' : 'active:scale-95'}`}
+            style={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? { backgroundColor: '#9ca3af' } : { backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
+          >
+            <ShoppingBag className="w-7 h-7 group-hover:scale-110 transition-transform" />
+            {branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? t.dashboard.outOfStock : t.dashboard.addToCart}
+          </button>
         </div>
       </motion.div>
       {/* Removed About Modal functionality */}
@@ -1280,8 +1227,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     if (!products.length) return [];
     // Stable shuffle based on product ID to avoid jumping items on re-renders but still feel "mixed"
     return [...products].sort((a, b) => {
-      const hashA = (Number(a.id) * 15485863) % 1000000;
-      const hashB = (Number(b.id) * 15485863) % 1000000;
+      const hashA = (a.id * 15485863) % 1000000;
+      const hashB = (b.id * 15485863) % 1000000;
       return hashA - hashB;
     });
   }, [products]);
@@ -1344,7 +1291,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const featuredProducts = useMemo(() => products.slice(0, 8), [products]);
   const newArrivals = useMemo(() => [...products].reverse().slice(0, 8), [products]);
-  const bestSellers = useMemo(() => [...products].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 8), [products]);
+  const bestSellers = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 8), [products]);
 
   const seoKeywords = useMemo(() => {
     const categories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
@@ -1383,7 +1330,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     });
   };
 
-  const removeFromBasket = (productId: number | string) => {
+  const removeFromBasket = (productId: number) => {
     setBasket(prev => {
       const existing = prev.find(item => item.id === productId);
       if (existing && existing.quantity > 1) {

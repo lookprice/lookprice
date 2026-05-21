@@ -276,7 +276,6 @@ export const api = {
   requestReturn: (orderId: number, reason: string) => api.post(`/api/user/orders/${orderId}/return`, { reason }),
   
   // Public Methods
-  getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
   getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products`),
   getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}`),
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
