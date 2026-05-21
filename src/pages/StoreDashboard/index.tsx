@@ -75,6 +75,7 @@ import { useProducts } from "../../hooks/useProducts";
 import { useQuotations } from "../../hooks/useQuotations";
 import { useSales } from "../../hooks/useSales";
 import { useCompanies } from "../../hooks/useCompanies";
+import { useRealEstate } from "../../hooks/useRealEstate";
 import { api } from "../../services/api";
 import { User, Product, Store as StoreType, Quotation } from "../../types";
 import Logo from "../../components/Logo";
@@ -98,6 +99,7 @@ const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
 const FleetTab = React.lazy(() => import("./FleetTab"));
 const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
 const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
+const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
 import ShippingSlip from "../../components/ShippingSlip";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { toast } from "sonner";
@@ -271,7 +273,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       setQuotationItems(newItems);
     } else {
       setQuotationItems([...quotationItems, {
-        product_id: p.id,
+        product_id: Number(p.id),
         product_name: p.name,
         barcode: p.barcode,
         quantity: 1,
@@ -395,6 +397,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleExportTransactionsPDF,
     handleAddTransaction
   } = useCompanies(user, currentStoreId, lang, branding);
+
+  const { properties, loading: realEstateLoading, saveProperty, deleteProperty } = useRealEstate(currentStoreId);
 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
@@ -949,6 +953,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
   const navItems = [
+    { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
     { id: "products", label: t.products, icon: Package },
     { id: "analytics", label: t.analytics, icon: LayoutDashboard },
     { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
@@ -1236,6 +1241,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         />
                       </Suspense>
                     )}
+                    {activeTab === "real_estate" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <RealEstateTab 
+                          properties={properties}
+                          loading={realEstateLoading}
+                          onSave={saveProperty}
+                          onDelete={deleteProperty}
+                          user={user}
+                        />
+                      </Suspense>
+                    )}
                     {activeTab === "analytics" && (
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
                         <AnalyticsTab analytics={analytics} branding={branding} onDateChange={(s, e) => fetchAnalytics(s, e)} loading={loading} />
@@ -1439,38 +1455,39 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
             >
-              <div className="p-8 text-center">
-                <div className="flex justify-between items-center mb-8">
+              <div className="p-4 sm:p-8 text-center flex-1 overflow-y-auto">
+                <div className="flex justify-between items-center mb-6 sm:mb-8">
                   <div className="text-left">
-                    <h3 className="text-2xl font-black text-gray-900">{t.storeQR}</h3>
-                    <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">{t.shareWithCustomers}</p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900">{t.storeQR}</h3>
+                    <p className="text-[10px] sm:text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">{t.shareWithCustomers}</p>
                   </div>
-                  <button onClick={() => setShowQrModal(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
-                    <X className="h-6 w-6 text-gray-400" />
+                  <button onClick={() => setShowQrModal(false)} className="p-2 sm:p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
+                    <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
                   </button>
                 </div>
 
-                <div className="bg-gray-50 p-8 rounded-[2rem] inline-block mb-8 shadow-inner border border-gray-100">
-                  <div ref={qrPrintRef} className="bg-white p-8 rounded-2xl shadow-sm text-center flex flex-col items-center justify-center">
+                <div className="bg-gray-50 p-4 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] inline-block w-full max-w-[280px] sm:max-w-none mb-6 sm:mb-8 shadow-inner border border-gray-100">
+                  <div ref={qrPrintRef} className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm text-center flex flex-col items-center justify-center">
                     <div className="mb-4 text-center">
-                      <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
+                      <h4 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tighter">
                         {branding.store_name || branding.name || "LookPrice"}
                       </h4>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.storeQR || "Mağaza QR Kodu"}</p>
                     </div>
                     <QRCodeSVG 
                       value={scanUrl}
-                      size={240}
+                      size={200}
+                      style={{ width: '100%', height: 'auto', maxWidth: '240px' }}
                       level="H"
                       includeMargin={true}
                       imageSettings={{
                         src: branding.logo_url || "",
                         x: undefined,
                         y: undefined,
-                        height: 48,
-                        width: 48,
+                        height: 40,
+                        width: 40,
                         excavate: true,
                       }}
                     />
@@ -1483,7 +1500,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <div className="space-y-4">
                   <div className="text-left">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.website?.toUpperCase() || 'WEBSITE'}</p>
-                    <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                    <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
                       <Globe className="h-5 w-5 text-indigo-500 shrink-0" />
                       <a 
                         href={publicUrl} 
@@ -1508,7 +1525,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                   <div className="text-left">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.barcodeScanner?.toUpperCase()}</p>
-                    <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                    <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
                       <Scan className="h-5 w-5 text-slate-500 shrink-0" />
                       <a 
                         href={scanUrl} 

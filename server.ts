@@ -13,6 +13,7 @@ import fleetRoutes from "./routes/fleet";
 import paymentRoutes from "./routes/payment";
 import integrationRoutes from "./routes/integrations";
 import einvoiceRoutes from "./routes/einvoice";
+import realEstateRoutes from "./routes/real_estate";
 import { authenticate } from "./middleware/auth";
 import { domainMiddleware } from "./middleware/domain";
 import { pool } from "./models/db";
@@ -179,6 +180,7 @@ async function startServer() {
   app.use("/api/admin", authenticate, adminRoutes);
   app.use("/api/store", authenticate, storeRoutes);
   app.use("/api/fleet", authenticate, fleetRoutes);
+  app.use("/api/real-estate", authenticate, realEstateRoutes);
   app.use("/api/payment", paymentRoutes);
   app.use("/api/integrations", integrationRoutes);
   app.use("/api", einvoiceRoutes);

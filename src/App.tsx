@@ -15,6 +15,7 @@ import PaymentGatewayPage from "./pages/PaymentGatewayPage";
 import StoreShowcase from "./pages/StoreShowcase";
 import Logo from "./components/Logo";
 import { LandingPage } from "./components/LandingPageNew";
+import { Marketplace } from "./pages/Marketplace";
 import StoreDashboard from "./pages/StoreDashboard/index";
 import Navbar from "./components/Navbar";
 import { User } from "./types";
@@ -231,6 +232,10 @@ export default function App() {
 
           <Route path="/" element={
             <LandingPage />
+          } />
+          
+          <Route path="/portal" element={
+            <Marketplace />
           } />
         </Routes>
       </div>

@@ -11,7 +11,7 @@ export interface User {
 }
 
 export interface Product {
-  id: number;
+  id: number | string;
   store_id: number;
   barcode: string;
   name: string;
@@ -34,6 +34,8 @@ export interface Product {
   sector_data?: any;
   is_web_sale?: boolean;
   product_type?: 'product' | 'service';
+  type?: 'product' | 'vehicle' | 'real_estate';
+  db_id?: number;
   branch_name?: string;
   branch_slug?: string;
   available_branches?: { id: number; store_id: number; branch_name: string; branch_slug: string }[];
@@ -205,4 +207,126 @@ export interface Sale {
   return_request_status?: 'none' | 'requested' | 'approved' | 'rejected' | 'completed';
   created_at: string;
   items?: any[];
+}
+
+export interface RealEstateProperty {
+  id: number;
+  store_id: number;
+  title: string;
+  description?: string;
+  price: number;
+  currency: string;
+  location?: string;
+  type: 'residence' | 'commercial' | 'land';
+  room_count?: string;
+  square_meters?: number;
+  sqm_gross?: number;
+  block_plot?: string; // Ada/Parsel
+  facade?: string; // Cephe
+  building_age?: string;
+  floor?: string;
+  total_floors?: string;
+  heating?: string;
+  furnished?: boolean;
+  in_gated_community?: boolean; // Site içi mi
+  dues?: number; // Aidat tutarı
+  dues_currency?: string; // Aidat para birimi
+  country?: 'TR' | 'KKTC'; // Pilot Bölge / Ülke
+  kktc_region?: 'Girne' | 'Lefkoşa' | 'Gazimağusa' | 'İskele' | 'Güzelyurt' | 'Lefke'; // KKTC Bölgesi
+  kktc_title_type?: 'Türk Koçanı' | 'Eşdeğer Koçan' | 'Tahsis Koçan' | 'Diğer'; // KKTC Koçan Tipi
+  images?: string[];
+  virtual_tour_url?: string;
+  ai_tour_enabled?: boolean;
+  seller_type?: 'professional' | 'individual';
+  is_verified?: boolean;
+  verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
+  status: 'active' | 'rented' | 'sold' | 'optioned'; // Satılık, Kiralık, Opsiyonlu (Kapora Alındı), Satıldı
+  documents?: {
+    id: string;
+    name: string;
+    category: 'title_deed' | 'dask' | 'contract' | 'auth_doc';
+    file_url: string;
+    upload_date: string;
+    size?: string;
+  }[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Vehicle {
+  id: number;
+  store_id: number;
+  plate: string;
+  type: 'company' | 'personal';
+  brand: string;
+  model: string;
+  year: number;
+  chassis_number: string;
+  engine_number: string;
+  current_mileage: number;
+  status: 'active' | 'in_service' | 'broken' | 'sold' | 'for_sale';
+  selling_price?: number;
+  currency?: string;
+  package_name?: string;
+  transmission?: 'manual' | 'automatic' | 'dual_clutch' | 'semi_automatic';
+  fuel_type?: 'gasoline' | 'diesel' | 'lpg' | 'hybrid' | 'electric';
+  color?: string;
+  body_type?: string;
+  paint_report?: string | Record<string, 'original' | 'painted' | 'replaced'>;
+  tramer_amount?: number;
+  tramer_currency?: string;
+  buying_price?: number;
+  expenses?: string | { id: string; name: string; amount: number; date: string }[];
+  target_profit_margin?: number;
+  description?: string;
+  images?: string[];
+  virtual_tour_url?: string;
+  ai_tour_enabled?: boolean;
+  seller_type?: 'professional' | 'individual';
+  is_verified?: boolean;
+  verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
+  created_at: string;
+  updated_at: string;
+  expiring_docs?: number;
+  maintenance_due?: number;
+}
+
+export interface VehicleDocument {
+  id: number;
+  vehicle_id: number;
+  type: string;
+  document_url: string;
+  expiry_date: string;
+  notes: string;
+  created_at: string;
+  is_recurring: boolean;
+  recurrence_period?: string;
+}
+
+export interface VehicleMaintenance {
+  id: number;
+  vehicle_id: number;
+  type: string;
+  date: string;
+  mileage: number;
+  cost: number;
+  currency: string;
+  provider_name: string;
+  description: string;
+  status: 'planned' | 'completed' | 'cancelled';
+  next_maintenance_date: string;
+  next_maintenance_mileage: number;
+  invoice_url: string | null;
+}
+
+export interface VehicleAssignment {
+  id: number;
+  vehicle_id: number;
+  user_id: number;
+  driver_id?: number;
+  user_email: string;
+  start_date: string;
+  end_date: string | null;
+  start_mileage: number;
+  end_mileage: number | null;
 }

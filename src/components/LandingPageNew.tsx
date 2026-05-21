@@ -159,13 +159,21 @@ export const LandingPage = () => {
                 : 'Movement in one area updates the whole company. Stop trying to manage a large company with paper and pen or fragmented software. Let your company live with a "single mind".'}
             </p>
 
-            <button
-              onClick={() => setShowDemoModal(true)}
-              className="group relative inline-flex items-center justify-center px-10 py-5 font-bold text-black bg-white rounded-full overflow-hidden transition-all hover:bg-indigo-500 hover:text-white text-lg"
-            >
-              {lang === 'tr' ? 'Şirketinizin Sinir Ağını Aktive Edin' : 'Activate Your Company\'s Nervous Network'}
-              <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <button
+                onClick={() => setShowDemoModal(true)}
+                className="group relative inline-flex items-center justify-center px-10 py-5 font-bold text-black bg-white rounded-full overflow-hidden transition-all hover:bg-indigo-500 hover:text-white text-lg"
+              >
+                {lang === 'tr' ? 'Şirketinizin Sinir Ağını Aktive Edin' : 'Activate Your Company\'s Nervous Network'}
+                <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button
+                onClick={() => navigate('/portal')}
+                className="group relative inline-flex items-center justify-center px-10 py-5 font-bold text-white bg-[#0A0A0A] border border-white/20 rounded-full overflow-hidden transition-all hover:bg-white/10 text-lg"
+              >
+                {lang === 'tr' ? 'Keşfet: Enrakipsiz.com' : 'Explore: Enrakipsiz.com'}
+              </button>
+            </div>
           </motion.div>
         </div>
       </section>
