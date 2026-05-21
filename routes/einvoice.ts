@@ -10,10 +10,15 @@ const router = express.Router();
 
 // Get the E-Invoice service instance based on Store Settings
 export const getEInvoiceService = async (storeId: number) => {
+  console.log(`[getEInvoiceService] Fetching settings for storeId: ${storeId}`);
   const storeRes = await pool.query("SELECT einvoice_settings FROM stores WHERE id = $1", [storeId]);
-  if (storeRes.rows.length === 0) throw new Error("Mağaza bulunamadı");
+  if (storeRes.rows.length === 0) {
+    console.error(`[getEInvoiceService] Store not found: ${storeId}`);
+    throw new Error("Mağaza bulunamadı");
+  }
   
   const settings = storeRes.rows[0].einvoice_settings;
+  console.log(`[getEInvoiceService] Settings found:`, settings ? JSON.stringify(settings).substring(0, 50) + "..." : 'No');
   if (!settings || !settings.is_active) {
     throw new Error("E-Fatura sistemi bu mağaza için aktif değil");
   }
@@ -669,6 +674,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 router.post("/einvoice/test-connection", authenticate, async (req: any, res) => {
   try {
     const storeId = req.user.store_id;
+    console.log(`[test-connection] Starting for storeId: ${storeId}`);
     const service = await getEInvoiceService(storeId);
     
     // We can test connection by attempting a trivial check taxpayer call on a known VKN (like MySoft itself or a static one)

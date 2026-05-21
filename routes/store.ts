@@ -1140,6 +1140,9 @@ router.post("/branding", async (req: any, res) => {
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
   try {
+    const existingRes = await pool.query("SELECT einvoice_settings, meta_settings, google_merchant_settings FROM stores WHERE id = $1", [storeId]);
+    const existing = existingRes.rows[0] || {};
+    
     const { 
       name, logo_url, favicon_url, primary_color, default_currency, 
       background_image_url, language, fiscal_brand, fiscal_terminal_id, 
@@ -1148,6 +1151,7 @@ router.post("/branding", async (req: any, res) => {
       facebook_url, twitter_url, whatsapp_number, about_text, default_tax_rate,
       category_tax_rules, faq, blog_posts, legal_pages, social_links, custom_domain, payment_settings,
       amazon_settings, n11_settings, hepsiburada_settings, trendyol_settings, pazarama_settings,
+      google_merchant_settings,
       page_layout, menu_links, shipping_profiles, emails, phones, description, footer_links,
       einvoice_settings, meta_settings, ...restBranding
     } = req.body;
@@ -1182,8 +1186,8 @@ router.post("/branding", async (req: any, res) => {
         amazon_settings = $32, n11_settings = $33, hepsiburada_settings = $34,
         trendyol_settings = $35, pazarama_settings = $36, page_layout = $37, menu_links = $38, 
         shipping_profiles = $39, emails = $40, phones = $41, description = $42, email = $43, footer_links = $44,
-        einvoice_settings = $45, meta_settings = $46, branding = COALESCE($47, '{}'::jsonb)
-      WHERE id = $48`, 
+        einvoice_settings = $45, meta_settings = $46, google_merchant_settings = $47, branding = COALESCE($48, '{}'::jsonb)
+      WHERE id = $49`, 
       [
         name, logo_url, favicon_url, primary_color, default_currency || 'TRY', 
         background_image_url, language || 'tr', fiscal_brand, fiscal_terminal_id, 
@@ -1211,8 +1215,9 @@ router.post("/branding", async (req: any, res) => {
         description,
         email,
         JSON.stringify(footer_links || []),
-        JSON.stringify(einvoice_settings || { is_active: false, provider: 'none' }),
-        JSON.stringify(meta_settings || {}),
+        JSON.stringify(einvoice_settings || existing.einvoice_settings || { is_active: false, provider: 'none' }),
+        JSON.stringify(meta_settings || existing.meta_settings || {}),
+        JSON.stringify(google_merchant_settings || existing.google_merchant_settings || { enabled: false, merchant_id: "" }),
         dynamicBranding,
         storeId
       ]

@@ -111,6 +111,26 @@ export async function initDb() {
       ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate REAL DEFAULT 20;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_profile_id TEXT;
 
+      CREATE TABLE IF NOT EXISTS real_estate (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        price DECIMAL(12,2) DEFAULT 0,
+        currency TEXT DEFAULT 'TRY',
+        location TEXT,
+        type TEXT,
+        square_meters REAL,
+        rooms INTEGER,
+        status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'sold')),
+        images JSONB DEFAULT '[]',
+        virtual_tour_url TEXT,
+        ai_tour_enabled BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+      );
+
       CREATE TABLE IF NOT EXISTS blog_posts (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,
