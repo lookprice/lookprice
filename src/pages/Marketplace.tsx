@@ -47,7 +47,6 @@ export const Marketplace = () => {
     { id: "all", label: "Tümü", icon: LayoutGrid },
     { id: "real_estate", label: "Gayrimenkul", icon: Home },
     { id: "vehicle", label: "Vasıta", icon: Car },
-    { id: "product", label: "Mağaza Ürünleri", icon: Package },
   ];
 
   return (
@@ -125,7 +124,7 @@ export const Marketplace = () => {
                   <Search className="w-5 h-5 text-slate-400 mr-4" />
                   <input 
                     type="text"
-                    placeholder="Ev, araba veya ürün ara..."
+                    placeholder="Ev, ilan veya araç ara..."
                     className="w-full bg-transparent border-none outline-none text-slate-900 font-medium placeholder:text-slate-400 h-10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

@@ -994,15 +994,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { id: "settings", label: t.settings, icon: SettingsIcon },
   ];
 
+  const toggles = branding.feature_toggles || {};
+  const showProducts = toggles.show_products ?? (sector !== 'real_estate');
+  const showService = toggles.show_service ?? true;
+  const showBlog = toggles.show_blog ?? true;
+
   const filteredNavItems = allNavItems.filter(item => {
     if (sector === 'real_estate') {
-      return ['real_estate', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(item.id);
+      return ['real_estate', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(item.id) && 
+             (item.id !== 'products' || showProducts) && (item.id !== 'blog' || showBlog);
     }
     if (sector === 'automotive') {
-      return ['fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings'].includes(item.id);
+      return ['fleet', 'analytics', 'purchase_invoices', 'sales_invoices', 'companies', 'blog', 'settings', 'service'].includes(item.id) &&
+             (item.id !== 'products' || showProducts) && (item.id !== 'service' || showService) && (item.id !== 'blog' || showBlog);
     }
     // Default / general / retail stores: hide automotive fleet/service and real estate
-    return !['real_estate', 'fleet', 'service'].includes(item.id);
+    return !['real_estate', 'fleet', 'service'].includes(item.id) &&
+           (item.id !== 'products' || showProducts) && (item.id !== 'blog' || showBlog);
   });
   
   const navItems = filteredNavItems;

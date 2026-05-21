@@ -1228,6 +1228,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const isLuxury = layoutSettings.theme_variety === 'luxury' || layoutSettings.theme_variety === 'minimal';
   const isModern = layoutSettings.theme_variety === 'modern';
   const isBold = layoutSettings.theme_variety === 'bold';
+  const isRealEstateClassic = layoutSettings.theme_variety === 'real_estate_classic';
+  const isRealEstateModern = layoutSettings.theme_variety === 'real_estate_modern';
   
   const sector = layoutSettings.sector || 'general';
   const isRealEstate = (layoutSettings.sector === 'real_estate' || (store as any)?.sector === 'real_estate' || (store as any)?.branding?.sector === 'real_estate');

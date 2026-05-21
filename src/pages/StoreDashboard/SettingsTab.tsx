@@ -67,7 +67,7 @@ interface SettingsTabProps {
 }
 
 const SettingsTab = ({ 
-  branding, 
+  branding: brandingProp, 
   onBrandingChange, 
   onSaveBranding, 
   onLogoUpload, 
@@ -84,6 +84,7 @@ const SettingsTab = ({
   setBulkPriceForm,
   handleBulkPriceSubmit
 }: SettingsTabProps) => {
+  const branding = brandingProp || {};
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
   const amazonSync = useIntegrationSync('Amazon', t);
@@ -92,32 +93,34 @@ const SettingsTab = ({
   const tySync = useIntegrationSync('Trendyol', t);
   const pzSync = useIntegrationSync('Pazarama', t);
 
-  const [amazonClientId, setAmazonClientId] = React.useState(branding.amazon_settings?.clientId || "");
-  const [amazonClientSecret, setAmazonClientSecret] = React.useState(branding.amazon_settings?.clientSecret || "");
-  const [amazonRefreshToken, setAmazonRefreshToken] = React.useState(branding.amazon_settings?.refresh_token || "");
-  const [amazonSellerId, setAmazonSellerId] = React.useState(branding.amazon_settings?.sellerId || "");
+  const br = branding || {};
+
+  const [amazonClientId, setAmazonClientId] = React.useState(br.amazon_settings?.clientId || "");
+  const [amazonClientSecret, setAmazonClientSecret] = React.useState(br.amazon_settings?.clientSecret || "");
+  const [amazonRefreshToken, setAmazonRefreshToken] = React.useState(br.amazon_settings?.refresh_token || "");
+  const [amazonSellerId, setAmazonSellerId] = React.useState(br.amazon_settings?.sellerId || "");
   
-  const [n11AppKey, setN11AppKey] = React.useState(branding.n11_settings?.appKey || "");
-  const [n11AppSecret, setN11AppSecret] = React.useState(branding.n11_settings?.appSecret || "");
+  const [n11AppKey, setN11AppKey] = React.useState(br.n11_settings?.appKey || "");
+  const [n11AppSecret, setN11AppSecret] = React.useState(br.n11_settings?.appSecret || "");
 
-  const [hbApiKey, setHbApiKey] = React.useState(branding.hepsiburada_settings?.apiKey || "");
-  const [hbApiSecret, setHbApiSecret] = React.useState(branding.hepsiburada_settings?.apiSecret || "");
-  const [hbMerchantId, setHbMerchantId] = React.useState(branding.hepsiburada_settings?.merchantId || "");
+  const [hbApiKey, setHbApiKey] = React.useState(br.hepsiburada_settings?.apiKey || "");
+  const [hbApiSecret, setHbApiSecret] = React.useState(br.hepsiburada_settings?.apiSecret || "");
+  const [hbMerchantId, setHbMerchantId] = React.useState(br.hepsiburada_settings?.merchantId || "");
 
-  const [tyApiKey, setTyApiKey] = React.useState(branding.trendyol_settings?.apiKey || "");
-  const [tyApiSecret, setTyApiSecret] = React.useState(branding.trendyol_settings?.apiSecret || "");
-  const [tyMerchantId, setTyMerchantId] = React.useState(branding.trendyol_settings?.merchantId || "");
+  const [tyApiKey, setTyApiKey] = React.useState(br.trendyol_settings?.apiKey || "");
+  const [tyApiSecret, setTyApiSecret] = React.useState(br.trendyol_settings?.apiSecret || "");
+  const [tyMerchantId, setTyMerchantId] = React.useState(br.trendyol_settings?.merchantId || "");
 
-  const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
-  const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
-  const [pzMerchantId, setPzMerchantId] = React.useState(branding.pazarama_settings?.merchantId || "");
-  const [pzCommissionRate, setPzCommissionRate] = React.useState(branding.pazarama_settings?.commissionRate || 0);
+  const [pzApiKey, setPzApiKey] = React.useState(br.pazarama_settings?.apiKey || "");
+  const [pzApiSecret, setPzApiSecret] = React.useState(br.pazarama_settings?.apiSecret || "");
+  const [pzMerchantId, setPzMerchantId] = React.useState(br.pazarama_settings?.merchantId || "");
+  const [pzCommissionRate, setPzCommissionRate] = React.useState(br.pazarama_settings?.commissionRate || 0);
   const [pzCategories, setPzCategories] = React.useState<any[]>([]);
   const [pzBrands, setPzBrands] = React.useState<any[]>([]);
   const [loadingPzCats, setLoadingPzCats] = React.useState(false);
   const [loadingPzBrands, setLoadingPzBrands] = React.useState(false);
-  const [pzCategoryMappings, setPzCategoryMappings] = React.useState<Record<string, string>>(branding.pazarama_settings?.categoryMappings || {});
-  const [pzBrandMappings, setPzBrandMappings] = React.useState<Record<string, string>>(branding.pazarama_settings?.brandMappings || {});
+  const [pzCategoryMappings, setPzCategoryMappings] = React.useState<Record<string, string>>(br.pazarama_settings?.categoryMappings || {});
+  const [pzBrandMappings, setPzBrandMappings] = React.useState<Record<string, string>>(br.pazarama_settings?.brandMappings || {});
   const [showPzMapping, setShowPzMapping] = React.useState(false);
   const [showPzBrandMapping, setShowPzBrandMapping] = React.useState(false);
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
@@ -134,14 +137,14 @@ const SettingsTab = ({
 
   // Sync Pazarama state when branding prop changes
   React.useEffect(() => {
-    const s = branding.pazarama_settings || {};
+    const s = br.pazarama_settings || {};
     setPzApiKey(s.apiKey || "");
     setPzApiSecret(s.apiSecret || "");
     setPzMerchantId(s.merchantId || "");
     setPzCommissionRate(s.commissionRate || 0);
     setPzCategoryMappings(s.categoryMappings || {});
     setPzBrandMappings(s.brandMappings || {});
-  }, [branding.pazarama_settings]);
+  }, [br.pazarama_settings]);
 
   const handleTestEInvoice = async () => {
     setTestingEInvoice(true);
@@ -156,8 +159,8 @@ const SettingsTab = ({
     }
   };
 
-  const [emails, setEmails] = React.useState<string[]>((branding.emails && branding.emails.length > 0) ? branding.emails : ['']);
-  const [phones, setPhones] = React.useState<string[]>((branding.phones && branding.phones.length > 0) ? branding.phones : ['']);
+  const [emails, setEmails] = React.useState<string[]>((br.emails && br.emails.length > 0) ? br.emails : ['']);
+  const [phones, setPhones] = React.useState<string[]>((br.phones && br.phones.length > 0) ? br.phones : ['']);
   const [activeSubTab, setActiveSubTab] = React.useState<string>(localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) || 'web');
   const [logs, setLogs] = React.useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = React.useState(false);
@@ -214,10 +217,10 @@ const SettingsTab = ({
   }, [activeSubTab, currentStoreId]);
 
   React.useEffect(() => {
-    if (branding.custom_domain) {
+    if (br.custom_domain) {
       fetchCfStatus();
     }
-  }, [branding.custom_domain]);
+  }, [br.custom_domain]);
 
   if (!branding) return null;
 
@@ -2711,6 +2714,9 @@ const SettingsTab = ({
           {/* Main Visual Control Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
+          {/* Main Visual Control Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
             {/* 1. Showcase & Layout Controls */}
             <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
               <div className="flex items-center justify-between mb-6">
@@ -2750,6 +2756,37 @@ const SettingsTab = ({
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* 2. Feature Toggles */}
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Settings className="w-4 h-4 text-indigo-500" />
+                {lang === 'tr' ? 'ÖZELLİKLER' : 'FEATURES'}
+              </h3>
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { key: 'show_products', label: lang === 'tr' ? 'Ürün Yönetimi' : 'Product Management' },
+                  { key: 'show_service', label: lang === 'tr' ? 'Servis/Bakım' : 'Service/Maintenance' },
+                  { key: 'show_blog', label: lang === 'tr' ? 'Blog' : 'Blog' },
+                ].map((toggle) => (
+                  <div key={toggle.key} className="flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                    <span className="text-xs font-bold text-slate-600">{toggle.label}</span>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const currentToggles = branding.feature_toggles || {};
+                        const newValue = currentToggles[toggle.key as keyof typeof currentToggles] !== false;
+                        onBrandingChange('feature_toggles', { ...currentToggles, [toggle.key]: !newValue });
+                      }}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${(branding.feature_toggles?.[toggle.key as keyof typeof branding.feature_toggles] ?? true) ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${(branding.feature_toggles?.[toggle.key as keyof typeof branding.feature_toggles] ?? true) ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
               
               {branding.page_layout_settings?.show_announcement !== false && (
                 <div className="mb-6 p-4 bg-white border border-slate-200 rounded-2xl">
@@ -2767,7 +2804,7 @@ const SettingsTab = ({
               <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'TEMA KONSEPTİ' : 'THEME CONCEPT'}</p>
                 <div className="flex gap-2">
-                  {['modern', 'minimal', 'bold', 'luxury'].map((theme) => (
+                  {['modern', 'minimal', 'bold', 'luxury', 'real_estate_classic', 'real_estate_modern'].map((theme) => (
                     <button
                       key={theme}
                       onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), theme_variety: theme })}
