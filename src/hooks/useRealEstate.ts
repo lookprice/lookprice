@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { RealEstateProperty } from '../types';
-import { api } from '../services/api';
 
 export const useRealEstate = (storeId?: number) => {
   const [properties, setProperties] = useState<RealEstateProperty[]>([]);
@@ -9,40 +8,38 @@ export const useRealEstate = (storeId?: number) => {
   const fetchProperties = async () => {
     if (!storeId) return;
     setLoading(true);
-    try {
-      const res = await api.getProperties(storeId);
-      setProperties(Array.isArray(res) ? res : []);
-    } catch (error) {
-      console.error('Error fetching properties:', error);
+    // Mocking for now: check localStorage or start empty
+    const saved = localStorage.getItem(`lookprice_realestate_${storeId}`);
+    if (saved) {
+      setProperties(JSON.parse(saved));
+    } else {
       setProperties([]);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
-  const saveProperty = async (property: Partial<RealEstateProperty>) => {
-    try {
-      const payload = { ...property, store_id: storeId, storeId };
-      if (property.id) {
-        await api.updateProperty(property.id, payload);
-      } else {
-        await api.addProperty(payload);
-      }
-      await fetchProperties();
-    } catch (error) {
-      console.error('Error saving property:', error);
-      throw error;
+  const saveProperty = (property: Partial<RealEstateProperty>) => {
+    let updated;
+    if (property.id) {
+       updated = properties.map(p => p.id === property.id ? { ...p, ...property, updated_at: new Date().toISOString() } : p);
+    } else {
+       const newProp: RealEstateProperty = {
+         ...(property as any),
+         id: Date.now(),
+         store_id: storeId!,
+         created_at: new Date().toISOString(),
+         updated_at: new Date().toISOString()
+       };
+       updated = [...properties, newProp];
     }
+    setProperties(updated as RealEstateProperty[]);
+    localStorage.setItem(`lookprice_realestate_${storeId}`, JSON.stringify(updated));
   };
   
-  const deleteProperty = async (id: number) => {
-    try {
-      await api.deleteProperty(id, storeId);
-      await fetchProperties();
-    } catch (error) {
-      console.error('Error deleting property:', error);
-      throw error;
-    }
+  const deleteProperty = (id: number) => {
+    const updated = properties.filter(p => p.id !== id);
+    setProperties(updated);
+    localStorage.setItem(`lookprice_realestate_${storeId}`, JSON.stringify(updated));
   }
 
   useEffect(() => {

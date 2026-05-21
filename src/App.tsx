@@ -1,4 +1,3 @@
-import { PublicVitrinePage } from "./pages/PublicVitrinePage";
 import CustomerScanPage from "./pages/CustomerScan";
 import ForgotPasswordPage from "./pages/ForgotPassword";
 import RegisterPage from "./pages/RegisterPage";
@@ -166,7 +165,6 @@ export default function App() {
           <Route path="/s/:slug" element={<StoreShowcase />} />
           <Route path="/s/:slug/p/:barcode" element={<StoreShowcase />} />
           <Route path="/store/:slug" element={<StoreShowcase />} />
-          <Route path="/vitrine/:storeIdentifier" element={<PublicVitrinePage />} />
           <Route path="/checkout/success" element={<CheckoutStatus />} />
           <Route path="/checkout/cancel" element={<CheckoutStatus />} />
           <Route path="/payment-gateway" element={<PaymentGatewayPage />} />

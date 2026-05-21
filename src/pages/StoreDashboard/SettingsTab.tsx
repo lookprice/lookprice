@@ -67,7 +67,7 @@ interface SettingsTabProps {
 }
 
 const SettingsTab = ({ 
-  branding: brandingProp, 
+  branding, 
   onBrandingChange, 
   onSaveBranding, 
   onLogoUpload, 
@@ -84,7 +84,6 @@ const SettingsTab = ({
   setBulkPriceForm,
   handleBulkPriceSubmit
 }: SettingsTabProps) => {
-  const branding = brandingProp || {};
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
   const amazonSync = useIntegrationSync('Amazon', t);
@@ -93,34 +92,32 @@ const SettingsTab = ({
   const tySync = useIntegrationSync('Trendyol', t);
   const pzSync = useIntegrationSync('Pazarama', t);
 
-  const br = branding || {};
-
-  const [amazonClientId, setAmazonClientId] = React.useState(br.amazon_settings?.clientId || "");
-  const [amazonClientSecret, setAmazonClientSecret] = React.useState(br.amazon_settings?.clientSecret || "");
-  const [amazonRefreshToken, setAmazonRefreshToken] = React.useState(br.amazon_settings?.refresh_token || "");
-  const [amazonSellerId, setAmazonSellerId] = React.useState(br.amazon_settings?.sellerId || "");
+  const [amazonClientId, setAmazonClientId] = React.useState(branding.amazon_settings?.clientId || "");
+  const [amazonClientSecret, setAmazonClientSecret] = React.useState(branding.amazon_settings?.clientSecret || "");
+  const [amazonRefreshToken, setAmazonRefreshToken] = React.useState(branding.amazon_settings?.refresh_token || "");
+  const [amazonSellerId, setAmazonSellerId] = React.useState(branding.amazon_settings?.sellerId || "");
   
-  const [n11AppKey, setN11AppKey] = React.useState(br.n11_settings?.appKey || "");
-  const [n11AppSecret, setN11AppSecret] = React.useState(br.n11_settings?.appSecret || "");
+  const [n11AppKey, setN11AppKey] = React.useState(branding.n11_settings?.appKey || "");
+  const [n11AppSecret, setN11AppSecret] = React.useState(branding.n11_settings?.appSecret || "");
 
-  const [hbApiKey, setHbApiKey] = React.useState(br.hepsiburada_settings?.apiKey || "");
-  const [hbApiSecret, setHbApiSecret] = React.useState(br.hepsiburada_settings?.apiSecret || "");
-  const [hbMerchantId, setHbMerchantId] = React.useState(br.hepsiburada_settings?.merchantId || "");
+  const [hbApiKey, setHbApiKey] = React.useState(branding.hepsiburada_settings?.apiKey || "");
+  const [hbApiSecret, setHbApiSecret] = React.useState(branding.hepsiburada_settings?.apiSecret || "");
+  const [hbMerchantId, setHbMerchantId] = React.useState(branding.hepsiburada_settings?.merchantId || "");
 
-  const [tyApiKey, setTyApiKey] = React.useState(br.trendyol_settings?.apiKey || "");
-  const [tyApiSecret, setTyApiSecret] = React.useState(br.trendyol_settings?.apiSecret || "");
-  const [tyMerchantId, setTyMerchantId] = React.useState(br.trendyol_settings?.merchantId || "");
+  const [tyApiKey, setTyApiKey] = React.useState(branding.trendyol_settings?.apiKey || "");
+  const [tyApiSecret, setTyApiSecret] = React.useState(branding.trendyol_settings?.apiSecret || "");
+  const [tyMerchantId, setTyMerchantId] = React.useState(branding.trendyol_settings?.merchantId || "");
 
-  const [pzApiKey, setPzApiKey] = React.useState(br.pazarama_settings?.apiKey || "");
-  const [pzApiSecret, setPzApiSecret] = React.useState(br.pazarama_settings?.apiSecret || "");
-  const [pzMerchantId, setPzMerchantId] = React.useState(br.pazarama_settings?.merchantId || "");
-  const [pzCommissionRate, setPzCommissionRate] = React.useState(br.pazarama_settings?.commissionRate || 0);
+  const [pzApiKey, setPzApiKey] = React.useState(branding.pazarama_settings?.apiKey || "");
+  const [pzApiSecret, setPzApiSecret] = React.useState(branding.pazarama_settings?.apiSecret || "");
+  const [pzMerchantId, setPzMerchantId] = React.useState(branding.pazarama_settings?.merchantId || "");
+  const [pzCommissionRate, setPzCommissionRate] = React.useState(branding.pazarama_settings?.commissionRate || 0);
   const [pzCategories, setPzCategories] = React.useState<any[]>([]);
   const [pzBrands, setPzBrands] = React.useState<any[]>([]);
   const [loadingPzCats, setLoadingPzCats] = React.useState(false);
   const [loadingPzBrands, setLoadingPzBrands] = React.useState(false);
-  const [pzCategoryMappings, setPzCategoryMappings] = React.useState<Record<string, string>>(br.pazarama_settings?.categoryMappings || {});
-  const [pzBrandMappings, setPzBrandMappings] = React.useState<Record<string, string>>(br.pazarama_settings?.brandMappings || {});
+  const [pzCategoryMappings, setPzCategoryMappings] = React.useState<Record<string, string>>(branding.pazarama_settings?.categoryMappings || {});
+  const [pzBrandMappings, setPzBrandMappings] = React.useState<Record<string, string>>(branding.pazarama_settings?.brandMappings || {});
   const [showPzMapping, setShowPzMapping] = React.useState(false);
   const [showPzBrandMapping, setShowPzBrandMapping] = React.useState(false);
   const [verifyingDomain, setVerifyingDomain] = React.useState(false);
@@ -137,14 +134,14 @@ const SettingsTab = ({
 
   // Sync Pazarama state when branding prop changes
   React.useEffect(() => {
-    const s = br.pazarama_settings || {};
+    const s = branding.pazarama_settings || {};
     setPzApiKey(s.apiKey || "");
     setPzApiSecret(s.apiSecret || "");
     setPzMerchantId(s.merchantId || "");
     setPzCommissionRate(s.commissionRate || 0);
     setPzCategoryMappings(s.categoryMappings || {});
     setPzBrandMappings(s.brandMappings || {});
-  }, [br.pazarama_settings]);
+  }, [branding.pazarama_settings]);
 
   const handleTestEInvoice = async () => {
     setTestingEInvoice(true);
@@ -159,8 +156,8 @@ const SettingsTab = ({
     }
   };
 
-  const [emails, setEmails] = React.useState<string[]>((br.emails && br.emails.length > 0) ? br.emails : ['']);
-  const [phones, setPhones] = React.useState<string[]>((br.phones && br.phones.length > 0) ? br.phones : ['']);
+  const [emails, setEmails] = React.useState<string[]>((branding.emails && branding.emails.length > 0) ? branding.emails : ['']);
+  const [phones, setPhones] = React.useState<string[]>((branding.phones && branding.phones.length > 0) ? branding.phones : ['']);
   const [activeSubTab, setActiveSubTab] = React.useState<string>(localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) || 'web');
   const [logs, setLogs] = React.useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = React.useState(false);
@@ -217,10 +214,10 @@ const SettingsTab = ({
   }, [activeSubTab, currentStoreId]);
 
   React.useEffect(() => {
-    if (br.custom_domain) {
+    if (branding.custom_domain) {
       fetchCfStatus();
     }
-  }, [br.custom_domain]);
+  }, [branding.custom_domain]);
 
   if (!branding) return null;
 
@@ -645,38 +642,59 @@ const SettingsTab = ({
     }
   }, [activeSubTab, branding.custom_domain]);
 
-  const activeSector = branding?.page_layout_settings?.sector || 'general';
-  const isRealEstate = activeSector === 'real_estate';
-  const isAutomotive = activeSector === 'automotive';
-
-  const availableTabs = [
-    { id: 'web', icon: Palette, label: t.settingsCategories?.webSettings || (lang === 'tr' ? 'Vitrin Ayarları' : 'Showcase Settings') },
-    { id: 'store-ops', icon: Wrench, label: isRealEstate ? (lang === 'tr' ? 'Ofis Ayarları' : 'Office Settings') : (isAutomotive ? (lang === 'tr' ? 'Bayi Ayarları' : 'Dealer Settings') : 'Store Settings') },
-    ...(!isRealEstate && !isAutomotive ? [
-      { id: 'pos', icon: CreditCard, label: t.settingsCategories?.posSettings || 'POS' },
-      { id: 'e-stores', icon: ShoppingBag, label: t.settingsCategories?.eStores || 'E-Stores' }
-    ] : []),
-    { id: 'domain', icon: Globe, label: t.settingsCategories?.domainSettings || (lang === 'tr' ? 'Domain Ayarları' : 'Domain Settings') },
-    ...(!isRealEstate && !isAutomotive ? [
-      { id: 'e-invoice', icon: Building2, label: 'E-Invoice' }
-    ] : []),
-    { id: 'logs', icon: History, label: lang === 'tr' ? 'Kayıtlar' : 'Logs'}
-  ];
-
   return (
     <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-24">
         {/* Sub-tab Navigation */}
         <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 flex flex-wrap gap-1">
-          {availableTabs.map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id as any)}
-              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === tab.id ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <tab.icon className="h-4 w-4" />
-              <span>{tab.label}</span>
-            </button>
-          ))}
+          <button 
+            onClick={() => setActiveSubTab('web')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Palette className="h-4 w-4" />
+            <span>{t.settingsCategories?.webSettings}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('store-ops')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Wrench className="h-4 w-4" />
+            <span>Store Settings</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('pos')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <CreditCard className="h-4 w-4" />
+            <span>{t.settingsCategories?.posSettings}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('e-stores')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span>{t.settingsCategories?.eStores}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('domain')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'domain' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Globe className="h-4 w-4" />
+            <span>{t.settingsCategories?.domainSettings}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('e-invoice')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Building2 className="h-4 w-4" />
+            <span>E-Invoice</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('logs')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'logs' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <History className="h-4 w-4" />
+            <span>{lang === 'tr' ? 'Günlük' : 'Logs'}</span>
+          </button>
         </div>
 
       {activeSubTab === 'logs' && (
@@ -842,263 +860,246 @@ const SettingsTab = ({
             </div>
           </div>
 
-          {!isRealEstate && !isAutomotive && (
-            <>
-              {/* Tax Rates & Rules */}
-              <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-                    <Building2 className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Vergi Ayarları</h3>
+          {/* Tax Rates & Rules */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                <Building2 className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Vergi Ayarları</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Varsayılan KDV Oranı (%)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                  <input 
+                    type="text" 
+                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                    value={branding.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : '20'}
+                    onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+                  />
                 </div>
-                {/* ...rest of tax settings */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Varsayılan KDV Oranı (%)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori KDV Kuralları</label>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      id="new-category-name"
+                      placeholder="Kategori Adı"
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
+                    />
+                    <div className="relative w-24">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                       <input 
                         type="text" 
-                        className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                        value={branding.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : '20'}
-                        onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+                        id="new-category-tax"
+                        placeholder="0"
+                        className="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
                       />
                     </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const catInput = document.getElementById('new-category-name') as HTMLInputElement;
+                        const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
+                        if (catInput.value.trim() && taxInput.value) {
+                          const newRules = [...(branding.category_tax_rules || [])];
+                          newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value.replace(/[^0-9]/g, '')) || 0 });
+                          onBrandingChange('category_tax_rules', newRules);
+                          catInput.value = '';
+                          taxInput.value = '';
+                        }
+                      }}
+                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700"
+                    >
+                      Ekle
+                    </button>
                   </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori KDV Kuralları</label>
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          id="new-category-name"
-                          placeholder="Kategori Adı"
-                          className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
-                        />
-                        <div className="relative w-24">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
-                          <input 
-                            type="text" 
-                            id="new-category-tax"
-                            placeholder="0"
-                            className="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
-                          />
+                  
+                  <div className="space-y-2 mt-4">
+                    {(branding.category_tax_rules || []).map((rule: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-sm text-slate-700">{rule.category}</span>
+                          <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black">KDV %{rule.taxRate}</span>
                         </div>
                         <button 
                           type="button"
                           onClick={() => {
-                            const catInput = document.getElementById('new-category-name') as HTMLInputElement;
-                            const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
-                            if (catInput.value.trim() && taxInput.value) {
-                              const newRules = [...(branding.category_tax_rules || [])];
-                              newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value.replace(/[^0-9]/g, '')) || 0 });
-                              onBrandingChange('category_tax_rules', newRules);
-                              catInput.value = '';
-                              taxInput.value = '';
-                            }
+                            const newRules = [...branding.category_tax_rules];
+                            newRules.splice(idx, 1);
+                            onBrandingChange('category_tax_rules', newRules);
                           }}
-                          className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700"
+                          className="text-red-500 hover:text-red-700 text-sm font-bold"
                         >
-                          Ekle
+                          Sil
                         </button>
                       </div>
-                      
-                      <div className="space-y-2 mt-4">
-                        {(branding.category_tax_rules || []).map((rule: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
-                            <div className="flex items-center gap-3">
-                              <span className="font-bold text-sm text-slate-700">{rule.category}</span>
-                              <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black">KDV %{rule.taxRate}</span>
-                            </div>
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                const newRules = [...branding.category_tax_rules];
-                                newRules.splice(idx, 1);
-                                onBrandingChange('category_tax_rules', newRules);
-                              }}
-                              className="text-red-500 hover:text-red-700 text-sm font-bold"
-                            >
-                              Sil
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Shipping Profiles */}
-              <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-                      <Truck className="h-6 w-6" />
+          {/* Shipping Profiles */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                  <Truck className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kargo Ayarları</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
+                  onBrandingChange('shipping_profiles', newProfiles);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800"
+              >
+                <Plus className="h-4 w-4" /> Yeni Profil
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {(branding.shipping_profiles || []).map((profile: any, index: number) => (
+                <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                  <div className="flex-1 w-full">
+                    <input value={profile.name} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].name = e.target.value; onBrandingChange('shipping_profiles', p); }} placeholder="Profil Adı" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold mb-2" />
+                    <div className="flex gap-2">
+                       <input type="number" value={profile.cost} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].cost = parseFloat(e.target.value); onBrandingChange('shipping_profiles', p); }} placeholder="Ücret" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                       <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold" />
                     </div>
-                    <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kargo Ayarları</h3>
                   </div>
-                  <button 
-                    onClick={() => {
-                      const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
-                      onBrandingChange('shipping_profiles', newProfiles);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800"
-                  >
-                    <Plus className="h-4 w-4" /> Yeni Profil
+                  <button onClick={() => { const p = [...branding.shipping_profiles]; p.splice(index, 1); onBrandingChange('shipping_profiles', p); }} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
-                
-                <div className="space-y-4">
-                  {(branding.shipping_profiles || []).map((profile: any, index: number) => (
-                    <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
-                      <div className="flex-1 w-full">
-                        <input value={profile.name} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].name = e.target.value; onBrandingChange('shipping_profiles', p); }} placeholder="Profil Adı" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold mb-2" />
-                        <div className="flex gap-2">
-                          <input type="number" value={profile.cost} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].cost = parseFloat(e.target.value); onBrandingChange('shipping_profiles', p); }} placeholder="Ücret" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
-                          <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold" />
-                        </div>
-                      </div>
-                      <button onClick={() => { const p = [...branding.shipping_profiles]; p.splice(index, 1); onBrandingChange('shipping_profiles', p); }} className="text-red-500 hover:text-red-700">
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+              ))}
+            </div>
+          </div>
 
-          {/* Store Locator & Reservations (For Real Estate, just Show Office Locations) */}
+          {/* Store Locator & Reservations */}
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center space-x-3">
                 <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
                   <MapPin className="h-6 w-6" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">
-                  {isRealEstate ? (lang === 'tr' ? 'Ofis Konumları' : 'Office Locations') : 
-                   (isAutomotive ? (lang === 'tr' ? 'Bayi Konumları' : 'Dealer Locations') : 
-                   'Mağaza ve Rezervasyon')}
-                </h3>
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Mağaza ve Rezervasyon</h3>
               </div>
             </div>
             
             <div className="space-y-6">
-              {!isRealEstate && !isAutomotive && (
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={!!branding.reservation_enabled}
-                    onChange={(e) => onBrandingChange('reservation_enabled', e.target.checked)}
-                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span className="text-sm font-bold text-slate-900">Mağazadan Teslimat (Rezervasyon) Aktif Et</span>
-                </label>
-              )}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={!!branding.reservation_enabled}
+                  onChange={(e) => onBrandingChange('reservation_enabled', e.target.checked)}
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-sm font-bold text-slate-900">Mağazadan Teslimat (Rezervasyon) Aktif Et</span>
+              </label>
 
               <div className="space-y-4">
-                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                   {isRealEstate ? (lang === 'tr' ? 'Ofis Konumları' : 'Office Locations') :
-                    (isAutomotive ? (lang === 'tr' ? 'Bayi Konumları' : 'Dealer Locations') :
-                    'Mağaza Konumları')}
-                 </h4>
+                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Mağaza Konumları</h4>
                  {(branding.locations || []).map((loc: any, idx: number) => (
                    <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl items-center">
-                     <input name={`location_name_${idx}`} id={`location_name_${idx}`} value={loc.name} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx] = { ...l[idx], name: e.target.value }; onBrandingChange('locations', l); }} placeholder={isRealEstate ? "Ofis Adı" : "Mağaza Adı"} className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                     <input name={`location_name_${idx}`} id={`location_name_${idx}`} value={loc.name} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx] = { ...l[idx], name: e.target.value }; onBrandingChange('locations', l); }} placeholder="Mağaza Adı" className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
                      <input name={`location_address_${idx}`} id={`location_address_${idx}`} value={loc.address} onChange={(e) => { const l = [...(branding.locations||[])]; l[idx] = { ...l[idx], address: e.target.value }; onBrandingChange('locations', l); }} placeholder="Adres" className="col-span-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
                    </div>
                  ))}
                  <button 
                   onClick={() => onBrandingChange('locations', [...(branding.locations || []), { name: '', address: '', active: true }])}
                   className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
-                 >{isRealEstate ? 'Ofis Ekle' : 'Mağaza Ekle'}</button>
+                 >Mağaza Ekle</button>
               </div>
             </div>
           </div>
 
-          {!isRealEstate && !isAutomotive && (
-            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-              {/* Bulk Price Update */}
-              <div className="flex items-center space-x-3 mb-8">
-                <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-                  <RefreshCw className="h-6 w-6" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Toplu Fiyat Güncelleme</h3>
+          {/* Bulk Price Update */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center space-x-3 mb-8">
+              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                <RefreshCw className="h-6 w-6" />
               </div>
-              
-              <form onSubmit={handleBulkPriceSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Toplu Fiyat Güncelleme</h3>
+            </div>
+            
+            <form onSubmit={handleBulkPriceSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Hedef</label>
+                  <select 
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
+                    value={bulkPriceForm.target}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, target: e.target.value })}
+                  >
+                    <option value="all">Tüm Ürünler</option>
+                    <option value="category">Kategori Bazlı</option>
+                  </select>
+                </div>
+                {bulkPriceForm.target === 'category' && (
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Hedef</label>
-                    <select 
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
-                      value={bulkPriceForm.target}
-                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, target: e.target.value })}
-                    >
-                      <option value="all">Tüm Ürünler</option>
-                      <option value="category">Kategori Bazlı</option>
-                    </select>
-                  </div>
-                  {bulkPriceForm.target === 'category' && (
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori</label>
-                      <input 
-                        type="text" 
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
-                        value={bulkPriceForm.category}
-                        onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
-                      />
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">İşlem Tipi</label>
-                    <select 
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
-                      value={bulkPriceForm.type}
-                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, type: e.target.value })}
-                    >
-                      <option value="percentage">Yüzde (%)</option>
-                      <option value="fixed">Sabit Tutar</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Yön</label>
-                    <select 
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
-                      value={bulkPriceForm.direction}
-                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, direction: e.target.value })}
-                    >
-                      <option value="increase">Artır</option>
-                      <option value="decrease">Azalt</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Değer</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori</label>
                     <input 
-                      type="number" 
+                      type="text" 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
-                      value={bulkPriceForm.value}
-                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, value: e.target.value })}
+                      value={bulkPriceForm.category}
+                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
                     />
                   </div>
+                )}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">İşlem Tipi</label>
+                  <select 
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
+                    value={bulkPriceForm.type}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, type: e.target.value })}
+                  >
+                    <option value="percentage">Yüzde (%)</option>
+                    <option value="fixed">Sabit Tutar</option>
+                  </select>
                 </div>
-                <button 
-                  type="submit" 
-                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]"
-                >
-                  Fiyatları Güncelle
-                </button>
-              </form>
-            </div>
-          )}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Yön</label>
+                  <select 
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
+                    value={bulkPriceForm.direction}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, direction: e.target.value })}
+                  >
+                    <option value="increase">Artır</option>
+                    <option value="decrease">Azalt</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Değer</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
+                    value={bulkPriceForm.value}
+                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, value: e.target.value })}
+                  />
+                </div>
+              </div>
+              <button 
+                type="submit" 
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]"
+              >
+                Fiyatları Güncelle
+              </button>
+            </form>
+          </div>
 
           <div className="flex justify-end pt-6">
             <button onClick={onSaveBranding} className="px-10 py-5 bg-slate-900 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-black transition-all shadow-2xl active:scale-95 flex items-center gap-3">
               <Save className="w-5 h-5" />
-              {isRealEstate ? (lang === 'tr' ? 'Tüm Ofis Ayarlarını Kaydet' : 'Save Office Settings') : (lang === 'tr' ? 'Tüm Mağaza Ayarlarını Kaydet' : 'Save Store Settings')}
+              Tüm Mağaza Ayarlarını Kaydet
             </button>
           </div>
         </motion.div>
@@ -2714,9 +2715,6 @@ const SettingsTab = ({
           {/* Main Visual Control Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-          {/* Main Visual Control Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
             {/* 1. Showcase & Layout Controls */}
             <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
               <div className="flex items-center justify-between mb-6">
@@ -2756,37 +2754,6 @@ const SettingsTab = ({
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* 2. Feature Toggles */}
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Settings className="w-4 h-4 text-indigo-500" />
-                {lang === 'tr' ? 'ÖZELLİKLER' : 'FEATURES'}
-              </h3>
-              <div className="grid grid-cols-1 gap-3">
-                {[
-                  { key: 'show_products', label: lang === 'tr' ? 'Ürün Yönetimi' : 'Product Management' },
-                  { key: 'show_service', label: lang === 'tr' ? 'Servis/Bakım' : 'Service/Maintenance' },
-                  { key: 'show_blog', label: lang === 'tr' ? 'Blog' : 'Blog' },
-                ].map((toggle) => (
-                  <div key={toggle.key} className="flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100">
-                    <span className="text-xs font-bold text-slate-600">{toggle.label}</span>
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const currentToggles = branding.feature_toggles || {};
-                        const newValue = currentToggles[toggle.key as keyof typeof currentToggles] !== false;
-                        onBrandingChange('feature_toggles', { ...currentToggles, [toggle.key]: !newValue });
-                      }}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${(branding.feature_toggles?.[toggle.key as keyof typeof branding.feature_toggles] ?? true) ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${(branding.feature_toggles?.[toggle.key as keyof typeof branding.feature_toggles] ?? true) ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
               
               {branding.page_layout_settings?.show_announcement !== false && (
                 <div className="mb-6 p-4 bg-white border border-slate-200 rounded-2xl">
@@ -2804,7 +2771,7 @@ const SettingsTab = ({
               <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'TEMA KONSEPTİ' : 'THEME CONCEPT'}</p>
                 <div className="flex gap-2">
-                  {['modern', 'minimal', 'bold', 'luxury', 'real_estate_classic', 'real_estate_modern'].map((theme) => (
+                  {['modern', 'minimal', 'bold', 'luxury'].map((theme) => (
                     <button
                       key={theme}
                       onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), theme_variety: theme })}
@@ -2819,7 +2786,7 @@ const SettingsTab = ({
               <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 mt-4">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'SEKTÖR MODU' : 'SECTOR MODE'}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {['general', 'fashion', 'automotive', 'real_estate', 'tech'].map((sect) => (
+                  {['general', 'fashion', 'automotive', 'tech'].map((sect) => (
                     <button
                       key={sect}
                       onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), sector: sect })}
@@ -2827,8 +2794,7 @@ const SettingsTab = ({
                     >
                       {sect === 'general' ? (lang === 'tr' ? 'Genel' : 'General') :
                        sect === 'fashion' ? (lang === 'tr' ? 'Moda / Lüks' : 'Fashion / Luxury') :
-                       sect === 'automotive' ? (lang === 'tr' ? 'Otomotiv / Filo' : 'Automotive / Fleet') :
-                       sect === 'real_estate' ? (lang === 'tr' ? 'Emlak Ofisi' : 'Real Estate') :
+                       sect === 'automotive' ? (lang === 'tr' ? 'Otomotiv' : 'Automotive') :
                        (lang === 'tr' ? 'Teknoloji' : 'Tech')}
                     </button>
                   ))}

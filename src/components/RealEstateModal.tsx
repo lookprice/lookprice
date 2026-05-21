@@ -48,12 +48,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
-    documents: [],
-    listing_agent_name: '',
-    owner_name: '',
-    owner_phone: '',
-    owner_email: '',
-    commission_rate: 2
+    documents: []
   });
 
   // Mock Upload state
@@ -419,77 +414,6 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             </div>
           </div>
 
-          {/* Mal Sahibi ve Danışman Bilgileri (CRM Fields) */}
-          <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200">
-            <h4 className="text-sm font-black text-indigo-700 flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Yönetici Paneli (Mal Sahibi & CRM)
-            </h4>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">Mal Sahibi Adı / Soyadı</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">👤</span>
-                  <input
-                    type="text"
-                    placeholder="Mülk Sahibi Bilgisi (Gizli)"
-                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
-                    value={formData.owner_name || ''}
-                    onChange={(e) => setFormData({...formData, owner_name: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">Mal Sahibi Telefon</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">📞</span>
-                  <input
-                    type="text"
-                    placeholder="0533..."
-                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold font-mono"
-                    value={formData.owner_phone || ''}
-                    onChange={(e) => setFormData({...formData, owner_phone: e.target.value})}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">Sorumlu Danışman (Agent)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">👔</span>
-                  <input
-                    type="text"
-                    placeholder="Portföy Sorumlusu Danışman"
-                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
-                    value={formData.listing_agent_name || ''}
-                    onChange={(e) => setFormData({...formData, listing_agent_name: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">Hizmet Bedeli % (Komisyon)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-black">%</span>
-                  <input
-                    type="number"
-                    placeholder="2"
-                    step="0.5"
-                    className="w-full pl-9 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
-                    value={formData.commission_rate || ''}
-                    onChange={(e) => setFormData({...formData, commission_rate: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[10px] text-slate-400 leading-tight">
-              * Bu bölümdeki bilgiler sadece ofis yöneticileri ve brokerlar tarafından görülebilir. Public ilan sayfasında yayınlanmaz.
-            </p>
-          </div>
-
           {/* Detaylı Metrikler */}
           <div className="space-y-4">
             <h4 className="text-sm font-black text-slate-800 border-l-4 border-slate-800 pl-2">Detaylı Metrikler & Konum Bilgileri</h4>
@@ -680,73 +604,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             
             <div className="bg-slate-50 p-5 rounded-2xl border border-indigo-100 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Fotoğraflar ve Medya Galerisi (En Az Bir Adet Gerekli)</label>
-                
-                {/* Visual grid of added image media */}
-                {formData.images && formData.images.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 bg-white p-3 rounded-xl border border-slate-200">
-                    {formData.images.map((url, idx) => (
-                      <div key={idx} className="relative group rounded-xl border border-slate-200 overflow-hidden bg-slate-50 aspect-video flex flex-col items-center justify-center">
-                        <img 
-                          src={url} 
-                          className="w-full h-full object-cover" 
-                          referrerPolicy="no-referrer"
-                          onError={(e) => { (e.target as any).src='https://images.unsplash.com/photo-1560518883-ce09059eeffa'; }} 
-                        />
-                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = [...(formData.images || [])];
-                              updated.splice(idx, 1);
-                              setFormData({...formData, images: updated});
-                            }}
-                            className="p-1 px-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-black transition-all active:scale-95"
-                          >
-                            <Trash2 className="w-3 h-3 inline mr-1" /> Sil
-                          </button>
-                        </div>
-                        <span className="absolute bottom-1 right-1 bg-black/75 px-2 py-0.5 text-white text-[8px] font-extrabold rounded">
-                          {idx === 0 ? 'Kapak' : `Görsel #${idx + 1}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Input to add a new image url */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    id="new_realestate_image_url"
-                    placeholder="Eklenecek fotoğraf veya video URL formatındaki medyayı yazın... (Örn: https://...)"
-                    className="flex-1 p-3 border rounded-xl text-xs font-semibold text-slate-705 text-slate-700"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const val = (e.target as any).value.trim();
-                        if (val) {
-                          setFormData({...formData, images: [...(formData.images || []), val]});
-                          (e.target as any).value = '';
-                        }
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById('new_realestate_image_url') as HTMLInputElement;
-                      const val = input?.value.trim();
-                      if (val) {
-                        setFormData({...formData, images: [...(formData.images || []), val]});
-                        input.value = '';
-                      }
-                    }}
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl transition duration-150 active:scale-95"
-                  >
-                    Resim Ekle
-                  </button>
-                </div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Kapak Fotoğrafı URL (Opsiyonel)</label>
+                <input
+                  type="text"
+                  placeholder="https://images.unsplash.com/photo-..."
+                  className="w-full p-3 border rounded-xl text-xs font-medium"
+                  value={formData.images?.[0] || ''}
+                  onChange={(e) => setFormData({...formData, images: e.target.value ? [e.target.value] : []})}
+                />
 
                 {formData.images && formData.images.length > 0 && (
                   <div className="mt-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex flex-wrap items-center gap-2">
@@ -958,38 +823,6 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             </div>
           </div>
 
-          {/* Özellikler ve Seçenekler */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-black text-slate-800 border-l-4 border-slate-800 pl-2">Öne Çıkan Özellikler</h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                { label: 'Kombi', icon: '🔥' },
-                { label: 'Asansör', icon: '🛗' },
-                { label: 'Otopark', icon: '🚗' },
-                { label: 'Güvenlik', icon: '🛡️' },
-                { label: 'Havuz', icon: '🏊' },
-                { label: 'Klima', icon: '❄️' },
-                { label: 'İlk Sahibinden', icon: '👤' },
-                { label: 'Sigara İçilmemiş', icon: '🚭' },
-                { label: 'Kurumsal Firma', icon: '🏢' },
-              ].map((feature) => (
-                <label key={feature.label} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formData.listing_features?.includes(feature.label) ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    checked={formData.listing_features?.includes(feature.label) || false}
-                    onChange={(e) => {
-                      const features = formData.listing_features || [];
-                      if (e.target.checked) setFormData({ ...formData, listing_features: [...features, feature.label] });
-                      else setFormData({ ...formData, listing_features: features.filter(f => f !== feature.label) });
-                    }}
-                  />
-                  <span className="text-xs font-bold text-slate-700">{feature.icon} {feature.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          
           {/* Açıklama */}
           <div className="space-y-3">
             <div className="flex justify-between items-center flex-wrap gap-2">

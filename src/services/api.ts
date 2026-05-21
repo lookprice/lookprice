@@ -184,36 +184,6 @@ export const api = {
     return api.get(url);
   },
   getSalesInvoice: (id: number, storeId?: number) => api.get(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  
-  // Real Estate Methods
-  getProperties: (storeId?: number) => api.get(`/api/real-estate/properties${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  addProperty: (data: any) => api.post(`/api/real-estate/properties`, data),
-  updateProperty: (id: number, data: any) => api.put(`/api/real-estate/properties/${id}`, data),
-  deleteProperty: (id: number, storeId?: number) => api.delete(`/api/real-estate/properties/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-
-  getRealEstateLeads: (storeId?: number) => api.get(`/api/real-estate/leads${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  addRealEstateLead: (data: any) => api.post(`/api/real-estate/leads`, data),
-  updateRealEstateLead: (id: number | string, data: any) => api.put(`/api/real-estate/leads/${id}`, data),
-  deleteRealEstateLead: (id: number | string, storeId?: number) => api.delete(`/api/real-estate/leads/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-
-  getRealEstateOwners: (storeId?: number) => api.get(`/api/real-estate/owners${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  addRealEstateOwner: (data: any) => api.post(`/api/real-estate/owners`, data),
-  updateRealEstateOwner: (id: number | string, data: any) => api.put(`/api/real-estate/owners/${id}`, data),
-  deleteRealEstateOwner: (id: number | string, storeId?: number) => api.delete(`/api/real-estate/owners/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-
-  getRealEstateActivities: (storeId?: number) => api.get(`/api/real-estate/activities${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  addRealEstateActivity: (data: any) => api.post(`/api/real-estate/activities`, data),
-  updateRealEstateActivity: (id: number | string, data: any) => api.put(`/api/real-estate/activities/${id}`, data),
-  deleteRealEstateActivity: (id: number | string, storeId?: number) => api.delete(`/api/real-estate/activities/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-
-  getRealEstateAgents: (storeId?: number) => api.get(`/api/real-estate/agents${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  addRealEstateAgent: (data: any) => api.post(`/api/real-estate/agents`, data),
-  updateRealEstateAgent: (id: number | string, data: any) => api.put(`/api/real-estate/agents/${id}`, data),
-  deleteRealEstateAgent: (id: number | string, storeId?: number) => api.delete(`/api/real-estate/agents/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  
-  // AI Jobs
-  triggerAIJob: (data: any) => api.post(`/api/ai-jobs/trigger`, data),
-
   getSalesInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html?type=sales`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateSalesInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
@@ -309,7 +279,6 @@ export const api = {
   getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
   getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products`),
   getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}`),
-  getPublicVitrine: (storeIdentifier: string) => api.get(`/api/vitrine/${storeIdentifier}`),
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
   getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
   createPublicSale: (data: any) => api.post("/api/public/sales", data),

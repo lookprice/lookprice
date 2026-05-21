@@ -31,7 +31,7 @@ import autoTable from 'jspdf-autotable';
 
 import { AutocompleteSelect } from "./AutocompleteSelect";
 
-export default function PurchaseInvoices({ storeId, role, lang, api, branding, onSave, sector }: any) {
+export default function PurchaseInvoices({ storeId, role, lang, api, branding, onSave }: any) {
   const [invoices, setInvoices] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [products, setProducts] = useState([]);
@@ -90,44 +90,6 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
   const [isExpense, setIsExpense] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState("");
   const [lastEditedId, setLastEditedId] = useState<number | null>(null);
-
-  const [customExpenseDesc, setCustomExpenseDesc] = useState("");
-  const [customExpensePrice, setCustomExpensePrice] = useState("");
-  const [customExpenseQty, setCustomExpenseQty] = useState("1");
-  const [customExpenseTax, setCustomExpenseTax] = useState("20");
-
-  useEffect(() => {
-    if (sector === 'real_estate' && showModal) {
-      setIsExpense(true);
-      setExpenseCategory("diger");
-    }
-  }, [sector, showModal]);
-
-  const handleAddCustomExpense = () => {
-    if (!customExpenseDesc.trim()) {
-      toast.error(isTr ? "Lütfen bir gider açıklaması yazın." : "Please write an expense description.");
-      return;
-    }
-    const up = Number(customExpensePrice.replace(",", ".")) || 0;
-    if (up <= 0) {
-      toast.error(isTr ? "Geçerli bir tutar yazın." : "Please enter a valid amount.");
-      return;
-    }
-
-    setItems(prev => [...prev, {
-      product_id: null,
-      product_name: customExpenseDesc.trim(),
-      barcode: "GIDER-" + Math.floor(1000 + Math.random() * 9000),
-      quantity: String(customExpenseQty || "1"),
-      unit_price: String(up),
-      tax_rate: String(customExpenseTax || "20")
-    }]);
-
-    setCustomExpenseDesc("");
-    setCustomExpensePrice("");
-    setCustomExpenseQty("1");
-    toast.success(isTr ? "Gider kalemi eklendi." : "Expense item added.");
-  };
 
   const isTr = lang === 'tr';
 
@@ -311,10 +273,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
       return;
     }
     if (items.length === 0) {
-      toast.error(sector === 'real_estate' 
-        ? (isTr ? "Lütfen en az bir gider kalemi ekleyin" : "Please add at least one expense item")
-        : (isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product")
-      );
+      toast.error(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
       return;
     }
 
@@ -791,16 +750,10 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
         <div>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <FileDown className="h-6 w-6 text-indigo-600" />
-            {sector === 'real_estate' 
-              ? (isTr ? "Giderler" : "Expenses")
-              : (isTr ? "Alış Faturaları" : "Purchase Invoices")
-            }
+            {isTr ? "Alış Faturaları" : "Purchase Invoices"}
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            {sector === 'real_estate'
-              ? (isTr ? "Stok takibi olmayan ofis giderleri, komisyon paylaşımları ve diğer giderlerinizi kaydedin." : "Record non-stock office expenses, commission splits, and other expenses.")
-              : (isTr ? "Tedarikçilerden gelen faturaları girin ve stoklarınızı güncelleyin." : "Enter invoices from suppliers and update your stock.")
-            }
+            {isTr ? "Tedarikçilerden gelen faturaları girin ve stoklarınızı güncelleyin." : "Enter invoices from suppliers and update your stock."}
           </p>
         </div>
       </div>
@@ -954,10 +907,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
             className="flex-[2] md:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors shadow-lg font-bold text-sm"
           >
             <Plus className="h-4 w-4" />
-            {sector === 'real_estate'
-              ? (isTr ? "Yeni Gider Girişi" : "New Expense Entry")
-              : (isTr ? "Yeni Alış Faturası" : "New Purchase Invoice")
-            }
+            {isTr ? "Yeni Alış Faturası" : "New Purchase Invoice"}
           </button>
         </div>
       </div>
@@ -982,9 +932,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   />
                 </th>
                 <th className="p-4 font-bold">{isTr ? "Tarih" : "Date"}</th>
-                <th className="p-4 font-bold">{sector === 'real_estate' ? (isTr ? "Belge / Fiş No" : "Doc / Receipt No") : (isTr ? "Fatura No" : "Inv No")}</th>
-                {sector !== 'real_estate' && <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>}
-                <th className="p-4 font-bold">{sector === 'real_estate' ? (isTr ? "Cari / Alıcı" : "Ref / Supplier") : (isTr ? "Satıcı" : "Supplier")}</th>
+                <th className="p-4 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
+                <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>
+                <th className="p-4 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
                 <th className="p-4 font-bold">{isTr ? "Vergi No" : "Tax No"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
                 <th className="p-4 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
@@ -1020,11 +970,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   <td className="p-4 text-xs font-bold text-slate-900">
                     {invoice.invoice_number}
                   </td>
-                  {sector !== 'real_estate' && (
-                    <td className="p-4 text-xs text-slate-500">
-                      {invoice.waybill_number || '-'}
-                    </td>
-                  )}
+                  <td className="p-4 text-xs text-slate-500">
+                    {invoice.waybill_number || '-'}
+                  </td>
                   <td className="p-4 text-xs font-medium text-slate-700">
                     <div>{invoice.company_name}</div>
                     {invoice.is_expense && (
@@ -1181,9 +1129,9 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
               <div className="flex items-center justify-between p-6 border-b border-slate-100">
                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <FileDown className="h-5 w-5 text-indigo-600" />
-                  {sector === 'real_estate'
-                    ? (editingInvoiceId ? (isTr ? "Gider Düzenle" : "Edit Expense") : (isTr ? "Yeni Gider Girişi" : "New Expense Entry"))
-                    : (editingInvoiceId ? (isTr ? "Fatura Revize Et" : "Revise Invoice") : (isTr ? "Yeni Alış Faturası" : "New Purchase Invoice"))
+                  {editingInvoiceId 
+                    ? (isTr ? "Fatura Revize Et" : "Revise Invoice")
+                    : (isTr ? "Yeni Alış Faturası" : "New Purchase Invoice")
                   }
                 </h3>
                 <button
@@ -1372,87 +1320,24 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   </div>
 
                   <div className="space-y-4">
-                    {sector === 'real_estate' ? (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">
-                        <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
-                          <Plus className="h-4 w-4 text-indigo-600" />
-                          {isTr ? "Yeni Gider Kalemi Ekle" : "Add New Expense Item"}
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                          <div className="md:col-span-5 space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? "Gider Açıklaması" : "Expense Name"}</label>
-                            <input
-                              type="text"
-                              placeholder={isTr ? "Örn: Ofis Kira Bedeli, Dijital Reklam Gideri" : "e.g. Office Rent, Digital Advertising"}
-                              value={customExpenseDesc}
-                              onChange={(e) => setCustomExpenseDesc(e.target.value)}
-                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none"
-                            />
-                          </div>
-                          <div className="md:col-span-3 space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? "Tutar" : "Amount"}</label>
-                            <input
-                              type="text"
-                              placeholder="0.00"
-                              value={customExpensePrice}
-                              onChange={(e) => setCustomExpensePrice(e.target.value)}
-                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none font-semibold text-slate-800"
-                            />
-                          </div>
-                          <div className="md:col-span-1.5 space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? "Adet" : "Qty"}</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={customExpenseQty}
-                              onChange={(e) => setCustomExpenseQty(e.target.value)}
-                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-center font-semibold text-slate-800"
-                            />
-                          </div>
-                          <div className="md:col-span-1.5 space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">KDV</label>
-                            <select
-                              value={customExpenseTax}
-                              onChange={(e) => setCustomExpenseTax(e.target.value)}
-                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none font-semibold text-slate-800"
-                            >
-                              <option value="20">%20</option>
-                              <option value="10">%10</option>
-                              <option value="1">%1</option>
-                              <option value="0">%0</option>
-                            </select>
-                          </div>
-                          <div className="md:col-span-1">
-                            <button
-                              type="button"
-                              onClick={handleAddCustomExpense}
-                              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-150 transform active:scale-95 shadow-md shadow-indigo-600/10"
-                            >
-                              {isTr ? "Ekle" : "Add"}
-                            </button>
-                          </div>
-                        </div>
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-medium text-slate-900 flex items-center gap-2">
+                        <Package className="h-4 w-4 text-indigo-600" />
+                        {isTr ? "Ürünler" : "Products"}
+                      </h4>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                        <input
+                          id="is_tax_inclusive_purchase"
+                          type="checkbox"
+                          checked={isTaxInclusive}
+                          onChange={(e) => setIsTaxInclusive(e.target.checked)}
+                          className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                        />
+                        <label htmlFor="is_tax_inclusive_purchase" className="text-[11px] font-bold text-slate-600 cursor-pointer">
+                          {isTr ? "Fiyatlara KDV Dahil" : "Prices Include VAT"}
+                        </label>
                       </div>
-                    ) : (
-                      <>
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                            <Package className="h-4 w-4 text-indigo-600" />
-                            {isTr ? "Ürünler" : "Products"}
-                          </h4>
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                            <input
-                              id="is_tax_inclusive_purchase"
-                              type="checkbox"
-                              checked={isTaxInclusive}
-                              onChange={(e) => setIsTaxInclusive(e.target.checked)}
-                              className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                            />
-                            <label htmlFor="is_tax_inclusive_purchase" className="text-[11px] font-bold text-slate-600 cursor-pointer">
-                              {isTr ? "Fiyatlara KDV Dahil" : "Prices Include VAT"}
-                            </label>
-                          </div>
-                        </div>
+                    </div>
 
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1505,17 +1390,15 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                         </div>
                       )}
                     </div>
-                    </>
-                  )}
 
-                  {items.length > 0 && (
+                    {items.length > 0 && (
                       <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                         {/* Desktop Table View */}
                         <div className="hidden md:block border border-slate-200 rounded-xl overflow-hidden">
                           <table className="w-full text-left">
                             <thead className="bg-slate-50 border-b border-slate-200">
                               <tr>
-                                <th className="p-3 text-xs font-medium text-slate-500 uppercase">{sector === 'real_estate' ? (isTr ? "Açıklama / Gider" : "Description / Expense") : (isTr ? "Ürün" : "Product")}</th>
+                                <th className="p-3 text-xs font-medium text-slate-500 uppercase">{isTr ? "Ürün" : "Product"}</th>
                                 <th className="p-3 text-xs font-medium text-slate-500 uppercase w-24 text-center">{isTr ? "Adet" : "Qty"}</th>
                                 <th className="p-3 text-xs font-medium text-slate-500 uppercase w-36">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
                                 <th className="p-3 text-xs font-medium text-slate-500 uppercase w-24">{isTr ? "KDV %" : "VAT %"}</th>

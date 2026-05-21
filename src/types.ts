@@ -1,15 +1,3 @@
-export interface AIJob {
-  id: number;
-  entity_type: 'real_estate';
-  entity_id: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  payload: any;
-  result: any;
-  attempts: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface User {
   id: number;
   username: string;
@@ -43,7 +31,6 @@ export interface Product {
   brand?: string;
   author?: string;
   labels?: string[];
-  images?: string[] | string;
   sector_data?: any;
   is_web_sale?: boolean;
   product_type?: 'product' | 'service';
@@ -222,21 +209,6 @@ export interface Sale {
   items?: any[];
 }
 
-export interface RealEstateLead {
-  id: string;
-  property_id?: number;
-  property_title?: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_email?: string;
-  source: 'portal' | 'website' | 'call' | 'whatsapp' | 'reference';
-  status: 'new' | 'contacted' | 'showing' | 'offer' | 'contract' | 'sold' | 'lost';
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  assigned_agent_name?: string;
-}
-
 export interface RealEstateProperty {
   id: number;
   store_id: number;
@@ -265,20 +237,7 @@ export interface RealEstateProperty {
   images?: string[];
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
-  ai_processing_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-  ai_tour_engine?: 'none' | 'basic-3d' | 'advanced-neural';
-  seller_type?: 'professional' | 'individual';
-  is_verified?: boolean;
-  verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
-  listing_features?: string[];
   status: 'active' | 'rented' | 'sold' | 'optioned'; // Satılık, Kiralık, Opsiyonlu (Kapora Alındı), Satıldı
-  listing_agent_id?: string;
-  listing_agent_name?: string;
-  owner_name?: string;
-  owner_phone?: string;
-  owner_email?: string;
-  commission_rate?: number;
-  leads?: RealEstateLead[];
   documents?: {
     id: string;
     name: string;
@@ -320,9 +279,6 @@ export interface Vehicle {
   images?: string[];
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
-  seller_type?: 'professional' | 'individual';
-  is_verified?: boolean;
-  verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
   created_at: string;
   updated_at: string;
   expiring_docs?: number;

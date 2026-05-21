@@ -13,11 +13,6 @@ import fleetRoutes from "./routes/fleet";
 import paymentRoutes from "./routes/payment";
 import integrationRoutes from "./routes/integrations";
 import einvoiceRoutes from "./routes/einvoice";
-import realEstateRoutes from "./routes/real_estate";
-import publicVitrineRoutes from "./routes/public_vitrine";
-import crmRoutes from "./routes/crm";
-import aiJobsRoutes from "./routes/ai_jobs";
-import { startAiWorker } from "./services/ai_worker";
 import { authenticate } from "./middleware/auth";
 import { domainMiddleware } from "./middleware/domain";
 import { pool } from "./models/db";
@@ -184,14 +179,7 @@ async function startServer() {
   app.use("/api/admin", authenticate, adminRoutes);
   app.use("/api/store", authenticate, storeRoutes);
   app.use("/api/fleet", authenticate, fleetRoutes);
-  app.use("/api/real-estate", authenticate, realEstateRoutes);
-  app.use("/api/vitrine", publicVitrineRoutes);
-  app.use("/api/crm", authenticate, crmRoutes);
-  app.use("/api/ai-jobs", authenticate, aiJobsRoutes);
   app.use("/api/payment", paymentRoutes);
-
-  // Start Background Workers
-  startAiWorker();
   app.use("/api/integrations", integrationRoutes);
   app.use("/api", einvoiceRoutes);
 

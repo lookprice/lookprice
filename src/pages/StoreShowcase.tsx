@@ -26,8 +26,6 @@ import {
   Phone,
   Info,
   ArrowLeft,
-  ArrowRight,
-  Box,
   ShieldCheck,
   Shield,
   Globe,
@@ -147,10 +145,11 @@ const ProductCard: React.FC<{
           ))}
         </div>
       )}
-       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
+
+      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
         <button 
           onClick={() => {
-            if (product.type === 'vehicle' || product.type === 'real_estate' || sector === 'real_estate' || (product.available_branches && product.available_branches.length > 1)) {
+            if (product.type === 'vehicle' || product.type === 'real_estate' || (product.available_branches && product.available_branches.length > 1)) {
               onView(product);
             } else {
               addToBasket(product);
@@ -158,7 +157,7 @@ const ProductCard: React.FC<{
           }}
           className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
         >
-          {product.type === 'vehicle' || product.type === 'real_estate' || sector === 'real_estate' ? (
+          {product.type === 'vehicle' || product.type === 'real_estate' ? (
             <><Eye className="w-4 h-4" /> {lang === 'tr' ? 'Detayları İncele' : 'View Details'}</>
           ) : (
             <><Plus className="w-4 h-4" /> {(product.available_branches && product.available_branches.length > 1) ? (lang === 'tr' ? 'Seçenekleri Gör' : 'View Options') : t.dashboard.addToBasket}</>
@@ -224,8 +223,8 @@ const ProductCard: React.FC<{
 };
 
 const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) => {
-  const { lang } = useLanguage();
   if (!data || typeof data !== 'object') return null;
+  const { lang } = useLanguage();
 
   const renderAutomotive = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -289,60 +288,24 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.square_meters && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE (NET)' : 'SQUARE METERS (NET)'}</p>
+          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE' : 'SQUARE METERS'}</p>
           <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.square_meters} m²</p>
         </div>
       )}
-      {data.sqm_gross && (
-        <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE (BRÜT)' : 'SQUARE METERS (GROSS)'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.sqm_gross} m²</p>
-        </div>
-      )}
-      {(data.rooms || data.room_count) && (
+      {data.rooms && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'ODA SAYISI' : 'ROOMS'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.rooms || data.room_count}</p>
-        </div>
-      )}
-      {data.kktc_region && (
-        <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100 group hover:border-amber-300 transition-all">
-          <p className="text-[8px] font-semibold text-amber-600 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Bölge' : 'Region'}</p>
-          <p className="text-sm font-semibold text-amber-900 transition-colors uppercase">{data.kktc_region}</p>
-        </div>
-      )}
-      {data.kktc_title_type && (
-        <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-semibold text-indigo-600 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Koçan Tipi' : 'Title Deed'}</p>
-          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.kktc_title_type}</p>
-        </div>
-      )}
-      {data.facade && (
-        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-slate-300 transition-all">
-          <p className="text-[8px] font-semibold text-slate-500 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Cephe' : 'Facade'}</p>
-          <p className="text-sm font-semibold text-slate-900 transition-colors uppercase">{data.facade}</p>
-        </div>
-      )}
-      {data.in_gated_community && (
-        <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1 uppercase">{lang === 'tr' ? 'Durum' : 'Status'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{lang === 'tr' ? 'Site İçi' : 'In Gated Community'}</p>
+          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.rooms}</p>
         </div>
       )}
       {data.virtual_tour_url && (
-        <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/80 rounded-2xl border border-indigo-200 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center animate-pulse shadow-lg shadow-indigo-200">
-                <Box className="w-6 h-6" />
-             </div>
-             <div>
-                <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">{lang === 'tr' ? 'TEKNOLOJİ' : 'TECHNOLOGY'}</p>
-                <p className="text-sm font-bold text-indigo-900">{lang === 'tr' ? '3D Matterport Sanal Tur' : '3D Matterport Virtual Tour'}</p>
-             </div>
+        <div className="col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
+          <div>
+             <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">{lang === 'tr' ? 'SANAL TUR' : 'VIRTUAL TOUR'}</p>
+             <p className="text-sm font-bold text-indigo-900">{lang === 'tr' ? '3D Gezinti Mevcut' : '3D Tour Available'}</p>
           </div>
-          <button onClick={() => window.open(data.virtual_tour_url, '_blank')} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-2">
-             {lang === 'tr' ? 'TURU BAŞLAT' : 'START TOUR'}
-             <ArrowRight className="w-3 h-3" />
+          <button onClick={() => window.open(data.virtual_tour_url, '_blank')} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all">
+             {lang === 'tr' ? 'Turu Başlat' : 'Start Tour'}
           </button>
         </div>
       )}
@@ -562,57 +525,6 @@ const ProductDetailModal: React.FC<{
   const [selectedBranchIdx, setSelectedBranchIdx] = useState(0);
   const [convertedPrice, setConvertedPrice] = useState<number>(product?.price || 0);
 
-  const [currentImageIdx, setCurrentImageIdx] = useState(0);
-  const [isFullscreenMode, setIsFullscreenMode] = useState(false);
-
-  const galleryImages = useMemo(() => {
-    if (!product) return [];
-    
-    // Attempt to parse product.images if it is a string
-    let parsedImages: string[] = [];
-    if (product.images) {
-      if (typeof product.images === 'string') {
-        try {
-          parsedImages = JSON.parse(product.images);
-        } catch (e) {
-          console.error("Failed to parse product.images", e);
-        }
-      } else if (Array.isArray(product.images)) {
-        parsedImages = product.images;
-      }
-    }
-
-    const imgs: string[] = [];
-    if (product.image_url && typeof product.image_url === 'string') imgs.push(product.image_url);
-    
-    if (Array.isArray(parsedImages)) {
-       parsedImages.forEach((img: any) => {
-          if (typeof img === 'string' && !imgs.includes(img) && img) imgs.push(img);
-       });
-    }
-
-    // Default placeholders if only 0 or 1 image exists (specifically requested for real estate/automotive multiple image gallery visualization)
-    if (imgs.length <= 1) {
-      const isRealEstate = product.type === 'real_estate' || (store?.page_layout_settings?.sector === 'real_estate');
-      const isAutomotive = product.type === 'vehicle' || (store?.page_layout_settings?.sector === 'automotive');
-      
-      if (isRealEstate) {
-        imgs.push("https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&fit=crop");
-        imgs.push("https://images.unsplash.com/photo-1600607687931-cecebd808c34?w=800&fit=crop");
-        imgs.push("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&fit=crop");
-      } else if (isAutomotive) {
-        imgs.push("https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&fit=crop");
-        imgs.push("https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&fit=crop");
-        imgs.push("https://images.unsplash.com/photo-1503376710344-be1f5a510d86?w=800&fit=crop");
-      } else if (imgs.length === 0) {
-        // generic fallback
-        imgs.push("https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&fit=crop");
-      }
-    }
-
-    return Array.from(new Set(imgs)); // ensure uniqueness
-  }, [product, store?.page_layout_settings?.sector]);
-
   const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
   const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
   const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
@@ -779,59 +691,13 @@ const ProductDetailModal: React.FC<{
               </div>
             </button>
           </div>
-          {galleryImages.length > 0 ? (
-            <div className="relative w-full h-full flex flex-col bg-white">
-              <div 
-                className="flex-1 relative cursor-zoom-in overflow-hidden group/gallery"
-                onClick={() => setIsFullscreenMode(true)}
-              >
-                <AnimatePresence mode="wait">
-                  <motion.img 
-                    key={currentImageIdx}
-                    initial={{ opacity: 0, scale: 1.05 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    src={galleryImages[currentImageIdx]} 
-                    alt={product.name} 
-                    className="w-full h-full object-contain p-4 bg-white"
-                    referrerPolicy="no-referrer"
-                  />
-                </AnimatePresence>
-                {/* Arrow navigation if more than 1 image */}
-                {galleryImages.length > 1 && (
-                  <>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(p => (p - 1 + galleryImages.length) % galleryImages.length); }} 
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
-                    >
-                      <ChevronLeft className="w-5 h-5 text-gray-800" />
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(p => (p + 1) % galleryImages.length); }} 
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
-                    >
-                      <ChevronRight className="w-5 h-5 text-gray-800" />
-                    </button>
-                  </>
-                )}
-              </div>
-              
-              {/* Thumbnail strip */}
-              {galleryImages.length > 1 && (
-                <div className="h-24 p-2 bg-gray-50 border-t border-gray-100 flex gap-2 overflow-x-auto no-scrollbar">
-                  {galleryImages.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(idx); }}
-                      className={`relative flex-shrink-0 w-20 h-full rounded-lg overflow-hidden border-2 transition-all ${idx === currentImageIdx ? 'border-indigo-600 shadow-md ring-2 ring-indigo-100' : 'border-transparent hover:border-gray-300 opacity-60 hover:opacity-100'}`}
-                    >
-                      <img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          {product.image_url ? (
+            <img 
+              src={product.image_url} 
+              alt={product.name} 
+              className="w-full h-full object-contain p-8 bg-white"
+              referrerPolicy="no-referrer"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-200">
               <Package className="w-32 h-32" />
@@ -981,62 +847,6 @@ const ProductDetailModal: React.FC<{
         </div>
       </motion.div>
       {/* Removed About Modal functionality */}
-
-      {isFullscreenMode && (
-        <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center p-0 m-0">
-          <button 
-            onClick={() => setIsFullscreenMode(false)}
-            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-20"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          
-          <div className="relative w-full h-full flex flex-col justify-center">
-            <AnimatePresence mode="wait">
-              <motion.img 
-                key={currentImageIdx}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.4 }}
-                src={galleryImages[currentImageIdx]} 
-                alt={product.name} 
-                className="w-full max-h-screen object-contain"
-                referrerPolicy="no-referrer"
-              />
-            </AnimatePresence>
-            
-            {galleryImages.length > 1 && (
-              <>
-                <button 
-                  onClick={() => setCurrentImageIdx(p => (p - 1 + galleryImages.length) % galleryImages.length)} 
-                  className="absolute left-6 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/5 hover:bg-white/20 rounded-full flex items-center justify-center transition-opacity text-white backdrop-blur-sm z-10"
-                >
-                  <ChevronLeft className="w-8 h-8 opacity-70 hover:opacity-100" />
-                </button>
-                <button 
-                  onClick={() => setCurrentImageIdx(p => (p + 1) % galleryImages.length)} 
-                  className="absolute right-6 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/5 hover:bg-white/20 rounded-full flex items-center justify-center transition-opacity text-white backdrop-blur-sm z-10"
-                >
-                  <ChevronRight className="w-8 h-8 opacity-70 hover:opacity-100" />
-                </button>
-                
-                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3 px-4 z-10">
-                  {galleryImages.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentImageIdx(idx)}
-                      className={`w-12 h-12 rounded overflow-hidden border-2 transition-all ${idx === currentImageIdx ? 'border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'border-transparent opacity-40 hover:opacity-100 bg-white/10'}`}
-                    >
-                      <img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -1073,12 +883,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
   
-  let brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
-  let brandsLabel = store?.brand_label ? store.brand_label.toUpperCase() : (lang === 'tr' ? 'MARKALAR' : 'BRANDS');
-  let categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
-  let categoriesLabel = store?.category_label ? store.category_label.toUpperCase() : (lang === 'tr' ? 'KATEGORİLER' : 'CATEGORIES');
-  let productLabel = store?.product_label || (lang === 'tr' ? 'Ürün' : 'Product');
-  let stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
+  const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
+  const brandsLabel = store?.brand_label ? store.brand_label.toUpperCase() : (lang === 'tr' ? 'MARKALAR' : 'BRANDS');
+  const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
+  const categoriesLabel = store?.category_label ? store.category_label.toUpperCase() : (lang === 'tr' ? 'KATEGORİLER' : 'CATEGORIES');
+  const productLabel = store?.product_label || (lang === 'tr' ? 'Ürün' : 'Product');
+  const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1228,17 +1038,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const isLuxury = layoutSettings.theme_variety === 'luxury' || layoutSettings.theme_variety === 'minimal';
   const isModern = layoutSettings.theme_variety === 'modern';
   const isBold = layoutSettings.theme_variety === 'bold';
-  const isRealEstateClassic = layoutSettings.theme_variety === 'real_estate_classic';
-  const isRealEstateModern = layoutSettings.theme_variety === 'real_estate_modern';
   
   const sector = layoutSettings.sector || 'general';
-  const isRealEstate = (layoutSettings.sector === 'real_estate' || (store as any)?.sector === 'real_estate' || (store as any)?.branding?.sector === 'real_estate');
-
-  categoriesLabel = isRealEstate ? (lang === 'tr' ? 'Gayrimenkul Kategorileri' : 'Property Categories') : (lang === 'tr' ? 'Kategoriler' : 'Categories');
-  productLabel = isRealEstate ? (lang === 'tr' ? 'İlan' : 'Listing') : (lang === 'tr' ? 'Ürün' : 'Product');
-  brandsLabel = isRealEstate ? (lang === 'tr' ? 'Bölgeler' : 'Locations') : (lang === 'tr' ? 'Markalar' : 'Brands');
-  brandLabel = isRealEstate ? (lang === 'tr' ? 'Bölge' : 'Location') : (lang === 'tr' ? 'Marka' : 'Brand');
-
   const isAuto = sector === 'automotive';
   const isFashion = sector === 'fashion' || isLuxury;
   const isTech = sector === 'tech';
@@ -1300,15 +1101,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         }
 
         document.title = storeRes.name || 'Store';
-        setProducts(Array.isArray(productsRes) ? productsRes.filter((p: Product) => p.is_web_sale !== false) : []);
+        setProducts(productsRes.filter((p: Product) => p.is_web_sale !== false));
         
         // If we have a barcode in the URL and haven't selected a product yet, try to find it
         if (urlBarcode) {
           const cleanBarcode = urlBarcode.toString().trim().toLowerCase();
-          const product = Array.isArray(productsRes) ? productsRes.find((p: Product) => 
+          const product = productsRes.find((p: Product) => 
             (p.barcode && p.barcode.toString().trim().toLowerCase() === cleanBarcode) || 
             (p.id.toString() === cleanBarcode)
-          ) : null;
+          );
           if (product) {
             setSelectedProduct(product);
           }
@@ -1874,7 +1675,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input 
               type="text"
-              placeholder={isRealEstate ? (lang === 'tr' ? 'İlan Ara...' : 'Search Listings...') : t.dashboard.searchProducts}
+              placeholder={t.dashboard.searchProducts}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-lg transition-all outline-none text-sm font-medium"
@@ -1906,11 +1707,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       <button onClick={() => { navigate(getStorePath("/profile")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
                         <User className="w-4 h-4" /> {lang === 'tr' ? 'Profilim' : 'My Profile'}
                       </button>
-                      {!isRealEstate && (
-                        <button onClick={() => { navigate(getStorePath("/orders")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
-                          <Package className="w-4 h-4" /> {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
-                        </button>
-                      )}
+                      <button onClick={() => { navigate(getStorePath("/orders")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
+                        <Package className="w-4 h-4" /> {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
+                      </button>
                       <button onClick={handleLogout} className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2">
                         <LogOut className="w-4 h-4" /> {lang === 'tr' ? 'Çıkış Yap' : 'Logout'}
                       </button>
@@ -1927,22 +1726,20 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Giriş Yap' : 'Login'}</span>
               </button>
             )}
-            {!isRealEstate && (
-              <button 
-                onClick={() => setIsBasketOpen(true)}
-                className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
-              >
-                <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
-                {basketCount > 0 && (
-                  <span 
-                    className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    {basketCount}
-                  </span>
-                )}
-              </button>
-            )}
+            <button 
+              onClick={() => setIsBasketOpen(true)}
+              className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
+            >
+              <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
+              {basketCount > 0 && (
+                <span 
+                  className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {basketCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -2100,17 +1897,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   className="flex flex-wrap gap-4"
                 >
                   <button 
-                    onClick={() => {
-                        if (isRealEstate) {
-                            document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                        } else {
-                            setShowDiscoverModal(true);
-                        }
-                    }}
+                    onClick={() => setShowDiscoverModal(true)}
                     className="px-10 py-5 bg-white text-slate-950 rounded-lg font-semibold text-sm tracking-wide hover:bg-opacity-90 transition-all active:scale-95 shadow-lg flex items-center gap-3"
                   >
                     <Sparkles className="w-5 h-5 text-indigo-500" />
-                    {isRealEstate ? (lang === 'tr' ? 'İlanları Gör' : 'View Listings') : (lang === 'tr' ? 'Keşfet' : 'Discover Now')}
+                    {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
                   </button>
                 </motion.div>
               </div>
@@ -2129,7 +1920,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           </section>
 
           {/* Featured / Campaign Section */}
-          {layoutSettings.show_campaigns && !isRealEstate && (
+          {layoutSettings.show_campaigns && (
           <section className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-32">
             <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-16">
               <div className="space-y-3">
@@ -2178,14 +1969,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />
                     
                     <div className="absolute bottom-8 left-8 right-8 flex justify-center translate-y-20 group-hover:translate-y-0 transition-transform duration-700">
-                       <button 
-                         className="w-full py-4 bg-white text-slate-950 rounded-2xl font-semibold text-[10px] tracking-wide shadow-lg"
-                         onClick={(e) => {
-                             e.stopPropagation();
-                             setSelectedProduct(product);
-                         }}
-                       >
-                         {isRealEstate ? (lang === 'tr' ? 'İlan Detayı' : 'Listing Details') : (lang === 'tr' ? 'İncele' : 'View Details')}
+                       <button className="w-full py-4 bg-white text-slate-950 rounded-2xl font-semibold text-[10px] tracking-wide shadow-lg">
+                         {lang === 'tr' ? 'İncele' : 'View Details'}
                        </button>
                     </div>
                   </div>
@@ -2489,45 +2274,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
           {/* Main Content */}
           <div className="flex-1">
-            {/* Added Hero Ad Banner Slider */}
-            {(!selectedCategory && !searchQuery) && (
-              <div className="mb-12 relative w-full h-[300px] sm:h-[450px] overflow-hidden rounded-[2rem] shadow-sm group border border-slate-100">
-                <AnimatePresence mode="wait">
-                  <motion.div 
-                    key={0}
-                    className="absolute inset-0 w-full h-full"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 1 }}
-                  >
-                    <img 
-                      src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1600&auto=format&fit=crop" 
-                      className="w-full h-full object-cover blur-[2px] scale-105" 
-                      alt="Banner" 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
-                    <div className="absolute inset-0 flex flex-col justify-center p-8 md:p-16">
-                      <span className="text-emerald-400 font-bold tracking-widest text-xs mb-4 uppercase inline-flex items-center gap-2">
-                        <Sparkles className="w-4 h-4" /> 
-                        {lang === 'tr' ? 'Öne Çıkan Proje' : 'Featured Project'}
-                      </span>
-                      <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight max-w-2xl drop-shadow-lg">
-                        {lang === 'tr' ? 'Lüks Yaşam Yeniden Tanımlanıyor' : 'Luxury Living Redefined'}
-                      </h2>
-                      <button className="px-8 py-4 bg-white text-slate-900 rounded-full font-bold w-fit shadow-xl hover:scale-105 transition-transform flex items-center gap-2">
-                        {lang === 'tr' ? 'Keşfet' : 'Discover'} <ArrowRight className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-                {/* Ad Space Tag */}
-                <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10">
-                   <span className="text-[9px] text-white/70 font-black tracking-widest uppercase">ADVERTISEMENT</span>
-                </div>
-              </div>
-            )}
-
             {store?.page_layout && store.page_layout.length > 0 ? (
               <div className="space-y-24">
                 {store.page_layout.map((section: any) => {
@@ -2643,23 +2389,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-6">
                     <AnimatePresence mode="popLayout">
-                      {paginatedProducts.map((product, idx) => (
-                        <React.Fragment key={product.id}>
-                          {idx === 2 && (
-                             <div className="col-span-1 sm:col-span-2 xl:col-span-3 rounded-2xl overflow-hidden relative h-[250px] shadow-sm my-4 border border-indigo-100 group">
-                                <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&h=400&fit=crop" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Inline Ad" />
-                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/90 to-transparent" />
-                                <div className="absolute inset-0 p-8 flex flex-col justify-center">
-                                   <span className="text-[10px] text-white/70 font-black tracking-widest uppercase mb-2">SPONSORED</span>
-                                   <h3 className="text-2xl font-black text-white mb-2 max-w-sm">Premium Mortgage Solutions</h3>
-                                   <p className="text-indigo-100 text-xs max-w-xs mb-4">Unlock unparalleled financing options tailored precisely for luxury estates processing in USD and GBP.</p>
-                                   <button className="px-5 py-2.5 bg-white text-indigo-900 font-bold text-xs rounded-full w-fit hover:bg-indigo-50 transition-colors">
-                                     Learn More
-                                   </button>
-                                </div>
-                             </div>
-                          )}
+                      {paginatedProducts.map((product) => (
                           <ProductCard 
+                            key={product.id} 
                             product={product} 
                             store={store} 
                             t={t} 
@@ -2669,7 +2401,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             isLuxury={isLuxury}
                             sector={sector}
                           />
-                        </React.Fragment>
                       ))}
                     </AnimatePresence>
                   </div>
@@ -2758,7 +2489,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         )}
 
         {/* Best Sellers Section */}
-        {!isRealEstate && !selectedCategory && !searchQuery && bestSellers.length > 0 && (
+        {!selectedCategory && !searchQuery && bestSellers.length > 0 && (
           <section className="mt-32">
             <div className="flex items-center justify-between mb-10">
               <div>
@@ -3535,7 +3266,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           {/* Bottom Footer */}
           <div className="pt-12 border-t border-white/5">
             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            {!isRealEstate && (
               <div className="flex flex-wrap items-center justify-center gap-8 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
                 <div className="flex items-center gap-6">
                   <span className="text-[10px] font-semibold text-white tracking-wide underline underline-offset-8 decoration-blue-600">Secure Payments</span>
@@ -3546,7 +3276,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   </div>
                 </div>
               </div>
-            )}
 
               <p className="text-gray-600 font-bold text-[10px] tracking-wide">
                 © {new Date().getFullYear()} {store?.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
@@ -3571,7 +3300,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       </footer>
 
       {/* Floating Basket Summary (Mobile) */}
-      {!isRealEstate && basketCount > 0 && !isBasketOpen && (
+      {basketCount > 0 && !isBasketOpen && (
         <motion.div 
           initial={{ y: 100 }}
           animate={{ y: 0 }}
@@ -4645,12 +4374,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-400 text-xs font-semibold">
         <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 uppercase tracking-widest">
           <a href={`/api/public/store/${store?.slug}/about-us`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</a>
-          {!isRealEstate && (
-            <>
-              <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
-              <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
-            </>
-          )}
+          <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
+          <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
           <a href={`/api/public/store/${store?.slug}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}</a>
         </div>
         <div className="text-center md:text-right">
