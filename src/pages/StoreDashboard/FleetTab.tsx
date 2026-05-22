@@ -445,15 +445,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     body_type: '',
     paint_report: '{}',
     tramer_amount: 0,
-    tramer_currency: 'TRY',
+    tramer_currency: 'GBP',
     buying_price: 0,
-    buying_currency: 'TRY',
+    buying_currency: 'GBP',
+    currency: 'GBP',
     expenses: '[]',
     target_profit_margin: 0,
     description: '',
     images: [],
     virtual_tour_url: '',
-    ai_tour_enabled: false
+    ai_tour_enabled: false,
+    is_on_enrakipsiz: false
   });
 
   useEffect(() => {
@@ -577,11 +579,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         body_type: '',
         paint_report: '{}',
         tramer_amount: 0,
-        tramer_currency: 'TRY',
+        tramer_currency: 'GBP',
         buying_price: 0,
-        buying_currency: 'TRY',
+        buying_currency: 'GBP',
+        currency: 'GBP',
         expenses: '[]',
-        target_profit_margin: 0
+        target_profit_margin: 0,
+        description: '',
+        images: [],
+        virtual_tour_url: '',
+        ai_tour_enabled: false,
+        is_on_enrakipsiz: false
       });
       alert(t.successSaved);
     } catch (error) {
@@ -1106,8 +1114,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             tramer_amount: vehicle.tramer_amount || 0,
                             tramer_currency: vehicle.tramer_currency || 'TRY',
                             buying_price: vehicle.buying_price || 0,
+                            buying_currency: vehicle.buying_currency || 'TRY',
                             expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
-                            target_profit_margin: vehicle.target_profit_margin || 0
+                            target_profit_margin: vehicle.target_profit_margin || 0,
+                            description: vehicle.description || '',
+                            images: vehicle.images || [],
+                            virtual_tour_url: vehicle.virtual_tour_url || '',
+                            ai_tour_enabled: !!vehicle.ai_tour_enabled,
+                            is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz
                           });
                           setShowAddModal(true);
                         }}
@@ -1976,12 +1990,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   tramer_amount: 0,
                   tramer_currency: 'TRY',
                   buying_price: 0,
+                  buying_currency: 'TRY',
                   expenses: '[]',
                   target_profit_margin: 0,
                   description: '',
                   images: [],
                   virtual_tour_url: '',
-                  ai_tour_enabled: false
+                  ai_tour_enabled: false,
+                  is_on_enrakipsiz: false
                 });
                 setSelectedVehicle(null);
                 setShowAddModal(true);
@@ -2153,12 +2169,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           };
 
           const totalExpenses = expensesListData.reduce((acc: Record<string, number>, item: any) => {
-            const currency = item.currency || 'TRY';
+            const currency = item.currency || 'GBP';
             acc[currency] = (acc[currency] || 0) + (Number(item.amount) || 0);
             return acc;
           }, {});
           const baseBuyingPrice = Number(formData.buying_price) || 0;
-          const baseCurrency = formData.buying_currency || 'TRY';
+          const baseCurrency = formData.buying_currency || 'GBP';
           // NOTE: True multi-currency sum requires exchange rates. 
           // For now, display grouped by currency or sum in base currency if rates are available.
           
@@ -2392,31 +2408,27 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        {formData.status === 'for_sale' && (
-                          <>
-                            <label className="text-xs font-bold text-emerald-700">Açık İlan Satış Fiyatı *</label>
-                            <div className="flex gap-1.5">
-                              <input
-                                required
-                                type="number"
-                                value={formData.selling_price || ''}
-                                onChange={(e) => setFormData({ ...formData, selling_price: Number(e.target.value) })}
-                                placeholder="0"
-                                className="w-full px-3.5 py-2.5 bg-emerald-50/30 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-extrabold text-emerald-900"
-                              />
-                              <select
-                                value={formData.currency || 'TRY'}
-                                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                className="px-2.5 py-2.5 bg-emerald-50/55 border border-emerald-200 rounded-xl outline-none font-bold text-xs text-emerald-800"
-                              >
-                                <option value="TRY">₺ TRY</option>
-                                <option value="USD">$ USD</option>
-                                <option value="EUR">€ EUR</option>
-                                <option value="GBP">£ GBP</option>
-                              </select>
-                            </div>
-                          </>
-                        )}
+                        <label className="text-xs font-bold text-emerald-700">Araç İlan Satış Fiyatı *</label>
+                        <div className="flex gap-1.5">
+                          <input
+                            required
+                            type="number"
+                            value={formData.selling_price || ''}
+                            onChange={(e) => setFormData({ ...formData, selling_price: Number(e.target.value) })}
+                            placeholder="0"
+                            className="w-full px-3.5 py-2.5 bg-emerald-50/30 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-extrabold text-emerald-900"
+                          />
+                          <select
+                            value={formData.currency || 'GBP'}
+                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                            className="px-2.5 py-2.5 bg-emerald-50/55 border border-emerald-200 rounded-xl outline-none font-bold text-xs text-emerald-800"
+                          >
+                            <option value="GBP">£ GBP</option>
+                            <option value="TRY">₺ TRY</option>
+                            <option value="USD">$ USD</option>
+                            <option value="EUR">€ EUR</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2531,14 +2543,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               placeholder="0"
                             />
                             <select
-                              value={formData.buying_currency || 'TRY'}
+                              value={formData.buying_currency || 'GBP'}
                               onChange={(e) => setFormData({ ...formData, buying_currency: e.target.value })}
                               className="px-2.5 py-2.5 bg-indigo-100/50 border border-indigo-200 rounded-xl outline-none font-bold text-xs text-indigo-800"
                             >
+                              <option value="GBP">GBP</option>
                               <option value="TRY">TRY</option>
                               <option value="USD">USD</option>
                               <option value="EUR">EUR</option>
-                              <option value="GBP">GBP</option>
                             </select>
                           </div>
                         </div>
@@ -2969,12 +2981,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           tramer_amount: selectedVehicle.tramer_amount || 0,
                           tramer_currency: selectedVehicle.tramer_currency || 'TRY',
                           buying_price: selectedVehicle.buying_price || 0,
+                          buying_currency: selectedVehicle.buying_currency || 'TRY',
                           expenses: typeof selectedVehicle.expenses === 'string' ? selectedVehicle.expenses : JSON.stringify(selectedVehicle.expenses || []),
                           target_profit_margin: selectedVehicle.target_profit_margin || 0,
                           description: selectedVehicle.description || '',
                           images: selectedVehicle.images || [],
                           virtual_tour_url: selectedVehicle.virtual_tour_url || '',
-                          ai_tour_enabled: !!selectedVehicle.ai_tour_enabled
+                          ai_tour_enabled: !!selectedVehicle.ai_tour_enabled,
+                          is_on_enrakipsiz: !!selectedVehicle.is_on_enrakipsiz
                         });
                         setShowAddModal(true);
                       }}
@@ -3322,20 +3336,20 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
                               <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Alış Alım Geliş Tutarı</p>
-                              <p className="text-lg font-black text-indigo-950">{(selectedVehicle.buying_price || 0).toLocaleString()} {selectedVehicle.currency || 'TRY'}</p>
+                              <p className="text-lg font-black text-indigo-950">{(selectedVehicle.buying_price || 0).toLocaleString()} {selectedVehicle.buying_currency || 'GBP'}</p>
                             </div>
                             <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
                               <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Harcama ve Ekstra Masraflar</p>
-                              <p className="text-lg font-black text-indigo-950">{totalExpenses.toLocaleString()} {selectedVehicle.currency || 'TRY'}</p>
+                              <p className="text-lg font-black text-indigo-950">{totalExpenses.toLocaleString()} {selectedVehicle.buying_currency || 'GBP'}</p>
                             </div>
                             <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
                               <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Toplam İşletme Maliyeti</p>
-                              <p className="text-lg font-black text-indigo-950">{calculatedTotalCost.toLocaleString()} {selectedVehicle.currency || 'TRY'}</p>
+                              <p className="text-lg font-black text-indigo-950">{calculatedTotalCost.toLocaleString()} {selectedVehicle.buying_currency || 'GBP'}</p>
                             </div>
                             <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 p-4 rounded-2xl shadow text-center text-white">
                               <p className="text-[10px] text-indigo-200 font-bold uppercase mb-0.5">Hedef Liste Fiyatı (%{selectedVehicle.target_profit_margin || 0} Marj)</p>
                               <p className="text-lg font-black text-amber-300">
-                                {(calculatedTotalCost * (1 + (selectedVehicle.target_profit_margin || 0) / 100)).toLocaleString()} {selectedVehicle.currency || 'TRY'}
+                                {(calculatedTotalCost * (1 + (selectedVehicle.target_profit_margin || 0) / 100)).toLocaleString()} {selectedVehicle.currency || 'GBP'}
                               </p>
                             </div>
                           </div>

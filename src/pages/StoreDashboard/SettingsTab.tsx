@@ -2821,120 +2821,143 @@ const SettingsTab = ({
                 </div>
 
                 <div className="space-y-4">
-                  {/* Premium Layout Templates Selector */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                      {lang === 'tr' ? '1. ULTRA-LÜKS VİTRİN ŞABLONU' : '1. ULTRA-LUX SHOWCASE TEMPLATE'}
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: 'modern_bento', label: lang === 'tr' ? 'Futuristic Bento Grid' : 'Futuristic Bento Grid', color: 'bg-rose-500' },
-                        { id: 'royal_classic', label: lang === 'tr' ? 'Royal Gilded (Lüks)' : 'Royal Gilded (Luxe)', color: 'bg-emerald-500' },
-                        { id: 'cyberpunk_accent', label: lang === 'tr' ? 'Cyber Neon Pulse' : 'Cyber Neon Pulse', color: 'bg-cyan-500' },
-                        { id: 'alabaster', label: lang === 'tr' ? 'Alabaster Minimalist' : 'Alabaster Minimalist', color: 'bg-slate-500' }
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), showcase_layout_style: item.id })}
-                          className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
-                            branding.page_layout_settings?.showcase_layout_style === item.id 
-                              ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.01]" 
-                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                          }`}
-                        >
-                          <span>{item.label}</span>
-                          <span className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {currentUser?.role === 'superadmin' ? (
+                    <>
+                      {/* Premium Layout Templates Selector */}
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                          {lang === 'tr' ? '1. ULTRA-LÜKS VİTRİN ŞABLONU' : '1. ULTRA-LUX SHOWCASE TEMPLATE'}
+                        </span>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { id: 'modern_bento', label: lang === 'tr' ? 'Futuristic Bento Grid' : 'Futuristic Bento Grid', color: 'bg-rose-500' },
+                            { id: 'royal_classic', label: lang === 'tr' ? 'Royal Gilded (Lüks)' : 'Royal Gilded (Luxe)', color: 'bg-emerald-500' },
+                            { id: 'cyberpunk_accent', label: lang === 'tr' ? 'Cyber Neon Pulse' : 'Cyber Neon Pulse', color: 'bg-cyan-500' },
+                            { id: 'alabaster', label: lang === 'tr' ? 'Alabaster Minimalist' : 'Alabaster Minimalist', color: 'bg-slate-500' }
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), showcase_layout_style: item.id })}
+                              className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
+                                branding.page_layout_settings?.showcase_layout_style === item.id 
+                                  ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.01]" 
+                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                              }`}
+                            >
+                              <span>{item.label}</span>
+                              <span className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  {/* Font pairings selection */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                      {lang === 'tr' ? '2. AMİRAL TIPOGRAFİ EŞLEŞTİRMESİ' : "2. FLAGSHIP TYPOGRAPHY DECK"}
-                    </span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'modern_edge', title: 'Space + Inter', desc: 'Futuristic' },
-                        { id: 'elite_heritage', title: 'Playfair + Inter', desc: 'Editorial' },
-                        { id: 'brutalist', title: 'Mono Pair', desc: 'Technical' }
-                      ].map((font) => (
-                        <button
-                          key={font.id}
-                          type="button"
-                          onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), font_theme: font.id })}
-                          className={`p-2.5 rounded-xl border text-center transition-all ${
-                            branding.page_layout_settings?.font_theme === font.id 
-                              ? "bg-slate-900 border-slate-900 text-white shadow-md" 
-                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          <div className="text-[11px] font-black uppercase tracking-tight">{font.title}</div>
-                          <div className="text-[9px] text-slate-500 font-bold">{font.desc}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                      {/* Font pairings selection */}
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                          {lang === 'tr' ? '2. AMİRAL TIPOGRAFİ EŞLEŞTİRMESİ' : "2. FLAGSHIP TYPOGRAPHY DECK"}
+                        </span>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { id: 'modern_edge', title: 'Space + Inter', desc: 'Futuristic' },
+                            { id: 'elite_heritage', title: 'Playfair + Inter', desc: 'Editorial' },
+                            { id: 'brutalist', title: 'Mono Pair', desc: 'Technical' }
+                          ].map((font) => (
+                            <button
+                              key={font.id}
+                              type="button"
+                              onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), font_theme: font.id })}
+                              className={`p-2.5 rounded-xl border text-center transition-all ${
+                                branding.page_layout_settings?.font_theme === font.id 
+                                  ? "bg-slate-900 border-slate-900 text-white shadow-md" 
+                                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                              }`}
+                            >
+                              <div className="text-[11px] font-black uppercase tracking-tight">{font.title}</div>
+                              <div className="text-[9px] text-slate-500 font-bold">{font.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  {/* Accent Gradient Color palette selection */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                      {lang === 'tr' ? '3. PRESTİJ GLOW IŞIMA AKSANI' : '3. PRESTIGE GLOW ACCENT FLARE'}
-                    </span>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { id: 'rose_amber', label: lang === 'tr' ? 'Gül & Turuncu' : 'Rose Amber', fill: 'from-rose-500 to-amber-500' },
-                        { id: 'gold_emerald', label: lang === 'tr' ? 'Altın & Zümrüt' : 'Royal Gold', fill: 'from-amber-400 to-emerald-500' },
-                        { id: 'violet_indigo', label: lang === 'tr' ? 'Mor & Saks' : 'Cosmic Iris', fill: 'from-violet-500 to-indigo-500' },
-                        { id: 'obsidian_mono', label: lang === 'tr' ? 'Kömür & Gümüş' : 'Obsidian Mono', fill: 'from-slate-800 to-slate-400' }
-                      ].map((palette) => (
-                        <button
-                          key={palette.id}
-                          type="button"
-                          onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), accent_gradient_style: palette.id })}
-                          className={`p-2 rounded-xl border transition-all flex flex-col items-center gap-1.5 ${
-                            branding.page_layout_settings?.accent_gradient_style === palette.id
-                              ? "bg-slate-900 border-slate-900 text-white shadow-md scale-[1.02]"
-                              : "bg-white border-slate-200 text-slate-700 hover:bg-white"
-                          }`}
-                        >
-                          <span className={`w-full h-2.5 rounded bg-gradient-to-r ${palette.fill}`} />
-                          <span className="text-[9px] font-black uppercase tracking-tighter truncate w-full text-center">
-                            {palette.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                      {/* Accent Gradient Color palette selection */}
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                          {lang === 'tr' ? '3. PRESTİJ GLOW IŞIMA AKSANI' : '3. PRESTIGE GLOW ACCENT FLARE'}
+                        </span>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { id: 'rose_amber', label: lang === 'tr' ? 'Gül & Turuncu' : 'Rose Amber', fill: 'from-rose-500 to-amber-500' },
+                            { id: 'gold_emerald', label: lang === 'tr' ? 'Altın & Zümrüt' : 'Royal Gold', fill: 'from-amber-400 to-emerald-500' },
+                            { id: 'violet_indigo', label: lang === 'tr' ? 'Mor & Saks' : 'Cosmic Iris', fill: 'from-violet-500 to-indigo-500' },
+                            { id: 'obsidian_mono', label: lang === 'tr' ? 'Kömür & Gümüş' : 'Obsidian Mono', fill: 'from-slate-800 to-slate-400' }
+                          ].map((palette) => (
+                            <button
+                              key={palette.id}
+                              type="button"
+                              onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), accent_gradient_style: palette.id })}
+                              className={`p-2 rounded-xl border transition-all flex flex-col items-center gap-1.5 ${
+                                branding.page_layout_settings?.accent_gradient_style === palette.id
+                                  ? "bg-slate-900 border-slate-900 text-white shadow-md scale-[1.02]"
+                                  : "bg-white border-slate-200 text-slate-700 hover:bg-white"
+                              }`}
+                            >
+                              <span className={`w-full h-2.5 rounded bg-gradient-to-r ${palette.fill}`} />
+                              <span className="text-[9px] font-black uppercase tracking-tighter truncate w-full text-center">
+                                {palette.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  {/* Border radius sharpness element */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                      {lang === 'tr' ? '4. KÖŞE KESKİNLİĞİ HASSASİYETİ' : '4. BORDER RADIUS SHARPNESS'}
-                    </span>
-                    <div className="flex gap-2">
-                      {[
-                        { id: 'extreme', label: lang === 'tr' ? 'Ultra Yumuşak (Kavisli)' : 'Ultra Rounded', radius: 'rounded-[2.5rem]' },
-                        { id: 'sleek', label: lang === 'tr' ? 'Dengeli Modern' : 'Balanced Sleek', radius: 'rounded-xl' },
-                        { id: 'tech_sharp', label: lang === 'tr' ? 'Keskin / Köşeli' : 'Tech Sharp', radius: 'rounded-none' }
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), border_radius: item.id })}
-                          className={`flex-1 p-2 border rounded-xl text-[9px] font-extrabold uppercase transition-all ${
-                            branding.page_layout_settings?.border_radius === item.id
-                              ? "bg-slate-900 border-slate-900 text-white shadow-md"
-                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
+                      {/* Border radius sharpness element */}
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                          {lang === 'tr' ? '4. KÖŞE KESKİNLİĞİ HASSASİYETİ' : '4. BORDER RADIUS SHARPNESS'}
+                        </span>
+                        <div className="flex gap-2">
+                          {[
+                            { id: 'extreme', label: lang === 'tr' ? 'Ultra Yumuşak (Kavisli)' : 'Ultra Rounded', radius: 'rounded-[2.5rem]' },
+                            { id: 'sleek', label: lang === 'tr' ? 'Dengeli Modern' : 'Balanced Sleek', radius: 'rounded-xl' },
+                            { id: 'tech_sharp', label: lang === 'tr' ? 'Keskin / Köşeli' : 'Tech Sharp', radius: 'rounded-none' }
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), border_radius: item.id })}
+                              className={`flex-1 p-2 border rounded-xl text-[9px] font-extrabold uppercase transition-all ${
+                                branding.page_layout_settings?.border_radius === item.id
+                                  ? "bg-slate-900 border-slate-900 text-white shadow-md"
+                                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* Locked premium branding deck notification for non-superadmins */
+                    <div className="p-5 rounded-[2rem] bg-indigo-950/5 border border-indigo-150 text-indigo-950 space-y-3">
+                      <div className="flex items-start gap-4">
+                        <div className="p-2.5 bg-amber-500 text-white rounded-2xl shadow-md shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-widest text-indigo-950">
+                            {lang === 'tr' ? 'VİTRİN VE MARKA TEMALARI KİLİTLİDİR' : 'PREMIUM OUTLOOK IS MANAGED BY HQ'}
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-medium leading-relaxed mt-1.5">
+                            {lang === 'tr' 
+                              ? "Amiral Gemisi Kaptan Köşkü görsel şablonları, lüks vitrin ızgaraları ve tipografi entegrasyonları yalnızca LookPrice Prime Merkez Yönetici Yetkileri (Super Admin) tarafından kontrol edilmektedir. Tasarım güncellemeleri veya şablon talepleriniz için lütfen destek birimiyle iletişime geçin."
+                              : "Flagship layouts, bento grids, prestige accents, and custom border sharpness are locked and fully isolated under centralized Super Admin authority. Contact support for template upgrades."}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* LIVE INTERACTIVE PREVIEW CARD SANDBOX */}
                   <div className="p-4 bg-slate-950 rounded-[2rem] border border-slate-800 text-slate-200 relative overflow-hidden">

@@ -324,4 +324,178 @@ router.post("/registration-requests/:id/reject", async (req: any, res) => {
   }
 });
 
+async function ensureEnrakipsizTables() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS enrakipsiz_settings (
+      id INT PRIMARY KEY,
+      portal_title TEXT,
+      portal_description TEXT,
+      announcement TEXT,
+      primary_color TEXT DEFAULT '#4f46e5',
+      footer_text TEXT
+    );
+  `);
+  
+  // Seed settings if not exists
+  const settingsCheck = await pool.query("SELECT id FROM enrakipsiz_settings WHERE id = 1");
+  if (settingsCheck.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_settings (id, portal_title, portal_description, announcement, primary_color, footer_text)
+      VALUES (1, 'Göz Alıcı İhtişam, Mühendislik Harikası', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '#4f46e5', '© 2026 Enrakipsiz.com. Tüm hakları saklıdır.')
+    `);
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS enrakipsiz_slides (
+      id SERIAL PRIMARY KEY,
+      image_url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      subtitle TEXT NOT NULL,
+      description TEXT,
+      badge TEXT,
+      accent TEXT DEFAULT 'from-indigo-500 to-purple-500',
+      type TEXT,
+      link_url TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS enrakipsiz_ads (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      broker TEXT,
+      description TEXT,
+      profit_badge TEXT,
+      action_text TEXT DEFAULT 'Anında Başvur',
+      link_url TEXT,
+      media_type TEXT DEFAULT 'image',
+      media_url TEXT,
+      position TEXT DEFAULT 'middle',
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Seed default slides if empty
+  const slidesCheck = await pool.query("SELECT id FROM enrakipsiz_slides LIMIT 1");
+  if (slidesCheck.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_slides (image_url, title, subtitle, description, badge, accent, type, is_active)
+      VALUES 
+      ('https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80', 'Göz Alıcı İhtişam, Mühendislik Harikası', 'YENİ NESİL SÜPER SPOR COUPE COIL', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Prestige Motors', 'from-rose-500 to-amber-500', 'vehicle', TRUE),
+      ('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80', 'Prestij Sahibi Seçkin Malikaneler', 'DENİZE SIFIR AKDENİZ VE BOĞAZ YALILARI', 'Eşsiz manzaralara, tam güvenlik donanımına ve modern mimari çizgilere sahip en değerli akredite portföy.', 'Elite Properties', 'from-amber-400 to-yellow-500', 'real_estate', TRUE),
+      ('https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=1200&q=80', 'Zamanın Ötesinde Bir Başyapıt', 'HAUTE-HORLOGERIE SINIRLI SAYI SAATLER', 'Dünya mirası butik markaların özel koleksiyoncu serisi mekanik saatlerini ve nadide aksesuarlarını keşfedin.', 'Grand Boutique', 'from-purple-500 to-pink-500', 'product', TRUE)
+    `);
+  }
+
+  // Seed default ads if empty
+  const adsCheck = await pool.query("SELECT id FROM enrakipsiz_ads LIMIT 1");
+  if (adsCheck.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_ads (title, broker, description, profit_badge, action_text, link_url, media_type, media_url, position, is_active)
+      VALUES
+      ('Enrakipsiz Özel Taşıt & Konut Finansmanı', 'LOOKPRICE BANK PARTNERS', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '%1.19 Tercihli Faiz', 'Anında Başvur', '', 'image', 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=400&q=80', 'middle', TRUE),
+      ('7/24 VIP Concierge & Ekspertiz Sigortası', 'LOOKPRICE LUXURY CARE', 'Satın aldığınız tüm araç veya villalar için adrese teslimat, noter takibi, sigorta poliçesi ve 12 ay mekanik garanti paketi avantajları.', 'Full Teminat Güvencesi', 'Hizmeti İncele', '', 'image', 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=400&q=80', 'middle', TRUE),
+      ('Burada Yer Alın: Aylık 1.2M+ Nitelikli Ziyaretçi', 'ENRAKİPSİZ SPONSOR NETWORK', 'Markanızı, projenizi veya özel hizmetlerinizi portalımızda sergileyerek doğrudan Alıcı ve Satıcı premium kitleyle buluşturun.', 'Yüksek Prestij & Dönüşüm', 'Sponsor Ol', '', 'image', '', 'middle', TRUE)
+    `);
+  }
+}
+
+router.get("/enrakipsiz/settings", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const settings = await pool.query("SELECT * FROM enrakipsiz_settings WHERE id = 1");
+    const slides = await pool.query("SELECT * FROM enrakipsiz_slides ORDER BY id ASC");
+    const ads = await pool.query("SELECT * FROM enrakipsiz_ads ORDER BY id ASC");
+    res.json({
+      settings: settings.rows[0],
+      slides: slides.rows,
+      ads: ads.rows
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/enrakipsiz/settings", async (req: any, res) => {
+  const { portal_title, portal_description, announcement, primary_color, footer_text } = req.body;
+  try {
+    await ensureEnrakipsizTables();
+    await pool.query(`
+      UPDATE enrakipsiz_settings
+      SET portal_title = $1, portal_description = $2, announcement = $3, primary_color = $4, footer_text = $5
+      WHERE id = 1
+    `, [portal_title, portal_description, announcement, primary_color, footer_text]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/enrakipsiz/slides", async (req: any, res) => {
+  const { id, image_url, title, subtitle, description, badge, accent, type, link_url, is_active } = req.body;
+  try {
+    await ensureEnrakipsizTables();
+    if (id) {
+      await pool.query(`
+        UPDATE enrakipsiz_slides
+        SET image_url = $1, title = $2, subtitle = $3, description = $4, badge = $5, accent = $6, type = $7, link_url = $8, is_active = $9
+        WHERE id = $10
+      `, [image_url, title, subtitle, description, badge, accent, type, link_url, is_active, id]);
+    } else {
+      await pool.query(`
+        INSERT INTO enrakipsiz_slides (image_url, title, subtitle, description, badge, accent, type, link_url, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [image_url, title, subtitle, description, badge, accent, type, link_url, is_active]);
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/enrakipsiz/slides/:id", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    await pool.query("DELETE FROM enrakipsiz_slides WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/enrakipsiz/ads", async (req: any, res) => {
+  const { id, title, broker, description, profit_badge, action_text, link_url, media_type, media_url, position, is_active } = req.body;
+  try {
+    await ensureEnrakipsizTables();
+    if (id) {
+      await pool.query(`
+        UPDATE enrakipsiz_ads
+        SET title = $1, broker = $2, description = $3, profit_badge = $4, action_text = $5, link_url = $6, media_type = $7, media_url = $8, position = $9, is_active = $10
+        WHERE id = $11
+      `, [title, broker, description, profit_badge, action_text, link_url, media_type, media_url, position, is_active, id]);
+    } else {
+      await pool.query(`
+        INSERT INTO enrakipsiz_ads (title, broker, description, profit_badge, action_text, link_url, media_type, media_url, position, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [title, broker, description, profit_badge, action_text, link_url, media_type, media_url, position, is_active]);
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/enrakipsiz/ads/:id", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    await pool.query("DELETE FROM enrakipsiz_ads WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 export default router;

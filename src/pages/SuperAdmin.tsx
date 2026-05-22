@@ -20,7 +20,11 @@ import {
   Download,
   FileSpreadsheet,
   Mail,
-  Phone
+  Phone,
+  Megaphone,
+  Sparkles,
+  ExternalLink,
+  SlidersHorizontal
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from "motion/react";
@@ -60,6 +64,133 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [leadSearchTerm, setLeadSearchTerm] = useState("");
   const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [leadFilter, setLeadFilter] = useState<'all' | 'new' | 'contacted' | 'converted'>('all');
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'enrakipsiz'>('dashboard');
+  
+  // Enrakipsiz states
+  const [enrakipsizSettings, setEnrakipsizSettings] = useState<any>({
+    portal_title: "",
+    portal_description: "",
+    announcement: "",
+    primary_color: "#4f46e5",
+    footer_text: ""
+  });
+  const [enrakipsizSlides, setEnrakipsizSlides] = useState<any[]>([]);
+  const [enrakipsizAds, setEnrakipsizAds] = useState<any[]>([]);
+  const [loadingEnrakipsiz, setLoadingEnrakipsiz] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  
+  // Slide & Ad Form Modal states
+  const [editingSlide, setEditingSlide] = useState<any | null>(null);
+  const [editingAd, setEditingAd] = useState<any | null>(null);
+  const [showSlideModal, setShowSlideModal] = useState(false);
+  const [showAdModal, setShowAdModal] = useState(false);
+
+  const fetchEnrakipsizData = async () => {
+    try {
+      setLoadingEnrakipsiz(true);
+      const res = await api.getEnrakipsizSettings();
+      if (res && !res.error) {
+        setEnrakipsizSettings(res.settings || {
+          portal_title: "Göz Alıcı İhtişam, Mühendislik Harikası",
+          portal_description: "Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.",
+          announcement: "Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.",
+          primary_color: "#4f46e5",
+          footer_text: "© 2026 Enrakipsiz.com. Tüm hakları saklıdır."
+        });
+        setEnrakipsizSlides(res.slides || []);
+        setEnrakipsizAds(res.ads || []);
+      }
+    } catch (err) {
+      console.error("Enrakipsiz data fetch err:", err);
+    } finally {
+      setLoadingEnrakipsiz(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'enrakipsiz') {
+      fetchEnrakipsizData();
+    }
+  }, [activeTab]);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingSettings(true);
+      const res = await api.saveEnrakipsizSettings(enrakipsizSettings);
+      if (res && !res.error) {
+        alert(lang === 'tr' ? "Ayarlar başarıyla kaydedildi!" : "Settings saved successfully!");
+        fetchEnrakipsizData();
+      } else {
+        alert(res.error || "Hata oluştu");
+      }
+    } catch (err) {
+      alert("Hata oluştu");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleSaveSlide = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.saveEnrakipsizSlide(editingSlide);
+      if (res && !res.error) {
+        setShowSlideModal(false);
+        setEditingSlide(null);
+        fetchEnrakipsizData();
+      } else {
+        alert(res.error || "Hata oluştu");
+      }
+    } catch (err) {
+      alert("Hata oluştu");
+    }
+  };
+
+  const handleDeleteSlide = async (id: number) => {
+    if (!confirm(lang === 'tr' ? "Bu slaytı silmek istediğinize emin misiniz?" : "Are you sure you want to delete this slide?")) return;
+    try {
+      const res = await api.deleteEnrakipsizSlide(id);
+      if (res && !res.error) {
+        fetchEnrakipsizData();
+      } else {
+        alert(res.error || "Hata oluştu");
+      }
+    } catch (err) {
+      alert("Hata oluştu");
+    }
+  };
+
+  const handleSaveAd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.saveEnrakipsizAd(editingAd);
+      if (res && !res.error) {
+        setShowAdModal(false);
+        setEditingAd(null);
+        fetchEnrakipsizData();
+      } else {
+        alert(res.error || "Hata oluştu");
+      }
+    } catch (err) {
+      alert("Hata oluştu");
+    }
+  };
+
+  const handleDeleteAd = async (id: number) => {
+    if (!confirm(lang === 'tr' ? "Bu reklamı silmek istediğinize emin misiniz?" : "Are you sure you want to delete this ad?")) return;
+    try {
+      const res = await api.deleteEnrakipsizAd(id);
+      if (res && !res.error) {
+        fetchEnrakipsizData();
+      } else {
+        alert(res.error || "Hata oluştu");
+      }
+    } catch (err) {
+      alert("Hata oluştu");
+    }
+  };
 
   const exportStoresToExcel = () => {
     const exportData = stores.map(s => ({
@@ -276,7 +407,316 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* Tab Switcher */}
+      <div className="flex border-b border-gray-200 mb-8 gap-1 md:gap-4 overflow-x-auto whitespace-nowrap">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`pb-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'dashboard'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <Activity className="h-4 w-4" /> Mağaza & Talepler Yönetimi
+        </button>
+        <button
+          onClick={() => setActiveTab('enrakipsiz')}
+          className={`pb-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'enrakipsiz'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <Megaphone className="h-4 w-4 text-rose-500 animate-pulse" /> ⚓ enrakipsiz.com Tema & Reklam Kaptan Köşkü
+        </button>
+      </div>
+
+      {activeTab === 'enrakipsiz' ? (
+        <div className="space-y-8">
+          {/* Header notification banner */}
+          <div className="bg-slate-900 text-white p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-800 shadow-lg">
+            <div>
+              <div className="flex items-center gap-2 text-rose-500 font-bold mb-1">
+                <Sparkles className="h-5 w-5" />
+                <span className="text-xs uppercase tracking-wider">CTO KONTROL SİSTEMİ</span>
+              </div>
+              <h2 className="text-xl font-black">enrakipsiz.com Portal Yönetim Sistemi</h2>
+              <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                lookprice altyapısı üzerinde koşan enrakipsiz.com portal vitrinini, sponsor reklam alanlarını ve tüm görsel temayı tek panelden yönetin.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <a 
+                href="/marketplace" 
+                target="_blank" 
+                referrerPolicy="no-referrer"
+                className="bg-slate-800 text-slate-200 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition-all border border-slate-700 flex items-center gap-1.5"
+              >
+                Portalı Canlı Gör <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            
+            {/* COLUMN 1: PORTAL CORE SETTINGS */}
+            <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-6 h-fit">
+              <div>
+                <h3 className="text-md font-bold text-gray-900 border-b pb-3 mb-4 flex items-center gap-2">
+                  <SlidersHorizontal className="h-5 w-5 text-indigo-600" /> Portal Tema & Metin Ayarları
+                </h3>
+                <p className="text-xs text-gray-550 mb-4 font-medium">Portaldaki başlıkları, renkleri ve duyuru alanlarını dilediğinizce değiştirin.</p>
+              </div>
+
+              {loadingEnrakipsiz ? (
+                <div className="py-12 text-center text-sm text-gray-450 font-bold animate-pulse">
+                  Ayarlar Yükleniyor...
+                </div>
+              ) : (
+                <form onSubmit={handleSaveSettings} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Portal Giriş Ana Başlığı</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                      value={enrakipsizSettings.portal_title || ""}
+                      onChange={e => setEnrakipsizSettings({...enrakipsizSettings, portal_title: e.target.value})}
+                      placeholder="Göz Alıcı İhtişam, Mühendislik Harikası"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Giriş Alt Başlık Açıklaması</label>
+                    <textarea 
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs h-24"
+                      value={enrakipsizSettings.portal_description || ""}
+                      onChange={e => setEnrakipsizSettings({...enrakipsizSettings, portal_description: e.target.value})}
+                      placeholder="En seçkin ilanlar..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Bar Duyuru & Kampanya Barı Metni</label>
+                    <textarea 
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs h-24"
+                      value={enrakipsizSettings.announcement || ""}
+                      onChange={e => setEnrakipsizSettings({...enrakipsizSettings, announcement: e.target.value})}
+                      placeholder="Kişiye özel prestij kredisi..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Footer / Telif Hakkı Yazısı</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                      value={enrakipsizSettings.footer_text || ""}
+                      onChange={e => setEnrakipsizSettings({...enrakipsizSettings, footer_text: e.target.value})}
+                      placeholder="© 2026 Enrakipsiz.com. Tüm hakları saklıdır."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Portal Tema Vurgu Rengi</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="color" 
+                        className="h-10 w-10 border border-gray-200 rounded-xl p-0.5 cursor-pointer"
+                        value={enrakipsizSettings.primary_color || "#4f46e5"}
+                        onChange={e => setEnrakipsizSettings({...enrakipsizSettings, primary_color: e.target.value})}
+                      />
+                      <input 
+                        type="text" 
+                        className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs uppercase font-mono"
+                        value={enrakipsizSettings.primary_color || "#4f46e5"}
+                        onChange={e => setEnrakipsizSettings({...enrakipsizSettings, primary_color: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={savingSettings}
+                    className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-sm transition-all text-xs disabled:bg-indigo-400"
+                  >
+                    {savingSettings ? "Kaydediliyor..." : "Portal Ayarlarını Kaydet"}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* COLUMN 2, 3, 4: SLIDERS & ADS */}
+            <div className="lg:col-span-3 space-y-8">
+              
+              {/* SLIDERS SECTION */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm">
+                <div className="flex justify-between items-center border-b pb-3 mb-4">
+                  <div>
+                    <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+                      <SlidersHorizontal className="h-5 w-5 text-indigo-600" /> Vitrin Slaytları (Slideshow)
+                    </h3>
+                    <p className="text-[10px] text-gray-450 font-semibold mt-0.5">Portalın en üstünde dönen büyük banner sistemi</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingSlide({
+                        image_url: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200",
+                        title: "Yepyeni Bir Vitrin",
+                        subtitle: "MİMARİ VEYA SÜPER SPOR COUPE",
+                        description: "Kullanıcıları büyüleyecek şahane bir ürün veya mülk listeleme slide bannerı.",
+                        badge: "Sponsor Marka",
+                        accent: "from-indigo-500 to-purple-500",
+                        type: "vehicle",
+                        link_url: "",
+                        is_active: true
+                      });
+                      setShowSlideModal(true);
+                    }}
+                    className="bg-indigo-50 text-indigo-600 px-3.5 py-1.5 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-all flex items-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" /> Slayt Ekle
+                  </button>
+                </div>
+
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                  {enrakipsizSlides.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-gray-500 font-bold">Slayt bulunmamaktadır.</div>
+                  ) : (
+                    enrakipsizSlides.map((slide) => (
+                      <div key={slide.id} className="p-3.5 border rounded-xl flex items-center justify-between gap-4 hover:bg-gray-50/50 transition-all">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={slide.image_url} 
+                            alt={slide.title} 
+                            className="h-12 w-16 object-cover rounded-lg border border-gray-200"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div>
+                            <div className="font-bold text-xs text-gray-900 line-clamp-1">{slide.title}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] font-bold text-indigo-600 uppercase">{slide.badge}</span>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-[10px] text-gray-450 font-mono italic capitalize">{slide.type}</span>
+                              <span className="text-gray-300">•</span>
+                              <span className={`text-[10px] font-bold ${slide.is_active ? 'text-green-600' : 'text-gray-400'}`}>
+                                {slide.is_active ? 'Aktif' : 'Pasif'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingSlide(slide);
+                              setShowSlideModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                            title="Slaytı Düzenle"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSlide(slide.id)}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Slaytı Sil"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* SPONSOR ADS / REKLAM YÖNETİMİ */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm">
+                <div className="flex justify-between items-center border-b pb-3 mb-4">
+                  <div>
+                    <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+                      <Megaphone className="h-5 w-5 text-indigo-600" /> Reklam & Sponsor Alanları Yönetimi (Bannerlar)
+                    </h3>
+                    <p className="text-[10px] text-gray-450 font-semibold mt-0.5">Reklam verenlerin görsellerini, video reklamlarını ve özel kampanya linklerini yönetin</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingAd({
+                        title: "Özel Banka Taşıt Kredisi",
+                        broker: "LOOKPRICE BANK PARTNERS",
+                        description: "Sadece portal müşterilerine özel fırsat...",
+                        profit_badge: "%1.19 Faiz",
+                        action_text: "Yarın Başvur",
+                        link_url: "",
+                        media_type: "image",
+                        media_url: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=400",
+                        position: "middle",
+                        is_active: true
+                      });
+                      setShowAdModal(true);
+                    }}
+                    className="bg-indigo-50 text-indigo-600 px-3.5 py-1.5 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-all flex items-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" /> Reklam Ekle
+                  </button>
+                </div>
+
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                  {enrakipsizAds.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-gray-450">Kayıtlı reklam kampanyası bulunmuyor.</div>
+                  ) : (
+                    enrakipsizAds.map((ad) => (
+                      <div key={ad.id} className="p-3.5 border rounded-xl flex items-center justify-between gap-4 hover:bg-gray-50/50 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 bg-slate-950 text-white rounded-lg flex items-center justify-center font-bold text-[10px]">
+                            REK
+                          </div>
+                          <div>
+                            <div className="font-bold text-xs text-gray-900 line-clamp-1">{ad.title}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-gray-500 font-bold">{ad.broker}</span>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-[10px] font-mono text-indigo-600">{ad.profit_badge}</span>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-[9px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded uppercase font-bold">{ad.position}</span>
+                              <span className="text-gray-300">•</span>
+                              <span className={`text-[10px] font-bold ${ad.is_active ? 'text-green-600' : 'text-gray-400'}`}>
+                                {ad.is_active ? 'Aktif' : 'Pasif'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingAd(ad);
+                              setShowAdModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                            title="Reklamı Düzenle"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAd(ad.id)}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Reklamı Sil"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <div className="p-2 bg-indigo-50 rounded-lg">
@@ -600,6 +1040,237 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           </div>
         </section>
       </div>
+      </>
+      )}
+
+      <AnimatePresence>
+        {showSlideModal && editingSlide && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-6 rounded-2xl max-w-lg w-full relative max-h-[90vh] overflow-y-auto"
+            >
+              <button onClick={() => setShowSlideModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+              <h2 className="text-xl font-bold mb-5">Vitrin Slaytı Düzenle / Ekle</h2>
+              <form onSubmit={handleSaveSlide} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Başlık (Title)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingSlide.title || ""} 
+                    onChange={e => setEditingSlide({...editingSlide, title: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Alt Başlık (Subtitle)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingSlide.subtitle || ""} 
+                    onChange={e => setEditingSlide({...editingSlide, subtitle: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Açıklama (Description)</label>
+                  <textarea 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs h-16" 
+                    value={editingSlide.description || ""} 
+                    onChange={e => setEditingSlide({...editingSlide, description: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Görsel Adresi (Image URL)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingSlide.image_url || ""} 
+                    onChange={e => setEditingSlide({...editingSlide, image_url: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sponsor/Yayınlayan Rozeti</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingSlide.badge || ""} 
+                    onChange={e => setEditingSlide({...editingSlide, badge: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Kategori Türü (Type)</label>
+                  <select 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs" 
+                    value={editingSlide.type || "vehicle"} 
+                    onChange={e => setEditingSlide({...editingSlide, type: e.target.value})}
+                  >
+                    <option value="vehicle">Otomobil & Araç</option>
+                    <option value="real_estate">Emlak & Gayrimenkul</option>
+                    <option value="product">Diğer Özel Ürünler</option>
+                    <option value="all">Genel</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tıklama Yönlendirme Linki (Link URL)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingSlide.link_url || ""} 
+                    onChange={e => setEditingSlide({...editingSlide, link_url: e.target.value})} 
+                    placeholder="Eşleşen ilan veya dış link"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Kart Renk Geçiş Grubu (Accent Gradient)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono" 
+                    value={editingSlide.accent || "from-indigo-500 to-purple-500"} 
+                    onChange={e => setEditingSlide({...editingSlide, accent: e.target.value})} 
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="slide-is-active"
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" 
+                    checked={editingSlide.is_active !== false} 
+                    onChange={e => setEditingSlide({...editingSlide, is_active: e.target.checked})} 
+                  />
+                  <label htmlFor="slide-is-active" className="text-sm font-semibold text-gray-700">Bu slayt aktif vizyonda gösterilsin</label>
+                </div>
+                <div className="flex space-x-2 pt-3">
+                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-xs">Kaydet</button>
+                  <button type="button" onClick={() => setShowSlideModal(false)} className="flex-1 bg-gray-100 text-gray-950 py-2 rounded-lg font-bold text-xs">İptal</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {showAdModal && editingAd && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-6 rounded-2xl max-w-lg w-full relative max-h-[90vh] overflow-y-auto"
+            >
+              <button onClick={() => setShowAdModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+              <h2 className="text-xl font-bold mb-5">Sponsor Reklam Kampanyası Düzenle / Ekle</h2>
+              <form onSubmit={handleSaveAd} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Reklam Kampanya Başlığı</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingAd.title || ""} 
+                    onChange={e => setEditingAd({...editingAd, title: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Reklam Veren Broker (Yayınlayan)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingAd.broker || ""} 
+                    onChange={e => setEditingAd({...editingAd, broker: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Kampanya Açıklama Metni</label>
+                  <textarea 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs h-16" 
+                    value={editingAd.description || ""} 
+                    onChange={e => setEditingAd({...editingAd, description: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Slogan Rozeti (e.g., %1.19 Tercihli Faiz)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingAd.profit_badge || ""} 
+                    onChange={e => setEditingAd({...editingAd, profit_badge: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Buton Aksiyon Yazısı</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingAd.action_text || "Hemen Keşfet"} 
+                    onChange={e => setEditingAd({...editingAd, action_text: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Reklam Tıklama Linki (Link URL)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingAd.link_url || ""} 
+                    onChange={e => setEditingAd({...editingAd, link_url: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Medya Türü</label>
+                  <select 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs" 
+                    value={editingAd.media_type || "image"} 
+                    onChange={e => setEditingAd({...editingAd, media_type: e.target.value})}
+                  >
+                    <option value="image">Görsel (Image URL)</option>
+                    <option value="video">Promosyon Videosu (Youtube/Video Link)</option>
+                    <option value="html">Özel HTML Kod bloğu / Metin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Medya URL Adresi (Görsel veya Video linki)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingAd.media_url || ""} 
+                    onChange={e => setEditingAd({...editingAd, media_url: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Yerleşim Pozisyonu (Layout Position)</label>
+                  <select 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs" 
+                    value={editingAd.position || "middle"} 
+                    onChange={e => setEditingAd({...editingAd, position: e.target.value})}
+                  >
+                    <option value="top">Üst Duyuru Altı Banner</option>
+                    <option value="middle">İlan Kartları Arası Büyük Sponsor Kartı</option>
+                    <option value="sidebar">Sağ/Sol Yan Sütun Reklamı</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="ad-is-active"
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" 
+                    checked={editingAd.is_active !== false} 
+                    onChange={e => setEditingAd({...editingAd, is_active: e.target.checked})} 
+                  />
+                  <label htmlFor="ad-is-active" className="text-sm font-semibold text-gray-700">Bu kampanya yayında ve aktif gösterilsin</label>
+                </div>
+                <div className="flex space-x-2 pt-3">
+                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-xs">Kaydet</button>
+                  <button type="button" onClick={() => setShowAdModal(false)} className="flex-1 bg-gray-100 text-gray-950 py-2 rounded-lg font-bold text-xs">İptal</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {selectedLead && (

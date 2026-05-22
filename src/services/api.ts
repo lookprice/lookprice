@@ -238,6 +238,15 @@ export const api = {
   updateStore: (id: number, data: any) => api.put(`/api/admin/stores/${id}`, data),
   deleteStore: (id: number, password: any) => api.post(`/api/admin/stores/${id}/delete`, { password }),
 
+  // Enrakipsiz Portal & Ad Management Methods
+  getEnrakipsizSettings: () => api.get("/api/admin/enrakipsiz/settings"),
+  saveEnrakipsizSettings: (data: any) => api.post("/api/admin/enrakipsiz/settings", data),
+  saveEnrakipsizSlide: (data: any) => api.post("/api/admin/enrakipsiz/slides", data),
+  deleteEnrakipsizSlide: (id: number) => api.delete(`/api/admin/enrakipsiz/slides/${id}`),
+  saveEnrakipsizAd: (data: any) => api.post("/api/admin/enrakipsiz/ads", data),
+  deleteEnrakipsizAd: (id: number) => api.delete(`/api/admin/enrakipsiz/ads/${id}`),
+  getPublicEnrakipsizPortal: () => api.get("/api/public/enrakipsiz/portal"),
+
   uploadFile: (formData: FormData) => api.upload("/api/upload", formData),
   
   // Supplier APIs

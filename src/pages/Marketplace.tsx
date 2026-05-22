@@ -23,7 +23,8 @@ import {
   Briefcase,
   HelpCircle,
   Megaphone,
-  UserCheck
+  UserCheck,
+  Maximize2
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
@@ -38,6 +39,24 @@ export const Marketplace = () => {
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
+  
+  // Gallery states
+  const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveDetailImageIndex(0);
+  }, [selectedListing]);
+
+  const modalImages: string[] = [];
+  if (selectedListing) {
+    if (Array.isArray(selectedListing.images) && selectedListing.images.length > 0) {
+      modalImages.push(...selectedListing.images);
+    } else if (selectedListing.image_url) {
+      modalImages.push(selectedListing.image_url);
+    }
+  }
+  const activeImage = modalImages[activeDetailImageIndex] || selectedListing?.image_url;
   
   // Luxury Slide states
   const [activeSlide, setActiveSlide] = useState(0);
@@ -615,22 +634,113 @@ export const Marketplace = () => {
           <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]">
             
             {/* Left Image Screen */}
-            <div className="w-full md:w-1/2 aspect-[4/3] md:aspect-auto bg-slate-950 relative border-b md:border-b-0 md:border-r border-slate-800">
-              {selectedListing.image_url ? (
-                <img 
-                  src={selectedListing.image_url} 
-                  alt={selectedListing.title} 
-                  className="w-full h-full object-cover" 
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-slate-700 bg-slate-950">
-                  <Package className="w-16 h-16 opacity-30 text-rose-500" />
-                  <span className="text-xs font-bold tracking-widest text-slate-600 mt-2">Detay Görseli Bulunmuyor</span>
-                </div>
-              )}
+            <div className="w-full md:w-1/2 min-h-[350px] md:min-h-0 bg-slate-950 relative border-b md:border-b-0 md:border-r border-slate-800 flex flex-col justify-between">
               
-              <div className="absolute top-4 left-4 min-h-[1.5rem] px-2.5 py-1 bg-slate-950/80 text-rose-400 text-[10px] font-extrabold tracking-wider rounded-lg border border-slate-850">
+              {/* Main Image Holder */}
+              <div className="flex-1 relative w-full min-h-[220px] md:h-0 group overflow-hidden flex items-center justify-center">
+                {activeImage ? (
+                  <img 
+                    src={activeImage} 
+                    alt={selectedListing.title} 
+                    className="w-full h-full object-cover cursor-zoom-in transition-transform duration-300 hover:scale-[1.02]" 
+                    referrerPolicy="no-referrer"
+                    onDoubleClick={() => setZoomedImage(activeImage)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-700 bg-slate-950 min-h-[220px]">
+                    <Package className="w-16 h-16 opacity-30 text-rose-500" />
+                    <span className="text-xs font-bold tracking-widest text-slate-600 mt-2">Detay Görseli Bulunmuyor</span>
+                  </div>
+                )}
+
+                {/* Double click helper overlay */}
+                {activeImage && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                    <div className="bg-slate-900/95 text-xs text-white px-3 py-1.5 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold shadow-xl">
+                      <Maximize2 className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                      Çift Tıklayarak Büyüt
+                    </div>
+                  </div>
+                )}
+
+                {/* Explicit Expand button (another way to expand) */}
+                {activeImage && (
+                  <button
+                    onClick={() => setZoomedImage(activeImage)}
+                    className="absolute right-3.5 top-3.5 z-10 p-2 text-white bg-slate-900/90 hover:bg-rose-600 rounded-xl border border-slate-800 hover:scale-105 transition shadow-lg flex items-center gap-1.5 font-bold text-[10px] tracking-wider uppercase group/btn"
+                    title="Büyütmek için tıklayın"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-rose-400 group-hover/btn:text-white" />
+                    <span>Büyüt</span>
+                  </button>
+                )}
+
+                {/* Next / Prev buttons inside the big image */}
+                {modalImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveDetailImageIndex((prev) => (prev - 1 + modalImages.length) % modalImages.length);
+                      }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-800 text-white flex items-center justify-center hover:bg-rose-500 transition-all shadow"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveDetailImageIndex((prev) => (prev + 1) % modalImages.length);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-800 text-white flex items-center justify-center hover:bg-rose-500 transition-all shadow"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Bottom Thumbnail area for multiple images */}
+              <div className="p-4 bg-slate-950/40 border-t border-slate-850">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    Portföy Fotoğrafları
+                  </span>
+                  {modalImages.length > 0 && (
+                    <span className="text-[10px] font-black text-rose-400 bg-rose-500/10 px-2.5 py-0.5 rounded border border-rose-500/20">
+                      {activeDetailImageIndex + 1} / {modalImages.length}
+                    </span>
+                  )}
+                </div>
+
+                {modalImages.length > 1 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+                    {modalImages.map((imgUrl, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveDetailImageIndex(i)}
+                        className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
+                          activeDetailImageIndex === i 
+                            ? 'border-rose-500 scale-105 shadow-lg shadow-rose-950/40' 
+                            : 'border-slate-850 opacity-60 hover:opacity-100 hover:border-slate-700'
+                        }`}
+                      >
+                        <img 
+                          src={imgUrl} 
+                          alt={`Thumbnail ${i + 1}`} 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-600 font-medium">Bu ilanda sadece tek görsel bulunmaktadır.</p>
+                )}
+              </div>
+
+              {/* Tag overlay for category */}
+              <div className="absolute top-4 left-4 min-h-[1.5rem] px-2.5 py-1 bg-slate-950/85 text-rose-400 text-[10px] font-extrabold tracking-wider rounded-lg border border-slate-850 z-10 pointer-events-none">
                 {selectedListing.category}
               </div>
             </div>
@@ -714,6 +824,31 @@ export const Marketplace = () => {
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* Zoomed Image Lightbox */}
+      {zoomedImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl transition-all duration-300 cursor-zoom-out"
+          onClick={() => setZoomedImage(null)}
+        >
+          <button 
+            onClick={() => setZoomedImage(null)}
+            className="absolute top-6 right-6 p-3 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:scale-105 transition shadow-lg text-sm font-bold active:scale-95 animate-pulse"
+          >
+            ✕ Kapat
+          </button>
+          <div className="relative max-w-5xl max-h-[85vh] overflow-hidden rounded-3xl border border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={zoomedImage} 
+              alt="Yüksek Çözünürlüklü İlan Detayı" 
+              className="w-full h-full max-h-[85vh] object-contain select-none" 
+              referrerPolicy="no-referrer"
+              onClick={() => setZoomedImage(null)}
+            />
+          </div>
+          <p className="text-slate-500 text-xs mt-4 select-none">Görselin üzerine veya dışına tıklayarak kapatabilirsiniz.</p>
         </div>
       )}
 

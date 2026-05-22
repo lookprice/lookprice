@@ -128,46 +128,186 @@ function generateIyzicoSignature(apiKey: string, secretKey: string, randomString
   return hash;
 }
 
+router.get("/enrakipsiz/portal", async (req, res) => {
+  try {
+    // Self-heal table structure if not yet initialized
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS enrakipsiz_settings (
+        id INT PRIMARY KEY,
+        portal_title TEXT,
+        portal_description TEXT,
+        announcement TEXT,
+        primary_color TEXT DEFAULT '#4f46e5',
+        footer_text TEXT
+      );
+    `);
+    const settingsCheck = await pool.query("SELECT id FROM enrakipsiz_settings WHERE id = 1");
+    if (settingsCheck.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO enrakipsiz_settings (id, portal_title, portal_description, announcement, primary_color, footer_text)
+        VALUES (1, 'Göz Alıcı İhtişam, Mühendislik Harikası', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '#4f46e5', '© 2026 Enrakipsiz.com. Tüm hakları saklıdır.')
+      `);
+    }
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS enrakipsiz_slides (
+        id SERIAL PRIMARY KEY,
+        image_url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        subtitle TEXT NOT NULL,
+        description TEXT,
+        badge TEXT,
+        accent TEXT DEFAULT 'from-indigo-500 to-purple-500',
+        type TEXT,
+        link_url TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS enrakipsiz_ads (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        broker TEXT,
+        description TEXT,
+        profit_badge TEXT,
+        action_text TEXT DEFAULT 'Anında Başvur',
+        link_url TEXT,
+        media_type TEXT DEFAULT 'image',
+        media_url TEXT,
+        position TEXT DEFAULT 'middle',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const slidesCheck = await pool.query("SELECT id FROM enrakipsiz_slides LIMIT 1");
+    if (slidesCheck.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO enrakipsiz_slides (image_url, title, subtitle, description, badge, accent, type, is_active)
+        VALUES 
+        ('https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80', 'Göz Alıcı İhtişam, Mühendislik Harikası', 'YENİ NESİL SÜPER SPOR COUPE COIL', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Prestige Motors', 'from-rose-500 to-amber-500', 'vehicle', TRUE),
+        ('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80', 'Prestij Sahibi Seçkin Malikaneler', 'DENİZE SIFIR AKDENİZ VE BOĞAZ YALILARI', 'Eşsiz manzaralara, tam güvenlik donanımına ve modern mimari çizgilere sahip en değerli akredite portföy.', 'Elite Properties', 'from-amber-400 to-yellow-500', 'real_estate', TRUE),
+        ('https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=1200&q=80', 'Zamanın Ötesinde Bir Başyapıt', 'HAUTE-HORLOGERIE SINIRLI SAYI SAATLER', 'Dünya mirası butik markaların özel koleksiyoncu serisi mekanik saatlerini ve nadide aksesuarlarını keşfedin.', 'Grand Boutique', 'from-purple-500 to-pink-500', 'product', TRUE)
+      `);
+    }
+
+    const adsCheck = await pool.query("SELECT id FROM enrakipsiz_ads LIMIT 1");
+    if (adsCheck.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO enrakipsiz_ads (title, broker, description, profit_badge, action_text, link_url, media_type, media_url, position, is_active)
+        VALUES
+        ('Enrakipsiz Özel Taşıt & Konut Finansmanı', 'LOOKPRICE BANK PARTNERS', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '%1.19 Tercihli Faiz', 'Anında Başvur', '', 'image', 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=400&q=80', 'middle', TRUE),
+        ('7/24 VIP Concierge & Ekspertiz Sigortası', 'LOOKPRICE LUXURY CARE', 'Satın aldığınız tüm araç veya villalar için adrese teslimat, noter takibi, sigorta poliçesi ve 12 ay mekanik garanti paketi avantajları.', 'Full Teminat Güvencesi', 'Hizmeti İncele', '', 'image', 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=400&q=80', 'middle', TRUE),
+        ('Burada Yer Alın: Aylık 1.2M+ Nitelikli Ziyaretçi', 'ENRAKİPSİZ SPONSOR NETWORK', 'Markanızı, projenizi veya özel hizmetlerinizi portalımızda sergileyerek doğrudan Alıcı ve Satıcı premium kitleyle buluşturun.', 'Yüksek Prestij & Dönüşüm', 'Sponsor Ol', '', 'image', '', 'middle', TRUE)
+      `);
+    }
+
+    const settings = await pool.query("SELECT * FROM enrakipsiz_settings WHERE id = 1");
+    const slides = await pool.query("SELECT * FROM enrakipsiz_slides WHERE is_active = TRUE ORDER BY id ASC");
+    const ads = await pool.query("SELECT * FROM enrakipsiz_ads WHERE is_active = TRUE ORDER BY id ASC");
+    
+    res.json({
+      settings: settings.rows[0],
+      slides: slides.rows,
+      ads: ads.rows
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Public: Mega Portal Marketplace combined listings
 router.get("/marketplace/listings", async (req, res) => {
   try {
-    const productsRes = await pool.query(`
-      SELECT p.id, p.store_id, p.name, p.description, p.price, p.currency, p.image_url, p.category, p.brand, p.created_at, s.name as store_name, s.slug as store_slug
-      FROM products p 
-      JOIN stores s ON p.store_id = s.id
-      WHERE (p.is_web_sale = true OR p.is_web_sale IS NULL)
-      ORDER BY p.created_at DESC
-      LIMIT 100
-    `);
+    let productsList: any[] = [];
+    try {
+      const productsRes = await pool.query(`
+        SELECT p.id, p.store_id, p.name, p.description, p.price, p.currency, p.image_url, p.category, p.brand, p.created_at, s.name as store_name, s.slug as store_slug
+        FROM products p 
+        JOIN stores s ON p.store_id = s.id
+        WHERE (p.is_web_sale = true OR p.is_web_sale IS NULL)
+        ORDER BY p.created_at DESC
+        LIMIT 100
+      `);
+      productsList = productsRes.rows || [];
+    } catch (error: any) {
+      console.error("Marketplace products query soft-failed:", error);
+    }
 
-    // Check if there are any vehicles with is_on_enrakipsiz active
-    const hasEnrakipsizVehicles = await pool.query(`SELECT 1 FROM vehicles WHERE status = 'for_sale' AND is_on_enrakipsiz = true LIMIT 1`);
-    const vehicleFilter = hasEnrakipsizVehicles.rows.length > 0 ? "AND v.is_on_enrakipsiz = true" : "";
+    let vehiclesList: any[] = [];
+    try {
+      // Self-heal vehicles schema if is_on_enrakipsiz is missing
+      await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
+      
+      const hasEnrakipsizVehicles = await pool.query(`SELECT 1 FROM vehicles WHERE is_on_enrakipsiz = true LIMIT 1`);
+      const vehicleFilter = hasEnrakipsizVehicles.rows.length > 0 ? "AND v.is_on_enrakipsiz = true" : "";
 
-    const vehiclesRes = await pool.query(`
-      SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.price, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, s.name as store_name, s.slug as store_slug
-      FROM vehicles v
-      JOIN stores s ON v.store_id = s.id
-      WHERE v.status = 'for_sale' ${vehicleFilter}
-      ORDER BY v.id DESC
-      LIMIT 100
-    `);
+      const vehiclesRes = await pool.query(`
+        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug
+        FROM vehicles v
+        JOIN stores s ON v.store_id = s.id
+        WHERE v.status <> 'sold' ${vehicleFilter}
+        ORDER BY v.id DESC
+        LIMIT 100
+      `);
+      vehiclesList = vehiclesRes.rows || [];
+    } catch (error: any) {
+      console.warn("Marketplace vehicles queries had an issue. Retrying with simple select fallback:", error);
+      try {
+        const fallbackRes = await pool.query(`
+          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug
+          FROM vehicles v
+          JOIN stores s ON v.store_id = s.id
+          LIMIT 100
+        `);
+        vehiclesList = fallbackRes.rows || [];
+      } catch (fallbackErr: any) {
+        console.error("Ultimate vehicles fallback failed:", fallbackErr);
+      }
+    }
 
-    // Check if there are any properties with is_on_enrakipsiz active
-    const hasEnrakipsizProperties = await pool.query(`SELECT 1 FROM real_estate_properties WHERE status = 'active' AND is_on_enrakipsiz = true LIMIT 1`);
-    const propertyFilter = hasEnrakipsizProperties.rows.length > 0 ? "AND r.is_on_enrakipsiz = true" : "";
+    let realEstateList: any[] = [];
+    // Self-healing check for both real_estate_properties and real_estate table aliases
+    try {
+      await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
+      const hasEnrakipsizProperties = await pool.query(`SELECT 1 FROM real_estate_properties WHERE is_on_enrakipsiz = true LIMIT 1`);
+      const propertyFilter = hasEnrakipsizProperties.rows.length > 0 ? "AND r.is_on_enrakipsiz = true" : "";
 
-    const realEstateRes = await pool.query(`
-      SELECT r.*, s.name as store_name, s.slug as store_slug
-      FROM real_estate_properties r
-      JOIN stores s ON r.store_id = s.id
-      WHERE r.status = 'active' ${propertyFilter}
-      ORDER BY r.created_at DESC
-      LIMIT 100
-    `);
+      const realEstateRes = await pool.query(`
+        SELECT r.*, s.name as store_name, s.slug as store_slug
+        FROM real_estate_properties r
+        JOIN stores s ON r.store_id = s.id
+        WHERE r.status <> 'sold' ${propertyFilter}
+        ORDER BY r.created_at DESC
+        LIMIT 100
+      `);
+      realEstateList = realEstateRes.rows || [];
+    } catch (error: any) {
+      console.warn("Table real_estate_properties query soft-failed. Attempting real_estate table name instead...", error);
+      try {
+        await pool.query(`ALTER TABLE real_estate ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
+        const hasEnrakipsizProperties = await pool.query(`SELECT 1 FROM real_estate WHERE is_on_enrakipsiz = true LIMIT 1`);
+        const propertyFilter = hasEnrakipsizProperties.rows.length > 0 ? "AND r.is_on_enrakipsiz = true" : "";
+
+        const realEstateRes = await pool.query(`
+          SELECT r.*, s.name as store_name, s.slug as store_slug
+          FROM real_estate r
+          JOIN stores s ON r.store_id = s.id
+          WHERE r.status <> 'sold' ${propertyFilter}
+          ORDER BY r.created_at DESC
+          LIMIT 100
+        `);
+        realEstateList = realEstateRes.rows || [];
+      } catch (innerError: any) {
+        console.error("Both real_estate table aliases failed or missing:", innerError);
+      }
+    }
 
     const allListings: any[] = [];
-    productsRes.rows.forEach((p: any) => {
+
+    productsList.forEach((p: any) => {
       allListings.push({
         id: `p_${p.id}`,
         db_id: p.id,
@@ -176,6 +316,7 @@ router.get("/marketplace/listings", async (req, res) => {
         price: p.price,
         currency: p.currency,
         image_url: p.image_url,
+        images: p.image_url ? [p.image_url] : [],
         store_name: p.store_name,
         store_slug: p.store_slug,
         category: p.category,
@@ -184,24 +325,25 @@ router.get("/marketplace/listings", async (req, res) => {
       });
     });
 
-    vehiclesRes.rows.forEach((v: any) => {
+    vehiclesList.forEach((v: any) => {
       allListings.push({
         id: `v_${v.db_id}`,
         db_id: v.db_id,
         listing_type: 'vehicle',
         title: `${v.brand} ${v.model} (${v.year})`,
-        price: v.selling_price || v.price,
+        price: v.selling_price || 0,
         currency: v.currency,
         image_url: v.images && v.images.length > 0 ? v.images[0] : null,
+        images: v.images || [],
         store_name: v.store_name,
         store_slug: v.store_slug,
         category: 'Oto Galeri',
         brand: v.brand,
-        created_at: new Date() // Fallback if no created_at
+        created_at: v.created_at || new Date()
       });
     });
 
-    realEstateRes.rows.forEach((r: any) => {
+    realEstateList.forEach((r: any) => {
       allListings.push({
         id: `re_${r.id}`,
         db_id: r.id,
@@ -210,6 +352,7 @@ router.get("/marketplace/listings", async (req, res) => {
         price: r.price,
         currency: r.currency,
         image_url: r.images && r.images.length > 0 ? r.images[0] : null,
+        images: r.images || [],
         store_name: r.store_name,
         store_slug: r.store_slug,
         category: 'Emlak',
@@ -226,8 +369,10 @@ router.get("/marketplace/listings", async (req, res) => {
     });
 
     res.json(allListings);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (outerError: any) {
+    console.error("Critical error in marketplace listings core:", outerError);
+    // Always return an array empty rather than crashing, to avoid client side n.filter typeerrors!
+    res.json([]);
   }
 });
 async function getPayPalAccessToken(clientId: string, secret: string, sandbox: boolean) {
