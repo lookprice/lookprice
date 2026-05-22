@@ -235,6 +235,7 @@ export interface RealEstateProperty {
   kktc_region?: 'Girne' | 'Lefkoşa' | 'Gazimağusa' | 'İskele' | 'Güzelyurt' | 'Lefke'; // KKTC Bölgesi
   kktc_title_type?: 'Türk Koçanı' | 'Eşdeğer Koçan' | 'Tahsis Koçan' | 'Diğer'; // KKTC Koçan Tipi
   images?: string[];
+  is_on_enrakipsiz?: boolean;
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
   seller_type?: 'professional' | 'individual';

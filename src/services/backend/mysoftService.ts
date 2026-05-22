@@ -16,6 +16,7 @@ export class MySoftService {
     receiver_alias?: string;
     earchive_username?: string;
     earchive_uuid?: string;
+    connector_guid?: string;
   };
 
   constructor(credentials: any) {

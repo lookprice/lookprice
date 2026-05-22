@@ -95,6 +95,7 @@ interface Vehicle {
   target_profit_margin?: number;
   description?: string;
   images?: string[];
+  is_on_enrakipsiz?: boolean;
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
   created_at: string;
@@ -2165,6 +2166,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               return Object.entries(total).map(([cur, amt]) => `${amt.toLocaleString()} ${cur}`).join(' + ');
           };
 
+          const totalExpensesNum = expensesListData.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
+          const calculatedTotalCost = baseBuyingPrice + totalExpensesNum;
+          const targetMarginPercent = Number(formData.target_profit_margin) || 0;
+          const suggestedRetailPrice = calculatedTotalCost * (1 + targetMarginPercent / 100);
+
           const partsDefinition = [
             { id: 'hood', label: 'Kaput' },
             { id: 'roof', label: 'Tavan' },
@@ -2206,7 +2212,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </button>
                 </div>
 
-                <form id="vehicle-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
+                <div id="vehicle-form" className="flex-1 overflow-y-auto p-6 space-y-8">
                   
                   {/* SECTION 1: CORE VEHICLE DATA */}
                   <div className="space-y-4">
@@ -2667,7 +2673,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="bg-gradient-to-br from-indigo-50/60 to-purple-50/60 p-5 rounded-2xl border border-indigo-100/80 space-y-5">
                       
                       {/* Sub-section 5a: Image and lookprice filters */}
-                      <div className="space-y-2">
+                      <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <label className="block text-xs font-bold text-indigo-950">Araç Fotoğrafları</label>
                           <MultiImageUploader onImagesUploaded={(urls) => setFormData({ ...formData, images: [...(formData.images || []), ...urls] })} />
@@ -2677,9 +2683,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             onChange={(images) => setFormData({ ...formData, images })} 
                             isEditable={true}
                         />
-                      </div>
 
-                      <div className="flex items-center gap-2 bg-white/50 p-3 rounded-xl border border-indigo-100">
+                        <div className="flex items-center gap-2 bg-white/50 p-3 rounded-xl border border-indigo-100">
                           <input 
                             type="checkbox" 
                             id="enrakipsiz-toggle"
@@ -2718,7 +2723,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               {processingVehicleMedia === 'staging' ? (
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-505" />
                               ) : (
-                                <Image className="w-3 h-3 text-slate-500" />
+                                <ImageIcon className="w-3 h-3 text-slate-500" />
                               )}
                               Showroom Moduna Taşı (Staging)
                             </button>
@@ -2893,7 +2898,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     </div>
                   </div>
 
-                </form>
+                </div>
 
                 {/* Footer Buttons */}
                 <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
@@ -2905,8 +2910,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     {t.cancel}
                   </button>
                   <button
-                    type="submit"
-                    form="vehicle-form"
+                    type="button"
+                    onClick={handleSubmit}
                     className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-extrabold shadow-lg shadow-blue-200 transition-all active:scale-95"
                   >
                     {selectedVehicle ? t.update : t.save}

@@ -655,7 +655,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       {processingMedia === 'staging' ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
                       ) : (
-                        <Image className="w-3 h-3 text-indigo-600" />
+                        <ImageIcon className="w-3 h-3 text-indigo-600" />
                       )}
                       Sanal Mobilyala (Virtual Staging)
                     </button>
