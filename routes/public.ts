@@ -140,20 +140,28 @@ router.get("/marketplace/listings", async (req, res) => {
       LIMIT 100
     `);
 
+    // Check if there are any vehicles with is_on_enrakipsiz active
+    const hasEnrakipsizVehicles = await pool.query(`SELECT 1 FROM vehicles WHERE status = 'for_sale' AND is_on_enrakipsiz = true LIMIT 1`);
+    const vehicleFilter = hasEnrakipsizVehicles.rows.length > 0 ? "AND v.is_on_enrakipsiz = true" : "";
+
     const vehiclesRes = await pool.query(`
-      SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.price, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, s.name as store_name, s.slug as store_slug
+      SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.price, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, s.name as store_name, s.slug as store_slug
       FROM vehicles v
       JOIN stores s ON v.store_id = s.id
-      WHERE v.status = 'for_sale'
+      WHERE v.status = 'for_sale' ${vehicleFilter}
       ORDER BY v.id DESC
       LIMIT 100
     `);
 
+    // Check if there are any properties with is_on_enrakipsiz active
+    const hasEnrakipsizProperties = await pool.query(`SELECT 1 FROM real_estate_properties WHERE status = 'active' AND is_on_enrakipsiz = true LIMIT 1`);
+    const propertyFilter = hasEnrakipsizProperties.rows.length > 0 ? "AND r.is_on_enrakipsiz = true" : "";
+
     const realEstateRes = await pool.query(`
       SELECT r.*, s.name as store_name, s.slug as store_slug
-      FROM real_estate r
+      FROM real_estate_properties r
       JOIN stores s ON r.store_id = s.id
-      WHERE r.status = 'active'
+      WHERE r.status = 'active' ${propertyFilter}
       ORDER BY r.created_at DESC
       LIMIT 100
     `);
@@ -184,7 +192,7 @@ router.get("/marketplace/listings", async (req, res) => {
         title: `${v.brand} ${v.model} (${v.year})`,
         price: v.selling_price || v.price,
         currency: v.currency,
-        image_url: null,
+        image_url: v.images && v.images.length > 0 ? v.images[0] : null,
         store_name: v.store_name,
         store_slug: v.store_slug,
         category: 'Oto Galeri',
@@ -211,7 +219,11 @@ router.get("/marketplace/listings", async (req, res) => {
     });
 
     // Shuffle or sort newest
-    allListings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    allListings.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
 
     res.json(allListings);
   } catch (error: any) {

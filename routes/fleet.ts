@@ -16,6 +16,7 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS seller_type TEXT DEFAULT 'professional';`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'none';`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
     console.log("Self-healing schema verification: vehicles table columns processed successfully.");
   } catch (error) {
     console.error("Self-healing schema error for vehicles table:", error);
@@ -73,7 +74,7 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
   const { 
     plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
     package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status
+    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz
   } = req.body;
   const storeId = req.body.store_id || req.user.store_id;
 
@@ -82,9 +83,9 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
       `INSERT INTO vehicles (
         store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
         package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-        description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status
+        description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31) RETURNING *`,
       [
         storeId, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status || 'active',
         package_name, transmission, fuel_type, color, body_type, 
@@ -98,7 +99,8 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
         !!ai_tour_enabled,
         seller_type || 'professional',
         !!is_verified,
-        verification_status || 'none'
+        verification_status || 'none',
+        !!is_on_enrakipsiz
       ]
     );
     res.status(201).json(result.rows[0]);
@@ -117,7 +119,7 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
   const { 
     plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
     package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status
+    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz
   } = req.body;
 
   try {
@@ -127,9 +129,9 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
            package_name = $12, transmission = $13, fuel_type = $14, color = $15, body_type = $16, 
            paint_report = $17, tramer_amount = $18, tramer_currency = $19, buying_price = $20, expenses = $21, target_profit_margin = $22,
            description = $23, images = $24, virtual_tour_url = $25, ai_tour_enabled = $26,
-           seller_type = $27, is_verified = $28, verification_status = $29,
+           seller_type = $27, is_verified = $28, verification_status = $29, is_on_enrakipsiz = $30,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $30 RETURNING *`,
+       WHERE id = $31 RETURNING *`,
       [
         plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
         package_name, transmission, fuel_type, color, body_type, 
@@ -144,6 +146,7 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
         seller_type || 'professional',
         !!is_verified,
         verification_status || 'none',
+        !!is_on_enrakipsiz,
         id
       ]
     );
