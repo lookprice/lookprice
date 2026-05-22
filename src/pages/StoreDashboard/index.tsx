@@ -952,25 +952,44 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
+    dashboard: false,
+    sales: true,
+    operations: true,
+    real_estate: false,
+    integrations: false,
+    settings: false
+  });
+
   const navItems = [
-    { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
-    { id: "products", label: t.products, icon: Package },
-    { id: "analytics", label: t.analytics, icon: LayoutDashboard },
-    { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
-    { id: "procurements", label: t.procurements, icon: Truck },
-    { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
-    { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
-    { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
-    { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
-    { id: "companies", label: t.companies, icon: Store },
-    { id: "fleet", label: t.fleet, icon: Car, badge: notifications.fleet },
-    { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
-    { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
-    { id: "fast-pos", label: t.fastPos, icon: Scan },
-    { id: "audit-logs", label: t.auditLogs, icon: History },
-    { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
-    { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
-    { id: "settings", label: t.settings, icon: SettingsIcon },
+    { type: 'category', key: "dashboard", title: isTr ? "Dashboard" : "Dashboard", items: [
+      { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "audit-logs", label: t.auditLogs, icon: History },
+    ]},
+    { type: 'category', key: "sales", title: isTr ? "Satış & Müşteriler" : "Sales & Customers", items: [
+      { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
+      { id: "fast-pos", label: t.fastPos, icon: Scan },
+      { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
+      { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
+      { id: "companies", label: t.companies, icon: Store },
+    ]},
+    { type: 'category', key: "operations", title: isTr ? "Operasyon" : "Operations", items: [
+      { id: "products", label: t.products, icon: Package },
+      { id: "procurements", label: t.procurements, icon: Truck },
+      { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
+      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+      { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
+      { id: "fleet", label: t.fleet, icon: Car, badge: notifications.fleet },
+    ]},
+    { type: 'category', key: "real_estate", title: isTr ? "Emlak" : "Real Estate", items: [
+      { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
+    ]},
+    { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
+      { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
+      { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
+      { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
+    ]},
+    { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ];
   console.log("navItems:", navItems);
 
@@ -1027,35 +1046,71 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
           
           <nav className="flex-1 overflow-y-auto p-5 space-y-1.5 custom-scrollbar">
-            <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">System_Modules</div>
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  startTransition(() => {
-                    setActiveTab(item.id);
-                  });
-                  setSidebarOpen(false);
-                }}
-                className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
-                  activeTab === item.id 
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center space-x-3.5">
-                  <item.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-                  <span className="tracking-tight">{item.label}</span>
-                </div>
-                {item.badge > 0 && (
-                  <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black rounded-lg shadow-sm ${
-                    activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-rose-600 text-white animate-pulse'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            ))}
+            {navItems.map((navItem) => {
+              if (navItem.type === 'category') {
+                return (
+                  <div key={navItem.key} className="mb-2">
+                    <button
+                       onClick={() => setOpenCategories({...openCategories, [navItem.key]: !openCategories[navItem.key]})}
+                       className="flex items-center justify-between w-full text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-4 py-2 hover:text-indigo-400 transition-colors"
+                    >
+                      <span>{navItem.title}</span>
+                      {openCategories[navItem.key] ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
+                    {openCategories[navItem.key] && navItem.items.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          startTransition(() => {
+                            setActiveTab(item.id);
+                          });
+                          setSidebarOpen(false);
+                        }}
+                        className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
+                          activeTab === item.id 
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3.5">
+                          <item.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                          <span className="tracking-tight">{item.label}</span>
+                        </div>
+                        {item.badge > 0 && (
+                          <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black rounded-lg shadow-sm ${
+                            activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-rose-600 text-white animate-pulse'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                );
+              } else {
+                return (
+                  <button
+                    key={navItem.id}
+                    onClick={() => {
+                      startTransition(() => {
+                        setActiveTab(navItem.id);
+                      });
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
+                      activeTab === navItem.id 
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3.5">
+                      <navItem.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === navItem.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                      <span className="tracking-tight">{navItem.label}</span>
+                    </div>
+                  </button>
+                );
+              }
+            })}
 
             <div className="pt-6 mt-6 border-t border-white/5">
               <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">External_Access</div>

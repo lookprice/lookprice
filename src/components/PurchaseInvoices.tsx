@@ -386,14 +386,15 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
     }
   };
 
-  const viewDetails = async (id: number) => {
+  const viewDetails = async (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setShowDetailsModal(true);
     try {
-      const data = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
+      const data = await api.getPurchaseInvoice(invoice.id, role === 'superadmin' ? storeId : undefined);
       if (data.error) throw new Error(data.error);
       setSelectedInvoice(data);
-      setShowDetailsModal(true);
       if (data.is_read === false) {
-        await api.markPurchaseInvoiceRead(id, role === 'superadmin' ? storeId : undefined);
+        await api.markPurchaseInvoiceRead(invoice.id, role === 'superadmin' ? storeId : undefined);
         fetchInvoicesData();
       }
     } catch (error: any) {
@@ -1021,7 +1022,7 @@ export default function PurchaseInvoices({ storeId, role, lang, api, branding, o
                   <td className="p-4 text-sm text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => viewDetails(invoice.id)}
+                        onClick={() => viewDetails(invoice)}
                         className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         title={isTr ? "Görüntüle" : "View"}
                       >

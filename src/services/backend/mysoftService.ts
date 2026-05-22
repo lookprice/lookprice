@@ -34,9 +34,12 @@ export class MySoftService {
     try {
       // Use URLSearchParams for x-www-form-urlencoded format
       const params = new URLSearchParams();
-      params.append('username', this.credentials.earchive_username || this.credentials.username || '');
+      params.append('username', this.credentials.username || this.credentials.earchive_username || '');
       params.append('password', this.credentials.password || '');
       params.append('grant_type', 'password');
+      if (this.credentials.connector_guid) {
+        params.append('connector_guid', this.credentials.connector_guid);
+      }
 
       // Robust auth URL resolution
       let authUrl = "";

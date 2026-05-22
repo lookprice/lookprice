@@ -276,10 +276,12 @@ export interface Vehicle {
   tramer_amount?: number;
   tramer_currency?: string;
   buying_price?: number;
-  expenses?: string | { id: string; name: string; amount: number; date: string }[];
+  buying_currency?: string;
+  expenses?: string | { id: string; name: string; amount: number; currency: string; date: string }[];
   target_profit_margin?: number;
   description?: string;
   images?: string[];
+  is_on_enrakipsiz?: boolean;
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
   seller_type?: 'professional' | 'individual';

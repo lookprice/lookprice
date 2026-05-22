@@ -870,6 +870,13 @@ export async function initDb() {
         UNIQUE(store_id, plate)
       );
 
+      -- Update vehicles status check constraint
+      DO $$ 
+      BEGIN 
+        ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;
+        ALTER TABLE vehicles ADD CONSTRAINT vehicles_status_check CHECK (status IN ('active', 'in_service', 'broken', 'sold', 'for_sale'));
+      END $$;
+
       CREATE TABLE IF NOT EXISTS vehicle_documents (
         id SERIAL PRIMARY KEY,
         vehicle_id INTEGER NOT NULL,

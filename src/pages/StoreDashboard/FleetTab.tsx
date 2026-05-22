@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Car, 
-  Plus, 
-  Search, 
-  FileText, 
-  Wrench, 
-  UserCheck, 
-  History, 
-  AlertTriangle, 
+import {
+  Car,
+  Plus,
+  Search,
+  FileText,
+  Wrench,
+  UserCheck,
+  History,
+  AlertTriangle,
   AlertCircle,
   Eye,
   User,
-  MoreVertical, 
-  Edit2, 
-  Trash2, 
-  Calendar, 
-  MapPin, 
-  Download, 
+  MoreVertical,
+  Edit2,
+  Trash2,
+  Calendar,
+  MapPin,
+  Download,
   ChevronRight,
   Filter,
   ArrowRight,
@@ -35,9 +35,12 @@ import {
   Sparkles,
   Compass,
   Cpu,
-  Image,
+  Image as ImageIcon,
   Shield
 } from 'lucide-react';
+import { ImageGallery } from '../../components/ImageGallery';
+import { MultiImageUploader } from '../../components/MultiImageUploader';
+
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
 import { format } from 'date-fns';
@@ -78,6 +81,8 @@ interface Vehicle {
   status: 'active' | 'in_service' | 'broken' | 'sold' | 'for_sale';
   selling_price?: number;
   currency?: string;
+  buying_price?: number;
+  buying_currency?: string;
   package_name?: string;
   transmission?: 'manual' | 'automatic' | 'dual_clutch' | 'semi_automatic';
   fuel_type?: 'gasoline' | 'diesel' | 'lpg' | 'hybrid' | 'electric';
@@ -86,8 +91,7 @@ interface Vehicle {
   paint_report?: string | Record<string, 'original' | 'painted' | 'replaced'>;
   tramer_amount?: number;
   tramer_currency?: string;
-  buying_price?: number;
-  expenses?: string | { id: string; name: string; amount: number; date: string }[];
+  expenses?: string | { id: string; name: string; amount: number; currency: string; date: string }[];
   target_profit_margin?: number;
   description?: string;
   images?: string[];
@@ -181,6 +185,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newExpenseName, setNewExpenseName] = useState('');
   const [newExpenseAmount, setNewExpenseAmount] = useState('');
+  const [newExpenseCurrency, setNewExpenseCurrency] = useState('TRY');
   
   // Custom Loan Calculator States
   const [loanAmount, setLoanAmount] = useState<number>(0);
@@ -441,6 +446,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     tramer_amount: 0,
     tramer_currency: 'TRY',
     buying_price: 0,
+    buying_currency: 'TRY',
     expenses: '[]',
     target_profit_margin: 0,
     description: '',
@@ -530,10 +536,23 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
-  const handleCreateVehicle = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submitted. Mode:", selectedVehicle ? "UPDATE" : "CREATE");
+    
+    if (selectedVehicle) {
+      await handleUpdateVehicle(e);
+    } else {
+      await handleCreateVehicle(e);
+    }
+  };
+
+  const handleCreateVehicle = async (e: React.FormEvent) => {
+    e.preventDefault(); // Already prevented, but safe
+    console.log("Creating vehicle with data:", { ...formData, store_id: storeId });
     try {
       const res = await api.createVehicle({ ...formData, store_id: storeId });
+      console.log("Create vehicle response:", res);
       if (res.error) {
         alert(res.error);
         return;
@@ -559,10 +578,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         tramer_amount: 0,
         tramer_currency: 'TRY',
         buying_price: 0,
+        buying_currency: 'TRY',
         expenses: '[]',
         target_profit_margin: 0
       });
+      alert(t.successSaved);
     } catch (error) {
+      console.error("Error creating vehicle:", error);
       alert(t.errorOccurred);
     }
   };
@@ -2115,6 +2137,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               id: Date.now().toString(),
               name: newExpenseName,
               amount: parseFloat(newExpenseAmount) || 0,
+              currency: newExpenseCurrency,
               date: new Date().toISOString()
             };
             const updated = [...expensesListData, newExpItem];
@@ -2128,11 +2151,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
             setFormData(prev => ({ ...prev, expenses: JSON.stringify(updated) }));
           };
 
-          const totalExpenses = expensesListData.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
+          const totalExpenses = expensesListData.reduce((acc: Record<string, number>, item: any) => {
+            const currency = item.currency || 'TRY';
+            acc[currency] = (acc[currency] || 0) + (Number(item.amount) || 0);
+            return acc;
+          }, {});
           const baseBuyingPrice = Number(formData.buying_price) || 0;
-          const calculatedTotalCost = baseBuyingPrice + totalExpenses;
-          const targetMarginPercent = Number(formData.target_profit_margin) || 0;
-          const suggestedRetailPrice = calculatedTotalCost * (1 + targetMarginPercent / 100);
+          const baseCurrency = formData.buying_currency || 'TRY';
+          // NOTE: True multi-currency sum requires exchange rates. 
+          // For now, display grouped by currency or sum in base currency if rates are available.
+          
+          const getCurrencyFormatted = (total: Record<string, number>) => {
+              return Object.entries(total).map(([cur, amt]) => `${amt.toLocaleString()} ${cur}`).join(' + ');
+          };
 
           const partsDefinition = [
             { id: 'hood', label: 'Kaput' },
@@ -2175,7 +2206,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </button>
                 </div>
 
-                <form onSubmit={selectedVehicle ? handleUpdateVehicle : handleCreateVehicle} className="flex-1 overflow-y-auto p-6 space-y-8">
+                <form id="vehicle-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
                   
                   {/* SECTION 1: CORE VEHICLE DATA */}
                   <div className="space-y-4">
@@ -2494,9 +2525,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               placeholder="0"
                             />
                             <select
-                              value={formData.currency || 'TRY'}
-                              disabled
-                              className="px-2.5 py-2.5 bg-indigo-100/50 border border-indigo-200 rounded-xl outline-none font-bold text-xs text-indigo-800 cursor-not-allowed"
+                              value={formData.buying_currency || 'TRY'}
+                              onChange={(e) => setFormData({ ...formData, buying_currency: e.target.value })}
+                              className="px-2.5 py-2.5 bg-indigo-100/50 border border-indigo-200 rounded-xl outline-none font-bold text-xs text-indigo-800"
                             >
                               <option value="TRY">TRY</option>
                               <option value="USD">USD</option>
@@ -2524,6 +2555,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               className="w-24 px-3.5 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-right font-bold text-indigo-900"
                               placeholder="0"
                             />
+                            <select
+                              value={newExpenseCurrency}
+                              onChange={(e) => setNewExpenseCurrency(e.target.value)}
+                              className="px-2.5 py-2.5 bg-white border border-indigo-200 rounded-xl outline-none font-bold text-xs text-indigo-800"
+                            >
+                              <option value="TRY">TRY</option>
+                              <option value="USD">USD</option>
+                              <option value="EUR">EUR</option>
+                              <option value="GBP">GBP</option>
+                            </select>
                             <button
                               type="button"
                               onClick={triggerAddExpense}
@@ -2548,7 +2589,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                   <span className="font-semibold text-gray-700">{item.name}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {formData.currency || 'TRY'}</span>
+                                  <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {item.currency || 'TRY'}</span>
                                   <button
                                     type="button"
                                     onClick={() => triggerRemoveExpense(item.id)}
@@ -2585,7 +2626,12 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         <div className="bg-indigo-900 text-indigo-50 p-4 rounded-2xl grid grid-cols-2 gap-2 shadow-inner">
                           <div>
                             <p className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Aracın Fiyat Maliyeti</p>
-                            <p className="text-sm font-black">{calculatedTotalCost.toLocaleString()} {formData.currency || 'TRY'}</p>
+                            <p className="text-sm font-black">
+                              {baseBuyingPrice.toLocaleString()} {baseCurrency}
+                              {Object.keys(totalExpenses).length > 0 && (
+                                  <span className="block text-[10px] text-indigo-400 font-medium">+ {getCurrencyFormatted(totalExpenses)}</span>
+                              )}
+                            </p>
                             <span className="text-[8px] text-indigo-400 font-medium">Alış + Toplam Masraflar</span>
                           </div>
                           <div>
@@ -2622,16 +2668,29 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       
                       {/* Sub-section 5a: Image and lookprice filters */}
                       <div className="space-y-2">
-                        <label className="block text-xs font-bold text-indigo-950">Araç Vitrin / Kapak Fotoğrafı URL</label>
-                        <input
-                          type="text"
-                          value={formData.images?.[0] || ''}
-                          onChange={(e) => setFormData({ ...formData, images: e.target.value ? [e.target.value] : [] })}
-                          placeholder="https://images.unsplash.com/photo-..."
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-medium"
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-indigo-950">Araç Fotoğrafları</label>
+                          <MultiImageUploader onImagesUploaded={(urls) => setFormData({ ...formData, images: [...(formData.images || []), ...urls] })} />
+                        </div>
+                        <ImageGallery 
+                            images={formData.images || []} 
+                            onChange={(images) => setFormData({ ...formData, images })} 
+                            isEditable={true}
                         />
+                      </div>
 
-                        {formData.images && formData.images.length > 0 && (
+                      <div className="flex items-center gap-2 bg-white/50 p-3 rounded-xl border border-indigo-100">
+                          <input 
+                            type="checkbox" 
+                            id="enrakipsiz-toggle"
+                            checked={!!formData.is_on_enrakipsiz}
+                            onChange={(e) => setFormData({...formData, is_on_enrakipsiz: e.target.checked})}
+                            className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                          />
+                          <label htmlFor="enrakipsiz-toggle" className="text-xs font-bold text-indigo-950">EnRakipsiz.com'da Yayınla</label>
+                      </div>
+
+                      {formData.images && formData.images.length > 0 && (
                           <div className="pt-2 p-3 bg-white/40 border border-indigo-100/50 rounded-xl flex flex-wrap items-center gap-2">
                             <span className="text-[10px] font-black text-indigo-950 flex items-center gap-1.5 uppercase tracking-wide">
                               <Cpu className="w-3 h-3 text-indigo-600" />
@@ -2847,6 +2906,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </button>
                   <button
                     type="submit"
+                    form="vehicle-form"
                     className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-extrabold shadow-lg shadow-blue-200 transition-all active:scale-95"
                   >
                     {selectedVehicle ? t.update : t.save}

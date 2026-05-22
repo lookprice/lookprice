@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, Upload, Plus, Trash2, Shield, Calendar, Check, Sparkles, Cpu, Eye, Image, RefreshCw, EyeOff, Camera, Compass } from 'lucide-react';
+import { X, FileText, Upload, Plus, Trash2, Shield, Calendar, Check, Sparkles, Cpu, Eye, Image as ImageIcon, RefreshCw, EyeOff, Camera, Compass } from 'lucide-react';
+import { ImageGallery } from './ImageGallery';
+import { MultiImageUploader } from './MultiImageUploader';
 import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
 
@@ -303,6 +305,17 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
             </div>
 
+            <div className="flex items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 mt-2">
+                <input 
+                  type="checkbox" 
+                  id="enrakipsiz-toggle"
+                  checked={!!formData.is_on_enrakipsiz}
+                  onChange={(e) => setFormData({...formData, is_on_enrakipsiz: e.target.checked})}
+                  className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                />
+                <label htmlFor="enrakipsiz-toggle" className="text-xs font-bold text-indigo-950">EnRakipsiz.com'da Yayınla</label>
+            </div>
+
             {formData.country === 'KKTC' ? (
               <div className="space-y-3">
                 <p className="text-xs text-indigo-700 font-medium">
@@ -604,13 +617,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             
             <div className="bg-slate-50 p-5 rounded-2xl border border-indigo-100 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Kapak Fotoğrafı URL (Opsiyonel)</label>
-                <input
-                  type="text"
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full p-3 border rounded-xl text-xs font-medium"
-                  value={formData.images?.[0] || ''}
-                  onChange={(e) => setFormData({...formData, images: e.target.value ? [e.target.value] : []})}
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-500">Mülk Fotoğrafları</label>
+                  <MultiImageUploader onImagesUploaded={(urls) => setFormData({...formData, images: [...(formData.images || []), ...urls]})} />
+                </div>
+                <ImageGallery 
+                    images={formData.images || []} 
+                    onChange={(images) => setFormData({...formData, images})} 
+                    isEditable={true}
                 />
 
                 {formData.images && formData.images.length > 0 && (

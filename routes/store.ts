@@ -352,7 +352,7 @@ router.post("/ai-3d-tour", async (req: any, res) => {
         ],
         targetIframeUrl: isRealEstate 
           ? "https://my.matterport.com/show/?m=uW7e5zG9B6H" 
-          : "https://vremix.netlify.app/mock-360-viewer"
+          : "#"
       };
     }
 
@@ -3177,7 +3177,7 @@ router.get("/sales", async (req: any, res) => {
     SELECT s.*, si.id as sales_invoice_id, si.invoice_number as sales_invoice_number 
     FROM sales s
     LEFT JOIN sales_invoices si ON si.sale_id = s.id
-    WHERE s.store_id = $1
+    WHERE s.store_id = $1 AND s.status != 'checkout_initiated'
   `;
   const params: any[] = [storeId];
 
@@ -5505,7 +5505,7 @@ router.get("/notifications", async (req: any, res) => {
 
     // 4. New Sales (status is pending)
     const salesCount = await pool.query(
-      "SELECT COUNT(*) FROM sales WHERE store_id = $1 AND status = 'pending'",
+      "SELECT COUNT(*) FROM sales WHERE store_id = $1 AND status = 'pending' AND status != 'checkout_initiated'",
       [storeId]
     );
 

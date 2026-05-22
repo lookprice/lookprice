@@ -1200,7 +1200,7 @@ router.post("/sales", async (req, res) => {
     }
 
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9) RETURNING id",
+      "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'checkout_initiated', $9) RETURNING id",
       [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', notes || '', paymentMethod, finalCustomerId || null]
     );
     const saleId = saleRes.rows[0].id;

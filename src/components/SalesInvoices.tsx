@@ -164,15 +164,17 @@ export default function SalesInvoices({ storeId, role, lang, api, branding, onSa
   });
 
   const handleViewDetails = async (invoice: any, shouldPrint: boolean = false) => {
+    setSelectedInvoice(invoice);
+    setShowDetailsModal(true);
     try {
       const fullInvoice = await api.getSalesInvoice(invoice.id, storeId);
       setSelectedInvoice(fullInvoice);
-      setShowDetailsModal(true);
       if (shouldPrint) {
         setTimeout(() => handlePrint(), 500);
       }
     } catch (err) {
       console.error("Error fetching invoice details:", err);
+      // If error, we still have the basic info, maybe show an error toast
     }
   };
 
