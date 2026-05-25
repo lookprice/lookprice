@@ -162,6 +162,14 @@ const SettingsTab = ({
   const [logs, setLogs] = React.useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = React.useState(false);
 
+  const isPortfolio = branding?.store_type === 'portfolio';
+
+  React.useEffect(() => {
+    if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
+      setActiveSubTab('web');
+    }
+  }, [isPortfolio, activeSubTab]);
+
   const fetchLogs = async () => {
     setLoadingLogs(true);
     try {
@@ -660,20 +668,24 @@ const SettingsTab = ({
             <Wrench className="h-4 w-4" />
             <span>Store Settings</span>
           </button>
-          <button 
-            onClick={() => setActiveSubTab('pos')}
-            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-          >
-            <CreditCard className="h-4 w-4" />
-            <span>{t.settingsCategories?.posSettings}</span>
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('e-stores')}
-            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-          >
-            <ShoppingBag className="h-4 w-4" />
-            <span>{t.settingsCategories?.eStores}</span>
-          </button>
+          {!isPortfolio && (
+            <button 
+              onClick={() => setActiveSubTab('pos')}
+              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              <CreditCard className="h-4 w-4" />
+              <span>{t.settingsCategories?.posSettings}</span>
+            </button>
+          )}
+          {!isPortfolio && (
+            <button 
+              onClick={() => setActiveSubTab('e-stores')}
+              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              <ShoppingBag className="h-4 w-4" />
+              <span>{t.settingsCategories?.eStores}</span>
+            </button>
+          )}
           <button 
             onClick={() => setActiveSubTab('domain')}
             className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'domain' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
@@ -681,13 +693,15 @@ const SettingsTab = ({
             <Globe className="h-4 w-4" />
             <span>{t.settingsCategories?.domainSettings}</span>
           </button>
-          <button 
-            onClick={() => setActiveSubTab('e-invoice')}
-            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-          >
-            <Building2 className="h-4 w-4" />
-            <span>E-Invoice</span>
-          </button>
+          {!isPortfolio && (
+            <button 
+              onClick={() => setActiveSubTab('e-invoice')}
+              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              <Building2 className="h-4 w-4" />
+              <span>E-Invoice</span>
+            </button>
+          )}
           <button 
             onClick={() => setActiveSubTab('logs')}
             className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'logs' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}

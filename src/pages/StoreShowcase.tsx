@@ -54,6 +54,7 @@ import { PageBuilder } from "../components/PageBuilder";
 import { Product, Store as StoreInfo, FAQEntry, BlogPost, LegalPage } from "../types";
 import SEO from "../components/SEO";
 import { StoreLocatorModal } from "../components/StoreLocatorModal";
+import { KktcAiDioramaModal } from "../components/KktcAiDioramaModal";
 
 interface BasketItem extends Product {
   quantity: number;
@@ -202,6 +203,42 @@ const ProductCard: React.FC<{
       >
         {product.name}
       </h3>
+
+      {/* Portfolio Card Spec Sheet Row */}
+      {(store?.store_type === 'portfolio' || product.type === 'real_estate' || product.type === 'vehicle') && (
+        <div className="flex items-center gap-3 my-3 text-[11px] font-bold text-slate-500 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+          {product.type === 'real_estate' && (
+            <>
+              {product.sector_data?.square_meters && (
+                <span className="flex items-center gap-1.5">
+                  <span className="text-emerald-600 font-extrabold">m²</span>
+                  {product.sector_data.square_meters}
+                </span>
+              )}
+              {product.sector_data?.rooms && (
+                <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                  <span className="text-indigo-600 font-extrabold">{lang === 'tr' ? 'Oda' : 'Rooms'}</span>
+                  {product.sector_data.rooms}
+                </span>
+              )}
+            </>
+          )}
+          {product.type === 'vehicle' && (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="text-rose-600 font-extrabold">{lang === 'tr' ? 'Yıl' : 'Year'}</span>
+                {product.name.match(/\((\d{4})\)/)?.[1] || '---'}
+              </span>
+              {product.description?.includes('KM:') && (
+                <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                  <span className="text-sky-600 font-extrabold">KM</span>
+                  {product.description.match(/KM:\s*(\d+)/)?.[1] || '---'}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
       
       <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
         <div className="flex flex-col">
@@ -506,6 +543,107 @@ const DiscoverModal: React.FC<{
   );
 };
 
+const ListingFinancingCalculator: React.FC<{ price: number, currency: string, lang: string }> = ({ price, currency, lang }) => {
+  const [downpaymentPercent, setDownpaymentPercent] = useState(30);
+  const [termMonths, setTermMonths] = useState(36);
+  const [interestRate, setInterestRate] = useState(1.89);
+
+  const downpayment = Math.round((price * downpaymentPercent) / 100);
+  const loanAmount = price - downpayment;
+  
+  const monthlyPayment = useMemo(() => {
+    if (interestRate <= 0) return loanAmount / termMonths;
+    const i = interestRate / 100;
+    const n = termMonths;
+    const monthly = (loanAmount * i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+    return isNaN(monthly) || !isFinite(monthly) ? 0 : Math.round(monthly);
+  }, [loanAmount, interestRate, termMonths]);
+
+  const totalPayment = monthlyPayment * termMonths + downpayment;
+
+  return (
+    <div className="bg-slate-50 border border-slate-100/80 rounded-3xl p-6 mt-8 mb-8 animate-in fade-in duration-500">
+      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+        {lang === 'tr' ? 'Finansman ve Kredi Hesaplama' : 'Financing & Loan Estimator'}
+      </h4>
+      <p className="text-xss text-slate-400 font-semibold mb-6 uppercase tracking-wider">
+        {lang === 'tr' ? 'Bütçenize en uygun ödeme planını öngörün' : 'Simulate your personalized repayment plan'}
+      </p>
+
+      <div className="space-y-5">
+        <div>
+          <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+            <span>{lang === 'tr' ? 'Peşinat' : 'Downpayment'} ({downpaymentPercent}%)</span>
+            <span>{downpayment.toLocaleString()} {currency}</span>
+          </div>
+          <input 
+            type="range" 
+            min="10" 
+            max="80" 
+            step="5"
+            value={downpaymentPercent} 
+            onChange={(e) => setDownpaymentPercent(Number(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          />
+        </div>
+
+        <div>
+          <div className="flex justify-between text-xs font-bold text-slate-600 mb-2.5">
+            <span>{lang === 'tr' ? 'Vade' : 'Term'}</span>
+            <span>{termMonths} {lang === 'tr' ? 'Ay' : 'Months'}</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {[12, 24, 36, 48].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setTermMonths(m)}
+                className={`py-2 rounded-xl text-xs font-bold border transition-all ${termMonths === m ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+              >
+                {m} {lang === 'tr' ? 'Ay' : 'M'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+            <span>{lang === 'tr' ? 'Aylık Faiz Oranı' : 'Monthly Interest Rate'}</span>
+            <span>% {interestRate}</span>
+          </div>
+          <input 
+            type="range" 
+            min="0.5" 
+            max="5" 
+            step="0.05"
+            value={interestRate} 
+            onChange={(e) => setInterestRate(Number(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          />
+        </div>
+
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 mt-6 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{lang === 'tr' ? 'AYLIK TAKSİT' : 'MONTHLY PAYMENT'}</p>
+            <p className="text-sm font-bold text-indigo-600">{monthlyPayment.toLocaleString()} {currency}</p>
+          </div>
+          <div className="border-l border-slate-100 pl-4">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{lang === 'tr' ? 'KREDİ TUTARI' : 'LOAN AMOUNT'}</p>
+            <p className="text-sm font-bold text-slate-800">{loanAmount.toLocaleString()} {currency}</p>
+          </div>
+          <div className="col-span-2 border-t border-slate-100 pt-3 flex justify-between items-center text-xs font-bold text-slate-500">
+            <span>{lang === 'tr' ? 'Toplam Geri Ödeme' : 'Total Repayment'}:</span>
+            <span className="text-slate-800">{totalPayment.toLocaleString()} {currency}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProductDetailModal: React.FC<{
   product: Product | null;
   store: StoreInfo | null;
@@ -524,6 +662,13 @@ const ProductDetailModal: React.FC<{
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [selectedBranchIdx, setSelectedBranchIdx] = useState(0);
   const [convertedPrice, setConvertedPrice] = useState<number>(product?.price || 0);
+
+  // States for 360° virtual tour mode
+  const [activeViewMode, setActiveViewMode] = useState<'gallery' | 'tour360'>('gallery');
+  const [selectedHotspotIdx, setSelectedHotspotIdx] = useState(0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
   const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
@@ -690,18 +835,247 @@ const ProductDetailModal: React.FC<{
                 </AnimatePresence>
               </div>
             </button>
-          </div>
-          {product.image_url ? (
-            <img 
-              src={product.image_url} 
-              alt={product.name} 
-              className="w-full h-full object-contain p-8 bg-white"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-200">
-              <Package className="w-32 h-32" />
+          {/* View Mode Switcher Overlay */}
+          {(product.type === 'vehicle' || product.type === 'real_estate') && (
+            <div className="absolute bottom-6 left-6 right-6 flex justify-center z-30 pointer-events-auto">
+              <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveViewMode('gallery')}
+                  className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === 'gallery' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  {lang === 'tr' ? 'Galeri' : 'Gallery'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveViewMode('tour360')}
+                  className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === 'tour360' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  {lang === 'tr' ? '360° Akıllı Tur' : '360° AI Tour'}
+                </button>
+              </div>
             </div>
+          )}
+          </div>
+          {activeViewMode === 'tour360' && (product.type === 'vehicle' || product.type === 'real_estate') ? (
+            (() => {
+              const vehicleHotspots = [
+                {
+                  name: lang === 'tr' ? "Sürücü Kokpiti & HUD" : "Cockpit & HUD",
+                  desc: lang === 'tr' 
+                    ? "Yarı otonom akıllı kontrol paneli, karbon detaylar ve Nappa deri kaplama." 
+                    : "Semi-autonomous smart dashboard, carbon trim and premium leather wheel.",
+                  x: 48,
+                  y: 45,
+                  image: "https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&q=80&w=1200"
+                },
+                {
+                  name: lang === 'tr' ? "VIP Arka Koltuk" : "Executive Rear Seating",
+                  desc: lang === 'tr'
+                    ? "Isıtmalı, masaj destekli koltuk tasarımı ve bağımsız havalandırma kurgusu."
+                    : "Heated, massage-supported seats with independent climate controls.",
+                  x: 22,
+                  y: 52,
+                  image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=1200"
+                },
+                {
+                  name: lang === 'tr' ? "Performans Yıldız Jantlar" : "Performance Forged Alloys",
+                  desc: lang === 'tr'
+                    ? "21 inç ultra hafif dövme fırtına grisi spor alaşım jant takımı."
+                    : "21-inch ultra-lightweight performance forged alloy wheels.",
+                  x: 76,
+                  y: 64,
+                  image: "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=1200"
+                }
+              ];
+
+              const estateHotspots = [
+                {
+                  name: lang === 'tr' ? "Giriş Fuayesi & Mermer Galeri" : "Entrance Foyer & Gallery",
+                  desc: lang === 'tr'
+                    ? "İtalyan mermeri kaplaması, double-height tavan ve özel kristal avize."
+                    : "Italian marble flooring, double-height ceiling and custom crystal design.",
+                  x: 50,
+                  y: 42,
+                  image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"
+                },
+                {
+                  name: lang === 'tr' ? "Gurme Ada Panel Mutfak" : "Epicurean Chef's Kitchen",
+                  desc: lang === 'tr'
+                    ? "Gaggenau ankastre donanımı, şelale tezgah tasarımı ve gizli kiler."
+                    : "Gaggenau built-in appliances, waterfall edge design and hidden pantry.",
+                  x: 26,
+                  y: 58,
+                  image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200"
+                },
+                {
+                  name: lang === 'tr' ? "Master Odalı Ebeveyn Odası" : "Master Suite & Terrace",
+                  desc: lang === 'tr'
+                    ? "Panoramik boy camlar, sürgülü balkon kapısı, hamam banyolu süit."
+                    : "Floor-to-ceiling panoramic glass, terrace deck doors and jacuzzi suit.",
+                  x: 74,
+                  y: 38,
+                  image: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200"
+                }
+              ];
+
+              const hotspots = product.type === 'vehicle' ? vehicleHotspots : estateHotspots;
+              const currentHotspot = hotspots[selectedHotspotIdx] || hotspots[0];
+
+              const handleMouseDown = (e: React.MouseEvent) => {
+                setIsDragging(true);
+                setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+              };
+
+              const handleMouseMove = (e: React.MouseEvent) => {
+                if (!isDragging) return;
+                const nextX = e.clientX - dragStart.x;
+                const boundedX = Math.max(-120, Math.min(120, nextX));
+                setPanOffset(prev => ({ ...prev, x: boundedX }));
+              };
+
+              const handleMouseUpOrLeave = () => {
+                setIsDragging(false);
+              };
+
+              const handleTouchStart = (e: React.TouchEvent) => {
+                if (e.touches.length === 0) return;
+                setIsDragging(true);
+                setDragStart({ x: e.touches[0].clientX - panOffset.x, y: e.touches[0].clientY - panOffset.y });
+              };
+
+              const handleTouchMove = (e: React.TouchEvent) => {
+                if (!isDragging || e.touches.length === 0) return;
+                const nextX = e.touches[0].clientX - dragStart.x;
+                const boundedX = Math.max(-120, Math.min(120, nextX));
+                setPanOffset(prev => ({ ...prev, x: boundedX }));
+              };
+
+              return (
+                <div 
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUpOrLeave}
+                  onMouseLeave={handleMouseUpOrLeave}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleMouseUpOrLeave}
+                  className="w-full h-full bg-slate-950 relative overflow-hidden select-none cursor-grab active:cursor-grabbing flex flex-col justify-between"
+                >
+                  {/* HUD Overlay */}
+                  <div className="absolute top-6 left-6 right-6 flex justify-between items-center pointer-events-none z-10">
+                    <div className="bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-850">
+                      <p className="text-[7px] text-indigo-400 font-black uppercase tracking-widest leading-none mb-1">
+                        {lang === 'tr' ? 'SANAL AKILLI SİSTEM' : 'IMMERSIVE HUD SYSTEM'}
+                      </p>
+                      <p className="text-[9px] text-white font-black tracking-tight uppercase">
+                        {lang === 'tr' ? '🌀 360 PANEL AKTİF' : '🌀 360 FIELD ACTIVE'}
+                      </p>
+                    </div>
+                    <div className="bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-850 text-right">
+                      <p className="text-[7px] text-slate-500 font-bold uppercase tracking-widest leading-none mb-1">
+                        {lang === 'tr' ? 'ORBİTAL AÇI' : 'ORBIT ANGLE'}
+                      </p>
+                      <p className="text-[9px] text-emerald-400 font-mono font-bold leading-none">
+                        PAN: {Math.round(panOffset.x)}°
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Panoramic Background View */}
+                  <div 
+                    className="absolute inset-0 transition-transform duration-100 ease-out" 
+                    style={{ 
+                      backgroundImage: `url('${currentHotspot.image}')`,
+                      backgroundSize: '135% 100%',
+                      backgroundPosition: `${50 + (panOffset.x / 6)}% 50%`
+                    }}
+                  />
+
+                  {/* Gradient shading */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/70 pointer-events-none" />
+
+                  {/* Perspective Interactive floating nodes */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {hotspots.map((spot, idx) => {
+                      const lateralShift = panOffset.x * 0.35;
+                      const leftPercentage = spot.x + (lateralShift / 3);
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedHotspotIdx(idx);
+                          }}
+                          className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group/spot z-20"
+                          style={{
+                            left: `${leftPercentage}%`,
+                            top: `${spot.y}%`
+                          }}
+                        >
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? 'bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg' : 'bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-110'}`}>
+                            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                          </span>
+                          <span className={`absolute mt-9 transition-all text-[8px] font-bold px-2 py-1 rounded-md border leading-none tracking-wide whitespace-nowrap shadow-xl ${selectedHotspotIdx === idx ? 'bg-indigo-600 text-white border-indigo-500 scale-100' : 'bg-slate-900/95 text-slate-300 border-slate-800 scale-90 opacity-0 group-hover/spot:opacity-100'}`}>
+                            {spot.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Info Panel footer */}
+                  <div className="mt-auto p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 relative z-20">
+                    <div>
+                      <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1">
+                        {lang === 'tr' ? 'BAKILAN DETAY' : 'VIEWPORT TARGET'}
+                      </p>
+                      <h5 className="text-xs font-bold text-white mb-1 tracking-tight flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        {currentHotspot.name}
+                      </h5>
+                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                        {currentHotspot.desc}
+                      </p>
+                    </div>
+
+                    {/* Selector triggers inside panorama footer */}
+                    <div className="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar pt-1.5 border-t border-slate-800/40">
+                      {hotspots.map((spot, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedHotspotIdx(idx);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold tracking-wider uppercase border whitespace-nowrap transition-all ${selectedHotspotIdx === idx ? 'bg-indigo-600 text-white border-indigo-500 shadow' : 'bg-slate-950/45 text-slate-400 border-slate-800/40 hover:border-slate-800'}`}
+                        >
+                          {spot.name.split('&')[0].split('/')[0].trim()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            product.image_url ? (
+              <img 
+                src={product.image_url} 
+                alt={product.name} 
+                className="w-full h-full object-contain p-8 bg-white"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-200">
+                <Package className="w-32 h-32" />
+              </div>
+            )
           )}
         </div>
 
@@ -767,6 +1141,10 @@ const ProductDetailModal: React.FC<{
 
           <SectorSpecs sector={product?.type === 'vehicle' ? 'automotive' : (product?.type === 'real_estate' ? 'real_estate' : sector)} data={product.sector_data} />
           
+          {(product?.type === 'vehicle' || product?.type === 'real_estate') && (
+            <ListingFinancingCalculator price={product.price} currency={store?.currency || product.currency || 'TRY'} lang={lang} />
+          )}
+          
           <DigitalSignature storeName={store?.name || ''} lang={lang} />
 
           {branchStocks.length > 0 && (
@@ -799,7 +1177,7 @@ const ProductDetailModal: React.FC<{
             </div>
           )}
 
-          {product.type === 'vehicle' || product.type === 'real_estate' ? (
+          {store?.store_type === 'portfolio' || product.type === 'vehicle' || product.type === 'real_estate' ? (
             <button 
               onClick={() => {
                 const phone = store?.whatsapp_number || store?.phone;
@@ -918,6 +1296,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllBrands, setShowAllBrands] = useState(false);
 
+  // Portfolio-specific filter states
+  const [portfolioType, setPortfolioType] = useState<'all' | 'real_estate' | 'vehicle'>('all');
+  const [portfolioMinPrice, setPortfolioMinPrice] = useState("");
+  const [portfolioMaxPrice, setPortfolioMaxPrice] = useState("");
+  const [portfolioRooms, setPortfolioRooms] = useState("all");
+  const [portfolioMinM2, setPortfolioMinM2] = useState("");
+
   useEffect(() => {
     if ((isProfileView || isOrdersView || isReturnView) && !customerToken) {
       setShowAuthModal(true);
@@ -985,6 +1370,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [customer, setCustomer] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDiscoverModal, setShowDiscoverModal] = useState(false);
+  const [showKktcDiorama, setShowKktcDiorama] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [showFaq, setShowFaq] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
@@ -1324,7 +1710,41 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       const matchesSubCategory = !selectedSubCategory || p.sub_category === selectedSubCategory;
       const matchesBrand = !selectedBrand || p.brand === selectedBrand;
       
-      return matchesSearch && matchesCategory && matchesSubCategory && matchesBrand;
+      // Portfolio fields filter
+      let matchesPortfolioType = true;
+      if (store?.store_type === 'portfolio' || p.type === 'real_estate' || p.type === 'vehicle') {
+        if (portfolioType === 'real_estate') {
+          matchesPortfolioType = p.type === 'real_estate';
+        } else if (portfolioType === 'vehicle') {
+          matchesPortfolioType = p.type === 'vehicle';
+        }
+      }
+
+      let matchesMinPrice = true;
+      if (portfolioMinPrice) {
+        matchesMinPrice = p.price >= Number(portfolioMinPrice);
+      }
+
+      let matchesMaxPrice = true;
+      if (portfolioMaxPrice) {
+        matchesMaxPrice = p.price <= Number(portfolioMaxPrice);
+      }
+
+      let matchesRooms = true;
+      if (portfolioRooms !== 'all' && p.type === 'real_estate') {
+        const pRooms = Number(p.sector_data?.rooms);
+        if (portfolioRooms === '1') matchesRooms = pRooms === 1;
+        else if (portfolioRooms === '2') matchesRooms = pRooms === 2;
+        else if (portfolioRooms === '3') matchesRooms = pRooms === 3;
+        else if (portfolioRooms === '4+') matchesRooms = pRooms >= 4;
+      }
+
+      let matchesMinM2 = true;
+      if (portfolioMinM2 && p.type === 'real_estate') {
+        matchesMinM2 = Number(p.sector_data?.square_meters) >= Number(portfolioMinM2);
+      }
+      
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesBrand && matchesPortfolioType && matchesMinPrice && matchesMaxPrice && matchesRooms && matchesMinM2;
     });
 
     if (sortBy === 'priceAsc') {
@@ -1334,7 +1754,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     }
 
     return result;
-  }, [products, shuffledProducts, searchQuery, selectedCategory, selectedSubCategory, selectedBrand, sortBy, t]);
+  }, [products, shuffledProducts, searchQuery, selectedCategory, selectedSubCategory, selectedBrand, sortBy, portfolioType, portfolioMinPrice, portfolioMaxPrice, portfolioRooms, portfolioMinM2, store?.store_type, t]);
 
   const totalPages = Math.ceil(sortedAndFilteredProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = useMemo(() => {
@@ -1726,20 +2146,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Giriş Yap' : 'Login'}</span>
               </button>
             )}
-            <button 
-              onClick={() => setIsBasketOpen(true)}
-              className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
-            >
-              <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
-              {basketCount > 0 && (
-                <span 
-                  className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  {basketCount}
-                </span>
-              )}
-            </button>
+            {store?.store_type !== 'portfolio' && (
+              <button 
+                onClick={() => setIsBasketOpen(true)}
+                className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
+              >
+                <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
+                {basketCount > 0 && (
+                  <span 
+                    className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {basketCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -1903,6 +2325,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <Sparkles className="w-5 h-5 text-indigo-500" />
                     {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
                   </button>
+                  <button 
+                    onClick={() => setShowKktcDiorama(true)}
+                    className="px-10 py-5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white rounded-lg font-bold text-sm tracking-wide hover:brightness-110 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-3 border border-indigo-500/10"
+                  >
+                    <Globe className="w-5 h-5 text-indigo-200 animate-pulse" />
+                    {lang === 'tr' ? '🌀 KKTC 3D AI Orbit' : '🌀 KKTC 3D AI Orbit'}
+                  </button>
                 </motion.div>
               </div>
             </div>
@@ -2024,6 +2453,112 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8" id="products-grid">
         {/* Search Bar & Filters */}
         <div className="mb-12">
+          {store?.store_type === 'portfolio' && (
+            <div className="bg-slate-50/50 rounded-3xl p-6 md:p-8 border border-slate-100 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+              <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <Filter className="w-4 h-4 text-indigo-600" />
+                {lang === 'tr' ? 'Detaylı Arama / Filtreleme' : 'Advanced Search & Filters'}
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Filter 1: Listing Type */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'İlan Türü' : 'Listing Type'}</label>
+                  <div className="relative">
+                    <select
+                      value={portfolioType}
+                      onChange={(e) => setPortfolioType(e.target.value as any)}
+                      className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none appearance-none shadow-sm cursor-pointer"
+                    >
+                      <option value="all">{lang === 'tr' ? 'Tüm İlanlar' : 'All Listings'}</option>
+                      <option value="real_estate">{lang === 'tr' ? 'Gayrimenkul' : 'Real Estate'}</option>
+                      <option value="vehicle">{lang === 'tr' ? 'Oto Galeri / Vasıta' : 'Automotive / Vehicles'}</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Filter 2: Min Price */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Min Fiyat' : 'Min Price'} ({store?.currency || 'TRY'})</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={portfolioMinPrice}
+                    onChange={(e) => setPortfolioMinPrice(e.target.value)}
+                    className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm"
+                  />
+                </div>
+
+                {/* Filter 3: Max Price */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Max Fiyat' : 'Max Price'} ({store?.currency || 'TRY'})</label>
+                  <input
+                    type="number"
+                    placeholder="∞"
+                    value={portfolioMaxPrice}
+                    onChange={(e) => setPortfolioMaxPrice(e.target.value)}
+                    className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm"
+                  />
+                </div>
+
+                {/* Filter 4: Room Count (Conditional) */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Oda Sayısı (Emlak)' : 'Rooms (Estate)'}</label>
+                  <div className="relative">
+                    <select
+                      disabled={portfolioType === 'vehicle'}
+                      value={portfolioRooms}
+                      onChange={(e) => setPortfolioRooms(e.target.value)}
+                      className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none appearance-none shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="all">{lang === 'tr' ? 'Tümü' : 'All'}</option>
+                      <option value="1">1 Oda</option>
+                      <option value="2">2 Oda</option>
+                      <option value="3">3 Oda</option>
+                      <option value="4+">4+ Oda</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Filter 5: Min Area */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Min Alan (Emlak)' : 'Min Area (Estate)'}</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      disabled={portfolioType === 'vehicle'}
+                      placeholder="m²"
+                      value={portfolioMinM2}
+                      onChange={(e) => setPortfolioMinM2(e.target.value)}
+                      className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear filters trigger */}
+              {(portfolioType !== 'all' || portfolioMinPrice || portfolioMaxPrice || portfolioRooms !== 'all' || portfolioMinM2) && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setPortfolioType('all');
+                      setPortfolioMinPrice("");
+                      setPortfolioMaxPrice("");
+                      setPortfolioRooms("all");
+                      setPortfolioMinM2("");
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1.5 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    {lang === 'tr' ? 'Filtreleri Temizle' : 'Clear Filters'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
             <div>
               <h2 className={`text-4xl md:text-4xl md:text-4xl text-slate-900 tracking-tight mb-4 ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}>
@@ -4402,6 +4937,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             // Optionally fetch details...
           }}
           lang={lang}
+        />
+      )}
+    </AnimatePresence>
+
+    {/* KKTC AI 3D Diorama & Orbit Simulator */}
+    <AnimatePresence>
+      {showKktcDiorama && (
+        <KktcAiDioramaModal 
+          lang={lang}
+          onClose={() => setShowKktcDiorama(false)}
         />
       )}
     </AnimatePresence>

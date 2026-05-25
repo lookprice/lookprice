@@ -83,6 +83,7 @@ export interface Store {
   address: string;
   phone: string;
   email: string;
+  store_type?: 'product' | 'portfolio';
   emails?: string[];
   phones?: string[];
   custom_domain?: string;

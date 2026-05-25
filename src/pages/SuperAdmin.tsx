@@ -251,7 +251,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     default_currency: "TRY",
     language: "tr",
     plan: "free" as const,
-    parent_id: "" as string | number
+    parent_id: "" as string | number,
+    store_type: "product" as "product" | "portfolio"
   });
 
   const planLimits = {
@@ -325,7 +326,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         default_currency: "TRY",
         language: "tr",
         plan: "free",
-        parent_id: ""
+        parent_id: "",
+        store_type: "product"
       });
       fetchData();
     } catch (error) {
@@ -1472,6 +1474,17 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                   />
                 </div>
                 <div className="md:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mağaza Türü / Sektörü</label>
+                  <select 
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={editingStore.store_type || "product"} 
+                    onChange={e => setEditingStore({...editingStore, store_type: e.target.value})}
+                  >
+                    <option value="product">Ürün & Perakende (Standart Satış)</option>
+                    <option value="portfolio">Portföy & İlan (Emlak & Oto Galeri)</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Üst Mağaza (Şube ise)</label>
                   <select 
                     className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
@@ -1664,6 +1677,17 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                   <div>
                     <label className="block text-xs font-medium text-gray-700">{st.email}</label>
                     <input type="email" className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.email} onChange={e => setNewStore({...newStore, email: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">Mağaza Türü / Sektörü</label>
+                    <select 
+                      className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                      value={newStore.store_type} 
+                      onChange={e => setNewStore({...newStore, store_type: e.target.value as "product" | "portfolio"})}
+                    >
+                      <option value="product">Ürün & Perakende (Standart Satış)</option>
+                      <option value="portfolio">Portföy & İlan (Emlak & Oto Galeri)</option>
+                    </select>
                   </div>
                 </div>
                 <div className="space-y-3">

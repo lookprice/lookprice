@@ -961,7 +961,33 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     settings: false
   });
 
-  const navItems = [
+  const isPortfolio = branding?.store_type === 'portfolio';
+
+  useEffect(() => {
+    if (isPortfolio && (activeTab === 'products' || activeTab === 'pos' || activeTab === 'fast-pos' || activeTab === 'sales_invoices' || activeTab === 'procurements' || activeTab === 'purchase_invoices' || activeTab === 'stock_transfer' || activeTab === 'service')) {
+      setActiveTab('real_estate');
+    }
+  }, [isPortfolio, activeTab]);
+
+  const navItems = isPortfolio ? [
+    { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
+      { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
+      { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
+    ]},
+    { type: 'category', key: "sales", title: isTr ? "Teklifler & Cari" : "Quotations & Clients", items: [
+      { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
+      { id: "companies", label: t.companies, icon: Store },
+    ]},
+    { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
+      { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "audit-logs", label: t.auditLogs, icon: History },
+    ]},
+    { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
+      { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
+      { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
+    ]},
+    { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
+  ] : [
     { type: 'category', key: "dashboard", title: isTr ? "Dashboard" : "Dashboard", items: [
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
       { id: "audit-logs", label: t.auditLogs, icon: History },
