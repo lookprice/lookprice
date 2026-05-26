@@ -609,9 +609,15 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
         onClose={() => setIsModalOpen(false)} 
         property={selectedProperty}
         userRole={userRole}
-        onSave={(p) => {
-          if (onSave) onSave(p);
-          setIsModalOpen(false);
+        onSave={async (p) => {
+          try {
+            if (onSave) {
+              await onSave(p);
+              setIsModalOpen(false);
+            }
+          } catch (err: any) {
+            alert("İlan kaydedilirken bir hata oluştu: " + (err.message || err));
+          }
         }}
       />
 

@@ -22,10 +22,15 @@ export const useRealEstate = (storeId?: number) => {
 
   const saveProperty = async (property: Partial<RealEstateProperty>) => {
     try {
+      let res;
+      const payload = { ...property, store_id: storeId };
       if (property.id) {
-        await api.updateProperty(property.id, property);
+        res = await api.updateProperty(property.id, payload);
       } else {
-        await api.addProperty(property);
+        res = await api.addProperty(payload);
+      }
+      if (res && res.error) {
+        throw new Error(res.error);
       }
       await fetchProperties();
     } catch (error) {

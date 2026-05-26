@@ -45,7 +45,7 @@ import {
   MessageSquare,
   BookOpen
 } from "lucide-react";
-import { CreditCard, User, LogOut, Edit3, Building2, Home } from "lucide-react";
+import { CreditCard, User, LogOut, Edit3, Building2, Home, RefreshCw } from "lucide-react";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "@/translations";
@@ -670,6 +670,74 @@ const ProductDetailModal: React.FC<{
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Premium dynamic image gallery integration
+  const productImages = useMemo(() => {
+    const list: string[] = [];
+    if (product?.image_url) {
+      list.push(product.image_url);
+    }
+    const rawImages = (product as any)?.images;
+    if (rawImages) {
+      if (Array.isArray(rawImages)) {
+        rawImages.forEach((img: any) => {
+          if (img && typeof img === 'string' && !list.includes(img)) {
+            list.push(img);
+          }
+        });
+      } else if (typeof rawImages === 'string') {
+        try {
+          const parsed = JSON.parse(rawImages);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((img: any) => {
+              if (img && typeof img === 'string' && !list.includes(img)) {
+                list.push(img);
+              }
+            });
+          }
+        } catch (e) {}
+      }
+    }
+    return list;
+  }, [product]);
+
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // Keyboard navigation for enlarged viewer
+  useEffect(() => {
+    if (!isLightboxOpen || productImages.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') {
+        setActiveImageIdx(prev => (prev + 1) % productImages.length);
+      } else if (e.key === 'ArrowLeft') {
+        setActiveImageIdx(prev => (prev - 1 + productImages.length) % productImages.length);
+      } else if (e.key === 'Escape') {
+        setIsLightboxOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLightboxOpen, productImages.length]);
+
+  // 3D AI Orbit parameters
+  const [lighting, setLighting] = useState<'noon' | 'golden' | 'cyber'>('golden');
+  const [orbitSpeed, setOrbitSpeed] = useState<number>(1.2);
+  const [dollyDistance, setDollyDistance] = useState<number>(100);
+  const [isOrbiting, setIsOrbiting] = useState<boolean>(true);
+  const [currentAngle, setCurrentAngle] = useState<number>(15);
+
+  useEffect(() => {
+    let frameId: number;
+    const rotate = () => {
+      if (isOrbiting && activeViewMode === 'tour360') {
+        setCurrentAngle(prev => (prev + (orbitSpeed * 0.45)) % 360);
+      }
+      frameId = requestAnimationFrame(rotate);
+    };
+    rotate();
+    return () => cancelAnimationFrame(frameId);
+  }, [isOrbiting, orbitSpeed, activeViewMode]);
+
   const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
   const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
   const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
@@ -790,9 +858,9 @@ const ProductDetailModal: React.FC<{
       >
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 p-2.5 bg-white/80 backdrop-blur-md hover:bg-white rounded-lg transition-all z-20 shadow-lg active:scale-95"
+          className="absolute top-4 right-4 p-2.5 bg-slate-900/90 text-white hover:bg-slate-850 rounded-full transition-all z-50 shadow-xl active:scale-95"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </button>
 
         <div className="md:w-1/2 bg-gray-50 relative overflow-hidden h-80 md:h-auto">
@@ -836,7 +904,7 @@ const ProductDetailModal: React.FC<{
               </div>
             </button>
           {/* View Mode Switcher Overlay */}
-          {(product.type === 'vehicle' || product.type === 'real_estate') && (
+          {store?.store_type === 'portfolio' && (product.type === 'vehicle' || product.type === 'real_estate') && (
             <div className="absolute bottom-6 left-6 right-6 flex justify-center z-30 pointer-events-auto">
               <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
                 <button
@@ -859,81 +927,60 @@ const ProductDetailModal: React.FC<{
             </div>
           )}
           </div>
-          {activeViewMode === 'tour360' && (product.type === 'vehicle' || product.type === 'real_estate') ? (
+          {store?.store_type === 'portfolio' && activeViewMode === 'tour360' && (product.type === 'vehicle' || product.type === 'real_estate') ? (
             (() => {
-              const vehicleHotspots = [
+              const orbitPins = [
                 {
-                  name: lang === 'tr' ? "Sürücü Kokpiti & HUD" : "Cockpit & HUD",
-                  desc: lang === 'tr' 
-                    ? "Yarı otonom akıllı kontrol paneli, karbon detaylar ve Nappa deri kaplama." 
-                    : "Semi-autonomous smart dashboard, carbon trim and premium leather wheel.",
-                  x: 48,
-                  y: 45,
-                  image: "https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&q=80&w=1200"
+                  id: 'price',
+                  title: lang === 'tr' ? '💰 Finansal Değerleme' : '💰 Financial Valuation',
+                  value: `${product.price ? Number(product.price).toLocaleString() : '---'} ${product.currency || 'GBP'}`,
+                  detail: product.type === 'real_estate'
+                    ? (lang === 'tr' ? 'Tahmini Kira Getirisi: %7.4 | Banka Kredisine Uygun' : 'Estimated Rent Yield: 7.4% | Suitable for Bank Loan')
+                    : (lang === 'tr' ? 'Değer Koruma Endeksi: %94 (Çok Yüksek)' : 'Value Retention Index: 94% (Very High)')
                 },
                 {
-                  name: lang === 'tr' ? "VIP Arka Koltuk" : "Executive Rear Seating",
-                  desc: lang === 'tr'
-                    ? "Isıtmalı, masaj destekli koltuk tasarımı ve bağımsız havalandırma kurgusu."
-                    : "Heated, massage-supported seats with independent climate controls.",
-                  x: 22,
-                  y: 52,
-                  image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=1200"
+                  id: 'specs',
+                  title: product.type === 'real_estate' 
+                    ? (lang === 'tr' ? '📏 Konstrüksiyon & Net Alan' : '📏 Layout & Area')
+                    : (lang === 'tr' ? '⚙️ Motor ve Donanım' : '⚙️ Performance & Spec'),
+                  value: product.type === 'real_estate'
+                    ? `${product.sector_data?.square_meters || '120'} m² Net / ${product.sector_data?.sqm_gross || '145'} m² Brüt`
+                    : `${product.sector_data?.year || '2023'} Model | ${product.sector_data?.engine_power || '180'} HP`,
+                  detail: product.type === 'real_estate'
+                    ? (lang === 'tr' ? `Plan: ${product.sector_data?.rooms || '2+1'} | Isıtma: Kombi/Klima | Cephe: ${product.sector_data?.facade || 'Kuzey'}` : `Layout: ${product.sector_data?.rooms || '2+1'} | Heating: Heat Pump/AC | Facade: ${product.sector_data?.facade || 'North'}`)
+                    : (lang === 'tr' ? `Şanzıman: Otomatik | Kilometre: 42,000 km | Yakıt: Hibrit` : `Gearbox: Automatic | Mileage: 42,000 km | Fuel: Hybrid`)
                 },
                 {
-                  name: lang === 'tr' ? "Performans Yıldız Jantlar" : "Performance Forged Alloys",
-                  desc: lang === 'tr'
-                    ? "21 inç ultra hafif dövme fırtına grisi spor alaşım jant takımı."
-                    : "21-inch ultra-lightweight performance forged alloy wheels.",
-                  x: 76,
-                  y: 64,
-                  image: "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=1200"
+                  id: 'legal',
+                  title: product.type === 'real_estate'
+                    ? (lang === 'tr' ? '📜 Tapu ve İmar Durumu' : '📜 Title Deed Type')
+                    : (lang === 'tr' ? '🛡️ Ruhsat & Tescil' : '🛡️ Registry & Transfer'),
+                  value: product.type === 'real_estate'
+                    ? `${product.sector_data?.kktc_title_type || 'Eşdeğer Koçan'}`
+                    : (lang === 'tr' ? 'Tescil: Hemen Kimlik Devri' : 'Transfer: Instanly Available'),
+                  detail: lang === 'tr' ? 'Tüm ipotek ve haciz sorguları temiz, satışa %100 hazır.' : 'Completely cleared of liens, 100% ready for official ownership transfer.'
+                },
+                {
+                  id: 'location',
+                  title: lang === 'tr' ? '📍 Konum & Lokasyon Analizi' : '📍 Location & Area Analysis',
+                  value: `${product.sector_data?.kktc_region || (product as any).location || 'Girne'} / KKTC`,
+                  detail: product.type === 'real_estate'
+                    ? (lang === 'tr' ? 'Denize 650m | Toplu taşımaya ve süpermarkete yürüme mesafesinde.' : '650m to beach | Steps away from major transport & luxury grocery stores.')
+                    : (lang === 'tr' ? 'Distribütör çıkışlı, periyodik yetkili servis bakımlı.' : 'Officially certified, fully documented authorized dealer services.')
                 }
               ];
 
-              const estateHotspots = [
-                {
-                  name: lang === 'tr' ? "Giriş Fuayesi & Mermer Galeri" : "Entrance Foyer & Gallery",
-                  desc: lang === 'tr'
-                    ? "İtalyan mermeri kaplaması, double-height tavan ve özel kristal avize."
-                    : "Italian marble flooring, double-height ceiling and custom crystal design.",
-                  x: 50,
-                  y: 42,
-                  image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"
-                },
-                {
-                  name: lang === 'tr' ? "Gurme Ada Panel Mutfak" : "Epicurean Chef's Kitchen",
-                  desc: lang === 'tr'
-                    ? "Gaggenau ankastre donanımı, şelale tezgah tasarımı ve gizli kiler."
-                    : "Gaggenau built-in appliances, waterfall edge design and hidden pantry.",
-                  x: 26,
-                  y: 58,
-                  image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200"
-                },
-                {
-                  name: lang === 'tr' ? "Master Odalı Ebeveyn Odası" : "Master Suite & Terrace",
-                  desc: lang === 'tr'
-                    ? "Panoramik boy camlar, sürgülü balkon kapısı, hamam banyolu süit."
-                    : "Floor-to-ceiling panoramic glass, terrace deck doors and jacuzzi suit.",
-                  x: 74,
-                  y: 38,
-                  image: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200"
-                }
-              ];
-
-              const hotspots = product.type === 'vehicle' ? vehicleHotspots : estateHotspots;
-              const currentHotspot = hotspots[selectedHotspotIdx] || hotspots[0];
+              const currentPin = orbitPins[selectedHotspotIdx] || orbitPins[0];
 
               const handleMouseDown = (e: React.MouseEvent) => {
                 setIsDragging(true);
-                setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+                setDragStart({ x: e.clientX, y: currentAngle });
               };
 
               const handleMouseMove = (e: React.MouseEvent) => {
                 if (!isDragging) return;
-                const nextX = e.clientX - dragStart.x;
-                const boundedX = Math.max(-120, Math.min(120, nextX));
-                setPanOffset(prev => ({ ...prev, x: boundedX }));
+                const deltaX = e.clientX - dragStart.x;
+                setCurrentAngle((dragStart.y - deltaX * 0.5) % 360);
               };
 
               const handleMouseUpOrLeave = () => {
@@ -943,14 +990,22 @@ const ProductDetailModal: React.FC<{
               const handleTouchStart = (e: React.TouchEvent) => {
                 if (e.touches.length === 0) return;
                 setIsDragging(true);
-                setDragStart({ x: e.touches[0].clientX - panOffset.x, y: e.touches[0].clientY - panOffset.y });
+                setDragStart({ x: e.touches[0].clientX, y: currentAngle });
               };
 
               const handleTouchMove = (e: React.TouchEvent) => {
                 if (!isDragging || e.touches.length === 0) return;
-                const nextX = e.touches[0].clientX - dragStart.x;
-                const boundedX = Math.max(-120, Math.min(120, nextX));
-                setPanOffset(prev => ({ ...prev, x: boundedX }));
+                const deltaX = e.touches[0].clientX - dragStart.x;
+                setCurrentAngle((dragStart.y - deltaX * 0.5) % 360);
+              };
+
+              // 3D calculation for pin rotations
+              const getPinPosition = (baseAngle: number) => {
+                const angleRad = ((currentAngle + baseAngle) * Math.PI) / 180;
+                const x = 50 + Math.sin(angleRad) * 35; // orbit radius
+                const opacity = Math.cos(angleRad) > 0 ? 1 : 0.25; // hide behind
+                const zIndex = Math.cos(angleRad) > 0 ? 30 : 10;
+                return { x, opacity, zIndex };
               };
 
               return (
@@ -964,113 +1019,247 @@ const ProductDetailModal: React.FC<{
                   onTouchEnd={handleMouseUpOrLeave}
                   className="w-full h-full bg-slate-950 relative overflow-hidden select-none cursor-grab active:cursor-grabbing flex flex-col justify-between"
                 >
-                  {/* HUD Overlay */}
-                  <div className="absolute top-6 left-6 right-6 flex justify-between items-center pointer-events-none z-10">
-                    <div className="bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-850">
-                      <p className="text-[7px] text-indigo-400 font-black uppercase tracking-widest leading-none mb-1">
-                        {lang === 'tr' ? 'SANAL AKILLI SİSTEM' : 'IMMERSIVE HUD SYSTEM'}
+                  {/* HUD Overlay Header */}
+                  <div className="absolute top-6 left-6 right-6 flex justify-between items-start pointer-events-none z-10">
+                    <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 shadow-xl">
+                      <p className="text-[7px] text-indigo-400 font-extrabold uppercase tracking-widest leading-none mb-1">
+                        {lang === 'tr' ? 'DİJİTAL ORBİT MOTORU v2.0' : 'DIGITAL ORBIT ENGINE v2.0'}
                       </p>
-                      <p className="text-[9px] text-white font-black tracking-tight uppercase">
-                        {lang === 'tr' ? '🌀 360 PANEL AKTİF' : '🌀 360 FIELD ACTIVE'}
+                      <p className="text-[10px] text-white font-extrabold tracking-tight uppercase">
+                        {lang === 'tr' ? '🌀 3D PARALLAX AKTİF' : '🌀 3D PARALLAX ACTIVE'}
                       </p>
                     </div>
-                    <div className="bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-850 text-right">
-                      <p className="text-[7px] text-slate-500 font-bold uppercase tracking-widest leading-none mb-1">
-                        {lang === 'tr' ? 'ORBİTAL AÇI' : 'ORBIT ANGLE'}
+                    <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 text-right shadow-xl">
+                      <p className="text-[7px] text-slate-400 font-extrabold uppercase tracking-widest leading-none mb-1">
+                        {lang === 'tr' ? 'UZAYSAL AÇI' : 'SPATIAL ANGLE'}
                       </p>
-                      <p className="text-[9px] text-emerald-400 font-mono font-bold leading-none">
-                        PAN: {Math.round(panOffset.x)}°
+                      <p className="text-[10px] text-emerald-400 font-mono font-black leading-none">
+                        ROT: {Math.round((currentAngle + 360) % 360)}°
                       </p>
                     </div>
                   </div>
 
-                  {/* Panoramic Background View */}
-                  <div 
-                    className="absolute inset-0 transition-transform duration-100 ease-out" 
-                    style={{ 
-                      backgroundImage: `url('${currentHotspot.image}')`,
-                      backgroundSize: '135% 100%',
-                      backgroundPosition: `${50 + (panOffset.x / 6)}% 50%`
-                    }}
-                  />
+                  {/* 3D Scene viewport parent */}
+                  <div className="absolute inset-0 flex items-center justify-center p-4 pt-16 pb-28 perspective-[1200px]">
+                    
+                    {/* Shadow grid floor */}
+                    <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent rotate-12 blur-sm pointer-events-none" />
+                    <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -rotate-12 blur-sm pointer-events-none" />
 
-                  {/* Gradient shading */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/70 pointer-events-none" />
+                    {/* Interactive Rotating Listing Diorama Container */}
+                    <div 
+                      className="relative w-[75%] max-w-[270px] aspect-[4/3] rounded-[24px] overflow-hidden origin-center transition-shadow duration-500"
+                      style={{
+                        transform: `rotateY(${-currentAngle}deg) rotateX(15deg) scale(${dollyDistance / 100})`,
+                        transformStyle: 'preserve-3d',
+                        boxShadow: lighting === 'noon'
+                          ? '0 30px 60px -15px rgba(0,0,0,0.6)'
+                          : lighting === 'golden'
+                          ? '0 40px 75px -12px rgba(217,119,6,0.25), 0 20px 40px -15px rgba(0,0,0,0.7)'
+                          : '0 40px 75px -12px rgba(99,102,241,0.25), 0 20px 40px -15px rgba(0,0,0,0.8)',
+                        filter: lighting === 'noon' 
+                          ? 'brightness(1.05) contrast(1.05)' 
+                          : lighting === 'golden' 
+                          ? 'sepia(0.2) saturate(1.15) contrast(1.1) brightness(1.02)' 
+                          : 'hue-rotate(15deg) saturate(1.3) contrast(1.15) brightness(0.8)'
+                      }}
+                    >
+                      <img 
+                        src={(product as any).images?.[0] || product.image_url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"} 
+                        alt={product.name} 
+                        className="w-full h-full object-cover select-none pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                      
+                      {/* Vignette lighting overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent pointer-events-none" />
+                      
+                      {/* Real-time Simulated Glow filter based on speed and angle */}
+                      <div 
+                        className="absolute inset-0 opacity-20 pointer-events-none mix-blend-color-dodge transition-opacity duration-300"
+                        style={{
+                          background: `radial-gradient(circle at ${50 + Math.sin((currentAngle * Math.PI)/180) * 50}% 50%, #818cf8, transparent 70%)`
+                        }}
+                      />
+                    </div>
 
-                  {/* Perspective Interactive floating nodes */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    {hotspots.map((spot, idx) => {
-                      const lateralShift = panOffset.x * 0.35;
-                      const leftPercentage = spot.x + (lateralShift / 3);
+                    {/* Spatial floating 3D markers */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      {orbitPins.map((spot, idx) => {
+                        const baseAngle = idx * 90; // space pins evenly around 360 circle
+                        const pos = getPinPosition(baseAngle);
 
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedHotspotIdx(idx);
-                          }}
-                          className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group/spot z-20"
-                          style={{
-                            left: `${leftPercentage}%`,
-                            top: `${spot.y}%`
-                          }}
-                        >
-                          <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? 'bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg' : 'bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-110'}`}>
-                            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                          </span>
-                          <span className={`absolute mt-9 transition-all text-[8px] font-bold px-2 py-1 rounded-md border leading-none tracking-wide whitespace-nowrap shadow-xl ${selectedHotspotIdx === idx ? 'bg-indigo-600 text-white border-indigo-500 scale-100' : 'bg-slate-900/95 text-slate-300 border-slate-800 scale-90 opacity-0 group-hover/spot:opacity-100'}`}>
-                            {spot.name}
-                          </span>
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={spot.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedHotspotIdx(idx);
+                            }}
+                            className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group/spot"
+                            style={{
+                              left: `${pos.x}%`,
+                              top: `${42 + (idx % 2 === 0 ? -12 : 12)}%`,
+                              opacity: pos.opacity,
+                              zIndex: pos.zIndex,
+                              transition: isDragging ? 'none' : 'left 0.1s ease-out, opacity 0.1s ease-out'
+                            }}
+                          >
+                            <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? 'bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg shadow-indigo-600/40' : 'bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-115'}`}>
+                              <span className="text-[11px] font-black leading-none">{idx + 1}</span>
+                            </span>
+                            <span className={`absolute mt-10 transition-all text-[8px] font-bold px-2 py-1 rounded-md border leading-none tracking-wide whitespace-nowrap shadow-xl ${selectedHotspotIdx === idx ? 'bg-indigo-600 text-white border-indigo-500 scale-100 opacity-100' : 'bg-slate-900/95 text-slate-300 border-slate-800 scale-90 opacity-0 group-hover/spot:opacity-100'}`}>
+                              {spot.title.split(' ')[1] || spot.title}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {/* Info Panel footer */}
-                  <div className="mt-auto p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 relative z-20">
-                    <div>
-                      <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1">
-                        {lang === 'tr' ? 'BAKILAN DETAY' : 'VIEWPORT TARGET'}
+                  {/* Simulator Control Panel footer */}
+                  <div className="mt-auto p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800/80 relative z-20 space-y-4">
+                    
+                    {/* Dynamic highlighted valuation tag */}
+                    <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-850/60 animate-fade-in">
+                      <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1 leading-none">
+                        {lang === 'tr' ? 'RADAR DIAGNOSTİK NOKTASI' : 'RADAR DIAGNOSTIC NODE'}
                       </p>
-                      <h5 className="text-xs font-bold text-white mb-1 tracking-tight flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        {currentHotspot.name}
+                      <h5 className="text-[12px] font-black text-white mb-1 tracking-tight flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping shrink-0" />
+                        {currentPin.title}
                       </h5>
+                      <p className="text-[11px] text-indigo-100 font-extrabold mb-1">
+                        {currentPin.value}
+                      </p>
                       <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                        {currentHotspot.desc}
+                        {currentPin.detail}
                       </p>
                     </div>
 
-                    {/* Selector triggers inside panorama footer */}
-                    <div className="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar pt-1.5 border-t border-slate-800/40">
-                      {hotspots.map((spot, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedHotspotIdx(idx);
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold tracking-wider uppercase border whitespace-nowrap transition-all ${selectedHotspotIdx === idx ? 'bg-indigo-600 text-white border-indigo-500 shadow' : 'bg-slate-950/45 text-slate-400 border-slate-800/40 hover:border-slate-800'}`}
-                        >
-                          {spot.name.split('&')[0].split('/')[0].trim()}
-                        </button>
-                      ))}
+                    {/* Operational dials */}
+                    <div className="flex flex-col gap-3 pt-2 border-t border-slate-800/40">
+                      <div className="flex flex-wrap items-center justify-between gap-3 text-white text-xs">
+                        
+                        {/* Lighting preset picker */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'GÜN IŞIĞI SENTEZİ:' : 'LIGHT SYNTHESIS:'}</span>
+                          <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-850">
+                            {[
+                              { id: 'noon', label: lang === 'tr' ? '☀️ Gündüz' : '☀️ Noon' },
+                              { id: 'golden', label: lang === 'tr' ? '🌆 Altın Saat' : '🌆 Golden Hour' },
+                              { id: 'cyber', label: lang === 'tr' ? '🌌 Gece' : '🌌 Night' }
+                            ].map((preset) => (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => setLighting(preset.id as any)}
+                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${lighting === preset.id ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                              >
+                                {preset.label.split(' ')[1]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Interactive sliders or rotational switches */}
+                        <div className="flex items-center gap-4">
+                          
+                          {/* Auto orbit trigger */}
+                          <button
+                            type="button"
+                            onClick={() => setIsOrbiting(!isOrbiting)}
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 transition-all ${isOrbiting ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-950 text-slate-500 border-slate-850'}`}
+                          >
+                            <RefreshCw className={`w-3 h-3 ${isOrbiting ? 'animate-spin' : ''}`} />
+                            {isOrbiting ? (lang === 'tr' ? 'Oto Spin' : 'Auto Orbit') : (lang === 'tr' ? 'Durduruldu' : 'Paused')}
+                          </button>
+
+                          {/* Zoom depth slider */}
+                          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-850">
+                            <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">DOLLY:</span>
+                            <input 
+                              type="range" 
+                              min="70" 
+                              max="140"
+                              value={dollyDistance}
+                              onChange={(e) => setDollyDistance(Number(e.target.value))}
+                              className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                            />
+                            <span className="text-[8px] font-bold font-mono text-indigo-400">{dollyDistance}%</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })()
           ) : (
-            product.image_url ? (
-              <img 
-                src={product.image_url} 
-                alt={product.name} 
-                className="w-full h-full object-contain p-8 bg-white"
-                referrerPolicy="no-referrer"
-              />
+            productImages.length > 0 ? (
+              <div className="w-full h-full flex flex-col justify-between bg-white relative p-4 pb-6">
+                {/* Main Viewport Box */}
+                <div 
+                  className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in"
+                  onClick={() => setIsLightboxOpen(true)}
+                  title={lang === 'tr' ? 'Büyütmek için tıklayın' : 'Click to enlarge'}
+                >
+                  <img 
+                    src={productImages[activeImageIdx]} 
+                    alt={product.name} 
+                    className="max-w-full max-h-[280px] md:max-h-[380px] object-contain transition-all duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                  
+                  {/* Action Icon overlay */}
+                  <div className="absolute top-2 right-2 bg-slate-900/40 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-0 group-hover/gallery:opacity-100 transition-opacity">
+                    <Eye className="w-4 h-4" />
+                  </div>
+
+                  {/* Previous / Next chevrons inside the product frame */}
+                  {productImages.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIdx(prev => (prev - 1 + productImages.length) % productImages.length);
+                        }}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIdx(prev => (prev + 1) % productImages.length);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Thumbnails list below inside normal frame */}
+                {productImages.length > 1 && (
+                  <div className="flex gap-2 justify-center py-2 px-4 overflow-x-auto no-scrollbar max-w-full z-10 shrink-0">
+                    {productImages.map((img, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveImageIdx(idx)}
+                        className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${activeImageIdx === idx ? 'border-indigo-605 border-indigo-600 scale-105 shadow-md' : 'border-slate-100 hover:border-slate-300'}`}
+                      >
+                        <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-200">
                 <Package className="w-32 h-32" />
@@ -1224,6 +1413,83 @@ const ProductDetailModal: React.FC<{
           )}
         </div>
       </motion.div>
+
+      {/* Lightbox / Fullscreen Image Viewer Modal Overlay */}
+      <AnimatePresence>
+        {isLightboxOpen && productImages.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 md:p-8"
+            onClick={() => setIsLightboxOpen(false)}
+          >
+            {/* Top Bar inside Lightbox */}
+            <div className="w-full flex justify-between items-center z-[210] pointer-events-none">
+              <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-xl text-white text-xss font-bold tracking-wider uppercase">
+                {product.name} ({activeImageIdx + 1} / {productImages.length})
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(false)}
+                className="pointer-events-auto p-3 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-xl transition-all active:scale-95 border border-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Central Zoom Viewport */}
+            <div className="relative flex-1 w-full max-w-6xl mx-auto flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+              
+              {/* Left Arrow Button */}
+              {productImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIdx(prev => (prev - 1 + productImages.length) % productImages.length)}
+                  className="absolute left-2 md:left-8 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220]"
+                >
+                  <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
+                </button>
+              )}
+
+              {/* Large Active Image inside Enlarged View */}
+              <img
+                src={productImages[activeImageIdx]}
+                alt={product.name}
+                className="max-w-full max-h-[70vh] md:max-h-[82vh] object-contain select-none shadow-2xl rounded-xl"
+                referrerPolicy="no-referrer"
+              />
+
+              {/* Right Arrow Button */}
+              {productImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIdx(prev => (prev + 1) % productImages.length)}
+                  className="absolute right-2 md:right-8 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220]"
+                >
+                  <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
+                </button>
+              )}
+            </div>
+
+            {/* Lightbox Bottom thumbnail scroller bar */}
+            {productImages.length > 1 && (
+              <div className="w-full max-w-4xl mx-auto flex gap-3.5 justify-center py-4 overflow-x-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
+                {productImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveImageIdx(idx)}
+                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImageIdx === idx ? 'border-indigo-500 scale-110 shadow-lg' : 'border-slate-800 hover:border-slate-600'}`}
+                  >
+                    <img src={img} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Removed About Modal functionality */}
     </div>
   );
@@ -2325,13 +2591,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     <Sparkles className="w-5 h-5 text-indigo-500" />
                     {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
                   </button>
-                  <button 
-                    onClick={() => setShowKktcDiorama(true)}
-                    className="px-10 py-5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white rounded-lg font-bold text-sm tracking-wide hover:brightness-110 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-3 border border-indigo-500/10"
-                  >
-                    <Globe className="w-5 h-5 text-indigo-200 animate-pulse" />
-                    {lang === 'tr' ? '🌀 KKTC 3D AI Orbit' : '🌀 KKTC 3D AI Orbit'}
-                  </button>
                 </motion.div>
               </div>
             </div>
@@ -2988,8 +3247,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   <div className="w-24 h-24 bg-white rounded-lg flex items-center justify-center shadow-xl mb-8">
                     <Package className="w-12 h-12 text-gray-200" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.dashboard.noProductsFound}</h3>
-                  <p className="text-gray-400 font-medium max-w-xs">{t.dashboard.noProductsDesc}</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    {store?.store_type === 'portfolio' 
+                      ? (lang === 'tr' ? 'İlan bulunamadı' : 'No listings found') 
+                      : t.dashboard.noProductsFound}
+                  </h3>
+                  <p className="text-gray-400 font-medium max-w-xs">
+                    {store?.store_type === 'portfolio' 
+                      ? (lang === 'tr' ? 'Arama kriterlerinize uygun ilan veya portföy bulunmuyor.' : 'No listings or portfolios match your search criteria.') 
+                      : t.dashboard.noProductsDesc}
+                  </p>
                 </div>
               )
             )}
@@ -3682,7 +3949,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 <span className="text-3xl font-bold tracking-tighter text-white">{store?.name}</span>
               </div>
               <p className="text-gray-500 text-lg font-medium max-w-md leading-relaxed mb-10">
-                {store?.description || (lang === 'tr' ? 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.' : 'We offer you the highest quality products at the most affordable prices. Customer satisfaction is always our priority.')}
+                {store?.description || (
+                  store?.store_type === 'portfolio'
+                    ? (lang === 'tr' ? 'En seçkin gayrimenkul ve araç ilanlarını en avantajlı fırsatlarla sizlere sunuyoruz. Müşteri memnuniyeti önceliğimizdir.' : 'We provide the most exclusive real estate and vehicle listings with premium opportunities. Customer satisfaction is our priority.')
+                    : (lang === 'tr' ? 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.' : 'We offer you the highest quality products at the most affordable prices. Customer satisfaction is always our priority.')
+                )}
               </p>
               
               <div className="flex items-center gap-4">
@@ -4489,7 +4760,21 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             store={store} 
             t={t} 
             slug={slug}
-            onClose={() => setSelectedProduct(null)} 
+            onClose={() => {
+              setSelectedProduct(null);
+              // Safely pop barcode / direct product param out of browser URI to unlock close action
+              if (urlBarcode) {
+                const isCustomDomain = !window.location.pathname.startsWith('/s/');
+                const cleanSlug = store?.slug || slug || urlSlug;
+                if (isCustomDomain) {
+                  navigate('/', { replace: true });
+                } else if (cleanSlug) {
+                  navigate(`/s/${cleanSlug}`, { replace: true });
+                } else {
+                  navigate(-1);
+                }
+              }
+            }} 
             addToBasket={addToBasket} 
             primaryColor={primaryColor}
             isLuxury={isLuxury}
@@ -4909,8 +5194,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-400 text-xs font-semibold">
         <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 uppercase tracking-widest">
           <a href={`/api/public/store/${store?.slug}/about-us`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</a>
-          <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
-          <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
+          {store?.store_type !== 'portfolio' && (
+            <>
+              <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
+              <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
+            </>
+          )}
           <a href={`/api/public/store/${store?.slug}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}</a>
         </div>
         <div className="text-center md:text-right">
@@ -4937,16 +5226,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             // Optionally fetch details...
           }}
           lang={lang}
-        />
-      )}
-    </AnimatePresence>
-
-    {/* KKTC AI 3D Diorama & Orbit Simulator */}
-    <AnimatePresence>
-      {showKktcDiorama && (
-        <KktcAiDioramaModal 
-          lang={lang}
-          onClose={() => setShowKktcDiorama(false)}
         />
       )}
     </AnimatePresence>

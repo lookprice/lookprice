@@ -57,7 +57,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Basic GET route to list properties
 router.get('/properties', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.body.store_id || req.user.store_id;
   try {
     const result = await pool.query(
       `SELECT * FROM real_estate_properties WHERE store_id = $1 ORDER BY created_at DESC`,
@@ -72,7 +72,7 @@ router.get('/properties', authenticate, async (req: any, res) => {
 
 // POST route to add a property
 router.post('/properties', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.body.store_id || req.query.store_id || req.user.store_id;
   const property = req.body;
   
   try {
@@ -91,9 +91,9 @@ router.post('/properties', authenticate, async (req: any, res) => {
       ]
     );
     res.json(result.rows[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error adding property:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 });
 
@@ -101,7 +101,7 @@ router.post('/properties', authenticate, async (req: any, res) => {
 router.put('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const property = req.body;
-  const storeId = req.user.store_id;
+  const storeId = req.body.store_id || req.query.store_id || req.user.store_id;
 
   try {
     const result = await pool.query(
@@ -122,16 +122,16 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
       return res.status(404).json({ error: 'Property not found' });
     }
     res.json(result.rows[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating property:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 });
 
 // DELETE route
 router.delete('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.user.store_id;
+  const storeId = req.query.store_id || req.body.store_id || req.user.store_id;
 
   try {
     const result = await pool.query(
