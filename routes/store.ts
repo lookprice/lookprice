@@ -5645,15 +5645,20 @@ router.get("/consultants", async (req: any, res) => {
 // Create consultant
 router.post("/consultants", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { name, email, phone, role, branch_id, image_url, performance } = req.body;
+  let { name, email, phone, role, branch_id, image_url, performance } = req.body;
+  
+  // Handle empty branch_id
+  const effectiveBranchId = (branch_id === "" || branch_id === null) ? null : branch_id;
+  
   try {
     const result = await pool.query(
       `INSERT INTO consultants (store_id, branch_id, name, email, phone, role, image_url, performance) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [storeId, branch_id, name, email, phone, role, image_url, performance || {}]
+      [storeId, effectiveBranchId, name, email, phone, role, image_url, performance || {}]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("Consultant creation error:", error);
     res.status(500).json({ error: "Failed to create consultant" });
   }
 });
@@ -5662,17 +5667,21 @@ router.post("/consultants", async (req: any, res) => {
 router.put("/consultants/:id", async (req: any, res) => {
   const { id } = req.params;
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { name, email, phone, role, branch_id, image_url, status, performance } = req.body;
+  let { name, email, phone, role, branch_id, image_url, performance } = req.body;
+  
+  const effectiveBranchId = (branch_id === "" || branch_id === null) ? null : branch_id;
+
   try {
     const result = await pool.query(
-      `UPDATE consultants SET 
-        name = $1, email = $2, phone = $3, role = $4, branch_id = $5, image_url = $6, status = $7, performance = $8, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $9 AND store_id = $10 RETURNING *`,
-      [name, email, phone, role, branch_id, image_url, status, performance, id, storeId]
+      `UPDATE consultants 
+       SET name = $1, email = $2, phone = $3, role = $4, branch_id = $5, image_url = $6, performance = $7, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8 AND store_id = $9 RETURNING *`,
+      [name, email, phone, role, effectiveBranchId, image_url, performance || {}, id, storeId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Consultant not found" });
     res.json(result.rows[0]);
   } catch (error) {
+    console.error("Consultant update error:", error);
     res.status(500).json({ error: "Failed to update consultant" });
   }
 });
@@ -5687,7 +5696,7 @@ router.delete("/consultants/:id", async (req: any, res) => {
       [id, storeId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Consultant not found" });
-    res.json({ success: true });
+    res.json({ message: "Consultant deleted", consultant: result.rows[0] });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete consultant" });
   }

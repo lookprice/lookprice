@@ -21,7 +21,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   userRole = 'admin' // default to admin for standalone compatibility
 }) => {
   // Office manager checks: superadmin, admin, manager, owner count as office managers
-  const isOfficeManager = ['superadmin', 'admin', 'manager', 'owner', 'yönetici', 'yonetici'].includes(userRole.toLowerCase());
+  const isOfficeManager = ['superadmin', 'admin', 'storeadmin', 'manager', 'owner', 'yönetici', 'yonetici', 'portfolio_manager', 'portföy yöneticisi', 'consultant', 'danışman', 'danisman', 'editor'].includes(userRole.toLowerCase());
 
   const [formData, setFormData] = useState<Partial<RealEstateProperty>>({
     title: '',

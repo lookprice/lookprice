@@ -1146,7 +1146,7 @@ const ProductDetailModal: React.FC<{
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white w-full max-w-7xl rounded-[3rem] shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[95vh] border border-slate-200"
+        className="bg-white w-full max-w-[1440px] rounded-[3rem] shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[95vh] border border-slate-200"
       >
         <button
           onClick={onClose}
@@ -1667,7 +1667,7 @@ const ProductDetailModal: React.FC<{
         </div>
 
         <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
-          <div className="mb-6 flex flex-wrap gap-2 items-center">
+          <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 items-center">
             {getLabels(product.labels).map((label, idx) => (
               <span
                 key={idx}
@@ -1677,7 +1677,7 @@ const ProductDetailModal: React.FC<{
                 {label}
               </span>
             ))}
-            <div className="flex flex-col px-2">
+            <div className="flex flex-col">
               <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
                 {categoryLabel}
               </span>
@@ -1691,13 +1691,23 @@ const ProductDetailModal: React.FC<{
                 {product.category || t.dashboard.uncategorized}
               </span>
             </div>
-            {product.brand && (
-              <div className="flex flex-col px-2">
+            {product.brand && product.type !== "real_estate" && (
+              <div className="flex flex-col">
                 <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
                   {brandLabel}
                 </span>
                 <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
                   {product.brand}
+                </span>
+              </div>
+            )}
+            {product.type === "real_estate" && (product as any).location && (
+              <div className="flex flex-col">
+                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+                  {brandLabel}
+                </span>
+                <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
+                  {(product as any).location}
                 </span>
               </div>
             )}
@@ -1755,6 +1765,14 @@ const ProductDetailModal: React.FC<{
             }
             data={product.sector_data}
           />
+
+          {(product.type === 'real_estate' || store?.store_type === 'portfolio') && (
+            <ListingFinancingCalculator 
+              price={product.price} 
+              currency={product.currency || store?.currency || 'TRY'} 
+              lang={lang} 
+            />
+          )}
 
           <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'portfolio'} />
 

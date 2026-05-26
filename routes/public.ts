@@ -624,6 +624,13 @@ router.get("/store/:slug", async (req, res) => {
   );
   store.blog_posts = blogRes.rows;
 
+  // Fetch consultants 
+  const consultantsRes = await pool.query(
+    "SELECT name, email, phone, role, image_url FROM consultants WHERE store_id = $1", 
+    [store.id]
+  );
+  store.consultants = consultantsRes.rows;
+
   res.json(store);
 });
 
@@ -711,6 +718,7 @@ router.get("/store/:slug/products", async (req, res) => {
       branch_name: r.branch_name,
       branch_slug: r.branch_slug,
       image_url: r.images && r.images.length > 0 ? r.images[0] : null,
+      images: r.images,
       sector_data: {
         square_meters: r.square_meters,
         rooms: r.room_count,

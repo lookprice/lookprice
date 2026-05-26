@@ -31,14 +31,21 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
         .getPublicBlogPosts(store.slug)
         .then((res) => {
           if (Array.isArray(res)) {
-            setBlogs(res.filter((b) => b.is_published).slice(0, 3));
+            setBlogs(res.slice(0, 3));
           }
         })
         .catch(console.error);
     }
   }, [store.slug]);
 
-  const team = [
+  const team = store.consultants && store.consultants.length > 0 
+    ? store.consultants.map(c => ({
+        id: c.id?.toString() || c.name,
+        name: c.name,
+        role: c.role || "Danışman",
+        image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
+      }))
+    : [
     {
       id: "1",
       name: store.name || "Broker",

@@ -505,7 +505,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
 
   // Safe checks for user role representation
   const userRole = user?.role || 'admin';
-  const isOfficeManager = ["superadmin", "admin", "manager", "owner"].includes(userRole.toLowerCase());
+  const isOfficeManager = ["superadmin", "admin", "storeadmin", "manager", "owner", "portfolio_manager", "portföy yöneticisi", "consultant", "danışman", "danisman", "editor"].includes(userRole.toLowerCase());
 
   return (
     <div className="p-6 space-y-6">
