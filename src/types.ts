@@ -210,6 +210,13 @@ export interface Sale {
   items?: any[];
 }
 
+export interface OwnerInfo {
+  fullName: string;
+  phone: string;
+  email?: string;
+  idNumber?: string;
+}
+
 export interface RealEstateProperty {
   id: number;
   store_id: number;
@@ -240,12 +247,15 @@ export interface RealEstateProperty {
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
   seller_type?: 'professional' | 'individual';
+  owner_info?: OwnerInfo;
   is_verified?: boolean;
   verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
   status: 'active' | 'rented' | 'sold' | 'optioned'; // Satılık, Kiralık, Opsiyonlu (Kapora Alındı), Satıldı
   branch_id?: number | string;
   branch_name?: string;
+  authorized_branch_id?: number;
   responsible_agent?: string;
+  responsible_consultant_id?: number;
   sharing_scope?: 'shared_pool' | 'branch_private' | 'private';
   reserved_by_branch?: string;
   reservation_notes?: string;

@@ -86,6 +86,9 @@ import { useReactToPrint } from 'react-to-print';
 // Import Tabs
 const ProductsTab = React.lazy(() => import("./ProductsTab"));
 const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
+const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
+const PortfolioNotificationsTab = React.lazy(() => import("./PortfolioNotificationsTab").then(m => ({ default: m.PortfolioNotificationsTab })));
+const PortfolioWebsiteGeneratorTab = React.lazy(() => import("./PortfolioWebsiteGenerator").then(m => ({ default: m.PortfolioWebsiteGenerator })));
 const QuotationsTab = React.lazy(() => import("./QuotationsTab"));
 const CompaniesTab = React.lazy(() => import("./CompaniesTab"));
 const PosTab = React.lazy(() => import("./PosTab"));
@@ -96,6 +99,7 @@ const BlogTab = React.lazy(() => import("./BlogTab"));
 const ProcurementTab = React.lazy(() => import("./ProcurementTab").then(m => ({ default: m.ProcurementTab })));
 const ServiceTab = React.lazy(() => import("./ServiceTab").then(m => ({ default: m.ServiceTab })));
 const StockTransferTab = React.lazy(() => import("./StockTransferTab"));
+const AuthorityTransferTab = React.lazy(() => import("./AuthorityTransferTab"));
 const FleetTab = React.lazy(() => import("./FleetTab"));
 const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
 const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
@@ -972,6 +976,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const navItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
       { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
+      { id: "authority_transfer", label: isTr ? 'Yetki Transferleri' : 'Authority Transfers', icon: ArrowLeftRight },
       { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Teklifler & Cari" : "Quotations & Clients", items: [
@@ -980,6 +985,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
+      { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
@@ -990,6 +997,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   ] : [
     { type: 'category', key: "dashboard", title: isTr ? "Dashboard" : "Dashboard", items: [
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
+      { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Satış & Müşteriler" : "Sales & Customers", items: [
@@ -1337,7 +1346,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                     {activeTab === "analytics" && (
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                      {isPortfolio ? (
+                        <PortfolioAnalyticsTab analytics={analytics} branding={branding} onDateChange={(s, e) => fetchAnalytics(s, e)} loading={loading} />
+                      ) : (
                         <AnalyticsTab analytics={analytics} branding={branding} onDateChange={(s, e) => fetchAnalytics(s, e)} loading={loading} />
+                      )}
+                      </Suspense>
+                    )}
+                    {activeTab === "notifications" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <PortfolioNotificationsTab analytics={analytics} />
+                      </Suspense>
+                    )}
+                    {activeTab === "website-generator" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <PortfolioWebsiteGeneratorTab />
                       </Suspense>
                     )}
                     {activeTab === "quotations" && (
@@ -1413,6 +1436,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           products={products}
                           role={user.role}
                           onTabChange={setActiveTab}
+                        />
+                      </Suspense>
+                    )}
+                    {activeTab === "authority_transfer" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <AuthorityTransferTab 
+                          storeId={currentStoreId!}
+                          properties={properties}
+                          isViewer={isViewer}
+                          includeBranches={includeBranches}
+                          onUpdate={fetchNotifications}
                         />
                       </Suspense>
                     )}

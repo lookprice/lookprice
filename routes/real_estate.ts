@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from '../models/db';
 import { authenticate } from '../middleware/auth';
 import multer from 'multer';
+import ai from '../src/services/aiService';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -48,17 +49,184 @@ const upload = multer({ storage: multer.memoryStorage() });
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // Add new columns if they don't exist
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS authorized_branch_id INTEGER;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS responsible_consultant_id INTEGER;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS owner_name TEXT;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS owner_phone TEXT;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS owner_id_number TEXT;`);
+    
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS branch_name TEXT DEFAULT 'Merkez Ofis';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS responsible_agent TEXT DEFAULT '';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS sharing_scope TEXT DEFAULT 'shared_pool';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS reserved_by_branch TEXT DEFAULT '';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS reservation_notes TEXT DEFAULT '';`);
+
+    // Create Audit Log table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS property_audit_log (
+        id SERIAL PRIMARY KEY,
+        property_id INTEGER REFERENCES real_estate_properties(id),
+        action TEXT,
+        changed_by INTEGER,
+        details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create Tasks/Reminders table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS property_tasks (
+        id SERIAL PRIMARY KEY,
+        property_id INTEGER REFERENCES real_estate_properties(id),
+        consultant_id INTEGER,
+        task_type TEXT,
+        description TEXT,
+        due_date TIMESTAMP,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
     console.log("Real estate table verification processed.");
   } catch (error) {
     console.error("Real estate table error:", error);
   }
 })();
+
+// Analyze Portfolio route
+router.post('/properties/analyze', authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+
+  try {
+    const properties = await pool.query(
+      `SELECT id, title, description, price, status FROM real_estate_properties WHERE store_id = $1`,
+      [storeId]
+    );
+
+    const prompt = `Aktif emlak portföyü için danışmanlara yönelik stratejik içgörüler üret. Portföy verileri: ${JSON.stringify(properties.rows.slice(0, 50))}. Sadece JSON formatında yanıt ver: { "insights": [ { "id": "property_id_or_null", "title": "...", "description": "...", "type": "warning" | "info" | "success" } ] }`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
+
+    res.json(JSON.parse(response.text!));
+  } catch (error: any) {
+    console.error('Error analyzing portfolio:', error);
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
+  }
+});
+
+// Create a task
+router.post('/properties/tasks', authenticate, async (req: any, res) => {
+  const { property_id, task_type, description, due_date } = req.body;
+  const consultant_id = req.user.id;
+  try {
+    await pool.query(
+      `INSERT INTO property_tasks (property_id, consultant_id, task_type, description, due_date) VALUES ($1, $2, $3, $4, $5)`,
+      [property_id, consultant_id, task_type, description, due_date || new Date().toISOString()]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error creating task:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get tasks
+router.get('/properties/tasks', authenticate, async (req: any, res) => {
+  const consultant_id = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM property_tasks WHERE consultant_id = $1 AND status = 'pending' ORDER BY due_date ASC`,
+      [consultant_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Complete a task
+router.patch('/properties/tasks/:id', authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    try {
+      await pool.query(
+        `UPDATE property_tasks SET status = 'completed' WHERE id = $1`,
+        [id]
+      );
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating task:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+// Get Audit Log for a property
+router.get('/properties/:id/audit-log', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM property_audit_log WHERE property_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get Audit Logs for all store properties
+router.get('/audit-logs', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.body.store_id || req.user.store_id;
+  try {
+    const result = await pool.query(
+      `SELECT l.* FROM property_audit_log l
+       JOIN real_estate_properties p ON l.property_id = p.id
+       WHERE p.store_id = $1 ORDER BY l.created_at DESC`,
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Authority Transfer Route
+router.post('/properties/:id/transfer-authority', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { authorized_branch_id, responsible_consultant_id } = req.body;
+  const storeId = req.user.store_id;
+
+  try {
+    const result = await pool.query(
+      `UPDATE real_estate_properties 
+       SET authorized_branch_id = $1, responsible_consultant_id = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3 AND store_id = $4 RETURNING *`,
+      [authorized_branch_id, responsible_consultant_id, id, storeId]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+    
+    // Log the action (Phase 3 task)
+    await pool.query(
+      `INSERT INTO property_audit_log (property_id, action, changed_by, details) VALUES ($1, $2, $3, $4)`,
+      [id, 'AUTHORITY_TRANSFER', req.user.id, `Transferred to branch ${authorized_branch_id}, consultant ${responsible_consultant_id}`]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error transferring authority:', error);
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
+  }
+});
 
 // Basic GET route to list properties
 router.get('/properties', authenticate, async (req: any, res) => {

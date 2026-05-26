@@ -50,7 +50,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
-    documents: []
+    documents: [],
+    owner_info: { fullName: '', phone: '' },
+    responsible_consultant_id: undefined,
+    authorized_branch_id: undefined
   });
 
   // Mock Upload state
@@ -188,7 +191,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         kktc_region: property.kktc_region || 'Girne',
         kktc_title_type: property.kktc_title_type || 'Eşdeğer Koçan',
         branch_name: property.branch_name || 'Merkez Ofis',
+        authorized_branch_id: property.authorized_branch_id,
         responsible_agent: property.responsible_agent || '',
+        responsible_consultant_id: property.responsible_consultant_id,
+        owner_info: property.owner_info || { fullName: '', phone: '' },
         sharing_scope: property.sharing_scope || 'shared_pool',
         reserved_by_branch: property.reserved_by_branch || '',
         reservation_notes: property.reservation_notes || '',
@@ -220,7 +226,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         kktc_region: 'Girne',
         kktc_title_type: 'Eşdeğer Koçan',
         branch_name: 'Merkez Ofis',
+        authorized_branch_id: undefined,
         responsible_agent: '',
+        responsible_consultant_id: undefined,
+        owner_info: { fullName: '', phone: '' },
         sharing_scope: 'shared_pool',
         reserved_by_branch: '',
         reservation_notes: '',
@@ -436,6 +445,27 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
             </div>
 
+            {/* EMLAK SAHİBİ VE YETKİ KONTROL PANELİ */}
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-4">
+              <h5 className="text-xs font-black uppercase text-slate-800 border-b pb-2 mb-2">Mülk Sahibi ve Yetki Bilgileri</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Mülk Sahibi (Ad Soyad)</label>
+                   <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs" 
+                    value={formData.owner_info?.fullName || ''}
+                    onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, fullName: e.target.value} as any})}
+                   />
+                </div>
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Mülk Sahibi (Telefon)</label>
+                   <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs" 
+                    value={formData.owner_info?.phone || ''}
+                    onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, phone: e.target.value} as any})}
+                   />
+                </div>
+              </div>
+            </div>
+
             {/* ŞUBELER ARASI PAYLAŞIM VE CRM REZERVASYON MODÜLÜ */}
             <div className="bg-gradient-to-br from-indigo-950/45 to-slate-900 border border-slate-800 p-4 rounded-xl space-y-4">
               <div className="flex items-center justify-between">
@@ -443,7 +473,24 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 <span className="text-[9px] bg-indigo-600/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full">LOOKPRICE HUB</span>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Yetkili Şube ID</label>
+                  <input type="number" className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    value={formData.authorized_branch_id || ''}
+                    onChange={(e) => setFormData({...formData, authorized_branch_id: Number(e.target.value)})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Danışman ID</label>
+                  <input type="number" className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    value={formData.responsible_consultant_id || ''}
+                    onChange={(e) => setFormData({...formData, responsible_consultant_id: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Şube / Ofis</label>
                   <select
@@ -457,17 +504,6 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     <option value="Gazi Mağusa Ofisi">Gazi Mağusa Ofisi</option>
                     <option value="İstanbul High-End Ofisi">İstanbul High-End Ofisi</option>
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Gayrimenkul Danışmanı</label>
-                  <input
-                    type="text"
-                    placeholder="Örn: Ahmet Kara"
-                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
-                    value={formData.responsible_agent || ''}
-                    onChange={(e) => setFormData({...formData, responsible_agent: e.target.value})}
-                  />
                 </div>
 
                 <div>
@@ -634,7 +670,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             </div>
 
             {/* Site İçi ve Aidat Durumu */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 font-sans">
               <div className="flex items-center">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
@@ -644,25 +680,25 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     onChange={(e) => setFormData({...formData, in_gated_community: e.target.checked})}
                   />
                   <div>
-                    <span className="block text-sm font-bold text-slate-700">Site İçi mi?</span>
-                    <span className="block text-[10px] text-slate-400">Ortak yüzme havuzu / güvenlik</span>
+                    <span className="block text-xs font-bold text-slate-700">Site İçi mi?</span>
+                    <span className="block text-[9px] text-slate-400">Yüzme havuzu/güvenlik</span>
                   </div>
                 </label>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Aylık Aidat / Bakım Ücreti</label>
-                <div className="flex gap-1.5">
+                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Aidat / Bakım Ücreti</label>
+                <div className="flex gap-1">
                   <input
                     type="number"
-                    placeholder="Aidat Tutarı"
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold"
+                    placeholder="Tutar"
+                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
                     value={formData.dues || ''}
                     disabled={!formData.in_gated_community}
                     onChange={(e) => setFormData({...formData, dues: Number(e.target.value)})}
                   />
                   <select
-                    className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600"
+                    className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600"
                     value={formData.dues_currency || 'GBP'}
                     disabled={!formData.in_gated_community}
                     onChange={(e) => setFormData({...formData, dues_currency: e.target.value})}
@@ -683,8 +719,23 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     onChange={(e) => setFormData({...formData, furnished: e.target.checked})}
                   />
                   <div>
-                    <span className="block text-sm font-bold text-slate-700">Eşyalı mı?</span>
-                    <span className="block text-[10px] text-slate-400">Mobilyalı anahtar teslim satılık</span>
+                    <span className="block text-xs font-bold text-slate-700">Eşyalı mı?</span>
+                    <span className="block text-[9px] text-slate-400">Mobilyalı anahtar teslim</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                    checked={formData.is_verified || false}
+                    onChange={(e) => setFormData({...formData, is_verified: e.target.checked})}
+                  />
+                  <div>
+                    <span className="block text-xs font-black text-amber-800 flex items-center gap-0.5">⭐ Portföy Doğrulanmış?</span>
+                    <span className="block text-[9px] text-slate-400">Evraklar ve tapu onaylandı</span>
                   </div>
                 </label>
               </div>

@@ -29,13 +29,16 @@ import {
   Send,
   MessageSquare,
   Award,
-  Scale
+  Scale,
+  Filter,
+  SlidersHorizontal
 } from "lucide-react";
 import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { RealEstateModal } from "../../components/RealEstateModal";
 import { LegalContractModal } from "../../components/LegalContractModal";
 import { RealEstateProperty } from "../../types";
+import { ConsultingInsights } from '../../components/ConsultingInsights';
 
 interface RealEstateTabProps {
   properties: RealEstateProperty[];
@@ -118,6 +121,17 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBranch, setFilterBranch] = useState("all");
   const [filterScope, setFilterScope] = useState("all");
+
+  // --- 101EVLER & ENRAKİPSİZ DEEP CATEGORIES & FILTERS STATE ---
+  const [filterPropertyType, setFilterPropertyType] = useState<string>("all");
+  const [filterTitleType, setFilterTitleType] = useState<string>("all");
+  const [filterRoomCount, setFilterRoomCount] = useState<string>("all");
+  const [filterFurnished, setFilterFurnished] = useState<string>("all");
+  const [filterGated, setFilterGated] = useState<string>("all");
+  const [filterPriceMin, setFilterPriceMin] = useState<string>("");
+  const [filterPriceMax, setFilterPriceMax] = useState<string>("");
+  const [filterVerifiedOnly, setFilterVerifiedOnly] = useState<boolean>(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<RealEstateProperty | null>(null);
   
@@ -423,8 +437,11 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
   };
 
   const filteredProperties = properties.filter(p => {
+    // Search also parses description for deep metadata matching
     const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase()) || 
-      (p.location && p.location.toLowerCase().includes(search.toLowerCase()));
+      (p.location && p.location.toLowerCase().includes(search.toLowerCase())) ||
+      (p.description && p.description.toLowerCase().includes(search.toLowerCase())) ||
+      (p.kktc_title_type && p.kktc_title_type.toLowerCase().includes(search.toLowerCase()));
     
     const matchesRegion = filterRegion === "all" || 
       (filterRegion === "KKTC" && p.country === "KKTC") ||
@@ -437,7 +454,28 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
     const matchesScope = filterScope === "all" || 
       (filterScope === "locked" ? !!p.reserved_by_branch : (p.sharing_scope || "shared_pool") === filterScope);
 
-    return matchesSearch && matchesRegion && matchesStatus && matchesBranch && matchesScope;
+    // --- Geleneksel Sistemler & Enrakipsiz Derinlik Filtre Uygulaması ---
+    const matchesPropertyType = filterPropertyType === "all" || p.type === filterPropertyType;
+    
+    const matchesTitleType = filterTitleType === "all" || p.kktc_title_type === filterTitleType;
+    
+    const matchesRoomCount = filterRoomCount === "all" || (p.room_count && p.room_count === filterRoomCount);
+    
+    const matchesFurnished = filterFurnished === "all" || 
+      (filterFurnished === "yes" ? !!p.furnished : !p.furnished);
+      
+    const matchesGated = filterGated === "all" || 
+      (filterGated === "yes" ? !!p.in_gated_community : !p.in_gated_community);
+
+    const priceVal = Number(p.price) || 0;
+    const matchesPriceMin = !filterPriceMin || priceVal >= Number(filterPriceMin);
+    const matchesPriceMax = !filterPriceMax || priceVal <= Number(filterPriceMax);
+
+    const matchesVerified = !filterVerifiedOnly || !!p.is_verified;
+
+    return matchesSearch && matchesRegion && matchesStatus && matchesBranch && matchesScope &&
+      matchesPropertyType && matchesTitleType && matchesRoomCount && matchesFurnished && matchesGated &&
+      matchesPriceMin && matchesPriceMax && matchesVerified;
   });
 
   // Safe checks for user role representation
@@ -447,6 +485,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
   return (
     <div className="p-6 space-y-6">
       
+      {/* ENRAKİPSİZ CRM: PROACTIVE CONSULTANT ASSISTANT */}
+      <ConsultingInsights />
+
       {/* KKTC & Türkiye Pilot Başlığı */}
       <div className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
@@ -849,8 +890,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
 
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h3 className="text-xl font-extrabold text-slate-900">Emlak Listesi</h3>
-          <p className="text-xs text-slate-500">Mevcut şubeniz ve tüm pilot bölgelerdeki ilanlar</p>
+          <h3 className="text-xl font-extrabold text-slate-900">Portföy Listesi</h3>
+          <p className="text-xs text-slate-500">Mevcut şubeniz ve tüm pilot bölgelerdeki portföy</p>
         </div>
         <button
           onClick={() => {
@@ -860,7 +901,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
           className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition-all font-black text-xs uppercase shadow-md hover:shadow-indigo-600/10 active:scale-95 self-start md:self-auto"
         >
           <Plus className="h-4 w-4 stroke-[3]" />
-          Yeni İlan Ekle
+          Yeni Portföy Ekle
         </button>
       </div>
 
@@ -903,6 +944,200 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
             <option value="optioned">Opsiyonlu (Kapora Alındı)</option>
             <option value="sold">Satıldı (Sold)</option>
           </select>
+        </div>
+      </div>
+
+      {/* 🔮 GENEL SİSTEMLER ÜSTÜ GELİŞMİŞ FİLTRELEME & ANALİZ ENTEGRASYONU */}
+      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200/60 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="p-1 px-2.5 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg uppercase">
+              Klasik Standartlar
+            </span>
+            <h4 className="text-xs font-black text-slate-800 tracking-tight">Kıbrıs Pazarı Akıllı Filtreleme Konsolu</h4>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto self-stretch">
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl border border-indigo-200/50 transition-all text-center"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              {showAdvancedFilters ? "Basit Filtrelere Dön" : "Gelişmiş Değişkenleri Aç"}
+            </button>
+            {(filterPropertyType !== "all" || filterTitleType !== "all" || filterRoomCount !== "all" || filterFurnished !== "all" || filterGated !== "all" || filterPriceMin || filterPriceMax || filterVerifiedOnly) && (
+              <button
+                onClick={() => {
+                  setFilterPropertyType("all");
+                  setFilterTitleType("all");
+                  setFilterRoomCount("all");
+                  setFilterFurnished("all");
+                  setFilterGated("all");
+                  setFilterPriceMin("");
+                  setFilterPriceMax("");
+                  setFilterVerifiedOnly(false);
+                }}
+                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200/50 transition-all text-center"
+              >
+                Temizle 🧹
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ANALİZ KARŞILAŞTIRMA STRIP */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+          <div className="lg:col-span-4 bg-gradient-to-br from-indigo-950 to-slate-900 text-slate-100 p-4 rounded-2xl flex flex-col justify-between border border-slate-800 shadow-sm">
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest block">Veri Derinliği Kıyaslaması</span>
+              <h5 className="text-xs font-black">Neden Aralarında Dağlar Kadar Fark Var?</h5>
+              <p className="text-[10px] text-slate-300 font-medium leading-relaxed">
+                Klasik siteler sadece fiyat ve oda sayısıyla listeleme yaparken, Kıbrıs altyapısında <strong>Koçan Sınıfı</strong> (Türk, Eşdeğer), <strong>KDV tescili</strong>, <strong>Trafo katkı payı</strong>, <strong>Site İçi/Gated Durumu</strong> satış hızını belirleyen ana unsurlardır. "enrakipsiz" bu verileri en ince ayrıntısıyla süzmenizi sağlar.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-white/5 mt-3 grid grid-cols-3 gap-1 text-center text-[9px] font-bold text-slate-400">
+              <div className="bg-white/5 p-1 rounded">
+                <span className="block text-amber-300">Klasik Mecralar</span>
+                Halk Vitrini
+              </div>
+              <div className="bg-white/5 p-1 rounded">
+                <span className="block text-indigo-300">lookprice</span>
+                CRM/Ağ Gücü
+              </div>
+              <div className="bg-white/10 p-1 rounded text-white border border-indigo-500">
+                <span className="block text-emerald-300">enrakipsiz</span>
+                Lider Katalog
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 bg-white p-4 rounded-2xl border border-slate-200/40 space-y-3 flex flex-col justify-center">
+            {showAdvancedFilters ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* 1. Emlak Tipi */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Emlak Tipi</label>
+                  <select
+                    value={filterPropertyType}
+                    onChange={(e) => setFilterPropertyType(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
+                  >
+                    <option value="all">Tüm Tipler</option>
+                    <option value="residence">Konut / Residence</option>
+                    <option value="commercial">Ticari / İşyeri</option>
+                    <option value="land">Arsa / Arazi</option>
+                  </select>
+                </div>
+
+                {/* 2. KKTC Koçan Tipi */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Koçan Türü (Title Deed)</label>
+                  <select
+                    value={filterTitleType}
+                    onChange={(e) => setFilterTitleType(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
+                  >
+                    <option value="all">Tüm Koçanlar</option>
+                    <option value="Türk Koçanı">Türk Koçanı (Pre-74)</option>
+                    <option value="Eşdeğer Koçan">Eşdeğer Koçan (Exchange)</option>
+                    <option value="Tahsis Koçan">Tahsis Koçanı (Allotted)</option>
+                    <option value="Diğer">Diğer / Tapusuz</option>
+                  </select>
+                </div>
+
+                {/* 3. Oda Yapısı */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Oda Sayısı</label>
+                  <select
+                    value={filterRoomCount}
+                    onChange={(e) => setFilterRoomCount(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
+                  >
+                    <option value="all">Tüm Odalar</option>
+                    <option value="1+1">1+1 Flat</option>
+                    <option value="2+1">2+1 Flat / Villa</option>
+                    <option value="3+1">3+1 Flat / Villa</option>
+                    <option value="4+1">4+1 Lüks Villa</option>
+                  </select>
+                </div>
+
+                {/* 4. Eşya Durumu */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Eşya Durumu</label>
+                  <select
+                    value={filterFurnished}
+                    onChange={(e) => setFilterFurnished(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
+                  >
+                    <option value="all">Fark Etmez</option>
+                    <option value="yes">Eşyalı (Furnished)</option>
+                    <option value="no">Eşyasız (Unfurnished)</option>
+                  </select>
+                </div>
+
+                {/* 5. Site İçi Or Gated */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Kendi Sitesinde mi?</label>
+                  <select
+                    value={filterGated}
+                    onChange={(e) => setFilterGated(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
+                  >
+                    <option value="all">Tümü</option>
+                    <option value="yes">Evet - Site İçi (Gated)</option>
+                    <option value="no">Hayır - Bağımsız / Müstakil</option>
+                  </select>
+                </div>
+
+                {/* 6. Min Fiyat */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Min Bütçe (GBP)</label>
+                  <input
+                    type="number"
+                    placeholder="Min Fiyat (£)"
+                    value={filterPriceMin}
+                    onChange={(e) => setFilterPriceMin(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400"
+                  />
+                </div>
+
+                {/* 7. Max Fiyat */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Max Bütçe (GBP)</label>
+                  <input
+                    type="number"
+                    placeholder="Max Fiyat (£)"
+                    value={filterPriceMax}
+                    onChange={(e) => setFilterPriceMax(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400"
+                  />
+                </div>
+
+                {/* 8. Sadece Doğrulanmış Portföy */}
+                <div className="flex items-center gap-2 pt-5">
+                  <input
+                    type="checkbox"
+                    id="verifiedToggle"
+                    checked={filterVerifiedOnly}
+                    onChange={(e) => setFilterVerifiedOnly(e.target.checked)}
+                    className="rounded bg-slate-100 border-slate-300 text-indigo-600 h-4.5 w-4.5 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="verifiedToggle" className="text-[10.5px] font-black text-slate-700 cursor-pointer select-none">
+                    ⭐ Doğrulanmış Portföy
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col justify-center space-y-1 bg-indigo-50/40 p-3 rounded-xl border border-indigo-200/20">
+                <div className="flex gap-2 items-center">
+                  <span className="text-sm">🔑</span>
+                  <span className="text-[11px] font-extrabold text-indigo-950 uppercase">Mükemmel Entegre Filtreleme Altyapısı</span>
+                </div>
+                <p className="text-[10px] text-indigo-900 font-medium leading-relaxed">
+                  Şu an basit filtreler aktiftir. <strong>Üstteki "Gelişmiş Değişkenleri Aç" butonuna</strong> basarak Koçan Niteliği, Eşya Durumu, Gated Community ve Doğrulanma statüsü gibi <strong>sektörel derinlik filtrelerine</strong> anında erişebilirsiniz.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       

@@ -2732,7 +2732,8 @@ const SettingsTab = ({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* 1. Showcase & Layout Controls */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+            {!isPortfolio && (
+              <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                   <Palette className="w-4 h-4 text-indigo-500" />
@@ -3048,6 +3049,7 @@ const SettingsTab = ({
                 </div>
               </div>
             </div>
+            )}
 
             {/* 2. Logo & Favicon (Compact Side-by-Side) */}
             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 flex flex-col">
