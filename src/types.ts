@@ -130,6 +130,7 @@ export interface Store {
   currency?: string;
   locations?: StoreLocation[];
   branches?: { id: number; name: string; slug: string; address: string; phone: string }[];
+  consultants?: { id: number; branch_id: number; name: string; email: string; phone: string; role: string; image_url?: string }[];
   reservation_enabled?: boolean;
   // Payment configuration
   payment_settings?: {

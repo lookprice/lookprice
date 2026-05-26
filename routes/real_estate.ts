@@ -55,6 +55,9 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS owner_name TEXT;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS owner_phone TEXT;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS owner_id_number TEXT;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_shared_pool BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS pool_scope TEXT DEFAULT 'none';`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE;`);
     
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS branch_name TEXT DEFAULT 'Merkez Ofis';`);
@@ -232,8 +235,16 @@ router.post('/properties/:id/transfer-authority', authenticate, async (req: any,
 router.get('/properties', authenticate, async (req: any, res) => {
   const storeId = req.query.store_id || req.body.store_id || req.user.store_id;
   try {
+    // Logic: 
+    // 1. Properties owned by this store
+    // 2. Properties where this store is the authorized branch
+    // 3. Properties shared with the entire network (sharing_scope = 'all')
     const result = await pool.query(
-      `SELECT * FROM real_estate_properties WHERE store_id = $1 ORDER BY created_at DESC`,
+      `SELECT * FROM real_estate_properties 
+       WHERE store_id = $1 
+       OR authorized_branch_id = $1 
+       OR sharing_scope = 'all'
+       ORDER BY created_at DESC`,
       [storeId]
     );
     res.json(result.rows);
@@ -255,14 +266,16 @@ router.post('/properties', authenticate, async (req: any, res) => {
         sqm_gross, block_plot, facade, building_age, floor, total_floors, heating, furnished, 
         in_gated_community, dues, dues_currency, country, kktc_region, kktc_title_type, images, 
         virtual_tour_url, ai_tour_enabled, seller_type, status, is_on_enrakipsiz,
-        branch_name, responsible_agent, sharing_scope, reserved_by_branch, reservation_notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34) RETURNING *`,
+        branch_name, responsible_agent, sharing_scope, reserved_by_branch, reservation_notes,
+        authorized_branch_id, responsible_consultant_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36) RETURNING *`,
       [
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
         property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
         property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, !!property.is_on_enrakipsiz,
-        property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || ''
+        property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '',
+        property.authorized_branch_id, property.responsible_consultant_id
       ]
     );
     res.json(result.rows[0]);
@@ -285,14 +298,16 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         sqm_gross = $9, block_plot = $10, facade = $11, building_age = $12, floor = $13, total_floors = $14, heating = $15, furnished = $16,
         in_gated_community = $17, dues = $18, dues_currency = $19, country = $20, kktc_region = $21, kktc_title_type = $22, images = $23,
         virtual_tour_url = $24, ai_tour_enabled = $25, seller_type = $26, status = $27, is_on_enrakipsiz = $28,
-        branch_name = $29, responsible_agent = $30, sharing_scope = $31, reserved_by_branch = $32, reservation_notes = $33, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $34 AND store_id = $35 RETURNING *`,
+        branch_name = $29, responsible_agent = $30, sharing_scope = $31, reserved_by_branch = $32, reservation_notes = $33, 
+        authorized_branch_id = $34, responsible_consultant_id = $35, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $36 AND store_id = $37 RETURNING *`,
       [
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
         property.in_gated_community, property.dues, property.dues_currency, property.country, property.kktc_region, property.kktc_title_type, property.images,
         property.virtual_tour_url, property.ai_tour_enabled, property.seller_type, property.status, !!property.is_on_enrakipsiz,
-        property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '', id, storeId
+        property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '', 
+        property.authorized_branch_id, property.responsible_consultant_id, id, storeId
       ]
     );
     if (result.rowCount === 0) {
@@ -322,6 +337,44 @@ router.delete('/properties/:id', authenticate, async (req: any, res) => {
   } catch (error) {
     console.error('Error deleting property:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Fetch live AI news using Gemini + Google Search Grounding
+router.post('/news', authenticate, async (req: any, res) => {
+  try {
+    const { tags } = req.body;
+    const tagQuery = tags && tags.length > 0 ? tags.join(", ") : "Kıbrıs Emlak, İmar";
+    
+    // Using gemini-3.5-flash with googleSearch tool for live data
+    const prompt = `Fetch the latest, real-world news and updates about Northern Cyprus real estate, zoning laws, property values, regional development and economy related to these topics/tags: ${tagQuery}. 
+    Return the result as a JSON array of objects. 
+    Each object should have:
+    - id: random unique string
+    - title: real news title (in Turkish)
+    - category: appropriate category (e.g., 'İmar Durumu', 'Finans', 'Bölgesel Gelişme')
+    - priority: 'high' or 'normal'
+    - date: approximate relative time (e.g., '2 Saat Önce', 'Bugün', 'Dün')
+    - img: a highly relevant Unsplash image URL (e.g., https://images.unsplash.com/photo-1563842145396-85750036ee7f?q=80&w=800)
+    - tags: array of strings matching the queried tags
+    - publishedOnStore: false
+    - publishedOnEnrakipsiz: false
+    Give me exactly 3-5 real, grounded news items.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+      },
+    });
+
+    const newsData = JSON.parse(response.text || "[]");
+    res.json(newsData);
+  } catch (error: any) {
+    console.error('Error fetching live news via AI:', error);
+    res.status(500).json({ error: 'AI haber akışı güncellenemedi.', details: error.message });
   }
 });
 

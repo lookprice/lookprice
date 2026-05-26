@@ -72,6 +72,33 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const [activeTourNode, setActiveTourNode] = useState<any>(null);
   const [tourBlueprint, setTourBlueprint] = useState<any>(null);
 
+  // CRM Data states
+  const [branches, setBranches] = useState<any[]>([]);
+  const [consultants, setConsultants] = useState<any[]>([]);
+  const [loadingCrm, setLoadingCrm] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCrmData();
+    }
+  }, [isOpen]);
+
+  const fetchCrmData = async () => {
+    setLoadingCrm(true);
+    try {
+      const [branchesRes, consultantsRes] = await Promise.all([
+        api.getBranches(),
+        api.getConsultants()
+      ]);
+      setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+      setConsultants(Array.isArray(consultantsRes) ? consultantsRes : []);
+    } catch (error) {
+      console.error('Failed to fetch CRM data:', error);
+    } finally {
+      setLoadingCrm(false);
+    }
+  };
+
   const handleGenerateDescription = async () => {
     if (!formData.title) {
       alert("Lütfen önce bir ilan başlığı giriniz.");
@@ -475,35 +502,50 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Yetkili Şube ID</label>
-                  <input type="number" className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Yetkili Şube</label>
+                  <select 
+                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
                     value={formData.authorized_branch_id || ''}
-                    onChange={(e) => setFormData({...formData, authorized_branch_id: Number(e.target.value)})}
-                  />
+                    onChange={(e) => {
+                      const id = Number(e.target.value);
+                      const branch = branches.find(b => b.id === id);
+                      setFormData({...formData, authorized_branch_id: id, branch_name: branch?.name || ''});
+                    }}
+                  >
+                    <option value="">Şube Seçiniz (Merkez)</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Danışman ID</label>
-                  <input type="number" className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Danışman</label>
+                  <select 
+                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
                     value={formData.responsible_consultant_id || ''}
-                    onChange={(e) => setFormData({...formData, responsible_consultant_id: Number(e.target.value)})}
-                  />
+                    onChange={(e) => {
+                      const id = Number(e.target.value);
+                      const consultant = consultants.find(c => c.id === id);
+                      setFormData({...formData, responsible_consultant_id: id, responsible_agent: consultant?.name || ''});
+                    }}
+                  >
+                    <option value="">Danışman Seçiniz</option>
+                    {consultants.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Şube / Ofis</label>
-                  <select
-                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Şube Adı (Görünen)</label>
+                  <input 
+                    type="text"
+                    disabled
+                    className="w-full p-2.5 bg-slate-900/50 text-slate-500 border border-slate-800 rounded-lg text-xs font-bold"
                     value={formData.branch_name || 'Merkez Ofis'}
-                    onChange={(e) => setFormData({...formData, branch_name: e.target.value})}
-                  >
-                    <option value="Merkez Ofis">Lefkoşa Merkez Ofis</option>
-                    <option value="Girne Harbour Ofisi">Girne Harbour Ofisi</option>
-                    <option value="İskele LongBeach Şubesi">İskele LongBeach Ofisi</option>
-                    <option value="Gazi Mağusa Ofisi">Gazi Mağusa Ofisi</option>
-                    <option value="İstanbul High-End Ofisi">İstanbul High-End Ofisi</option>
-                  </select>
+                  />
                 </div>
 
                 <div>
@@ -534,10 +576,9 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     onChange={(e) => setFormData({...formData, reserved_by_branch: e.target.value})}
                   >
                     <option value="">Kilidi Açık (Rezervasyon Yok)</option>
-                    <option value="Girne Harbour Ofisi">Girne Harbour Şube Kilitli</option>
-                    <option value="İskele LongBeach Şubesi">İskele LongBeach Şube Kilitli</option>
-                    <option value="Gazi Mağusa Ofisi">Gazi Mağusa Şube Kilitli</option>
-                    <option value="İstanbul High-End Ofisi">İstanbul High-End Şube Kilitli</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.name}>{b.name} Kilitli</option>
+                    ))}
                   </select>
 
                   {formData.reserved_by_branch && (

@@ -1,12 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "",
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
+// Lazy initialization wrapper
+const aiProxy = {
+  get models() {
+    return new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || "dummy-key-to-prevent-crash",
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    }).models;
   }
-});
+};
 
-export default ai;
+export default aiProxy;

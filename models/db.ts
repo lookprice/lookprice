@@ -112,6 +112,21 @@ export async function initDb() {
       ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate REAL DEFAULT 20;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_profile_id TEXT;
 
+      CREATE TABLE IF NOT EXISTS consultants (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        branch_id INTEGER,
+        name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        role TEXT,
+        image_url TEXT,
+        status TEXT DEFAULT 'active',
+        performance JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS real_estate (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,

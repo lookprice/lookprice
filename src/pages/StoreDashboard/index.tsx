@@ -63,7 +63,8 @@ import {
   Building2,
   Facebook,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -89,6 +90,7 @@ const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
 const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
 const PortfolioNotificationsTab = React.lazy(() => import("./PortfolioNotificationsTab").then(m => ({ default: m.PortfolioNotificationsTab })));
 const PortfolioWebsiteGeneratorTab = React.lazy(() => import("./PortfolioWebsiteGenerator").then(m => ({ default: m.PortfolioWebsiteGenerator })));
+const TeamCrmTab = React.lazy(() => import("./TeamCrmTab").then(m => ({ default: m.TeamCrmTab })));
 const QuotationsTab = React.lazy(() => import("./QuotationsTab"));
 const CompaniesTab = React.lazy(() => import("./CompaniesTab"));
 const PosTab = React.lazy(() => import("./PosTab"));
@@ -987,6 +989,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
+      { id: "team-crm", label: isTr ? 'Ekip & CRM (Performans)' : 'Team & CRM', icon: Users },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
@@ -1007,6 +1010,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
       { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
       { id: "companies", label: t.companies, icon: Store },
+      { id: "team-crm", label: isTr ? 'Ekip & CRM (Performans)' : 'Team & CRM', icon: Users },
     ]},
     { type: 'category', key: "operations", title: isTr ? "Operasyon" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
@@ -1360,7 +1364,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     )}
                     {activeTab === "website-generator" && (
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <PortfolioWebsiteGeneratorTab />
+                        <PortfolioWebsiteGeneratorTab storeId={currentStoreId} />
+                      </Suspense>
+                    )}
+                    {activeTab === "team-crm" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <TeamCrmTab storeId={currentStoreId} />
                       </Suspense>
                     )}
                     {activeTab === "quotations" && (

@@ -2,15 +2,15 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
-import { 
+import {
   Check,
   Lock,
-  Search, 
-  ShoppingBasket, 
-  Plus, 
-  Minus, 
-  X, 
-  ChevronRight, 
+  Search,
+  ShoppingBasket,
+  Plus,
+  Minus,
+  X,
+  ChevronRight,
   ChevronLeft,
   ChevronDown,
   Store as StoreIcon,
@@ -43,15 +43,31 @@ import {
   Sparkles,
   Link2,
   MessageSquare,
-  BookOpen
+  BookOpen,
 } from "lucide-react";
-import { CreditCard, User, LogOut, Edit3, Building2, Home, RefreshCw } from "lucide-react";
+import {
+  CreditCard,
+  User,
+  LogOut,
+  Edit3,
+  Building2,
+  Home,
+  RefreshCw,
+} from "lucide-react";
 import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "@/translations";
+import { ModernPortfolioLayout } from "../components/ModernPortfolioLayout";
+
 import ErrorBoundary from "../components/ErrorBoundary";
 import { PageBuilder } from "../components/PageBuilder";
-import { Product, Store as StoreInfo, FAQEntry, BlogPost, LegalPage } from "../types";
+import {
+  Product,
+  Store as StoreInfo,
+  FAQEntry,
+  BlogPost,
+  LegalPage,
+} from "../types";
 import SEO from "../components/SEO";
 import { StoreLocatorModal } from "../components/StoreLocatorModal";
 import { KktcAiDioramaModal } from "../components/KktcAiDioramaModal";
@@ -62,7 +78,7 @@ interface BasketItem extends Product {
 
 const getLabels = (labels: any): string[] => {
   if (Array.isArray(labels)) return labels;
-  if (typeof labels === 'string') {
+  if (typeof labels === "string") {
     try {
       const parsed = JSON.parse(labels);
       return Array.isArray(parsed) ? parsed : [];
@@ -73,22 +89,35 @@ const getLabels = (labels: any): string[] => {
   return [];
 };
 
-const ProductCard: React.FC<{ 
-  product: Product, 
-  store: StoreInfo | null, 
-  t: any, 
-  addToBasket: (p: Product) => void,
-  onView: (p: Product) => void,
+const ProductCard: React.FC<{
+  product: Product;
+  store: StoreInfo | null;
+  t: any;
+  addToBasket: (p: Product) => void;
+  onView: (p: Product) => void;
   primaryColor: string;
   isLuxury?: boolean;
   sector?: string;
-}> = ({ product, store, t, addToBasket, onView, primaryColor, isLuxury, sector = 'general' }) => {
+}> = ({
+  product,
+  store,
+  t,
+  addToBasket,
+  onView,
+  primaryColor,
+  isLuxury,
+  sector = "general",
+}) => {
   const { lang } = useLanguage();
   const [convertedPrice, setConvertedPrice] = useState<number>(product.price);
 
   useEffect(() => {
-    if (store?.currency && product.currency && product.currency !== store.currency) {
-      getExchangeRate(product.currency, store.currency).then(rate => {
+    if (
+      store?.currency &&
+      product.currency &&
+      product.currency !== store.currency
+    ) {
+      getExchangeRate(product.currency, store.currency).then((rate) => {
         setConvertedPrice(product.price * rate);
       });
     } else {
@@ -97,202 +126,267 @@ const ProductCard: React.FC<{
   }, [product.price, product.currency, store?.currency]);
 
   return (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`bg-white rounded-lg border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? 'font-sans tracking-tight' : ''}`}
-  >
-    <div className="aspect-[4/5] bg-slate-50 relative overflow-hidden">
-      {product.image_url ? (
-        <img 
-          src={product.image_url} 
-          alt={product.name} 
-          className="w-full h-full object-contain p-4 bg-white group-hover:scale-105 transition-transform duration-1000"
-          referrerPolicy="no-referrer"
-          onClick={() => onView(product)}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-gray-200" onClick={() => onView(product)}>
-          <Package className="w-16 h-16" />
-        </div>
-      )}
-      
-      {/* Sector Specific Mini Specs */}
-      {product.sector_data && (
-        <div className="absolute top-24 left-4 flex flex-col gap-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-           {(sector === 'automotive' || product.type === 'vehicle') && product.sector_data.hp && (
-             <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-white/10 tracking-wide">{product.sector_data.hp} HP</span>
-           )}
-           {sector === 'tech' && product.sector_data.ram && (
-             <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-indigo-500/20 tracking-wide">{product.sector_data.ram} RAM</span>
-           )}
-           {product.type === 'real_estate' && product.sector_data.square_meters && (
-             <span className="px-2 py-1 bg-emerald-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-emerald-500/20 tracking-wide">{product.sector_data.square_meters} m²</span>
-           )}
-        </div>
-      )}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`bg-white rounded-lg border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
+    >
+      <div className="aspect-[4/5] bg-slate-50 relative overflow-hidden">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-contain p-4 bg-white group-hover:scale-105 transition-transform duration-1000"
+            referrerPolicy="no-referrer"
+            onClick={() => onView(product)}
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center text-gray-200"
+            onClick={() => onView(product)}
+          >
+            <Package className="w-16 h-16" />
+          </div>
+        )}
 
-      {/* Product Labels */}
-      {getLabels(product.labels).length > 0 && (
-        <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
-          {getLabels(product.labels).map((label, idx) => (
-            <span 
-              key={idx} 
-              className="px-3 py-1 bg-white/90 backdrop-blur-md text-[10px] font-semibold tracking-wide rounded-lg shadow-sm"
+        {/* Sector Specific Mini Specs */}
+        {product.sector_data && (
+          <div className="absolute top-24 left-4 flex flex-col gap-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+            {(sector === "automotive" || product.type === "vehicle") &&
+              product.sector_data.hp && (
+                <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-white/10 tracking-wide">
+                  {product.sector_data.hp} HP
+                </span>
+              )}
+            {sector === "tech" && product.sector_data.ram && (
+              <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-indigo-500/20 tracking-wide">
+                {product.sector_data.ram} RAM
+              </span>
+            )}
+            {product.type === "real_estate" &&
+              product.sector_data.square_meters && (
+                <span className="px-2 py-1 bg-emerald-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-emerald-500/20 tracking-wide">
+                  {product.sector_data.square_meters} m²
+                </span>
+              )}
+          </div>
+        )}
+
+        {/* Product Labels */}
+        {getLabels(product.labels).length > 0 && (
+          <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
+            {getLabels(product.labels).map((label, idx) => (
+              <span
+                key={idx}
+                className="px-3 py-1 bg-white/90 backdrop-blur-md text-[10px] font-semibold tracking-wide rounded-lg shadow-sm"
+                style={{ color: primaryColor }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
+          <button
+            onClick={() => {
+              if (
+                product.type === "vehicle" ||
+                product.type === "real_estate" ||
+                (product.available_branches &&
+                  product.available_branches.length > 1)
+              ) {
+                onView(product);
+              } else {
+                addToBasket(product);
+              }
+            }}
+            className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
+          >
+            {product.type === "vehicle" || product.type === "real_estate" ? (
+              <>
+                <Eye className="w-4 h-4" />{" "}
+                {lang === "tr" ? "Detayları İncele" : "View Details"}
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />{" "}
+                {product.available_branches &&
+                product.available_branches.length > 1
+                  ? lang === "tr"
+                    ? "Seçenekleri Gör"
+                    : "View Options"
+                  : t.dashboard.addToBasket}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="p-6 flex flex-col flex-1">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span
+              className="text-[10px] uppercase tracking-[0.15em] font-semibold"
               style={{ color: primaryColor }}
             >
-              {label}
+              {product.category || t.dashboard.uncategorized}
             </span>
-          ))}
-        </div>
-      )}
-
-      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
-        <button 
-          onClick={() => {
-            if (product.type === 'vehicle' || product.type === 'real_estate' || (product.available_branches && product.available_branches.length > 1)) {
-              onView(product);
-            } else {
-              addToBasket(product);
-            }
-          }}
-          className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
-        >
-          {product.type === 'vehicle' || product.type === 'real_estate' ? (
-            <><Eye className="w-4 h-4" /> {lang === 'tr' ? 'Detayları İncele' : 'View Details'}</>
-          ) : (
-            <><Plus className="w-4 h-4" /> {(product.available_branches && product.available_branches.length > 1) ? (lang === 'tr' ? 'Seçenekleri Gör' : 'View Options') : t.dashboard.addToBasket}</>
-          )}
-        </button>
-      </div>
-    </div>
-    <div className="p-6 flex flex-col flex-1">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex flex-col">
-          <span 
-            className="text-[10px] uppercase tracking-[0.15em] font-semibold"
-            style={{ color: primaryColor }}
-          >
-            {product.category || t.dashboard.uncategorized}
-          </span>
-          {product.brand && (
-            <span className="text-[9px] font-bold text-gray-400 tracking-normal">
-              {product.brand}
-            </span>
-          )}
-          {product.branch_name && product.branch_name !== store?.name && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <MapPin className="w-2 h-2 text-gray-400" />
-              <span className="text-[9px] font-bold text-gray-500 tracking-tight">
-                {product.available_branches && product.available_branches.length > 1 
-                  ? (lang === 'tr' ? `${product.available_branches.length} Şubede Mevcut` : `Available in ${product.available_branches.length} Branches`) 
-                  : product.branch_name}
+            {product.brand && (
+              <span className="text-[9px] font-bold text-gray-400 tracking-normal">
+                {product.brand}
               </span>
-            </div>
-          )}
+            )}
+            {product.branch_name && product.branch_name !== store?.name && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <MapPin className="w-2 h-2 text-gray-400" />
+                <span className="text-[9px] font-bold text-gray-500 tracking-tight">
+                  {product.available_branches &&
+                  product.available_branches.length > 1
+                    ? lang === "tr"
+                      ? `${product.available_branches.length} Şubede Mevcut`
+                      : `Available in ${product.available_branches.length} Branches`
+                    : product.branch_name}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-yellow-400">
+            <Star className="w-3 h-3 fill-current" />
+            <span className="text-[10px] font-bold text-gray-400">4.8</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-yellow-400">
-          <Star className="w-3 h-3 fill-current" />
-          <span className="text-[10px] font-bold text-gray-400">4.8</span>
-        </div>
-      </div>
 
-      <h3 
-        className={`font-bold text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-primary text-base leading-tight tracking-tight ${isLuxury ? '!font-sans !font-medium text-gray-800' : ''}`} 
-        onClick={() => onView(product)}
-      >
-        {product.name}
-      </h3>
-
-      {/* Portfolio Card Spec Sheet Row */}
-      {(store?.store_type === 'portfolio' || product.type === 'real_estate' || product.type === 'vehicle') && (
-        <div className="flex items-center gap-3 my-3 text-[11px] font-bold text-slate-500 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
-          {product.type === 'real_estate' && (
-            <>
-              {product.sector_data?.square_meters && (
-                <span className="flex items-center gap-1.5">
-                  <span className="text-emerald-600 font-extrabold">m²</span>
-                  {product.sector_data.square_meters}
-                </span>
-              )}
-              {product.sector_data?.rooms && (
-                <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                  <span className="text-indigo-600 font-extrabold">{lang === 'tr' ? 'Oda' : 'Rooms'}</span>
-                  {product.sector_data.rooms}
-                </span>
-              )}
-            </>
-          )}
-          {product.type === 'vehicle' && (
-            <>
-              <span className="flex items-center gap-1.5">
-                <span className="text-rose-600 font-extrabold">{lang === 'tr' ? 'Yıl' : 'Year'}</span>
-                {product.name.match(/\((\d{4})\)/)?.[1] || '---'}
-              </span>
-              {product.description?.includes('KM:') && (
-                <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                  <span className="text-sky-600 font-extrabold">KM</span>
-                  {product.description.match(/KM:\s*(\d+)/)?.[1] || '---'}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      )}
-      
-      <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="text-[10px] text-gray-400 font-bold tracking-wide leading-none mb-1">{t.dashboard.price}</span>
-          <span className="text-xsl font-bold text-gray-900">
-            {convertedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {store?.currency || product.currency}
-          </span>
-        </div>
-        <button 
+        <h3
+          className={`font-bold text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-primary text-base leading-tight tracking-tight ${isLuxury ? "!font-sans !font-medium text-gray-800" : ""}`}
           onClick={() => onView(product)}
-          className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all"
         >
-          <Eye className="w-5 h-5" />
-        </button>
+          {product.name}
+        </h3>
+
+        {/* Portfolio Card Spec Sheet Row */}
+        {(store?.store_type === "portfolio" ||
+          product.type === "real_estate" ||
+          product.type === "vehicle") && (
+          <div className="flex items-center gap-3 my-3 text-[11px] font-bold text-slate-500 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+            {product.type === "real_estate" && (
+              <>
+                {product.sector_data?.square_meters && (
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-emerald-600 font-extrabold">m²</span>
+                    {product.sector_data.square_meters}
+                  </span>
+                )}
+                {product.sector_data?.rooms && (
+                  <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                    <span className="text-indigo-600 font-extrabold">
+                      {lang === "tr" ? "Oda" : "Rooms"}
+                    </span>
+                    {product.sector_data.rooms}
+                  </span>
+                )}
+              </>
+            )}
+            {product.type === "vehicle" && (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-rose-600 font-extrabold">
+                    {lang === "tr" ? "Yıl" : "Year"}
+                  </span>
+                  {product.name.match(/\((\d{4})\)/)?.[1] || "---"}
+                </span>
+                {product.description?.includes("KM:") && (
+                  <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                    <span className="text-sky-600 font-extrabold">KM</span>
+                    {product.description.match(/KM:\s*(\d+)/)?.[1] || "---"}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-400 font-bold tracking-wide leading-none mb-1">
+              {t.dashboard.price}
+            </span>
+            <span className="text-xsl font-bold text-gray-900">
+              {convertedPrice.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              {store?.currency || product.currency}
+            </span>
+          </div>
+          <button
+            onClick={() => onView(product)}
+            className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+        </div>
       </div>
-    </div>
-  </motion.div>
+    </motion.div>
   );
 };
 
-const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) => {
-  if (!data || typeof data !== 'object') return null;
+const SectorSpecs: React.FC<{ sector: string; data: any }> = ({
+  sector,
+  data,
+}) => {
+  if (!data || typeof data !== "object") return null;
   const { lang } = useLanguage();
 
   const renderAutomotive = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.hp && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'BEYGİR GÜCÜ' : 'HORSEPOWER'}</p>
-          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.hp} HP</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+            {lang === "tr" ? "BEYGİR GÜCÜ" : "HORSEPOWER"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
+            {data.hp} HP
+          </p>
         </div>
       )}
       {data.engine && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'MOTOR' : 'ENGINE'}</p>
-          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.engine}</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+            {lang === "tr" ? "MOTOR" : "ENGINE"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
+            {data.engine}
+          </p>
         </div>
       )}
       {data.transmission && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'ŞANZIMAN' : 'TRANSMISSION'}</p>
-          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.transmission}</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+            {lang === "tr" ? "ŞANZIMAN" : "TRANSMISSION"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
+            {data.transmission}
+          </p>
         </div>
       )}
       {data.fuel && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? 'YAKIT' : 'FUEL'}</p>
-          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.fuel}</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+            {lang === "tr" ? "YAKIT" : "FUEL"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
+            {data.fuel}
+          </p>
         </div>
       )}
       {data.acceleration && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
-          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{lang === 'tr' ? '0-100 KM/S' : '0-100 KM/H'}</p>
-          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">{data.acceleration}s</p>
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+            {lang === "tr" ? "0-100 KM/S" : "0-100 KM/H"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
+            {data.acceleration}s
+          </p>
         </div>
       )}
     </div>
@@ -302,20 +396,32 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 gap-3">
       {data.material && (
         <div className="p-4 bg-pink-50/50 rounded-2xl border border-pink-100 group hover:border-pink-300 transition-all">
-          <p className="text-[8px] font-semibold text-xsink-400 tracking-wide mb-1">{lang === 'tr' ? 'KUMAŞ / MATERYAL' : 'MATERIAL'}</p>
-          <p className="text-sm font-semibold text-slate-900 group-hover:text-xsink-600 transition-colors uppercase">{data.material}</p>
+          <p className="text-[8px] font-semibold text-xsink-400 tracking-wide mb-1">
+            {lang === "tr" ? "KUMAŞ / MATERYAL" : "MATERIAL"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-xsink-600 transition-colors uppercase">
+            {data.material}
+          </p>
         </div>
       )}
       {data.fit && (
         <div className="p-4 bg-pink-50/50 rounded-2xl border border-pink-100 group hover:border-pink-300 transition-all">
-          <p className="text-[8px] font-semibold text-xsink-400 tracking-wide mb-1">{lang === 'tr' ? 'KESİM / KALIP' : 'FIT'}</p>
-          <p className="text-sm font-semibold text-slate-900 group-hover:text-xsink-600 transition-colors uppercase">{data.fit}</p>
+          <p className="text-[8px] font-semibold text-xsink-400 tracking-wide mb-1">
+            {lang === "tr" ? "KESİM / KALIP" : "FIT"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-xsink-600 transition-colors uppercase">
+            {data.fit}
+          </p>
         </div>
       )}
       {data.collection && (
         <div className="col-span-2 p-4 bg-slate-900 rounded-2xl border border-slate-800 group hover:border-amber-500/30 transition-all">
-          <p className="text-[8px] font-semibold text-slate-500 tracking-wide mb-1">{lang === 'tr' ? 'KOLEKSİYON' : 'COLLECTION'}</p>
-          <p className="text-sm font-semibold text-amber-500 group-hover:text-amber-400 transition-colors uppercase">{data.collection}</p>
+          <p className="text-[8px] font-semibold text-slate-500 tracking-wide mb-1">
+            {lang === "tr" ? "KOLEKSİYON" : "COLLECTION"}
+          </p>
+          <p className="text-sm font-semibold text-amber-500 group-hover:text-amber-400 transition-colors uppercase">
+            {data.collection}
+          </p>
         </div>
       )}
     </div>
@@ -325,24 +431,39 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.square_meters && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'METREKARE' : 'SQUARE METERS'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.square_meters} m²</p>
+          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">
+            {lang === "tr" ? "METREKARE" : "SQUARE METERS"}
+          </p>
+          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">
+            {data.square_meters} m²
+          </p>
         </div>
       )}
       {data.rooms && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">{lang === 'tr' ? 'ODA SAYISI' : 'ROOMS'}</p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">{data.rooms}</p>
+          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">
+            {lang === "tr" ? "ODA SAYISI" : "ROOMS"}
+          </p>
+          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">
+            {data.rooms}
+          </p>
         </div>
       )}
       {data.virtual_tour_url && (
         <div className="col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
           <div>
-             <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">{lang === 'tr' ? 'SANAL TUR' : 'VIRTUAL TOUR'}</p>
-             <p className="text-sm font-bold text-indigo-900">{lang === 'tr' ? '3D Gezinti Mevcut' : '3D Tour Available'}</p>
+            <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">
+              {lang === "tr" ? "SANAL TUR" : "VIRTUAL TOUR"}
+            </p>
+            <p className="text-sm font-bold text-indigo-900">
+              {lang === "tr" ? "3D Gezinti Mevcut" : "3D Tour Available"}
+            </p>
           </div>
-          <button onClick={() => window.open(data.virtual_tour_url, '_blank')} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all">
-             {lang === 'tr' ? 'Turu Başlat' : 'Start Tour'}
+          <button
+            onClick={() => window.open(data.virtual_tour_url, "_blank")}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+          >
+            {lang === "tr" ? "Turu Başlat" : "Start Tour"}
           </button>
         </div>
       )}
@@ -353,20 +474,32 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.cpu && (
         <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">{lang === 'tr' ? 'İŞLEMCİ' : 'CPU'}</p>
-          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.cpu}</p>
+          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">
+            {lang === "tr" ? "İŞLEMCİ" : "CPU"}
+          </p>
+          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">
+            {data.cpu}
+          </p>
         </div>
       )}
       {data.ram && (
         <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">RAM</p>
-          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.ram}</p>
+          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">
+            RAM
+          </p>
+          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">
+            {data.ram}
+          </p>
         </div>
       )}
       {data.storage && (
         <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">{lang === 'tr' ? 'DEPOLAMA' : 'STORAGE'}</p>
-          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">{data.storage}</p>
+          <p className="text-[8px] font-semibold text-indigo-400 tracking-wide mb-1">
+            {lang === "tr" ? "DEPOLAMA" : "STORAGE"}
+          </p>
+          <p className="text-sm font-semibold text-indigo-900 transition-colors uppercase">
+            {data.storage}
+          </p>
         </div>
       )}
     </div>
@@ -375,19 +508,26 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
   return (
     <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-        {lang === 'tr' ? 'TEKNİK VERİ SAYFASI' : 'TECHNICAL DATA SHEET'}
+        {lang === "tr" ? "TEKNİK VERİ SAYFASI" : "TECHNICAL DATA SHEET"}
         <div className="flex-1 h-[1px] bg-slate-100" />
       </h4>
-      {sector === 'automotive' && renderAutomotive()}
-      {sector === 'fashion' && renderFashion()}
-      {sector === 'tech' && renderTech()}
-      {sector === 'real_estate' && renderRealEstate()}
-      {sector === 'general' && (
+      {sector === "automotive" && renderAutomotive()}
+      {sector === "fashion" && renderFashion()}
+      {sector === "tech" && renderTech()}
+      {sector === "real_estate" && renderRealEstate()}
+      {sector === "general" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {Object.entries(data).map(([key, value]: [string, any]) => (
-            <div key={key} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-              <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">{key.replace(/_/g, ' ')}</p>
-              <p className="text-sm font-semibold text-slate-900 uppercase">{String(value)}</p>
+            <div
+              key={key}
+              className="p-4 bg-slate-50 rounded-2xl border border-slate-100"
+            >
+              <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+                {key.replace(/_/g, " ")}
+              </p>
+              <p className="text-sm font-semibold text-slate-900 uppercase">
+                {String(value)}
+              </p>
             </div>
           ))}
         </div>
@@ -396,41 +536,52 @@ const SectorSpecs: React.FC<{ sector: string, data: any }> = ({ sector, data }) 
   );
 };
 
-const DigitalSignature: React.FC<{ storeName: string, lang: string }> = ({ storeName, lang }) => (
+const DigitalSignature: React.FC<{ storeName: string; lang: string }> = ({
+  storeName,
+  lang,
+}) => (
   <div className="mt-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between overflow-hidden relative group">
     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-       <ShieldCheck className="w-24 h-24 text-slate-900" />
+      <ShieldCheck className="w-24 h-24 text-slate-900" />
     </div>
     <div className="relative z-10">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-1.5 h-1.5 rounded-lg bg-green-500 animate-pulse" />
-        <span className="text-[10px] font-semibold text-slate-400 tracking-wide">{lang === 'tr' ? 'DOĞRULANMIŞ ÜRÜN' : 'VERIFIED PRODUCT'}</span>
+        <span className="text-[10px] font-semibold text-slate-400 tracking-wide">
+          {lang === "tr" ? "DOĞRULANMIŞ ÜRÜN" : "VERIFIED PRODUCT"}
+        </span>
       </div>
       <p className="text-xss font-bold text-slate-600 leading-tight">
-        {lang === 'tr' ? `Bu ürün ${storeName} tarafından kalite kontrolünden geçmiştir.` : `This product has been quality-checked by ${storeName}.`}
+        {lang === "tr"
+          ? `Bu ürün ${storeName} tarafından kalite kontrolünden geçmiştir.`
+          : `This product has been quality-checked by ${storeName}.`}
       </p>
     </div>
     <div className="relative z-10 text-right">
-       <span className="text-[10px] font-semibold text-slate-900 tracking-wide block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">SECURE_PASS_ID</span>
-       <div className="flex gap-0.5 justify-end">
-          {[1,2,3,4,5,6].map(i => <div key={i} className="w-1 h-4 bg-slate-900/10 rounded-lg" />)}
-       </div>
+      <span className="text-[10px] font-semibold text-slate-900 tracking-wide block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">
+        SECURE_PASS_ID
+      </span>
+      <div className="flex gap-0.5 justify-end">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="w-1 h-4 bg-slate-900/10 rounded-lg" />
+        ))}
+      </div>
     </div>
   </div>
 );
 
 const DiscoverModal: React.FC<{
-  products: Product[],
-  onClose: () => void,
-  onViewProduct: (product: Product) => void,
-  lang: string
+  products: Product[];
+  onClose: () => void;
+  onViewProduct: (product: Product) => void;
+  lang: string;
 }> = ({ products, onClose, onViewProduct, lang }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     if (products.length === 0) return;
     const timer = setInterval(() => {
-      setCurrentIndex(prev => (prev + 1) % products.length);
+      setCurrentIndex((prev) => (prev + 1) % products.length);
     }, 4000);
     return () => clearInterval(timer);
   }, [products]);
@@ -441,19 +592,22 @@ const DiscoverModal: React.FC<{
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex(prev => (prev + 1) % products.length);
+    setCurrentIndex((prev) => (prev + 1) % products.length);
   };
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex(prev => (prev - 1 + products.length) % products.length);
+    setCurrentIndex((prev) => (prev - 1 + products.length) % products.length);
   };
 
   return (
     <div className="fixed inset-0 z-[120] bg-black flex items-center justify-center">
       <div className="absolute inset-0 z-0">
-        <img 
-          src={currentProduct.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30"} 
+        <img
+          src={
+            currentProduct.image_url ||
+            "https://images.unsplash.com/photo-1523275335684-37898b6baf30"
+          }
           alt={currentProduct.name}
           className="w-full h-full object-cover opacity-60 blur-sm scale-110"
         />
@@ -464,12 +618,20 @@ const DiscoverModal: React.FC<{
         {/* Progress Bars */}
         <div className="flex gap-1 p-4 absolute top-0 left-0 right-0 z-30">
           {products.map((_, idx) => (
-            <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-              <div 
+            <div
+              key={idx}
+              className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden"
+            >
+              <div
                 className="h-full bg-white transition-all duration-100 ease-linear"
                 style={{
-                  width: idx < currentIndex ? '100%' : idx === currentIndex ? '100%' : '0%',
-                  transitionDuration: idx === currentIndex ? '4000ms' : '0ms'
+                  width:
+                    idx < currentIndex
+                      ? "100%"
+                      : idx === currentIndex
+                        ? "100%"
+                        : "0%",
+                  transitionDuration: idx === currentIndex ? "4000ms" : "0ms",
                 }}
               />
             </div>
@@ -479,52 +641,65 @@ const DiscoverModal: React.FC<{
         {/* Header */}
         <div className="absolute top-8 left-4 right-4 z-30 flex items-center justify-between">
           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
-               <Sparkles className="w-4 h-4 text-amber-400" />
-             </div>
-             <span className="text-white text-sm font-semibold tracking-wide drop-shadow-md">
-               {lang === 'tr' ? 'Keşfet' : 'Discover'}
-             </span>
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+            </div>
+            <span className="text-white text-sm font-semibold tracking-wide drop-shadow-md">
+              {lang === "tr" ? "Keşfet" : "Discover"}
+            </span>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-white transition-all">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-white transition-all"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Click Areas */}
-        <div className="absolute inset-y-0 left-0 w-1/3 z-20 cursor-pointer" onClick={handlePrev} />
-        <div className="absolute inset-y-0 right-0 w-1/3 z-20 cursor-pointer" onClick={handleNext} />
+        <div
+          className="absolute inset-y-0 left-0 w-1/3 z-20 cursor-pointer"
+          onClick={handlePrev}
+        />
+        <div
+          className="absolute inset-y-0 right-0 w-1/3 z-20 cursor-pointer"
+          onClick={handleNext}
+        />
 
         {/* Image */}
         <div className="flex-1 relative">
-           <AnimatePresence mode="wait">
-             <motion.img 
-               key={currentProduct.id}
-               initial={{ opacity: 0, scale: 1.05 }}
-               animate={{ opacity: 1, scale: 1 }}
-               exit={{ opacity: 0 }}
-               transition={{ duration: 0.4 }}
-               src={currentProduct.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30"} 
-               className="absolute inset-0 w-full h-full object-contain bg-black/20"
-             />
-           </AnimatePresence>
-           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={currentProduct.id}
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              src={
+                currentProduct.image_url ||
+                "https://images.unsplash.com/photo-1523275335684-37898b6baf30"
+              }
+              className="absolute inset-0 w-full h-full object-contain bg-black/20"
+            />
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
         </div>
 
         {/* Footer Info */}
         <div className="absolute bottom-0 left-0 right-0 p-6 z-30 pointer-events-none">
           <div className="pointer-events-auto">
             <span className="text-amber-400 text-[10px] font-bold uppercase tracking-widest mb-2 block drop-shadow-md">
-              {currentProduct.category || (lang === 'tr' ? 'YENİ ÜRÜN' : 'NEW ARRIVAL')}
+              {currentProduct.category ||
+                (lang === "tr" ? "YENİ ÜRÜN" : "NEW ARRIVAL")}
             </span>
             <h2 className="text-white text-3xl font-bold leading-tight mb-2 drop-shadow-lg max-w-[90%]">
               {currentProduct.name}
             </h2>
             <p className="text-white/80 text-sm line-clamp-2 mb-6 drop-shadow-md">
-              {currentProduct.description || ''}
+              {currentProduct.description || ""}
             </p>
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose();
@@ -533,7 +708,7 @@ const DiscoverModal: React.FC<{
                 className="flex-1 py-4 bg-white text-black rounded-2xl font-bold text-sm hover:scale-[0.98] transition-transform flex items-center justify-center gap-2"
               >
                 <Eye className="w-4 h-4" />
-                {lang === 'tr' ? 'Ürünü İncele' : 'View Product'}
+                {lang === "tr" ? "Ürünü İncele" : "View Product"}
               </button>
             </div>
           </div>
@@ -543,19 +718,24 @@ const DiscoverModal: React.FC<{
   );
 };
 
-const ListingFinancingCalculator: React.FC<{ price: number, currency: string, lang: string }> = ({ price, currency, lang }) => {
+const ListingFinancingCalculator: React.FC<{
+  price: number;
+  currency: string;
+  lang: string;
+}> = ({ price, currency, lang }) => {
   const [downpaymentPercent, setDownpaymentPercent] = useState(30);
   const [termMonths, setTermMonths] = useState(36);
   const [interestRate, setInterestRate] = useState(1.89);
 
   const downpayment = Math.round((price * downpaymentPercent) / 100);
   const loanAmount = price - downpayment;
-  
+
   const monthlyPayment = useMemo(() => {
     if (interestRate <= 0) return loanAmount / termMonths;
     const i = interestRate / 100;
     const n = termMonths;
-    const monthly = (loanAmount * i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+    const monthly =
+      (loanAmount * i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
     return isNaN(monthly) || !isFinite(monthly) ? 0 : Math.round(monthly);
   }, [loanAmount, interestRate, termMonths]);
 
@@ -564,27 +744,46 @@ const ListingFinancingCalculator: React.FC<{ price: number, currency: string, la
   return (
     <div className="bg-slate-50 border border-slate-100/80 rounded-3xl p-6 mt-8 mb-8 animate-in fade-in duration-500">
       <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-        <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        <svg
+          className="w-4 h-4 text-indigo-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+          />
         </svg>
-        {lang === 'tr' ? 'Finansman ve Kredi Hesaplama' : 'Financing & Loan Estimator'}
+        {lang === "tr"
+          ? "Finansman ve Kredi Hesaplama"
+          : "Financing & Loan Estimator"}
       </h4>
       <p className="text-xss text-slate-400 font-semibold mb-6 uppercase tracking-wider">
-        {lang === 'tr' ? 'Bütçenize en uygun ödeme planını öngörün' : 'Simulate your personalized repayment plan'}
+        {lang === "tr"
+          ? "Bütçenize en uygun ödeme planını öngörün"
+          : "Simulate your personalized repayment plan"}
       </p>
 
       <div className="space-y-5">
         <div>
           <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
-            <span>{lang === 'tr' ? 'Peşinat' : 'Downpayment'} ({downpaymentPercent}%)</span>
-            <span>{downpayment.toLocaleString()} {currency}</span>
+            <span>
+              {lang === "tr" ? "Peşinat" : "Downpayment"} ({downpaymentPercent}
+              %)
+            </span>
+            <span>
+              {downpayment.toLocaleString()} {currency}
+            </span>
           </div>
-          <input 
-            type="range" 
-            min="10" 
-            max="80" 
+          <input
+            type="range"
+            min="10"
+            max="80"
             step="5"
-            value={downpaymentPercent} 
+            value={downpaymentPercent}
             onChange={(e) => setDownpaymentPercent(Number(e.target.value))}
             className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
           />
@@ -592,8 +791,10 @@ const ListingFinancingCalculator: React.FC<{ price: number, currency: string, la
 
         <div>
           <div className="flex justify-between text-xs font-bold text-slate-600 mb-2.5">
-            <span>{lang === 'tr' ? 'Vade' : 'Term'}</span>
-            <span>{termMonths} {lang === 'tr' ? 'Ay' : 'Months'}</span>
+            <span>{lang === "tr" ? "Vade" : "Term"}</span>
+            <span>
+              {termMonths} {lang === "tr" ? "Ay" : "Months"}
+            </span>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {[12, 24, 36, 48].map((m) => (
@@ -601,9 +802,9 @@ const ListingFinancingCalculator: React.FC<{ price: number, currency: string, la
                 key={m}
                 type="button"
                 onClick={() => setTermMonths(m)}
-                className={`py-2 rounded-xl text-xs font-bold border transition-all ${termMonths === m ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+                className={`py-2 rounded-xl text-xs font-bold border transition-all ${termMonths === m ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}
               >
-                {m} {lang === 'tr' ? 'Ay' : 'M'}
+                {m} {lang === "tr" ? "Ay" : "M"}
               </button>
             ))}
           </div>
@@ -611,15 +812,17 @@ const ListingFinancingCalculator: React.FC<{ price: number, currency: string, la
 
         <div>
           <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
-            <span>{lang === 'tr' ? 'Aylık Faiz Oranı' : 'Monthly Interest Rate'}</span>
+            <span>
+              {lang === "tr" ? "Aylık Faiz Oranı" : "Monthly Interest Rate"}
+            </span>
             <span>% {interestRate}</span>
           </div>
-          <input 
-            type="range" 
-            min="0.5" 
-            max="5" 
+          <input
+            type="range"
+            min="0.5"
+            max="5"
             step="0.05"
-            value={interestRate} 
+            value={interestRate}
             onChange={(e) => setInterestRate(Number(e.target.value))}
             className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
           />
@@ -627,16 +830,28 @@ const ListingFinancingCalculator: React.FC<{ price: number, currency: string, la
 
         <div className="bg-white border border-slate-100 rounded-2xl p-4 mt-6 grid grid-cols-2 gap-4">
           <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{lang === 'tr' ? 'AYLIK TAKSİT' : 'MONTHLY PAYMENT'}</p>
-            <p className="text-sm font-bold text-indigo-600">{monthlyPayment.toLocaleString()} {currency}</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              {lang === "tr" ? "AYLIK TAKSİT" : "MONTHLY PAYMENT"}
+            </p>
+            <p className="text-sm font-bold text-indigo-600">
+              {monthlyPayment.toLocaleString()} {currency}
+            </p>
           </div>
           <div className="border-l border-slate-100 pl-4">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{lang === 'tr' ? 'KREDİ TUTARI' : 'LOAN AMOUNT'}</p>
-            <p className="text-sm font-bold text-slate-800">{loanAmount.toLocaleString()} {currency}</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              {lang === "tr" ? "KREDİ TUTARI" : "LOAN AMOUNT"}
+            </p>
+            <p className="text-sm font-bold text-slate-800">
+              {loanAmount.toLocaleString()} {currency}
+            </p>
           </div>
           <div className="col-span-2 border-t border-slate-100 pt-3 flex justify-between items-center text-xs font-bold text-slate-500">
-            <span>{lang === 'tr' ? 'Toplam Geri Ödeme' : 'Total Repayment'}:</span>
-            <span className="text-slate-800">{totalPayment.toLocaleString()} {currency}</span>
+            <span>
+              {lang === "tr" ? "Toplam Geri Ödeme" : "Total Repayment"}:
+            </span>
+            <span className="text-slate-800">
+              {totalPayment.toLocaleString()} {currency}
+            </span>
           </div>
         </div>
       </div>
@@ -656,15 +871,31 @@ const ProductDetailModal: React.FC<{
   sector?: string;
   showAboutModal: boolean;
   setShowAboutModal: (show: boolean) => void;
-}> = ({ product, store, t, slug, onClose, addToBasket, primaryColor, isLuxury, sector = 'general', showAboutModal, setShowAboutModal }) => {
+}> = ({
+  product,
+  store,
+  t,
+  slug,
+  onClose,
+  addToBasket,
+  primaryColor,
+  isLuxury,
+  sector = "general",
+  showAboutModal,
+  setShowAboutModal,
+}) => {
   const { lang } = useLanguage();
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [selectedBranchIdx, setSelectedBranchIdx] = useState(0);
-  const [convertedPrice, setConvertedPrice] = useState<number>(product?.price || 0);
+  const [convertedPrice, setConvertedPrice] = useState<number>(
+    product?.price || 0,
+  );
 
   // States for 360° virtual tour mode
-  const [activeViewMode, setActiveViewMode] = useState<'gallery' | 'tour360'>('gallery');
+  const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tour360">(
+    "gallery",
+  );
   const [selectedHotspotIdx, setSelectedHotspotIdx] = useState(0);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -680,16 +911,16 @@ const ProductDetailModal: React.FC<{
     if (rawImages) {
       if (Array.isArray(rawImages)) {
         rawImages.forEach((img: any) => {
-          if (img && typeof img === 'string' && !list.includes(img)) {
+          if (img && typeof img === "string" && !list.includes(img)) {
             list.push(img);
           }
         });
-      } else if (typeof rawImages === 'string') {
+      } else if (typeof rawImages === "string") {
         try {
           const parsed = JSON.parse(rawImages);
           if (Array.isArray(parsed)) {
             parsed.forEach((img: any) => {
-              if (img && typeof img === 'string' && !list.includes(img)) {
+              if (img && typeof img === "string" && !list.includes(img)) {
                 list.push(img);
               }
             });
@@ -707,20 +938,24 @@ const ProductDetailModal: React.FC<{
   useEffect(() => {
     if (!isLightboxOpen || productImages.length === 0) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        setActiveImageIdx(prev => (prev + 1) % productImages.length);
-      } else if (e.key === 'ArrowLeft') {
-        setActiveImageIdx(prev => (prev - 1 + productImages.length) % productImages.length);
-      } else if (e.key === 'Escape') {
+      if (e.key === "ArrowRight") {
+        setActiveImageIdx((prev) => (prev + 1) % productImages.length);
+      } else if (e.key === "ArrowLeft") {
+        setActiveImageIdx(
+          (prev) => (prev - 1 + productImages.length) % productImages.length,
+        );
+      } else if (e.key === "Escape") {
         setIsLightboxOpen(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isLightboxOpen, productImages.length]);
 
   // 3D AI Orbit parameters
-  const [lighting, setLighting] = useState<'noon' | 'golden' | 'cyber'>('golden');
+  const [lighting, setLighting] = useState<"noon" | "golden" | "cyber">(
+    "golden",
+  );
   const [orbitSpeed, setOrbitSpeed] = useState<number>(1.2);
   const [dollyDistance, setDollyDistance] = useState<number>(100);
   const [isOrbiting, setIsOrbiting] = useState<boolean>(true);
@@ -729,8 +964,8 @@ const ProductDetailModal: React.FC<{
   useEffect(() => {
     let frameId: number;
     const rotate = () => {
-      if (isOrbiting && activeViewMode === 'tour360') {
-        setCurrentAngle(prev => (prev + (orbitSpeed * 0.45)) % 360);
+      if (isOrbiting && activeViewMode === "tour360") {
+        setCurrentAngle((prev) => (prev + orbitSpeed * 0.45) % 360);
       }
       frameId = requestAnimationFrame(rotate);
     };
@@ -738,13 +973,19 @@ const ProductDetailModal: React.FC<{
     return () => cancelAnimationFrame(frameId);
   }, [isOrbiting, orbitSpeed, activeViewMode]);
 
-  const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
-  const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
-  const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
+  const brandLabel = store?.brand_label || (lang === "tr" ? "Marka" : "Brand");
+  const categoryLabel =
+    store?.category_label || (lang === "tr" ? "Kategori" : "Category");
+  const stockLabel = store?.stock_label || (lang === "tr" ? "Stok" : "Stock");
 
   useEffect(() => {
-    if (product && store?.currency && product.currency && product.currency !== store.currency) {
-      getExchangeRate(product.currency, store.currency).then(rate => {
+    if (
+      product &&
+      store?.currency &&
+      product.currency &&
+      product.currency !== store.currency
+    ) {
+      getExchangeRate(product.currency, store.currency).then((rate) => {
         setConvertedPrice(product.price * rate);
       });
     } else if (product) {
@@ -756,8 +997,9 @@ const ProductDetailModal: React.FC<{
     const effectiveSlug = store?.slug || slug;
     if (product?.barcode && effectiveSlug) {
       setLoadingBranches(true);
-      api.getPublicProductBranchStock(effectiveSlug, product.barcode)
-        .then(res => {
+      api
+        .getPublicProductBranchStock(effectiveSlug, product.barcode)
+        .then((res) => {
           if (!res.error) {
             setBranchStocks(res);
             // Preselect the first branch that has stock
@@ -776,7 +1018,7 @@ const ProductDetailModal: React.FC<{
   const productUrl = useMemo(() => {
     if (!product) return window.location.href;
     const baseUrl = window.location.origin;
-    const isCustomDomain = !window.location.pathname.startsWith('/s/');
+    const isCustomDomain = !window.location.pathname.startsWith("/s/");
     if (isCustomDomain) {
       return `${baseUrl}/p/${product.barcode || product.id}`;
     } else {
@@ -788,7 +1030,7 @@ const ProductDetailModal: React.FC<{
   const shareProduct = async () => {
     const shareData = {
       title: product.name,
-      text: `${product.name} - ${product.price} ${store?.currency || 'TRY'}`,
+      text: `${product.name} - ${product.price} ${store?.currency || "TRY"}`,
       url: productUrl,
     };
 
@@ -796,7 +1038,7 @@ const ProductDetailModal: React.FC<{
       try {
         await navigator.share(shareData);
       } catch (err) {
-        console.error('Share failed:', err);
+        console.error("Share failed:", err);
       }
     } else {
       copyLink();
@@ -810,8 +1052,10 @@ const ProductDetailModal: React.FC<{
   };
 
   const shareOnWhatsApp = () => {
-    const text = encodeURIComponent(`${product.name}\nFiyat: ${product.price} ${store?.currency || 'TRY'}\n\nİncelemek için: ${productUrl}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+    const text = encodeURIComponent(
+      `${product.name}\nFiyat: ${product.price} ${store?.currency || "TRY"}\n\nİncelemek için: ${productUrl}`,
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
   if (!product) return null;
@@ -819,44 +1063,44 @@ const ProductDetailModal: React.FC<{
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
-    "name": product.name,
-    "description": product.description || `Buy ${product.name} at ${store?.name}`,
-    "image": product.image_url,
-    "sku": product.barcode,
-    "brand": {
+    name: product.name,
+    description: product.description || `Buy ${product.name} at ${store?.name}`,
+    image: product.image_url,
+    sku: product.barcode,
+    brand: {
       "@type": "Brand",
-      "name": product.brand || store?.name || "FastPOS"
+      name: product.brand || store?.name || "FastPOS",
     },
-    "offers": {
+    offers: {
       "@type": "Offer",
-      "priceCurrency": store?.currency || product.currency || "USD",
-      "price": product.price,
-      "availability": "https://schema.org/InStock"
-    }
+      priceCurrency: store?.currency || product.currency || "USD",
+      price: product.price,
+      availability: "https://schema.org/InStock",
+    },
   };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <SEO 
+      <SEO
         title={`${product.name} | ${store?.name}`}
         description={product.description?.substring(0, 160)}
         ogImage={product.image_url}
         schemaData={productSchema}
       />
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
         className="fixed inset-0 bg-black/40 backdrop-blur-xl"
       />
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         className="bg-white w-full max-w-5xl rounded-xl shadow-lg relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
       >
-        <button 
+        <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2.5 bg-slate-900/90 text-white hover:bg-slate-850 rounded-full transition-all z-50 shadow-xl active:scale-95"
         >
@@ -866,108 +1110,157 @@ const ProductDetailModal: React.FC<{
         <div className="md:w-1/2 bg-gray-50 relative overflow-hidden h-80 md:h-auto">
           {/* Share Buttons Overlay */}
           <div className="absolute top-6 left-6 flex flex-col gap-2 z-20">
-            <button 
+            <button
               onClick={shareProduct}
               className="p-3 bg-white/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-white transition-all active:scale-90 group"
-              title={lang === 'tr' ? 'Paylaş' : 'Share'}
+              title={lang === "tr" ? "Paylaş" : "Share"}
             >
               <Share2 className="w-5 h-5 text-indigo-600" />
             </button>
-            <button 
+            <button
               onClick={shareOnWhatsApp}
               className="p-3 bg-emerald-500/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-emerald-500 transition-all active:scale-90"
               title="WhatsApp"
             >
-              <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              <svg
+                className="w-5 h-5 text-white fill-current"
+                viewBox="0 0 24 24"
+              >
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
               </svg>
             </button>
-            <button 
+            <button
               onClick={copyLink}
               className="p-3 bg-white/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-white transition-all active:scale-90 flex items-center gap-2 group overflow-hidden"
-              title={lang === 'tr' ? 'Linki Kopyala' : 'Copy Link'}
+              title={lang === "tr" ? "Linki Kopyala" : "Copy Link"}
             >
               <div className="flex items-center gap-2">
-                {isCopied ? <Check className="w-5 h-5 text-emerald-600" /> : <Link2 className="w-5 h-5 text-slate-600" />}
+                {isCopied ? (
+                  <Check className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <Link2 className="w-5 h-5 text-slate-600" />
+                )}
                 <AnimatePresence>
                   {isCopied && (
-                    <motion.span 
+                    <motion.span
                       initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
+                      animate={{ opacity: 1, width: "auto" }}
                       exit={{ opacity: 0, width: 0 }}
                       className="text-[10px] font-semibold uppercase text-emerald-600 tracking-widest whitespace-nowrap"
                     >
-                      {lang === 'tr' ? 'Kopyalandı' : 'Copied'}
+                      {lang === "tr" ? "Kopyalandı" : "Copied"}
                     </motion.span>
                   )}
                 </AnimatePresence>
               </div>
             </button>
-          {/* View Mode Switcher Overlay */}
-          {store?.store_type === 'portfolio' && (product.type === 'vehicle' || product.type === 'real_estate') && (
-            <div className="absolute bottom-6 left-6 right-6 flex justify-center z-30 pointer-events-auto">
-              <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
-                <button
-                  type="button"
-                  onClick={() => setActiveViewMode('gallery')}
-                  className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === 'gallery' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                >
-                  <Package className="w-3.5 h-3.5" />
-                  {lang === 'tr' ? 'Galeri' : 'Gallery'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveViewMode('tour360')}
-                  className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === 'tour360' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  {lang === 'tr' ? '360° Akıllı Tur' : '360° AI Tour'}
-                </button>
-              </div>
-            </div>
-          )}
+            {/* View Mode Switcher Overlay */}
+            {store?.store_type === "portfolio" &&
+              (product.type === "vehicle" ||
+                product.type === "real_estate") && (
+                <div className="absolute bottom-6 left-6 right-6 flex justify-center z-30 pointer-events-auto">
+                  <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
+                    <button
+                      type="button"
+                      onClick={() => setActiveViewMode("gallery")}
+                      className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "gallery" ? "bg-indigo-600 text-white shadow-md" : "text-slate-400 hover:text-white"}`}
+                    >
+                      <Package className="w-3.5 h-3.5" />
+                      {lang === "tr" ? "Galeri" : "Gallery"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveViewMode("tour360")}
+                      className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-indigo-600 text-white shadow-md" : "text-slate-400 hover:text-white"}`}
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      {lang === "tr" ? "360° Akıllı Tur" : "360° AI Tour"}
+                    </button>
+                  </div>
+                </div>
+              )}
           </div>
-          {store?.store_type === 'portfolio' && activeViewMode === 'tour360' && (product.type === 'vehicle' || product.type === 'real_estate') ? (
+          {store?.store_type === "portfolio" &&
+          activeViewMode === "tour360" &&
+          (product.type === "vehicle" || product.type === "real_estate") ? (
             (() => {
               const orbitPins = [
                 {
-                  id: 'price',
-                  title: lang === 'tr' ? '💰 Finansal Değerleme' : '💰 Financial Valuation',
-                  value: `${product.price ? Number(product.price).toLocaleString() : '---'} ${product.currency || 'GBP'}`,
-                  detail: product.type === 'real_estate'
-                    ? (lang === 'tr' ? 'Tahmini Kira Getirisi: %7.4 | Banka Kredisine Uygun' : 'Estimated Rent Yield: 7.4% | Suitable for Bank Loan')
-                    : (lang === 'tr' ? 'Değer Koruma Endeksi: %94 (Çok Yüksek)' : 'Value Retention Index: 94% (Very High)')
+                  id: "price",
+                  title:
+                    lang === "tr"
+                      ? "💰 Finansal Değerleme"
+                      : "💰 Financial Valuation",
+                  value: `${product.price ? Number(product.price).toLocaleString() : "---"} ${product.currency || "GBP"}`,
+                  detail:
+                    product.type === "real_estate"
+                      ? lang === "tr"
+                        ? "Tahmini Kira Getirisi: %7.4 | Banka Kredisine Uygun"
+                        : "Estimated Rent Yield: 7.4% | Suitable for Bank Loan"
+                      : lang === "tr"
+                        ? "Değer Koruma Endeksi: %94 (Çok Yüksek)"
+                        : "Value Retention Index: 94% (Very High)",
                 },
                 {
-                  id: 'specs',
-                  title: product.type === 'real_estate' 
-                    ? (lang === 'tr' ? '📏 Konstrüksiyon & Net Alan' : '📏 Layout & Area')
-                    : (lang === 'tr' ? '⚙️ Motor ve Donanım' : '⚙️ Performance & Spec'),
-                  value: product.type === 'real_estate'
-                    ? `${product.sector_data?.square_meters || '120'} m² Net / ${product.sector_data?.sqm_gross || '145'} m² Brüt`
-                    : `${product.sector_data?.year || '2023'} Model | ${product.sector_data?.engine_power || '180'} HP`,
-                  detail: product.type === 'real_estate'
-                    ? (lang === 'tr' ? `Plan: ${product.sector_data?.rooms || '2+1'} | Isıtma: Kombi/Klima | Cephe: ${product.sector_data?.facade || 'Kuzey'}` : `Layout: ${product.sector_data?.rooms || '2+1'} | Heating: Heat Pump/AC | Facade: ${product.sector_data?.facade || 'North'}`)
-                    : (lang === 'tr' ? `Şanzıman: Otomatik | Kilometre: 42,000 km | Yakıt: Hibrit` : `Gearbox: Automatic | Mileage: 42,000 km | Fuel: Hybrid`)
+                  id: "specs",
+                  title:
+                    product.type === "real_estate"
+                      ? lang === "tr"
+                        ? "📏 Konstrüksiyon & Net Alan"
+                        : "📏 Layout & Area"
+                      : lang === "tr"
+                        ? "⚙️ Motor ve Donanım"
+                        : "⚙️ Performance & Spec",
+                  value:
+                    product.type === "real_estate"
+                      ? `${product.sector_data?.square_meters || "120"} m² Net / ${product.sector_data?.sqm_gross || "145"} m² Brüt`
+                      : `${product.sector_data?.year || "2023"} Model | ${product.sector_data?.engine_power || "180"} HP`,
+                  detail:
+                    product.type === "real_estate"
+                      ? lang === "tr"
+                        ? `Plan: ${product.sector_data?.rooms || "2+1"} | Isıtma: Kombi/Klima | Cephe: ${product.sector_data?.facade || "Kuzey"}`
+                        : `Layout: ${product.sector_data?.rooms || "2+1"} | Heating: Heat Pump/AC | Facade: ${product.sector_data?.facade || "North"}`
+                      : lang === "tr"
+                        ? `Şanzıman: Otomatik | Kilometre: 42,000 km | Yakıt: Hibrit`
+                        : `Gearbox: Automatic | Mileage: 42,000 km | Fuel: Hybrid`,
                 },
                 {
-                  id: 'legal',
-                  title: product.type === 'real_estate'
-                    ? (lang === 'tr' ? '📜 Tapu ve İmar Durumu' : '📜 Title Deed Type')
-                    : (lang === 'tr' ? '🛡️ Ruhsat & Tescil' : '🛡️ Registry & Transfer'),
-                  value: product.type === 'real_estate'
-                    ? `${product.sector_data?.kktc_title_type || 'Eşdeğer Koçan'}`
-                    : (lang === 'tr' ? 'Tescil: Hemen Kimlik Devri' : 'Transfer: Instanly Available'),
-                  detail: lang === 'tr' ? 'Tüm ipotek ve haciz sorguları temiz, satışa %100 hazır.' : 'Completely cleared of liens, 100% ready for official ownership transfer.'
+                  id: "legal",
+                  title:
+                    product.type === "real_estate"
+                      ? lang === "tr"
+                        ? "📜 Tapu ve İmar Durumu"
+                        : "📜 Title Deed Type"
+                      : lang === "tr"
+                        ? "🛡️ Ruhsat & Tescil"
+                        : "🛡️ Registry & Transfer",
+                  value:
+                    product.type === "real_estate"
+                      ? `${product.sector_data?.kktc_title_type || "Eşdeğer Koçan"}`
+                      : lang === "tr"
+                        ? "Tescil: Hemen Kimlik Devri"
+                        : "Transfer: Instanly Available",
+                  detail:
+                    lang === "tr"
+                      ? "Tüm ipotek ve haciz sorguları temiz, satışa %100 hazır."
+                      : "Completely cleared of liens, 100% ready for official ownership transfer.",
                 },
                 {
-                  id: 'location',
-                  title: lang === 'tr' ? '📍 Konum & Lokasyon Analizi' : '📍 Location & Area Analysis',
-                  value: `${product.sector_data?.kktc_region || (product as any).location || 'Girne'} / KKTC`,
-                  detail: product.type === 'real_estate'
-                    ? (lang === 'tr' ? 'Denize 650m | Toplu taşımaya ve süpermarkete yürüme mesafesinde.' : '650m to beach | Steps away from major transport & luxury grocery stores.')
-                    : (lang === 'tr' ? 'Distribütör çıkışlı, periyodik yetkili servis bakımlı.' : 'Officially certified, fully documented authorized dealer services.')
-                }
+                  id: "location",
+                  title:
+                    lang === "tr"
+                      ? "📍 Konum & Lokasyon Analizi"
+                      : "📍 Location & Area Analysis",
+                  value: `${product.sector_data?.kktc_region || (product as any).location || "Girne"} / KKTC`,
+                  detail:
+                    product.type === "real_estate"
+                      ? lang === "tr"
+                        ? "Denize 650m | Toplu taşımaya ve süpermarkete yürüme mesafesinde."
+                        : "650m to beach | Steps away from major transport & luxury grocery stores."
+                      : lang === "tr"
+                        ? "Distribütör çıkışlı, periyodik yetkili servis bakımlı."
+                        : "Officially certified, fully documented authorized dealer services.",
+                },
               ];
 
               const currentPin = orbitPins[selectedHotspotIdx] || orbitPins[0];
@@ -1009,7 +1302,7 @@ const ProductDetailModal: React.FC<{
               };
 
               return (
-                <div 
+                <div
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUpOrLeave}
@@ -1023,15 +1316,19 @@ const ProductDetailModal: React.FC<{
                   <div className="absolute top-6 left-6 right-6 flex justify-between items-start pointer-events-none z-10">
                     <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 shadow-xl">
                       <p className="text-[7px] text-indigo-400 font-extrabold uppercase tracking-widest leading-none mb-1">
-                        {lang === 'tr' ? 'DİJİTAL ORBİT MOTORU v2.0' : 'DIGITAL ORBIT ENGINE v2.0'}
+                        {lang === "tr"
+                          ? "DİJİTAL ORBİT MOTORU v2.0"
+                          : "DIGITAL ORBIT ENGINE v2.0"}
                       </p>
                       <p className="text-[10px] text-white font-extrabold tracking-tight uppercase">
-                        {lang === 'tr' ? '🌀 3D PARALLAX AKTİF' : '🌀 3D PARALLAX ACTIVE'}
+                        {lang === "tr"
+                          ? "🌀 3D PARALLAX AKTİF"
+                          : "🌀 3D PARALLAX ACTIVE"}
                       </p>
                     </div>
                     <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 text-right shadow-xl">
                       <p className="text-[7px] text-slate-400 font-extrabold uppercase tracking-widest leading-none mb-1">
-                        {lang === 'tr' ? 'UZAYSAL AÇI' : 'SPATIAL ANGLE'}
+                        {lang === "tr" ? "UZAYSAL AÇI" : "SPATIAL ANGLE"}
                       </p>
                       <p className="text-[10px] text-emerald-400 font-mono font-black leading-none">
                         ROT: {Math.round((currentAngle + 360) % 360)}°
@@ -1041,44 +1338,49 @@ const ProductDetailModal: React.FC<{
 
                   {/* 3D Scene viewport parent */}
                   <div className="absolute inset-0 flex items-center justify-center p-4 pt-16 pb-28 perspective-[1200px]">
-                    
                     {/* Shadow grid floor */}
                     <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent rotate-12 blur-sm pointer-events-none" />
                     <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -rotate-12 blur-sm pointer-events-none" />
 
                     {/* Interactive Rotating Listing Diorama Container */}
-                    <div 
+                    <div
                       className="relative w-[75%] max-w-[270px] aspect-[4/3] rounded-[24px] overflow-hidden origin-center transition-shadow duration-500"
                       style={{
                         transform: `rotateY(${-currentAngle}deg) rotateX(15deg) scale(${dollyDistance / 100})`,
-                        transformStyle: 'preserve-3d',
-                        boxShadow: lighting === 'noon'
-                          ? '0 30px 60px -15px rgba(0,0,0,0.6)'
-                          : lighting === 'golden'
-                          ? '0 40px 75px -12px rgba(217,119,6,0.25), 0 20px 40px -15px rgba(0,0,0,0.7)'
-                          : '0 40px 75px -12px rgba(99,102,241,0.25), 0 20px 40px -15px rgba(0,0,0,0.8)',
-                        filter: lighting === 'noon' 
-                          ? 'brightness(1.05) contrast(1.05)' 
-                          : lighting === 'golden' 
-                          ? 'sepia(0.2) saturate(1.15) contrast(1.1) brightness(1.02)' 
-                          : 'hue-rotate(15deg) saturate(1.3) contrast(1.15) brightness(0.8)'
+                        transformStyle: "preserve-3d",
+                        boxShadow:
+                          lighting === "noon"
+                            ? "0 30px 60px -15px rgba(0,0,0,0.6)"
+                            : lighting === "golden"
+                              ? "0 40px 75px -12px rgba(217,119,6,0.25), 0 20px 40px -15px rgba(0,0,0,0.7)"
+                              : "0 40px 75px -12px rgba(99,102,241,0.25), 0 20px 40px -15px rgba(0,0,0,0.8)",
+                        filter:
+                          lighting === "noon"
+                            ? "brightness(1.05) contrast(1.05)"
+                            : lighting === "golden"
+                              ? "sepia(0.2) saturate(1.15) contrast(1.1) brightness(1.02)"
+                              : "hue-rotate(15deg) saturate(1.3) contrast(1.15) brightness(0.8)",
                       }}
                     >
-                      <img 
-                        src={(product as any).images?.[0] || product.image_url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"} 
-                        alt={product.name} 
+                      <img
+                        src={
+                          (product as any).images?.[0] ||
+                          product.image_url ||
+                          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"
+                        }
+                        alt={product.name}
                         className="w-full h-full object-cover select-none pointer-events-none"
                         referrerPolicy="no-referrer"
                       />
-                      
+
                       {/* Vignette lighting overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent pointer-events-none" />
-                      
+
                       {/* Real-time Simulated Glow filter based on speed and angle */}
-                      <div 
+                      <div
                         className="absolute inset-0 opacity-20 pointer-events-none mix-blend-color-dodge transition-opacity duration-300"
                         style={{
-                          background: `radial-gradient(circle at ${50 + Math.sin((currentAngle * Math.PI)/180) * 50}% 50%, #818cf8, transparent 70%)`
+                          background: `radial-gradient(circle at ${50 + Math.sin((currentAngle * Math.PI) / 180) * 50}% 50%, #818cf8, transparent 70%)`,
                         }}
                       />
                     </div>
@@ -1103,14 +1405,22 @@ const ProductDetailModal: React.FC<{
                               top: `${42 + (idx % 2 === 0 ? -12 : 12)}%`,
                               opacity: pos.opacity,
                               zIndex: pos.zIndex,
-                              transition: isDragging ? 'none' : 'left 0.1s ease-out, opacity 0.1s ease-out'
+                              transition: isDragging
+                                ? "none"
+                                : "left 0.1s ease-out, opacity 0.1s ease-out",
                             }}
                           >
-                            <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? 'bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg shadow-indigo-600/40' : 'bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-115'}`}>
-                              <span className="text-[11px] font-black leading-none">{idx + 1}</span>
+                            <span
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? "bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg shadow-indigo-600/40" : "bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-115"}`}
+                            >
+                              <span className="text-[11px] font-black leading-none">
+                                {idx + 1}
+                              </span>
                             </span>
-                            <span className={`absolute mt-10 transition-all text-[8px] font-bold px-2 py-1 rounded-md border leading-none tracking-wide whitespace-nowrap shadow-xl ${selectedHotspotIdx === idx ? 'bg-indigo-600 text-white border-indigo-500 scale-100 opacity-100' : 'bg-slate-900/95 text-slate-300 border-slate-800 scale-90 opacity-0 group-hover/spot:opacity-100'}`}>
-                              {spot.title.split(' ')[1] || spot.title}
+                            <span
+                              className={`absolute mt-10 transition-all text-[8px] font-bold px-2 py-1 rounded-md border leading-none tracking-wide whitespace-nowrap shadow-xl ${selectedHotspotIdx === idx ? "bg-indigo-600 text-white border-indigo-500 scale-100 opacity-100" : "bg-slate-900/95 text-slate-300 border-slate-800 scale-90 opacity-0 group-hover/spot:opacity-100"}`}
+                            >
+                              {spot.title.split(" ")[1] || spot.title}
                             </span>
                           </button>
                         );
@@ -1120,11 +1430,12 @@ const ProductDetailModal: React.FC<{
 
                   {/* Simulator Control Panel footer */}
                   <div className="mt-auto p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800/80 relative z-20 space-y-4">
-                    
                     {/* Dynamic highlighted valuation tag */}
                     <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-850/60 animate-fade-in">
                       <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1 leading-none">
-                        {lang === 'tr' ? 'RADAR DIAGNOSTİK NOKTASI' : 'RADAR DIAGNOSTIC NODE'}
+                        {lang === "tr"
+                          ? "RADAR DIAGNOSTİK NOKTASI"
+                          : "RADAR DIAGNOSTIC NODE"}
                       </p>
                       <h5 className="text-[12px] font-black text-white mb-1 tracking-tight flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping shrink-0" />
@@ -1141,23 +1452,38 @@ const ProductDetailModal: React.FC<{
                     {/* Operational dials */}
                     <div className="flex flex-col gap-3 pt-2 border-t border-slate-800/40">
                       <div className="flex flex-wrap items-center justify-between gap-3 text-white text-xs">
-                        
                         {/* Lighting preset picker */}
                         <div className="flex items-center gap-2">
-                          <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'GÜN IŞIĞI SENTEZİ:' : 'LIGHT SYNTHESIS:'}</span>
+                          <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">
+                            {lang === "tr"
+                              ? "GÜN IŞIĞI SENTEZİ:"
+                              : "LIGHT SYNTHESIS:"}
+                          </span>
                           <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-850">
                             {[
-                              { id: 'noon', label: lang === 'tr' ? '☀️ Gündüz' : '☀️ Noon' },
-                              { id: 'golden', label: lang === 'tr' ? '🌆 Altın Saat' : '🌆 Golden Hour' },
-                              { id: 'cyber', label: lang === 'tr' ? '🌌 Gece' : '🌌 Night' }
+                              {
+                                id: "noon",
+                                label: lang === "tr" ? "☀️ Gündüz" : "☀️ Noon",
+                              },
+                              {
+                                id: "golden",
+                                label:
+                                  lang === "tr"
+                                    ? "🌆 Altın Saat"
+                                    : "🌆 Golden Hour",
+                              },
+                              {
+                                id: "cyber",
+                                label: lang === "tr" ? "🌌 Gece" : "🌌 Night",
+                              },
                             ].map((preset) => (
                               <button
                                 key={preset.id}
                                 type="button"
                                 onClick={() => setLighting(preset.id as any)}
-                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${lighting === preset.id ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${lighting === preset.id ? "bg-indigo-600 text-white shadow" : "text-slate-500 hover:text-slate-300"}`}
                               >
-                                {preset.label.split(' ')[1]}
+                                {preset.label.split(" ")[1]}
                               </button>
                             ))}
                           </div>
@@ -1165,29 +1491,42 @@ const ProductDetailModal: React.FC<{
 
                         {/* Interactive sliders or rotational switches */}
                         <div className="flex items-center gap-4">
-                          
                           {/* Auto orbit trigger */}
                           <button
                             type="button"
                             onClick={() => setIsOrbiting(!isOrbiting)}
-                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 transition-all ${isOrbiting ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-950 text-slate-500 border-slate-850'}`}
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 transition-all ${isOrbiting ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-slate-950 text-slate-500 border-slate-850"}`}
                           >
-                            <RefreshCw className={`w-3 h-3 ${isOrbiting ? 'animate-spin' : ''}`} />
-                            {isOrbiting ? (lang === 'tr' ? 'Oto Spin' : 'Auto Orbit') : (lang === 'tr' ? 'Durduruldu' : 'Paused')}
+                            <RefreshCw
+                              className={`w-3 h-3 ${isOrbiting ? "animate-spin" : ""}`}
+                            />
+                            {isOrbiting
+                              ? lang === "tr"
+                                ? "Oto Spin"
+                                : "Auto Orbit"
+                              : lang === "tr"
+                                ? "Durduruldu"
+                                : "Paused"}
                           </button>
 
                           {/* Zoom depth slider */}
                           <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-850">
-                            <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">DOLLY:</span>
-                            <input 
-                              type="range" 
-                              min="70" 
+                            <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">
+                              DOLLY:
+                            </span>
+                            <input
+                              type="range"
+                              min="70"
                               max="140"
                               value={dollyDistance}
-                              onChange={(e) => setDollyDistance(Number(e.target.value))}
+                              onChange={(e) =>
+                                setDollyDistance(Number(e.target.value))
+                              }
                               className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                             />
-                            <span className="text-[8px] font-bold font-mono text-indigo-400">{dollyDistance}%</span>
+                            <span className="text-[8px] font-bold font-mono text-indigo-400">
+                              {dollyDistance}%
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1196,82 +1535,92 @@ const ProductDetailModal: React.FC<{
                 </div>
               );
             })()
-          ) : (
-            productImages.length > 0 ? (
-              <div className="w-full h-full flex flex-col justify-between bg-white relative p-4 pb-6">
-                {/* Main Viewport Box */}
-                <div 
-                  className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in"
-                  onClick={() => setIsLightboxOpen(true)}
-                  title={lang === 'tr' ? 'Büyütmek için tıklayın' : 'Click to enlarge'}
-                >
-                  <img 
-                    src={productImages[activeImageIdx]} 
-                    alt={product.name} 
-                    className="max-w-full max-h-[280px] md:max-h-[380px] object-contain transition-all duration-300"
-                    referrerPolicy="no-referrer"
-                  />
-                  
-                  {/* Action Icon overlay */}
-                  <div className="absolute top-2 right-2 bg-slate-900/40 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-0 group-hover/gallery:opacity-100 transition-opacity">
-                    <Eye className="w-4 h-4" />
-                  </div>
+          ) : productImages.length > 0 ? (
+            <div className="w-full h-full flex flex-col justify-between bg-white relative p-4 pb-6">
+              {/* Main Viewport Box */}
+              <div
+                className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in"
+                onClick={() => setIsLightboxOpen(true)}
+                title={
+                  lang === "tr" ? "Büyütmek için tıklayın" : "Click to enlarge"
+                }
+              >
+                <img
+                  src={productImages[activeImageIdx]}
+                  alt={product.name}
+                  className="max-w-full max-h-[280px] md:max-h-[380px] object-contain transition-all duration-300"
+                  referrerPolicy="no-referrer"
+                />
 
-                  {/* Previous / Next chevrons inside the product frame */}
-                  {productImages.length > 1 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveImageIdx(prev => (prev - 1 + productImages.length) % productImages.length);
-                        }}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveImageIdx(prev => (prev + 1) % productImages.length);
-                        }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </>
-                  )}
+                {/* Action Icon overlay */}
+                <div className="absolute top-2 right-2 bg-slate-900/40 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-0 group-hover/gallery:opacity-100 transition-opacity">
+                  <Eye className="w-4 h-4" />
                 </div>
 
-                {/* Thumbnails list below inside normal frame */}
+                {/* Previous / Next chevrons inside the product frame */}
                 {productImages.length > 1 && (
-                  <div className="flex gap-2 justify-center py-2 px-4 overflow-x-auto no-scrollbar max-w-full z-10 shrink-0">
-                    {productImages.map((img, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActiveImageIdx(idx)}
-                        className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${activeImageIdx === idx ? 'border-indigo-605 border-indigo-600 scale-105 shadow-md' : 'border-slate-100 hover:border-slate-300'}`}
-                      >
-                        <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageIdx(
+                          (prev) =>
+                            (prev - 1 + productImages.length) %
+                            productImages.length,
+                        );
+                      }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageIdx(
+                          (prev) => (prev + 1) % productImages.length,
+                        );
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
                 )}
               </div>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-200">
-                <Package className="w-32 h-32" />
-              </div>
-            )
+
+              {/* Thumbnails list below inside normal frame */}
+              {productImages.length > 1 && (
+                <div className="flex gap-2 justify-center py-2 px-4 overflow-x-auto no-scrollbar max-w-full z-10 shrink-0">
+                  {productImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImageIdx(idx)}
+                      className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${activeImageIdx === idx ? "border-indigo-605 border-indigo-600 scale-105 shadow-md" : "border-slate-100 hover:border-slate-300"}`}
+                    >
+                      <img
+                        src={img}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-200">
+              <Package className="w-32 h-32" />
+            </div>
           )}
         </div>
 
         <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
           <div className="mb-6 flex flex-wrap gap-2 items-center">
             {getLabels(product.labels).map((label, idx) => (
-              <span 
+              <span
                 key={idx}
                 className="text-[10px] tracking-wide font-semibold px-4 py-1.5 rounded-lg text-white shadow-sm"
                 style={{ backgroundColor: primaryColor }}
@@ -1280,85 +1629,133 @@ const ProductDetailModal: React.FC<{
               </span>
             ))}
             <div className="flex flex-col px-2">
-              <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">{categoryLabel}</span>
-              <span 
+              <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+                {categoryLabel}
+              </span>
+              <span
                 className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg whitespace-nowrap"
-                style={{ color: primaryColor, backgroundColor: `${primaryColor}10` }}
+                style={{
+                  color: primaryColor,
+                  backgroundColor: `${primaryColor}10`,
+                }}
               >
                 {product.category || t.dashboard.uncategorized}
               </span>
             </div>
             {product.brand && (
               <div className="flex flex-col px-2">
-                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">{brandLabel}</span>
-                <span 
-                  className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap"
-                >
+                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+                  {brandLabel}
+                </span>
+                <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
                   {product.brand}
                 </span>
               </div>
             )}
             {product.branch_name && product.branch_name !== store?.name && (
               <div className="flex flex-col px-2">
-                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">{lang === 'tr' ? 'Şube' : 'Branch'}</span>
+                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+                  {lang === "tr" ? "Şube" : "Branch"}
+                </span>
                 <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
                   {product.branch_name}
                 </span>
               </div>
             )}
           </div>
-          
-          <h2 className={`text-4xl md:text-4xl text-slate-900 mb-4 leading-[1.1] tracking-tighter ${isLuxury ? '!font-sans !font-medium' : 'font-bold'}`}>
+
+          <h2
+            className={`text-4xl md:text-4xl text-slate-900 mb-4 leading-[1.1] tracking-tighter ${isLuxury ? "!font-sans !font-medium" : "font-bold"}`}
+          >
             {product.name}
           </h2>
 
           <div className="flex items-baseline gap-3 mb-8">
-            <span className={`text-4xl text-slate-900 ${isLuxury ? '!font-sans !font-medium' : 'font-semibold font-display'}`}>
-              {convertedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {store?.currency || product.currency}
+            <span
+              className={`text-4xl text-slate-900 ${isLuxury ? "!font-sans !font-medium" : "font-semibold font-display"}`}
+            >
+              {convertedPrice.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              {store?.currency || product.currency}
             </span>
             {product.unit && (
-              <span className="text-xsl text-slate-400 font-medium">/ {product.unit}</span>
+              <span className="text-xsl text-slate-400 font-medium">
+                / {product.unit}
+              </span>
             )}
           </div>
 
           <div className="prose prose-gray max-w-none mb-10">
-            <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-4">{t.dashboard.description}</h4>
+            <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-4">
+              {t.dashboard.description}
+            </h4>
             <p className="text-gray-500 leading-relaxed text-lg font-medium">
               {product.description || t.dashboard.noProductsDesc}
             </p>
           </div>
 
-          <SectorSpecs sector={product?.type === 'vehicle' ? 'automotive' : (product?.type === 'real_estate' ? 'real_estate' : sector)} data={product.sector_data} />
-          
-          {(product?.type === 'vehicle' || product?.type === 'real_estate') && (
-            <ListingFinancingCalculator price={product.price} currency={store?.currency || product.currency || 'TRY'} lang={lang} />
+          <SectorSpecs
+            sector={
+              product?.type === "vehicle"
+                ? "automotive"
+                : product?.type === "real_estate"
+                  ? "real_estate"
+                  : sector
+            }
+            data={product.sector_data}
+          />
+
+          {(product?.type === "vehicle" || product?.type === "real_estate") && (
+            <ListingFinancingCalculator
+              price={product.price}
+              currency={store?.currency || product.currency || "TRY"}
+              lang={lang}
+            />
           )}
-          
-          <DigitalSignature storeName={store?.name || ''} lang={lang} />
+
+          <DigitalSignature storeName={store?.name || ""} lang={lang} />
 
           {branchStocks.length > 0 && (
             <div className="mt-10 mb-10">
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-6">{lang === 'tr' ? 'ŞUBE SEÇİN' : 'CHOOSE BRANCH'}</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-6">
+                {lang === "tr" ? "ŞUBE SEÇİN" : "CHOOSE BRANCH"}
+              </h4>
               <div className="grid grid-cols-1 gap-3">
                 {branchStocks.map((branch, idx) => (
-                  <div 
-                    key={idx} 
-                    onClick={() => { if (branch.stock > 0) setSelectedBranchIdx(idx); }}
-                    className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${branch.stock > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${selectedBranchIdx === idx ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-primary/30'}`}
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (branch.stock > 0) setSelectedBranchIdx(idx);
+                    }}
+                    className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${branch.stock > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-60"} ${selectedBranchIdx === idx ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm" : "bg-gray-50 border-gray-100 hover:border-primary/30"}`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-transform ${selectedBranchIdx === idx ? 'bg-primary text-white scale-110' : 'bg-white text-primary'}`}>
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-transform ${selectedBranchIdx === idx ? "bg-primary text-white scale-110" : "bg-white text-primary"}`}
+                      >
                         <MapPin className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className={`font-bold ${selectedBranchIdx === idx ? 'text-primary' : 'text-gray-900'}`}>{branch.branch_name}</span>
+                        <span
+                          className={`font-bold ${selectedBranchIdx === idx ? "text-primary" : "text-gray-900"}`}
+                        >
+                          {branch.branch_name}
+                        </span>
                         {selectedBranchIdx === idx && (
-                          <span className="text-[9px] text-primary font-bold mt-1 uppercase tracking-wider">{lang === 'tr' ? 'Seçili Şube' : 'Selected Branch'}</span>
+                          <span className="text-[9px] text-primary font-bold mt-1 uppercase tracking-wider">
+                            {lang === "tr" ? "Seçili Şube" : "Selected Branch"}
+                          </span>
                         )}
                       </div>
                     </div>
-                    <span className={`px-4 py-1.5 rounded-lg text-xss font-semibold tracking-wide ${branch.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {branch.stock > 0 ? `${branch.stock} ${t.dashboard.inStock || 'Stokta'}` : t.dashboard.outOfStock}
+                    <span
+                      className={`px-4 py-1.5 rounded-lg text-xss font-semibold tracking-wide ${branch.stock > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                    >
+                      {branch.stock > 0
+                        ? `${branch.stock} ${t.dashboard.inStock || "Stokta"}`
+                        : t.dashboard.outOfStock}
                     </span>
                   </div>
                 ))}
@@ -1366,25 +1763,40 @@ const ProductDetailModal: React.FC<{
             </div>
           )}
 
-          {store?.store_type === 'portfolio' || product.type === 'vehicle' || product.type === 'real_estate' ? (
-            <button 
+          {store?.store_type === "portfolio" ||
+          product.type === "vehicle" ||
+          product.type === "real_estate" ? (
+            <button
               onClick={() => {
                 const phone = store?.whatsapp_number || store?.phone;
                 if (phone) {
-                  window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Merhaba, ${product.name} ilanı hakkında bilgi almak istiyorum.`)}`, '_blank');
+                  window.open(
+                    `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} ilanı hakkında bilgi almak istiyorum.`)}`,
+                    "_blank",
+                  );
                 } else {
-                  alert(lang === 'tr' ? 'İletişim numarası bulunamadı.' : 'No contact number found.');
+                  alert(
+                    lang === "tr"
+                      ? "İletişim numarası bulunamadı."
+                      : "No contact number found.",
+                  );
                 }
               }}
               className="w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg flex items-center justify-center gap-4 group active:scale-95"
-              style={{ backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
+              style={{
+                backgroundColor: primaryColor,
+                boxShadow: `0 20px 40px -10px ${primaryColor}60`,
+              }}
             >
               <MessageCircle className="w-7 h-7 group-hover:scale-110 transition-transform" />
-              {lang === 'tr' ? 'WhatsApp ile Bilgi Al' : 'Inquire via WhatsApp'}
+              {lang === "tr" ? "WhatsApp ile Bilgi Al" : "Inquire via WhatsApp"}
             </button>
           ) : (
-            <button 
-              disabled={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0}
+            <button
+              disabled={
+                branchStocks.length > 0 &&
+                branchStocks[selectedBranchIdx]?.stock <= 0
+              }
               onClick={() => {
                 if (branchStocks.length > 0) {
                   const selectedBranch = branchStocks[selectedBranchIdx];
@@ -1395,7 +1807,7 @@ const ProductDetailModal: React.FC<{
                       store_id: selectedBranch.store_id,
                       branch_name: selectedBranch.branch_name,
                       branch_slug: selectedBranch.branch_slug,
-                      stock_quantity: selectedBranch.stock
+                      stock_quantity: selectedBranch.stock,
                     });
                     onClose();
                   }
@@ -1404,11 +1816,22 @@ const ProductDetailModal: React.FC<{
                   onClose();
                 }
               }}
-              className={`w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg flex items-center justify-center gap-4 group ${branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? 'opacity-50 cursor-not-allowed grayscale' : 'active:scale-95'}`}
-              style={branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? { backgroundColor: '#9ca3af' } : { backgroundColor: primaryColor, boxShadow: `0 20px 40px -10px ${primaryColor}60` }}
+              className={`w-full py-4 text-white rounded-[2rem] font-semibold text-xsl transition-all shadow-lg flex items-center justify-center gap-4 group ${branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? "opacity-50 cursor-not-allowed grayscale" : "active:scale-95"}`}
+              style={
+                branchStocks.length > 0 &&
+                branchStocks[selectedBranchIdx]?.stock <= 0
+                  ? { backgroundColor: "#9ca3af" }
+                  : {
+                      backgroundColor: primaryColor,
+                      boxShadow: `0 20px 40px -10px ${primaryColor}60`,
+                    }
+              }
             >
               <ShoppingBag className="w-7 h-7 group-hover:scale-110 transition-transform" />
-              {branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? t.dashboard.outOfStock : t.dashboard.addToCart}
+              {branchStocks.length > 0 &&
+              branchStocks[selectedBranchIdx]?.stock <= 0
+                ? t.dashboard.outOfStock
+                : t.dashboard.addToCart}
             </button>
           )}
         </div>
@@ -1439,13 +1862,21 @@ const ProductDetailModal: React.FC<{
             </div>
 
             {/* Central Zoom Viewport */}
-            <div className="relative flex-1 w-full max-w-6xl mx-auto flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-              
+            <div
+              className="relative flex-1 w-full max-w-6xl mx-auto flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Left Arrow Button */}
               {productImages.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => setActiveImageIdx(prev => (prev - 1 + productImages.length) % productImages.length)}
+                  onClick={() =>
+                    setActiveImageIdx(
+                      (prev) =>
+                        (prev - 1 + productImages.length) %
+                        productImages.length,
+                    )
+                  }
                   className="absolute left-2 md:left-8 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220]"
                 >
                   <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
@@ -1464,7 +1895,11 @@ const ProductDetailModal: React.FC<{
               {productImages.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => setActiveImageIdx(prev => (prev + 1) % productImages.length)}
+                  onClick={() =>
+                    setActiveImageIdx(
+                      (prev) => (prev + 1) % productImages.length,
+                    )
+                  }
                   className="absolute right-2 md:right-8 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220]"
                 >
                   <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
@@ -1474,13 +1909,16 @@ const ProductDetailModal: React.FC<{
 
             {/* Lightbox Bottom thumbnail scroller bar */}
             {productImages.length > 1 && (
-              <div className="w-full max-w-4xl mx-auto flex gap-3.5 justify-center py-4 overflow-x-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="w-full max-w-4xl mx-auto flex gap-3.5 justify-center py-4 overflow-x-auto no-scrollbar"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {productImages.map((img, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setActiveImageIdx(idx)}
-                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImageIdx === idx ? 'border-indigo-500 scale-110 shadow-lg' : 'border-slate-800 hover:border-slate-600'}`}
+                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImageIdx === idx ? "border-indigo-500 scale-110 shadow-lg" : "border-slate-800 hover:border-slate-600"}`}
                   >
                     <img src={img} className="w-full h-full object-cover" />
                   </button>
@@ -1496,14 +1934,17 @@ const ProductDetailModal: React.FC<{
 };
 
 const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
-  const { slug: urlSlug, barcode: urlBarcode } = useParams<{ slug: string, barcode?: string }>();
+  const { slug: urlSlug, barcode: urlBarcode } = useParams<{
+    slug: string;
+    barcode?: string;
+  }>();
   const slug = customSlug || urlSlug;
   const navigate = useNavigate();
   const location = useLocation();
   const { lang } = useLanguage();
   const t = translations[lang];
-  const isTr = lang === 'tr';
-  
+  const isTr = lang === "tr";
+
   const getStorePath = (path: string = "") => {
     if (customSlug) {
       return path.startsWith("/") ? path : `/${path}`;
@@ -1512,10 +1953,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     return `/s/${slug}${cleanPath === "/" ? "" : cleanPath}`;
   };
 
-  const isProfileView = location.pathname.endsWith('/profile');
-  const isOrdersView = location.pathname.endsWith('/orders');
-  const isReturnView = location.pathname.endsWith('/return');
-  
+  const isProfileView = location.pathname.endsWith("/profile");
+  const isOrdersView = location.pathname.endsWith("/orders");
+  const isReturnView = location.pathname.endsWith("/return");
+
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1526,35 +1967,52 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
-  
-  const brandLabel = store?.brand_label || (lang === 'tr' ? 'Marka' : 'Brand');
-  const brandsLabel = store?.brand_label ? store.brand_label.toUpperCase() : (lang === 'tr' ? 'MARKALAR' : 'BRANDS');
-  const categoryLabel = store?.category_label || (lang === 'tr' ? 'Kategori' : 'Category');
-  const categoriesLabel = store?.category_label ? store.category_label.toUpperCase() : (lang === 'tr' ? 'KATEGORİLER' : 'CATEGORIES');
-  const productLabel = store?.product_label || (lang === 'tr' ? 'Ürün' : 'Product');
-  const stockLabel = store?.stock_label || (lang === 'tr' ? 'Stok' : 'Stock');
+
+  const brandLabel = store?.brand_label || (lang === "tr" ? "Marka" : "Brand");
+  const brandsLabel = store?.brand_label
+    ? store.brand_label.toUpperCase()
+    : lang === "tr"
+      ? "MARKALAR"
+      : "BRANDS";
+  const categoryLabel =
+    store?.category_label || (lang === "tr" ? "Kategori" : "Category");
+  const categoriesLabel = store?.category_label
+    ? store.category_label.toUpperCase()
+    : lang === "tr"
+      ? "KATEGORİLER"
+      : "CATEGORIES";
+  const productLabel =
+    store?.product_label || (lang === "tr" ? "Ürün" : "Product");
+  const stockLabel = store?.stock_label || (lang === "tr" ? "Stok" : "Stock");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target as Node)
+      ) {
         setIsAccountMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [checkoutStatus, setCheckoutStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const basketByBranch = useMemo(() => {
     const groups: Record<string, BasketItem[]> = {};
-    basket.forEach(item => {
-      const branch = item.branch_name || store?.name || 'Ana Şube';
+    basket.forEach((item) => {
+      const branch = item.branch_name || store?.name || "Ana Şube";
       if (!groups[branch]) groups[branch] = [];
       groups[branch].push(item);
     });
     return groups;
   }, [basket, store?.name]);
   const [customerProfile, setCustomerProfile] = useState<any>(null);
-  const [customerToken, setCustomerToken] = useState<string | null>(localStorage.getItem('customerToken'));
+  const [customerToken, setCustomerToken] = useState<string | null>(
+    localStorage.getItem("customerToken"),
+  );
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileEditForm, setProfileEditForm] = useState<any>({});
   const [categorySearch, setCategorySearch] = useState("");
@@ -1563,7 +2021,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [showAllBrands, setShowAllBrands] = useState(false);
 
   // Portfolio-specific filter states
-  const [portfolioType, setPortfolioType] = useState<'all' | 'real_estate' | 'vehicle'>('all');
+  const [portfolioType, setPortfolioType] = useState<
+    "all" | "real_estate" | "vehicle"
+  >("all");
   const [portfolioMinPrice, setPortfolioMinPrice] = useState("");
   const [portfolioMaxPrice, setPortfolioMaxPrice] = useState("");
   const [portfolioRooms, setPortfolioRooms] = useState("all");
@@ -1577,7 +2037,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   useEffect(() => {
     if (isProfileView && customerToken) {
-      api.getCustomerProfile().then(res => {
+      api.getCustomerProfile().then((res) => {
         if (!res.error) {
           setCustomerProfile(res);
           setProfileEditForm(res);
@@ -1605,31 +2065,58 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     }
   }, [basket, slug]);
 
-  const [customerInfo, setCustomerInfo] = useState({ 
-    name: "", surname: "", phone: "", address: "", email: "", password: "", passwordConfirm: "",
-    country: "", city: "", tc_id: "", is_corporate: false, marketing_email: false, marketing_sms: false, accept_terms: false, createAccount: false
+  const [customerInfo, setCustomerInfo] = useState({
+    name: "",
+    surname: "",
+    phone: "",
+    address: "",
+    email: "",
+    password: "",
+    passwordConfirm: "",
+    country: "",
+    city: "",
+    tc_id: "",
+    is_corporate: false,
+    marketing_email: false,
+    marketing_sms: false,
+    accept_terms: false,
+    createAccount: false,
   });
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(
+    null,
+  );
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(),
+  );
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [sortBy, setSortBy] = useState<'default' | 'priceAsc' | 'priceDesc'>('default');
-  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bank_transfer' | 'cash_on_delivery' | 'payoneer' | 'paypal' | 'iyzico' | 'store_reservation'>('credit_card');
+  const [sortBy, setSortBy] = useState<"default" | "priceAsc" | "priceDesc">(
+    "default",
+  );
+  const [paymentMethod, setPaymentMethod] = useState<
+    | "credit_card"
+    | "bank_transfer"
+    | "cash_on_delivery"
+    | "payoneer"
+    | "paypal"
+    | "iyzico"
+    | "store_reservation"
+  >("credit_card");
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (store?.payment_settings) {
       if (store.payment_settings.cod_enabled) {
-        setPaymentMethod('cash_on_delivery');
+        setPaymentMethod("cash_on_delivery");
       } else if (store.payment_settings.bank_transfer_enabled) {
-        setPaymentMethod('bank_transfer');
+        setPaymentMethod("bank_transfer");
       } else if (store.payment_settings.iyzico_enabled) {
-        setPaymentMethod('iyzico');
+        setPaymentMethod("iyzico");
       } else if (store.payment_settings.paypal_enabled) {
-        setPaymentMethod('paypal');
+        setPaymentMethod("paypal");
       } else if (store.payment_settings.payoneer_enabled) {
-        setPaymentMethod('payoneer');
+        setPaymentMethod("payoneer");
       }
     }
   }, [store]);
@@ -1637,10 +2124,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDiscoverModal, setShowDiscoverModal] = useState(false);
   const [showKktcDiorama, setShowKktcDiorama] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [showFaq, setShowFaq] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
-  const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
+  const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(
+    null,
+  );
   const [showLegal, setShowLegal] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -1666,14 +2155,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   }, [isOrdersView, customerToken]);
 
   useEffect(() => {
-    const savedCustomer = localStorage.getItem('customer');
+    const savedCustomer = localStorage.getItem("customer");
     if (savedCustomer) {
       setCustomer(JSON.parse(savedCustomer));
     }
   }, []);
 
   const formatPrice = (price: number, currency?: string) => {
-    return `${Number(price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency || store?.currency || 'TRY'}`;
+    return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency || store?.currency || "TRY"}`;
   };
 
   const layoutSettings = store?.page_layout_settings || {
@@ -1683,21 +2172,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     show_testimonials: true,
     show_newsletter: true,
     enable_live_activity: true,
-    theme_variety: 'modern',
-    sector: 'general'
+    theme_variety: "modern",
+    sector: "general",
   };
 
-  const isLuxury = layoutSettings.theme_variety === 'luxury' || layoutSettings.theme_variety === 'minimal';
-  const isModern = layoutSettings.theme_variety === 'modern';
-  const isBold = layoutSettings.theme_variety === 'bold';
-  
-  const sector = layoutSettings.sector || 'general';
-  const isAuto = sector === 'automotive';
-  const isFashion = sector === 'fashion' || isLuxury;
-  const isTech = sector === 'tech';
+  const isLuxury =
+    layoutSettings.theme_variety === "luxury" ||
+    layoutSettings.theme_variety === "minimal";
+  const isModern = layoutSettings.theme_variety === "modern";
+  const isBold = layoutSettings.theme_variety === "bold";
 
-  const primaryColor = store?.primary_color || (isLuxury ? '#8B7355' : '#3b82f6'); // Elegant bronze for luxury
-  const secondaryColor = store?.secondary_color || (isLuxury ? '#000000' : '#1e293b');
+  const sector = layoutSettings.sector || "general";
+  const isAuto = sector === "automotive";
+  const isFashion = sector === "fashion" || isLuxury;
+  const isTech = sector === "tech";
+
+  const primaryColor =
+    store?.primary_color || (isLuxury ? "#8B7355" : "#3b82f6"); // Elegant bronze for luxury
+  const secondaryColor =
+    store?.secondary_color || (isLuxury ? "#000000" : "#1e293b");
 
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showStoreLocatorModal, setShowStoreLocatorModal] = useState(false);
@@ -1710,11 +2203,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       try {
         const [storeRes, productsRes] = await Promise.all([
           api.getPublicStore(slug),
-          api.getPublicStoreProducts(slug)
+          api.getPublicStoreProducts(slug),
         ]);
 
-        console.log('Store response:', storeRes);
-        console.log('Products response:', productsRes);
+        console.log("Store response:", storeRes);
+        console.log("Products response:", productsRes);
 
         if (storeRes.redirect) {
           navigate(storeRes.redirect, { replace: true });
@@ -1724,43 +2217,49 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         if (storeRes.error) throw new Error(storeRes.error);
         if (productsRes.error) throw new Error(productsRes.error);
 
-        if (typeof storeRes.page_layout === 'string') {
+        if (typeof storeRes.page_layout === "string") {
           try {
             storeRes.page_layout = JSON.parse(storeRes.page_layout);
           } catch (e) {
             storeRes.page_layout = [];
           }
         }
-        
-        if (typeof storeRes.menu_links === 'string') {
+
+        if (typeof storeRes.menu_links === "string") {
           try {
             storeRes.menu_links = JSON.parse(storeRes.menu_links);
           } catch (e) {
             storeRes.menu_links = [];
           }
         }
-        
-        storeRes.currency = storeRes.default_currency || 'TRY';
-        console.log('Store data fetched:', storeRes);
+
+        storeRes.currency = storeRes.default_currency || "TRY";
+        console.log("Store data fetched:", storeRes);
         setStore(storeRes);
-        
+
         // Update favicon
         if (storeRes.favicon_url) {
-          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
-          link.rel = 'icon';
+          const link =
+            (document.querySelector("link[rel~='icon']") as HTMLLinkElement) ||
+            document.createElement("link");
+          link.rel = "icon";
           link.href = storeRes.favicon_url;
           document.head.appendChild(link);
         }
 
-        document.title = storeRes.name || 'Store';
-        setProducts(productsRes.filter((p: Product) => p.is_web_sale !== false));
-        
+        document.title = storeRes.name || "Store";
+        setProducts(
+          productsRes.filter((p: Product) => p.is_web_sale !== false),
+        );
+
         // If we have a barcode in the URL and haven't selected a product yet, try to find it
         if (urlBarcode) {
           const cleanBarcode = urlBarcode.toString().trim().toLowerCase();
-          const product = productsRes.find((p: Product) => 
-            (p.barcode && p.barcode.toString().trim().toLowerCase() === cleanBarcode) || 
-            (p.id.toString() === cleanBarcode)
+          const product = productsRes.find(
+            (p: Product) =>
+              (p.barcode &&
+                p.barcode.toString().trim().toLowerCase() === cleanBarcode) ||
+              p.id.toString() === cleanBarcode,
           );
           if (product) {
             setSelectedProduct(product);
@@ -1769,7 +2268,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
         // If customer is logged in, sync their info to checkout
         if (customer) {
-          setCustomerInfo(prev => ({
+          setCustomerInfo((prev) => ({
             ...prev,
             name: customer.name || "",
             surname: customer.surname || "",
@@ -1779,7 +2278,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             country: customer.country || "",
             city: customer.city || "",
             tc_id: customer.tc_id || "",
-            is_corporate: customer.is_corporate || false
+            is_corporate: customer.is_corporate || false,
           }));
         }
       } catch (err: any) {
@@ -1799,11 +2298,20 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       if (res.error) throw new Error(res.error);
       setCustomerProfile(res.customer);
       setCustomer(res.customer);
-      localStorage.setItem('customer', JSON.stringify(res.customer));
+      localStorage.setItem("customer", JSON.stringify(res.customer));
       setIsEditingProfile(false);
-      alert(lang === 'tr' ? 'Profil başarıyla güncellendi!' : 'Profile updated successfully!');
+      alert(
+        lang === "tr"
+          ? "Profil başarıyla güncellendi!"
+          : "Profile updated successfully!",
+      );
     } catch (err: any) {
-      alert(err.message || (lang === 'tr' ? 'Profil güncellenirken bir hata oluştu.' : 'An error occurred while updating profile.'));
+      alert(
+        err.message ||
+          (lang === "tr"
+            ? "Profil güncellenirken bir hata oluştu."
+            : "An error occurred while updating profile."),
+      );
     }
   };
 
@@ -1813,16 +2321,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       const res = await api.customerLogin({
         email: customerInfo.email,
         password: customerInfo.password,
-        storeId: store?.id
+        storeId: store?.id,
       });
       if (res.error) throw new Error(res.error);
       setCustomer(res.customer);
       setBasket([]); // Clear basket on login
-      localStorage.setItem('customer', JSON.stringify(res.customer));
-      localStorage.setItem('customerToken', res.token);
+      localStorage.setItem("customer", JSON.stringify(res.customer));
+      localStorage.setItem("customerToken", res.token);
       setCustomerToken(res.token);
       setShowAuthModal(false);
-      setCustomerInfo(prev => ({
+      setCustomerInfo((prev) => ({
         ...prev,
         name: res.customer.name,
         surname: res.customer.surname,
@@ -1832,7 +2340,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         country: res.customer.country,
         city: res.customer.city,
         tc_id: res.customer.tc_id,
-        is_corporate: res.customer.is_corporate
+        is_corporate: res.customer.is_corporate,
       }));
     } catch (err: any) {
       alert(err.message);
@@ -1842,11 +2350,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const handleCustomerRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (customerInfo.password !== customerInfo.passwordConfirm) {
-      alert(lang === 'tr' ? 'Şifreler eşleşmiyor' : 'Passwords do not match');
+      alert(lang === "tr" ? "Şifreler eşleşmiyor" : "Passwords do not match");
       return;
     }
     if (!customerInfo.accept_terms) {
-      alert(lang === 'tr' ? 'Üyelik sözleşmesini kabul etmelisiniz' : 'You must accept the membership agreement');
+      alert(
+        lang === "tr"
+          ? "Üyelik sözleşmesini kabul etmelisiniz"
+          : "You must accept the membership agreement",
+      );
       return;
     }
     try {
@@ -1863,22 +2375,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         is_corporate: customerInfo.is_corporate,
         marketing_email: customerInfo.marketing_email,
         marketing_sms: customerInfo.marketing_sms,
-        storeId: store?.id
+        storeId: store?.id,
       });
       if (res.error) throw new Error(res.error);
-      
+
       // Auto login after registration
       const loginRes = await api.customerLogin({
         email: customerInfo.email,
         password: customerInfo.password,
-        storeId: store?.id
+        storeId: store?.id,
       });
-      
+
       if (loginRes.error) throw new Error(loginRes.error);
-      
+
       setCustomer(loginRes.customer);
       setBasket([]); // Clear basket on register
-      setCustomerInfo(prev => ({
+      setCustomerInfo((prev) => ({
         ...prev,
         name: loginRes.customer.name,
         surname: loginRes.customer.surname,
@@ -1888,10 +2400,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         country: loginRes.customer.country,
         city: loginRes.customer.city,
         tc_id: loginRes.customer.tc_id,
-        is_corporate: loginRes.customer.is_corporate
+        is_corporate: loginRes.customer.is_corporate,
       }));
-      localStorage.setItem('customer', JSON.stringify(loginRes.customer));
-      localStorage.setItem('customerToken', loginRes.token);
+      localStorage.setItem("customer", JSON.stringify(loginRes.customer));
+      localStorage.setItem("customerToken", loginRes.token);
       setCustomerToken(loginRes.token);
       setShowAuthModal(false);
     } catch (err: any) {
@@ -1903,13 +2415,26 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     setCustomer(null);
     setCustomerToken(null);
     setBasket([]);
-    setCustomerInfo({ 
-      name: "", surname: "", phone: "", address: "", email: "", password: "", passwordConfirm: "",
-      country: "", city: "", tc_id: "", is_corporate: false, marketing_email: false, marketing_sms: false, accept_terms: false, createAccount: false
+    setCustomerInfo({
+      name: "",
+      surname: "",
+      phone: "",
+      address: "",
+      email: "",
+      password: "",
+      passwordConfirm: "",
+      country: "",
+      city: "",
+      tc_id: "",
+      is_corporate: false,
+      marketing_email: false,
+      marketing_sms: false,
+      accept_terms: false,
+      createAccount: false,
     });
-    localStorage.removeItem('customer');
-    localStorage.removeItem('customerToken');
-    localStorage.removeItem('basket'); // Just in case it was there
+    localStorage.removeItem("customer");
+    localStorage.removeItem("customerToken");
+    localStorage.removeItem("basket"); // Just in case it was there
     if (isProfileView || isOrdersView || isReturnView) {
       navigate(`/s/${slug}`);
     }
@@ -1920,7 +2445,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   }, [searchQuery, selectedCategory, sortBy]);
 
   const toggleCategory = (cat: string) => {
-    setExpandedCategories(prev => {
+    setExpandedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(cat)) next.delete(cat);
       else next.add(cat);
@@ -1940,7 +2465,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const categories = useMemo(() => {
     const cats = new Map<string, Set<string>>();
-    products.forEach(p => {
+    products.forEach((p) => {
       const cat = p.category || t.dashboard.uncategorized;
       if (!cats.has(cat)) cats.set(cat, new Set());
       if (p.sub_category) cats.get(cat)!.add(p.sub_category);
@@ -1950,39 +2475,54 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const brands = useMemo(() => {
     const b = new Set<string>();
-    products.forEach(p => {
+    products.forEach((p) => {
       if (p.brand) b.add(p.brand);
     });
     return Array.from(b).sort();
   }, [products]);
 
   const sortedAndFilteredProducts = useMemo(() => {
-    const baseProducts = sortBy === 'default' && !searchQuery && !selectedCategory && !selectedBrand ? shuffledProducts : products;
-    
-    let result = baseProducts.filter(p => {
-      const searchTerms = searchQuery.toLowerCase().split(' ').filter(Boolean);
-      const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
-        p.name.toLowerCase().includes(term) ||
-        (p.barcode && p.barcode.toLowerCase().includes(term)) ||
-        (p.description && p.description.toLowerCase().includes(term)) ||
-        (p.category && p.category.toLowerCase().includes(term)) ||
-        (p.brand && p.brand.toLowerCase().includes(term)) ||
-        (p.author && p.author.toLowerCase().includes(term)) ||
-        (p.branch_name && p.branch_name.toLowerCase().includes(term))
-      );
-      
+    const baseProducts =
+      sortBy === "default" &&
+      !searchQuery &&
+      !selectedCategory &&
+      !selectedBrand
+        ? shuffledProducts
+        : products;
+
+    let result = baseProducts.filter((p) => {
+      const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
+      const matchesSearch =
+        searchTerms.length === 0 ||
+        searchTerms.every(
+          (term) =>
+            p.name.toLowerCase().includes(term) ||
+            (p.barcode && p.barcode.toLowerCase().includes(term)) ||
+            (p.description && p.description.toLowerCase().includes(term)) ||
+            (p.category && p.category.toLowerCase().includes(term)) ||
+            (p.brand && p.brand.toLowerCase().includes(term)) ||
+            (p.author && p.author.toLowerCase().includes(term)) ||
+            (p.branch_name && p.branch_name.toLowerCase().includes(term)),
+        );
+
       const productCategory = p.category || t.dashboard.uncategorized;
-      const matchesCategory = !selectedCategory || productCategory === selectedCategory;
-      const matchesSubCategory = !selectedSubCategory || p.sub_category === selectedSubCategory;
+      const matchesCategory =
+        !selectedCategory || productCategory === selectedCategory;
+      const matchesSubCategory =
+        !selectedSubCategory || p.sub_category === selectedSubCategory;
       const matchesBrand = !selectedBrand || p.brand === selectedBrand;
-      
+
       // Portfolio fields filter
       let matchesPortfolioType = true;
-      if (store?.store_type === 'portfolio' || p.type === 'real_estate' || p.type === 'vehicle') {
-        if (portfolioType === 'real_estate') {
-          matchesPortfolioType = p.type === 'real_estate';
-        } else if (portfolioType === 'vehicle') {
-          matchesPortfolioType = p.type === 'vehicle';
+      if (
+        store?.store_type === "portfolio" ||
+        p.type === "real_estate" ||
+        p.type === "vehicle"
+      ) {
+        if (portfolioType === "real_estate") {
+          matchesPortfolioType = p.type === "real_estate";
+        } else if (portfolioType === "vehicle") {
+          matchesPortfolioType = p.type === "vehicle";
         }
       }
 
@@ -1997,72 +2537,118 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       }
 
       let matchesRooms = true;
-      if (portfolioRooms !== 'all' && p.type === 'real_estate') {
+      if (portfolioRooms !== "all" && p.type === "real_estate") {
         const pRooms = Number(p.sector_data?.rooms);
-        if (portfolioRooms === '1') matchesRooms = pRooms === 1;
-        else if (portfolioRooms === '2') matchesRooms = pRooms === 2;
-        else if (portfolioRooms === '3') matchesRooms = pRooms === 3;
-        else if (portfolioRooms === '4+') matchesRooms = pRooms >= 4;
+        if (portfolioRooms === "1") matchesRooms = pRooms === 1;
+        else if (portfolioRooms === "2") matchesRooms = pRooms === 2;
+        else if (portfolioRooms === "3") matchesRooms = pRooms === 3;
+        else if (portfolioRooms === "4+") matchesRooms = pRooms >= 4;
       }
 
       let matchesMinM2 = true;
-      if (portfolioMinM2 && p.type === 'real_estate') {
-        matchesMinM2 = Number(p.sector_data?.square_meters) >= Number(portfolioMinM2);
+      if (portfolioMinM2 && p.type === "real_estate") {
+        matchesMinM2 =
+          Number(p.sector_data?.square_meters) >= Number(portfolioMinM2);
       }
-      
-      return matchesSearch && matchesCategory && matchesSubCategory && matchesBrand && matchesPortfolioType && matchesMinPrice && matchesMaxPrice && matchesRooms && matchesMinM2;
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesSubCategory &&
+        matchesBrand &&
+        matchesPortfolioType &&
+        matchesMinPrice &&
+        matchesMaxPrice &&
+        matchesRooms &&
+        matchesMinM2
+      );
     });
 
-    if (sortBy === 'priceAsc') {
+    if (sortBy === "priceAsc") {
       result.sort((a, b) => a.price - b.price);
-    } else if (sortBy === 'priceDesc') {
+    } else if (sortBy === "priceDesc") {
       result.sort((a, b) => b.price - a.price);
     }
 
     return result;
-  }, [products, shuffledProducts, searchQuery, selectedCategory, selectedSubCategory, selectedBrand, sortBy, portfolioType, portfolioMinPrice, portfolioMaxPrice, portfolioRooms, portfolioMinM2, store?.store_type, t]);
+  }, [
+    products,
+    shuffledProducts,
+    searchQuery,
+    selectedCategory,
+    selectedSubCategory,
+    selectedBrand,
+    sortBy,
+    portfolioType,
+    portfolioMinPrice,
+    portfolioMaxPrice,
+    portfolioRooms,
+    portfolioMinM2,
+    store?.store_type,
+    t,
+  ]);
 
-  const totalPages = Math.ceil(sortedAndFilteredProducts.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(
+    sortedAndFilteredProducts.length / ITEMS_PER_PAGE,
+  );
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return sortedAndFilteredProducts.slice(start, start + ITEMS_PER_PAGE);
   }, [sortedAndFilteredProducts, currentPage]);
 
   const featuredProducts = useMemo(() => products.slice(0, 8), [products]);
-  const newArrivals = useMemo(() => [...products].reverse().slice(0, 8), [products]);
-  const bestSellers = useMemo(() => [...products].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 8), [products]);
+  const newArrivals = useMemo(
+    () => [...products].reverse().slice(0, 8),
+    [products],
+  );
+  const bestSellers = useMemo(
+    () => [...products].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 8),
+    [products],
+  );
 
   const seoKeywords = useMemo(() => {
-    const categories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
-    const brands = Array.from(new Set(products.map(p => p.brand))).filter(Boolean);
+    const categories = Array.from(
+      new Set(products.map((p) => p.category)),
+    ).filter(Boolean);
+    const brands = Array.from(new Set(products.map((p) => p.brand))).filter(
+      Boolean,
+    );
     return [
       store?.name,
       store?.hero_title,
       ...categories,
       ...brands,
-      lang === 'tr' ? 'online alışveriş, en iyi fiyatlar, kaliteli ürünler' : 'online shopping, best prices, quality products'
-    ].filter(Boolean).join(', ');
+      lang === "tr"
+        ? "online alışveriş, en iyi fiyatlar, kaliteli ürünler"
+        : "online shopping, best prices, quality products",
+    ]
+      .filter(Boolean)
+      .join(", ");
   }, [products, store, lang]);
 
-  const storeSchema = store ? {
-    "@context": "https://schema.org",
-    "@type": "OnlineStore",
-    "name": store.name,
-    "description": store.description,
-    "url": window.location.href,
-    "logo": store.logo_url,
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": store.address
-    }
-  } : undefined;
+  const storeSchema = store
+    ? {
+        "@context": "https://schema.org",
+        "@type": "OnlineStore",
+        name: store.name,
+        description: store.description,
+        url: window.location.href,
+        logo: store.logo_url,
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: store.address,
+        },
+      }
+    : undefined;
 
   const addToBasket = (product: Product) => {
-    setBasket(prev => {
-      const existing = prev.find(item => item.id === product.id);
+    setBasket((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
       if (existing) {
-        return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        return prev.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
         );
       }
       return [...prev, { ...product, quantity: 1 }];
@@ -2070,14 +2656,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   };
 
   const removeFromBasket = (productId: number | string) => {
-    setBasket(prev => {
-      const existing = prev.find(item => item.id === productId);
+    setBasket((prev) => {
+      const existing = prev.find((item) => item.id === productId);
       if (existing && existing.quantity > 1) {
-        return prev.map(item => 
-          item.id === productId ? { ...item, quantity: item.quantity - 1 } : item
+        return prev.map((item) =>
+          item.id === productId
+            ? { ...item, quantity: item.quantity - 1 }
+            : item,
         );
       }
-      return prev.filter(item => item.id !== productId);
+      return prev.filter((item) => item.id !== productId);
     });
   };
 
@@ -2086,7 +2674,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [basketShippingTotal, setBasketShippingTotal] = useState(0);
   const basketCount = basket.reduce((sum, item) => sum + item.quantity, 0);
 
-  const [basketItemPrices, setBasketItemPrices] = useState<Record<number, number>>({});
+  const [basketItemPrices, setBasketItemPrices] = useState<
+    Record<number, number>
+  >({});
 
   useEffect(() => {
     const calculateTotal = async () => {
@@ -2094,17 +2684,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       let subtotal = 0;
       let maxShippingCost = 0;
       const newPrices: Record<number, number> = {};
-      
+
       for (const item of basket) {
         const itemPrice = Number(item.price) || 0;
         let shippingCost = 0;
-        
+
         if (item.shipping_profile_id && store.shipping_profiles) {
-          const profile = store.shipping_profiles.find((p: any) => String(p.id) === String(item.shipping_profile_id));
+          const profile = store.shipping_profiles.find(
+            (p: any) => String(p.id) === String(item.shipping_profile_id),
+          );
           if (profile) {
             let profileCost = Number(profile.cost) || 0;
             if (profile.currency && profile.currency !== store.currency) {
-              const sRate = await getExchangeRate(profile.currency, store.currency);
+              const sRate = await getExchangeRate(
+                profile.currency,
+                store.currency,
+              );
               profileCost = profileCost * sRate;
             }
             shippingCost = profileCost;
@@ -2123,10 +2718,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
         const finalPrice = convertedItemPrice;
         newPrices[item.id] = finalPrice;
-        
+
         subtotal += convertedItemPrice * item.quantity;
       }
-      
+
       setBasketItemPrices(newPrices);
       setBasketSubtotal(subtotal);
       setBasketShippingTotal(maxShippingCost);
@@ -2140,50 +2735,63 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     if (!store || basket.length === 0) return;
 
     const formData = new FormData(e.target as HTMLFormElement);
-    const selectedLocation = formData.get('selected_store_location');
+    const selectedLocation = formData.get("selected_store_location");
 
-    if (paymentMethod === 'store_reservation' && ((store?.locations && store.locations.length > 0) || (store?.branches && store.branches.length > 0)) && !selectedLocation) {
-      setError(lang === 'tr' ? 'Lütfen bir mağaza seçin.' : 'Please select a store.');
+    if (
+      paymentMethod === "store_reservation" &&
+      ((store?.locations && store.locations.length > 0) ||
+        (store?.branches && store.branches.length > 0)) &&
+      !selectedLocation
+    ) {
+      setError(
+        lang === "tr" ? "Lütfen bir mağaza seçin." : "Please select a store.",
+      );
       return;
     }
 
     // Iyzico zorunluluğu kontrolü
-    if (store.payment_settings?.iyzico_enabled && paymentMethod !== 'iyzico') {
-      setError(lang === 'tr' ? 'Lütfen ödeme yöntemi olarak iyzico seçin.' : 'Please select iyzico as payment method.');
+    if (store.payment_settings?.iyzico_enabled && paymentMethod !== "iyzico") {
+      setError(
+        lang === "tr"
+          ? "Lütfen ödeme yöntemi olarak iyzico seçin."
+          : "Please select iyzico as payment method.",
+      );
       return;
     }
 
-    setCheckoutStatus('loading');
+    setCheckoutStatus("loading");
     try {
       // Calculate converted prices for items
-      const itemsWithConvertedPrices = await Promise.all(basket.map(async (item) => {
-        let itemPrice = Number(item.price) || 0;
+      const itemsWithConvertedPrices = await Promise.all(
+        basket.map(async (item) => {
+          let itemPrice = Number(item.price) || 0;
 
-        let finalPrice = itemPrice;
-        if (item.currency && item.currency !== store.currency) {
-          const rate = await getExchangeRate(item.currency, store.currency);
-          finalPrice = itemPrice * rate;
-        }
-        return {
-          productId: item.id,
-          name: item.name,
-          barcode: item.barcode,
-          quantity: item.quantity,
-          price: finalPrice,
-          branch_name: item.branch_name,
-          branch_id: item.store_id
-        };
-      }));
+          let finalPrice = itemPrice;
+          if (item.currency && item.currency !== store.currency) {
+            const rate = await getExchangeRate(item.currency, store.currency);
+            finalPrice = itemPrice * rate;
+          }
+          return {
+            productId: item.id,
+            name: item.name,
+            barcode: item.barcode,
+            quantity: item.quantity,
+            price: finalPrice,
+            branch_name: item.branch_name,
+            branch_id: item.store_id,
+          };
+        }),
+      );
 
       if (basketShippingTotal > 0) {
         itemsWithConvertedPrices.push({
           productId: null as any,
-          name: lang === 'tr' ? 'Kargo Ücreti' : 'Shipping Fee',
-          barcode: 'SHIPPING',
+          name: lang === "tr" ? "Kargo Ücreti" : "Shipping Fee",
+          barcode: "SHIPPING",
           quantity: 1,
           price: basketShippingTotal,
-          branch_name: '',
-          branch_id: 0
+          branch_name: "",
+          branch_id: 0,
         });
       }
 
@@ -2193,7 +2801,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         customerName: `${customerInfo.name} ${customerInfo.surname}`.trim(),
         customerPhone: customerInfo.phone,
         customerEmail: customerInfo.email,
-        customerAddress: paymentMethod === 'store_reservation' ? `Mağazadan Teslim: ${selectedLocation}` : customerInfo.address,
+        customerAddress:
+          paymentMethod === "store_reservation"
+            ? `Mağazadan Teslim: ${selectedLocation}`
+            : customerInfo.address,
         customerCity: customerInfo.city,
         customerCountry: customerInfo.country,
         customerTcId: customerInfo.tc_id,
@@ -2201,40 +2812,40 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         currency: store.currency,
         paymentMethod: paymentMethod,
         createAccount: customerInfo.createAccount,
-        customerId: customer?.id
+        customerId: customer?.id,
       });
 
       if (res.error) throw new Error(res.error);
-      
-      if (res.paymentProvider === 'iyzico' && res.initializeUrl) {
+
+      if (res.paymentProvider === "iyzico" && res.initializeUrl) {
         const initRes = await fetch(res.initializeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ saleId: res.saleId, paymentMethod: 'iyzico' })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ saleId: res.saleId, paymentMethod: "iyzico" }),
         });
         const initData = await initRes.json();
         if (initData.paymentPageUrl) {
           setIyzicoPaymentUrl(initData.paymentPageUrl + "&iframe=true");
-          setCheckoutStatus('idle');
+          setCheckoutStatus("idle");
           return;
         } else {
           throw new Error(initData.error || "Ödeme başlatılamadı.");
         }
       }
-      
+
       if (res.redirectUrl) {
         window.location.href = res.redirectUrl;
         return;
       }
 
-      setCheckoutStatus('success');
+      setCheckoutStatus("success");
       setBasket([]);
       setTimeout(() => {
         setIsCheckoutModalOpen(false);
-        setCheckoutStatus('idle');
+        setCheckoutStatus("idle");
       }, 3000);
     } catch (err: any) {
-      setCheckoutStatus('error');
+      setCheckoutStatus("error");
       setError(err.message);
     }
   };
@@ -2244,7 +2855,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">{t.dashboard.storeLoading}</p>
+          <p className="text-gray-600 font-medium">
+            {t.dashboard.storeLoading}
+          </p>
         </div>
       </div>
     );
@@ -2255,9 +2868,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.dashboard.errorOccurred}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {t.dashboard.errorOccurred}
+          </h2>
           <p className="text-gray-600 mb-6">{error}</p>
-          <button 
+          <button
             onClick={() => navigate(getStorePath("/"))}
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
@@ -2273,9 +2888,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
           <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.dashboard.errorOccurred}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {t.dashboard.errorOccurred}
+          </h2>
           <p className="text-gray-600 mb-6">{t.dashboard.storeNotFound}</p>
-          <button 
+          <button
             onClick={() => navigate(getStorePath("/"))}
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
@@ -2286,3005 +2903,4321 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     );
   }
 
+  const isPortfolioOverride = (store as any)?.store_type === "portfolio";
+  if (isPortfolioOverride) {
+    return (
+      <ErrorBoundary lang={lang}>
+        <div className="relative min-h-screen bg-slate-50 overflow-x-hidden font-sans">
+          <ModernPortfolioLayout
+            store={store}
+            products={products}
+            onViewProduct={(p) => setSelectedProduct(p)}
+          />
+
+          <AnimatePresence>
+            {selectedProduct && (
+              <ProductDetailModal
+                product={selectedProduct}
+                store={store}
+                t={t}
+                slug={slug}
+                addToBasket={() => {}}
+                primaryColor="#4f46e5"
+                showAboutModal={false}
+                setShowAboutModal={() => {}}
+                onClose={() => {
+                  setSelectedProduct(null);
+                  if (urlBarcode) {
+                    const isCustomDomain =
+                      !window.location.pathname.startsWith("/s/");
+                    const cleanSlug = store?.slug || slug || urlSlug;
+                    if (isCustomDomain) {
+                      navigate("/", { replace: true });
+                    } else {
+                      navigate(`/s/${cleanSlug}`, { replace: true });
+                    }
+                  }
+                }}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary lang={lang}>
       <div className="min-h-screen bg-white pb-24 font-sans selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
-      <SEO 
-        title={selectedBlogPost ? `${selectedBlogPost.title} | ${store.name}` : store.name}
-        description={selectedBlogPost ? selectedBlogPost.excerpt : store.description}
-        ogImage={selectedBlogPost ? selectedBlogPost.image_url : store.logo_url}
-        ogType={selectedBlogPost ? "article" : "website"}
-        keywords={seoKeywords}
-        siteName={store.name}
-        schemaData={selectedBlogPost ? {
-          "@context": "https://schema.org",
-          "@type": "BlogPosting",
-          "headline": selectedBlogPost.title,
-          "image": selectedBlogPost.image_url,
-          "datePublished": selectedBlogPost.date,
-          "description": selectedBlogPost.excerpt
-        } : storeSchema}
-      />
-      
-      {layoutSettings.show_announcement && (
-      <div className="bg-gray-900 overflow-hidden py-1.5">
-        <div className="flex whitespace-nowrap animate-marquee">
-          <div className="flex gap-8 text-[10px] sm:text-xss font-semibold text-white/80 tracking-wide px-4">
-            <span className="flex items-center gap-2">
-              <Package className="w-3 h-3" />
-              {layoutSettings.announcement_text || (lang === 'tr' ? 'Anneler Gününüz Kutlu Olsun' : 'Happy Mother\'s Day')}
-            </span>
-            {/* Repeat to ensure smooth flow */}
-            <span className="flex items-center gap-2">
-              <Package className="w-3 h-3" />
-              {layoutSettings.announcement_text || (lang === 'tr' ? 'Anneler Gününüz Kutlu Olsun' : 'Happy Mother\'s Day')}
-            </span>
-          </div>
-        </div>
-      </div>
-      )}
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[60] transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between gap-8">
-          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate(getStorePath("/"))}>
-            {store?.logo_url ? (
-              <img src={store.logo_url} alt={store.name} className="h-10 w-auto object-contain group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-            ) : (
-              <div 
-                className="h-10 w-10 md:h-12 md:w-12 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:rotate-12 transition-transform"
-                style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
-              >
-                <StoreIcon className="w-6 h-6" />
-              </div>
-            )}
-            <h1 className="text-xsl font-bold text-gray-900 tracking-tighter hidden sm:block">{store?.name}</h1>
-          </div>
-          
-          {/* Menu Links */}
-          <div className="hidden md:flex items-center gap-6">
-            {(store?.menu_links || []).map((link: any, index: number) => (
-              <a key={index} href={link.url} className="text-sm font-bold text-gray-600 hover:text-primary transition-colors">
-                {link.label}
-              </a>
-            ))}
-            {store?.blog_posts && store.blog_posts.length > 0 && (
-              <button 
-                onClick={() => setShowBlog(true)}
-                className="text-sm font-bold text-gray-600 hover:text-primary transition-colors"
-              >
-                {lang === 'tr' ? 'Blog' : 'Blog'}
-              </button>
-            )}
-          </div>
-          
-          <div className="flex-1 max-w-xl relative hidden md:block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input 
-              type="text"
-              placeholder={t.dashboard.searchProducts}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-lg transition-all outline-none text-sm font-medium"
-              style={{ '--tw-ring-color': primaryColor } as any}
-            />
-          </div>
+        <SEO
+          title={
+            selectedBlogPost
+              ? `${selectedBlogPost.title} | ${store.name}`
+              : store.name
+          }
+          description={
+            selectedBlogPost ? selectedBlogPost.excerpt : store.description
+          }
+          ogImage={
+            selectedBlogPost ? selectedBlogPost.image_url : store.logo_url
+          }
+          ogType={selectedBlogPost ? "article" : "website"}
+          keywords={seoKeywords}
+          siteName={store.name}
+          schemaData={
+            selectedBlogPost
+              ? {
+                  "@context": "https://schema.org",
+                  "@type": "BlogPosting",
+                  headline: selectedBlogPost.title,
+                  image: selectedBlogPost.image_url,
+                  datePublished: selectedBlogPost.date,
+                  description: selectedBlogPost.excerpt,
+                }
+              : storeSchema
+          }
+        />
 
-          <div className="flex items-center gap-3">
-            {customer ? (
-              <div className="relative" ref={accountMenuRef}>
-                <button 
-                  onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-                  className="px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
+        {layoutSettings.show_announcement && (
+          <div className="bg-gray-900 overflow-hidden py-1.5">
+            <div className="flex whitespace-nowrap animate-marquee">
+              <div className="flex gap-8 text-[10px] sm:text-xss font-semibold text-white/80 tracking-wide px-4">
+                <span className="flex items-center gap-2">
+                  <Package className="w-3 h-3" />
+                  {layoutSettings.announcement_text ||
+                    (lang === "tr"
+                      ? "Anneler Gününüz Kutlu Olsun"
+                      : "Happy Mother's Day")}
+                </span>
+                {/* Repeat to ensure smooth flow */}
+                <span className="flex items-center gap-2">
+                  <Package className="w-3 h-3" />
+                  {layoutSettings.announcement_text ||
+                    (lang === "tr"
+                      ? "Anneler Gününüz Kutlu Olsun"
+                      : "Happy Mother's Day")}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[60] transition-all duration-300">
+          <div className="max-w-7xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between gap-8">
+            <div
+              className="flex items-center gap-4 cursor-pointer group"
+              onClick={() => navigate(getStorePath("/"))}
+            >
+              {store?.logo_url ? (
+                <img
+                  src={store.logo_url}
+                  alt={store.name}
+                  className="h-10 w-auto object-contain group-hover:scale-110 transition-transform"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div
+                  className="h-10 w-10 md:h-12 md:w-12 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:rotate-12 transition-transform"
+                  style={{
+                    backgroundColor: primaryColor,
+                    boxShadow: `0 10px 25px -5px ${primaryColor}40`,
+                  }}
                 >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xss font-bold shadow-md" style={{ backgroundColor: primaryColor }}>
-                    {customer.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Hesabım' : 'My Account'}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                </button>
-                <AnimatePresence>
-                  {isAccountMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50"
-                    >
-                      <button onClick={() => { navigate(getStorePath("/profile")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
-                        <User className="w-4 h-4" /> {lang === 'tr' ? 'Profilim' : 'My Profile'}
-                      </button>
-                      <button onClick={() => { navigate(getStorePath("/orders")); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2">
-                        <Package className="w-4 h-4" /> {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
-                      </button>
-                      <button onClick={handleLogout} className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2">
-                        <LogOut className="w-4 h-4" /> {lang === 'tr' ? 'Çıkış Yap' : 'Logout'}
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ) : (
-              <button 
-                onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-                className="flex items-center gap-2 px-4 py-1.5 hover:bg-gray-100 rounded-lg transition-all group"
-              >
-                <User className="w-5 h-5 text-gray-700 group-hover:text-primary transition-colors" />
-                <span className="text-sm font-bold text-gray-700 hidden sm:block">{lang === 'tr' ? 'Giriş Yap' : 'Login'}</span>
-              </button>
-            )}
-            {store?.store_type !== 'portfolio' && (
-              <button 
-                onClick={() => setIsBasketOpen(true)}
-                className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
-              >
-                <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
-                {basketCount > 0 && (
-                  <span 
-                    className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    {basketCount}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+                  <StoreIcon className="w-6 h-6" />
+                </div>
+              )}
+              <h1 className="text-xsl font-bold text-gray-900 tracking-tighter hidden sm:block">
+                {store?.name}
+              </h1>
+            </div>
 
-          {/* Premium Category Showcase */}
-          {layoutSettings.show_stories && Array.from(categories.keys()).length > 0 && (
+            {/* Menu Links */}
+            <div className="hidden md:flex items-center gap-6">
+              {(store?.menu_links || []).map((link: any, index: number) => (
+                <a
+                  key={index}
+                  href={link.url}
+                  className="text-sm font-bold text-gray-600 hover:text-primary transition-colors"
+                >
+                  {link.label}
+                </a>
+              ))}
+              {store?.blog_posts && store.blog_posts.length > 0 && (
+                <button
+                  onClick={() => setShowBlog(true)}
+                  className="text-sm font-bold text-gray-600 hover:text-primary transition-colors"
+                >
+                  {lang === "tr" ? "Blog" : "Blog"}
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 max-w-xl relative hidden md:block">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder={t.dashboard.searchProducts}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-100 focus:bg-white focus:ring-4 focus:ring-primary/10 rounded-lg transition-all outline-none text-sm font-medium"
+                style={{ "--tw-ring-color": primaryColor } as any}
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              {customer ? (
+                <div className="relative" ref={accountMenuRef}>
+                  <button
+                    onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
+                    className="px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xss font-bold shadow-md"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      {customer.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-bold text-gray-700 hidden sm:block">
+                      {lang === "tr" ? "Hesabım" : "My Account"}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </button>
+                  <AnimatePresence>
+                    {isAccountMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50"
+                      >
+                        <button
+                          onClick={() => {
+                            navigate(getStorePath("/profile"));
+                            setIsAccountMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2"
+                        >
+                          <User className="w-4 h-4" />{" "}
+                          {lang === "tr" ? "Profilim" : "My Profile"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigate(getStorePath("/orders"));
+                            setIsAccountMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-sm font-bold flex items-center gap-2"
+                        >
+                          <Package className="w-4 h-4" />{" "}
+                          {lang === "tr" ? "Siparişlerim" : "My Orders"}
+                        </button>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2"
+                        >
+                          <LogOut className="w-4 h-4" />{" "}
+                          {lang === "tr" ? "Çıkış Yap" : "Logout"}
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setAuthMode("login");
+                    setShowAuthModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-1.5 hover:bg-gray-100 rounded-lg transition-all group"
+                >
+                  <User className="w-5 h-5 text-gray-700 group-hover:text-primary transition-colors" />
+                  <span className="text-sm font-bold text-gray-700 hidden sm:block">
+                    {lang === "tr" ? "Giriş Yap" : "Login"}
+                  </span>
+                </button>
+              )}
+              {store?.store_type !== "portfolio" && (
+                <button
+                  onClick={() => setIsBasketOpen(true)}
+                  className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
+                >
+                  <ShoppingBag className="w-6 h-6 text-gray-700 group-hover:text-primary transition-colors" />
+                  {basketCount > 0 && (
+                    <span
+                      className="absolute top-1 right-1 text-white text-[9px] font-semibold w-4 h-4 flex items-center justify-center rounded-lg shadow-lg"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      {basketCount}
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Premium Category Showcase */}
+        {layoutSettings.show_stories &&
+          Array.from(categories.keys()).length > 0 && (
             <section className="bg-white py-16 overflow-hidden">
               <div className="max-w-7xl mx-auto px-4 md:px-8">
                 <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-12">
                   <div className="space-y-2">
-                    <h3 className={`text-[10px] font-semibold uppercase tracking-[0.4em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-indigo-600'}`}>
-                      {lang === 'tr' ? 'KOLEKSİYONLAR' : 'COLLECTIONS'}
+                    <h3
+                      className={`text-[10px] font-semibold uppercase tracking-[0.4em] mb-2 ${isLuxury ? "text-amber-500" : "text-indigo-600"}`}
+                    >
+                      {lang === "tr" ? "KOLEKSİYONLAR" : "COLLECTIONS"}
                     </h3>
-                    <h2 className={`text-4xl md:text-4xl md:text-4xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}>
+                    <h2
+                      className={`text-4xl md:text-4xl md:text-4xl tracking-tight text-slate-900 ${isLuxury ? "!font-sans !font-bold" : "font-semibold font-display tracking-tighter"}`}
+                    >
                       {categoriesLabel}
                     </h2>
                   </div>
                   <div className="flex items-center gap-4 text-xss font-bold text-slate-400 tracking-wide">
                     <div className="w-12 h-[1px] bg-slate-200"></div>
-                    {lang === 'tr' ? 'Seçkin Seçkiler' : 'Curated Selections'}
+                    {lang === "tr" ? "Seçkin Seçkiler" : "Curated Selections"}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-                  {Array.from(categories.keys()).sort().map((cat, idx) => {
-                    const firstProduct = products.find(p => p.category === cat);
-                    const isLarge = idx % 5 === 0;
-                    return (
-                      <motion.div
-                        key={`cat-grid-${cat}`}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: idx * 0.05 }}
-                        viewport={{ once: true }}
-                        onClick={() => {
-                          setSelectedCategory(cat);
-                          document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className={`group relative overflow-hidden rounded-xl cursor-pointer bg-slate-50 transition-all duration-700 hover:shadow-lg hover:-translate-y-2 ${isLarge ? 'md:col-span-2 md:row-span-1' : ''}`}
-                        style={{ height: isLarge ? '260px' : '260px' }}
-                      >
-                        <div className="absolute inset-0 z-0">
-                          {firstProduct?.image_url ? (
-                            <img 
-                              src={firstProduct.image_url} 
-                              alt={cat} 
-                              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                              referrerPolicy="no-referrer"
+                  {Array.from(categories.keys())
+                    .sort()
+                    .map((cat, idx) => {
+                      const firstProduct = products.find(
+                        (p) => p.category === cat,
+                      );
+                      const isLarge = idx % 5 === 0;
+                      return (
+                        <motion.div
+                          key={`cat-grid-${cat}`}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          whileInView={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: idx * 0.05 }}
+                          viewport={{ once: true }}
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            document
+                              .getElementById("products-grid")
+                              ?.scrollIntoView({ behavior: "smooth" });
+                          }}
+                          className={`group relative overflow-hidden rounded-xl cursor-pointer bg-slate-50 transition-all duration-700 hover:shadow-lg hover:-translate-y-2 ${isLarge ? "md:col-span-2 md:row-span-1" : ""}`}
+                          style={{ height: isLarge ? "260px" : "260px" }}
+                        >
+                          <div className="absolute inset-0 z-0">
+                            {firstProduct?.image_url ? (
+                              <img
+                                src={firstProduct.image_url}
+                                alt={cat}
+                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300">
+                                <Tag className="w-12 h-12" />
+                              </div>
+                            )}
+                            <div
+                              className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity group-hover:opacity-90`}
                             />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300">
-                              <Tag className="w-12 h-12" />
+                          </div>
+
+                          <div className="absolute inset-0 p-8 flex flex-col justify-end z-10">
+                            <span className="text-[10px] font-semibold text-white/60 tracking-wide mb-1 group-hover:text-white transition-colors">
+                              {
+                                products.filter((p) => p.category === cat)
+                                  .length
+                              }{" "}
+                              {productLabel}
+                            </span>
+                            <h4
+                              className={`text-xsl md:text-2xl font-semibold text-white tracking-tight leading-tight group-hover:translate-x-2 transition-transform duration-500`}
+                            >
+                              {cat}
+                            </h4>
+                            <div className="mt-4 pt-4 border-t border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+                              <div className="flex items-center gap-2 text-white text-[10px] font-semibold tracking-wide">
+                                {lang === "tr" ? "Keşfet" : "Discover"}
+                                <Plus className="w-3 h-3" />
+                              </div>
+                            </div>
+                          </div>
+
+                          {selectedCategory === cat && (
+                            <div className="absolute top-6 right-6 z-20 w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-900 shadow-xl border border-white/50">
+                              <Check className="w-4 h-4" />
                             </div>
                           )}
-                          <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity group-hover:opacity-90`} />
-                        </div>
-                        
-                        <div className="absolute inset-0 p-8 flex flex-col justify-end z-10">
-                          <span className="text-[10px] font-semibold text-white/60 tracking-wide mb-1 group-hover:text-white transition-colors">
-                            {products.filter(p => p.category === cat).length} {productLabel}
-                          </span>
-                          <h4 className={`text-xsl md:text-2xl font-semibold text-white tracking-tight leading-tight group-hover:translate-x-2 transition-transform duration-500`}>
-                            {cat}
-                          </h4>
-                          <div className="mt-4 pt-4 border-t border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-                             <div className="flex items-center gap-2 text-white text-[10px] font-semibold tracking-wide">
-                               {lang === 'tr' ? 'Keşfet' : 'Discover'}
-                               <Plus className="w-3 h-3" />
-                             </div>
-                          </div>
-                        </div>
-
-                        {selectedCategory === cat && (
-                          <div className="absolute top-6 right-6 z-20 w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-900 shadow-xl border border-white/50">
-                            <Check className="w-4 h-4" />
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  })}
+                        </motion.div>
+                      );
+                    })}
                 </div>
               </div>
             </section>
           )}
 
-      {/* Main Content Area */}
-      {!isProfileView && !isOrdersView && !isReturnView ? (
-        <>
-          {/* Hero Section */}
-          <section className="relative min-h-[60vh] md:min-h-[85vh] flex items-center overflow-hidden bg-slate-950">
-            <motion.div 
-              initial={{ scale: 1.1, opacity: 0 }}
-              animate={{ scale: 1, opacity: 0.7 }}
-              transition={{ duration: 2, ease: "easeOut" }}
-              className="absolute inset-0 z-0"
-            >
-              {store?.hero_image_url ? (
-                <img 
-                  src={store.hero_image_url} 
-                  alt={store.hero_title || store.name} 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <img 
-                  src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2048&auto=format&fit=crop" 
-                  alt="Store Hero" 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              )}
-            </motion.div>
-            
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent z-10" />
-            <div className="absolute inset-0 bg-slate-950/20 z-10" />
+        {/* Main Content Area */}
+        {!isProfileView && !isOrdersView && !isReturnView ? (
+          <>
+            {/* Hero Section */}
+            <section className="relative min-h-[60vh] md:min-h-[85vh] flex items-center overflow-hidden bg-slate-950">
+              <motion.div
+                initial={{ scale: 1.1, opacity: 0 }}
+                animate={{ scale: 1, opacity: 0.7 }}
+                transition={{ duration: 2, ease: "easeOut" }}
+                className="absolute inset-0 z-0"
+              >
+                {store?.hero_image_url ? (
+                  <img
+                    src={store.hero_image_url}
+                    alt={store.hero_title || store.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <img
+                    src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2048&auto=format&fit=crop"
+                    alt="Store Hero"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </motion.div>
 
-            <div className="container max-w-7xl mx-auto px-4 md:px-8 relative z-20">
-              <div className="max-w-4xl">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="flex items-center gap-4 mb-8"
-                >
-                  <div className="w-12 h-0.5 bg-white/40" />
-                  <span className="text-white/80 text-xss font-semibold uppercase tracking-[0.4em]">
-                    {store?.name}
-                  </span>
-                </motion.div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent z-10" />
+              <div className="absolute inset-0 bg-slate-950/20 z-10" />
 
-                <motion.h2 
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7, duration: 0.8 }}
-                  className={`text-4xl md:text-4xl md:text-9xl text-white mb-6 leading-[0.85] tracking-tight text-balance ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}
-                >
-                  {store?.hero_title || store?.name}
-                </motion.h2>
+              <div className="container max-w-7xl mx-auto px-4 md:px-8 relative z-20">
+                <div className="max-w-4xl">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex items-center gap-4 mb-8"
+                  >
+                    <div className="w-12 h-0.5 bg-white/40" />
+                    <span className="text-white/80 text-xss font-semibold uppercase tracking-[0.4em]">
+                      {store?.name}
+                    </span>
+                  </motion.div>
 
-                {store?.hero_subtitle && (
-                  <motion.p 
+                  <motion.h2
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.9, duration: 0.8 }}
-                    className="text-xsl md:text-3xl text-white/60 font-medium max-w-2xl leading-relaxed mb-12 text-balance"
+                    transition={{ delay: 0.7, duration: 0.8 }}
+                    className={`text-4xl md:text-4xl md:text-9xl text-white mb-6 leading-[0.85] tracking-tight text-balance ${isLuxury ? "!font-sans !font-bold" : "font-semibold font-display tracking-tighter"}`}
                   >
-                    {store.hero_subtitle}
-                  </motion.p>
-                )}
+                    {store?.hero_title || store?.name}
+                  </motion.h2>
 
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.1 }}
-                  className="flex flex-wrap gap-4"
-                >
-                  <button 
-                    onClick={() => setShowDiscoverModal(true)}
-                    className="px-10 py-5 bg-white text-slate-950 rounded-lg font-semibold text-sm tracking-wide hover:bg-opacity-90 transition-all active:scale-95 shadow-lg flex items-center gap-3"
-                  >
-                    <Sparkles className="w-5 h-5 text-indigo-500" />
-                    {lang === 'tr' ? 'Keşfet' : 'Discover Now'}
-                  </button>
-                </motion.div>
-              </div>
-            </div>
-
-            {/* Scroll Indicator */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 2 }}
-              className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 hidden md:flex flex-col items-center gap-4 text-white/40"
-            >
-              <span className="text-[10px] font-semibold uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kaydır' : 'Scroll'}</span>
-              <div className="w-[1px] h-12 bg-gradient-to-b from-white/40 to-transparent" />
-            </motion.div>
-          </section>
-
-          {/* Featured / Campaign Section */}
-          {layoutSettings.show_campaigns && (
-          <section className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-32">
-            <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-16">
-              <div className="space-y-3">
-                <h3 className={`text-[10px] font-semibold uppercase tracking-[0.5em] mb-2 ${isLuxury ? 'text-amber-500' : 'text-blue-600'}`}>
-                  {lang === 'tr' ? 'HAFTANIN FIRSATLARI' : 'DEALS OF THE WEEK'}
-                </h3>
-                <h2 className={`text-4xl md:text-4xl md:text-4xl tracking-tight text-slate-900 ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}>
-                  {lang === 'tr' ? 'Kampanyalı Ürünler' : 'Special Campaigns'}
-                </h2>
-              </div>
-              <div className="flex items-center gap-4 text-xss font-bold text-slate-400 tracking-wide">
-                <span className="w-16 h-[1px] bg-slate-100"></span>
-                <span className="text-slate-900 font-semibold">{products.length}</span> {lang === 'tr' ? 'Parça' : 'Items'}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {(products.some(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat')) 
-                ? products.filter(p => p.labels?.includes('Kampanya') || p.labels?.includes('Fırsat'))
-                : products
-              ).slice(0, 4).map((product, idx) => (
-                <motion.div 
-                  key={`featured-${product.id}`}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1, duration: 0.8 }}
-                  viewport={{ once: true }}
-                  className="group relative cursor-pointer"
-                  onClick={() => setSelectedProduct(product)}
-                >
-                  <div className="aspect-[1/1] rounded-2xl overflow-hidden bg-white mb-8 relative shadow-sm group-hover:shadow-lg group-hover:-translate-y-2 transition-all duration-700 font-sans border border-slate-100">
-                    {/* Discount Badge */}
-                    {product.old_price && (
-                      <div className="absolute top-8 right-8 z-10 w-14 h-14 bg-white rounded-lg flex items-center justify-center text-red-600 text-xss font-semibold shadow-xl">
-                        -{Math.round((1 - product.price / product.old_price) * 100)}%
-                      </div>
-                    )}
-                    
-                    <img 
-                      src={product.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=400&auto=format&fit=crop"} 
-                      alt={product.name}
-                      className="w-full h-full object-contain p-6 transition-transform duration-1000 group-hover:scale-110"
-                      referrerPolicy="no-referrer"
-                    />
-                    
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />
-                    
-                    <div className="absolute bottom-8 left-8 right-8 flex justify-center translate-y-20 group-hover:translate-y-0 transition-transform duration-700">
-                       <button className="w-full py-4 bg-white text-slate-950 rounded-2xl font-semibold text-[10px] tracking-wide shadow-lg">
-                         {lang === 'tr' ? 'İncele' : 'View Details'}
-                       </button>
-                    </div>
-                  </div>
-
-                  <div className="px-4 text-center">
-                    <h4 className={`text-xsl text-slate-900 mb-2 truncate ${isLuxury ? '!font-sans !font-medium' : 'font-semibold'}`}>
-                      {product.name}
-                    </h4>
-                    {(() => {
-                      let labels: string[] = [];
-                      
-                      if (Array.isArray(product.labels)) {
-                        labels = product.labels;
-                      } else if (typeof product.labels === 'string') {
-                        // Remove all non-alphanumeric characters except spaces and Turkish chars, 
-                        // treat as comma separated to extract clean labels.
-                        labels = (product.labels as string)
-                          .replace(/[^a-zA-Z0-9çÇğĞışİÖöÜü\s,]/g, '') 
-                          .split(',')
-                          .map(s => s.trim())
-                          .filter(Boolean);
-                      }
-                      
-                      if (labels.length === 0) return null;
-
-                      return (
-                        <div className="flex flex-wrap gap-1 justify-center mb-2">
-                          {labels.map((label, idx) => (
-                            <span key={idx} className="px-1.5 py-0.5 bg-amber-500/10 text-amber-600 text-[9px] uppercase font-black rounded-md tracking-wider">
-                              {label}
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                    <div className="flex items-center justify-center gap-3">
-                      <span className="text-xsl font-semibold text-slate-900 font-sans tracking-tight">{formatPrice(product.price)}</span>
-                      {product.old_price && (
-                        <span className="text-sm font-medium text-slate-400 line-through decoration-red-500/50 font-sans tracking-tight">{formatPrice(product.old_price)}</span>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-          )}
-
-          {/* Removed category boxes section */}
-
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-8" id="products-grid">
-        {/* Search Bar & Filters */}
-        <div className="mb-12">
-          {store?.store_type === 'portfolio' && (
-            <div className="bg-slate-50/50 rounded-3xl p-6 md:p-8 border border-slate-100 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-              <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Filter className="w-4 h-4 text-indigo-600" />
-                {lang === 'tr' ? 'Detaylı Arama / Filtreleme' : 'Advanced Search & Filters'}
-              </h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                {/* Filter 1: Listing Type */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'İlan Türü' : 'Listing Type'}</label>
-                  <div className="relative">
-                    <select
-                      value={portfolioType}
-                      onChange={(e) => setPortfolioType(e.target.value as any)}
-                      className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none appearance-none shadow-sm cursor-pointer"
+                  {store?.hero_subtitle && (
+                    <motion.p
+                      initial={{ opacity: 0, y: 40 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.9, duration: 0.8 }}
+                      className="text-xsl md:text-3xl text-white/60 font-medium max-w-2xl leading-relaxed mb-12 text-balance"
                     >
-                      <option value="all">{lang === 'tr' ? 'Tüm İlanlar' : 'All Listings'}</option>
-                      <option value="real_estate">{lang === 'tr' ? 'Gayrimenkul' : 'Real Estate'}</option>
-                      <option value="vehicle">{lang === 'tr' ? 'Oto Galeri / Vasıta' : 'Automotive / Vehicles'}</option>
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  </div>
-                </div>
+                      {store.hero_subtitle}
+                    </motion.p>
+                  )}
 
-                {/* Filter 2: Min Price */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Min Fiyat' : 'Min Price'} ({store?.currency || 'TRY'})</label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={portfolioMinPrice}
-                    onChange={(e) => setPortfolioMinPrice(e.target.value)}
-                    className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm"
-                  />
-                </div>
-
-                {/* Filter 3: Max Price */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Max Fiyat' : 'Max Price'} ({store?.currency || 'TRY'})</label>
-                  <input
-                    type="number"
-                    placeholder="∞"
-                    value={portfolioMaxPrice}
-                    onChange={(e) => setPortfolioMaxPrice(e.target.value)}
-                    className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm"
-                  />
-                </div>
-
-                {/* Filter 4: Room Count (Conditional) */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Oda Sayısı (Emlak)' : 'Rooms (Estate)'}</label>
-                  <div className="relative">
-                    <select
-                      disabled={portfolioType === 'vehicle'}
-                      value={portfolioRooms}
-                      onChange={(e) => setPortfolioRooms(e.target.value)}
-                      className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none appearance-none shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1.1 }}
+                    className="flex flex-wrap gap-4"
+                  >
+                    <button
+                      onClick={() => setShowDiscoverModal(true)}
+                      className="px-10 py-5 bg-white text-slate-950 rounded-lg font-semibold text-sm tracking-wide hover:bg-opacity-90 transition-all active:scale-95 shadow-lg flex items-center gap-3"
                     >
-                      <option value="all">{lang === 'tr' ? 'Tümü' : 'All'}</option>
-                      <option value="1">1 Oda</option>
-                      <option value="2">2 Oda</option>
-                      <option value="3">3 Oda</option>
-                      <option value="4+">4+ Oda</option>
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <Sparkles className="w-5 h-5 text-indigo-500" />
+                      {lang === "tr" ? "Keşfet" : "Discover Now"}
+                    </button>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Scroll Indicator */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2 }}
+                className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 hidden md:flex flex-col items-center gap-4 text-white/40"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-[0.3em]">
+                  {lang === "tr" ? "Kaydır" : "Scroll"}
+                </span>
+                <div className="w-[1px] h-12 bg-gradient-to-b from-white/40 to-transparent" />
+              </motion.div>
+            </section>
+
+            {/* Featured / Campaign Section */}
+            {layoutSettings.show_campaigns && (
+              <section className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-32">
+                <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-16">
+                  <div className="space-y-3">
+                    <h3
+                      className={`text-[10px] font-semibold uppercase tracking-[0.5em] mb-2 ${isLuxury ? "text-amber-500" : "text-blue-600"}`}
+                    >
+                      {lang === "tr"
+                        ? "HAFTANIN FIRSATLARI"
+                        : "DEALS OF THE WEEK"}
+                    </h3>
+                    <h2
+                      className={`text-4xl md:text-4xl md:text-4xl tracking-tight text-slate-900 ${isLuxury ? "!font-sans !font-bold" : "font-semibold font-display tracking-tighter"}`}
+                    >
+                      {lang === "tr"
+                        ? "Kampanyalı Ürünler"
+                        : "Special Campaigns"}
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-4 text-xss font-bold text-slate-400 tracking-wide">
+                    <span className="w-16 h-[1px] bg-slate-100"></span>
+                    <span className="text-slate-900 font-semibold">
+                      {products.length}
+                    </span>{" "}
+                    {lang === "tr" ? "Parça" : "Items"}
                   </div>
                 </div>
 
-                {/* Filter 5: Min Area */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Min Alan (Emlak)' : 'Min Area (Estate)'}</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      disabled={portfolioType === 'vehicle'}
-                      placeholder="m²"
-                      value={portfolioMinM2}
-                      onChange={(e) => setPortfolioMinM2(e.target.value)}
-                      className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {(products.some(
+                    (p) =>
+                      p.labels?.includes("Kampanya") ||
+                      p.labels?.includes("Fırsat"),
+                  )
+                    ? products.filter(
+                        (p) =>
+                          p.labels?.includes("Kampanya") ||
+                          p.labels?.includes("Fırsat"),
+                      )
+                    : products
+                  )
+                    .slice(0, 4)
+                    .map((product, idx) => (
+                      <motion.div
+                        key={`featured-${product.id}`}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1, duration: 0.8 }}
+                        viewport={{ once: true }}
+                        className="group relative cursor-pointer"
+                        onClick={() => setSelectedProduct(product)}
+                      >
+                        <div className="aspect-[1/1] rounded-2xl overflow-hidden bg-white mb-8 relative shadow-sm group-hover:shadow-lg group-hover:-translate-y-2 transition-all duration-700 font-sans border border-slate-100">
+                          {/* Discount Badge */}
+                          {product.old_price && (
+                            <div className="absolute top-8 right-8 z-10 w-14 h-14 bg-white rounded-lg flex items-center justify-center text-red-600 text-xss font-semibold shadow-xl">
+                              -
+                              {Math.round(
+                                (1 - product.price / product.old_price) * 100,
+                              )}
+                              %
+                            </div>
+                          )}
 
-              {/* Clear filters trigger */}
-              {(portfolioType !== 'all' || portfolioMinPrice || portfolioMaxPrice || portfolioRooms !== 'all' || portfolioMinM2) && (
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={() => {
-                      setPortfolioType('all');
-                      setPortfolioMinPrice("");
-                      setPortfolioMaxPrice("");
-                      setPortfolioRooms("all");
-                      setPortfolioMinM2("");
-                    }}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1.5 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    {lang === 'tr' ? 'Filtreleri Temizle' : 'Clear Filters'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
-            <div>
-              <h2 className={`text-4xl md:text-4xl md:text-4xl text-slate-900 tracking-tight mb-4 ${isLuxury ? '!font-sans !font-bold' : 'font-semibold font-display tracking-tighter'}`}>
-                {selectedCategory || t.dashboard.allProducts}
-              </h2>
-              <p className="text-slate-400 font-bold tracking-wide text-[10px]">
-                <span className="text-slate-900">{sortedAndFilteredProducts.length}</span> {t.dashboard.productsFound || 'ürün listeleniyor'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4 w-full md:w-auto">
-              <div className="relative flex-1 md:w-80 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-primary transition-colors" />
-                <input 
-                  type="text"
-                  placeholder={t.dashboard.searchProducts}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 focus:border-primary rounded-2xl transition-all outline-none text-sm font-medium shadow-sm"
-                />
-              </div>
-              <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  <ArrowUpDown className="w-4 h-4" />
-                </div>
-                <select 
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none pl-11 pr-12 py-3 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 outline-none cursor-pointer hover:bg-gray-50 transition-all shadow-sm min-w-[160px]"
-                >
-                  <option value="default">{t.dashboard.newest || (lang === 'tr' ? 'Varsayılan' : 'Default')}</option>
-                  <option value="priceAsc">{t.dashboard.priceLow || (lang === 'tr' ? 'En Düşük Fiyat' : 'Price: Low to High')}</option>
-                  <option value="priceDesc">{t.dashboard.priceHigh || (lang === 'tr' ? 'En Yüksek Fiyat' : 'Price: High to Low')}</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-gray-900 transition-colors" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Horizontal Category Scroll */}
-        <div className="lg:hidden mb-8 -mx-4 px-4 overflow-x-auto custom-scrollbar flex items-center gap-2 pb-2">
-          <button
-            onClick={() => { 
-                setSelectedCategory(null); 
-                setSelectedSubCategory(null);
-                document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className={`flex-shrink-0 px-6 py-2.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
-                !selectedCategory 
-                ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
-                : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
-            }`}
-          >
-            {t.dashboard.all}
-          </button>
-          
-          {Array.from(categories.keys()).sort().map(cat => (
-            <button
-              key={cat}
-              onClick={() => {
-                if (selectedCategory === cat) {
-                    setSelectedCategory(null);
-                    setSelectedSubCategory(null);
-                } else {
-                    setSelectedCategory(cat);
-                    setSelectedSubCategory(null);
-                }
-              }}
-              className={`flex-shrink-0 px-6 py-2.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
-                selectedCategory === cat 
-                ? "bg-gray-900 text-white border-gray-900 shadow-lg" 
-                : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-
-          <button 
-            onClick={() => setShowMobileFilters(true)}
-            className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-all ml-2 sticky right-0 shadow-lg"
-          >
-            <Filter className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-16">
-          {/* Sidebar */}
-          <aside className="hidden lg:block lg:w-80 flex-shrink-0">
-            <div className="sticky top-32 space-y-12">
-              {/* Categories */}
-              <div>
-                <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
-                  <Filter className="w-4 h-4" />
-                  {categoriesLabel}
-                </h3>
-                
-                {/* Removed sidebar category search bar */}
-
-                <div className="space-y-1">
-                  <button
-                    onClick={() => { 
-                      setSelectedCategory(null); 
-                      setSelectedSubCategory(null);
-                      document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
-                      !selectedCategory ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <div className={`w-1 h-1 rounded-lg ${!selectedCategory ? "bg-primary" : "bg-gray-300"}`}></div>
-                      {t.dashboard.all}
-                    </span>
-                    <span className="text-[9px] opacity-50">{products.length}</span>
-                  </button>
-
-                  <div className="space-y-1">
-                    {Array.from(categories.keys())
-                      .filter(cat => cat.toLowerCase().includes(categorySearch.toLowerCase()))
-                      .sort()
-                      .slice(0, showAllCategories ? undefined : 5)
-                      .map(cat => (
-                      <div key={cat} className="space-y-1">
-                        <button
-                          onClick={() => {
-                            if (selectedCategory === cat) {
-                              toggleCategory(cat);
-                            } else {
-                              setSelectedCategory(cat);
-                              setSelectedSubCategory(null);
-                              if (!expandedCategories.has(cat)) toggleCategory(cat);
-                              document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
+                          <img
+                            src={
+                              product.image_url ||
+                              "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=400&auto=format&fit=crop"
                             }
-                          }}
-                          className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
-                            selectedCategory === cat ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-1 h-1 rounded-lg transition-colors ${selectedCategory === cat ? "bg-primary" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
-                            <span className="truncate">{cat}</span>
+                            alt={product.name}
+                            className="w-full h-full object-contain p-6 transition-transform duration-1000 group-hover:scale-110"
+                            referrerPolicy="no-referrer"
+                          />
+
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />
+
+                          <div className="absolute bottom-8 left-8 right-8 flex justify-center translate-y-20 group-hover:translate-y-0 transition-transform duration-700">
+                            <button className="w-full py-4 bg-white text-slate-950 rounded-2xl font-semibold text-[10px] tracking-wide shadow-lg">
+                              {lang === "tr" ? "İncele" : "View Details"}
+                            </button>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[9px] opacity-50">{products.filter(p => p.category === cat).length}</span>
-                            {categories.get(cat)!.size > 0 && (
-                              <ChevronRight className={`w-3 h-3 transition-transform duration-300 ${expandedCategories.has(cat) ? "rotate-90" : ""}`} />
+                        </div>
+
+                        <div className="px-4 text-center">
+                          <h4
+                            className={`text-xsl text-slate-900 mb-2 truncate ${isLuxury ? "!font-sans !font-medium" : "font-semibold"}`}
+                          >
+                            {product.name}
+                          </h4>
+                          {(() => {
+                            let labels: string[] = [];
+
+                            if (Array.isArray(product.labels)) {
+                              labels = product.labels;
+                            } else if (typeof product.labels === "string") {
+                              // Remove all non-alphanumeric characters except spaces and Turkish chars,
+                              // treat as comma separated to extract clean labels.
+                              labels = (product.labels as string)
+                                .replace(/[^a-zA-Z0-9çÇğĞışİÖöÜü\s,]/g, "")
+                                .split(",")
+                                .map((s) => s.trim())
+                                .filter(Boolean);
+                            }
+
+                            if (labels.length === 0) return null;
+
+                            return (
+                              <div className="flex flex-wrap gap-1 justify-center mb-2">
+                                {labels.map((label, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-1.5 py-0.5 bg-amber-500/10 text-amber-600 text-[9px] uppercase font-black rounded-md tracking-wider"
+                                  >
+                                    {label}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="text-xsl font-semibold text-slate-900 font-sans tracking-tight">
+                              {formatPrice(product.price)}
+                            </span>
+                            {product.old_price && (
+                              <span className="text-sm font-medium text-slate-400 line-through decoration-red-500/50 font-sans tracking-tight">
+                                {formatPrice(product.old_price)}
+                              </span>
                             )}
                           </div>
-                        </button>
-                        <AnimatePresence>
-                          {expandedCategories.has(cat) && categories.get(cat)!.size > 0 && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden pl-8 space-y-1"
-                            >
-                              {Array.from(categories.get(cat)!).sort().map(sub => (
-                                <button
-                                  key={sub}
-                                  onClick={() => {
-                                    setSelectedSubCategory(sub);
-                                    document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                                  }}
-                                  className={`w-full text-left px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2 ${
-                                    selectedSubCategory === sub ? "text-primary bg-primary/5" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                                  }`}
-                                >
-                                  <div className={`w-1 h-1 rounded-lg ${selectedSubCategory === sub ? "bg-primary" : "bg-transparent"}`}></div>
-                                  <span className="truncate">{sub}</span>
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                        </div>
+                      </motion.div>
                     ))}
-                    
-                    {Array.from(categories.keys()).length > 5 && (
-                      <button 
-                        onClick={() => setShowAllCategories(!showAllCategories)}
-                        className="w-full text-center py-1.5 text-[10px] font-semibold text-primary tracking-wide hover:bg-primary/5 rounded-lg transition-all"
-                      >
-                        {showAllCategories ? (lang === 'tr' ? 'Daha Az' : 'Show Less') : (lang === 'tr' ? 'Tümünü Gör' : 'Show All')}
-                      </button>
+                </div>
+              </section>
+            )}
+
+            {/* Removed category boxes section */}
+
+            <main
+              className="max-w-7xl mx-auto px-4 md:px-8 py-8"
+              id="products-grid"
+            >
+              {/* Search Bar & Filters */}
+              <div className="mb-12">
+                {store?.store_type === "portfolio" && (
+                  <div className="bg-slate-50/50 rounded-3xl p-6 md:p-8 border border-slate-100 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-indigo-600" />
+                      {lang === "tr"
+                        ? "Detaylı Arama / Filtreleme"
+                        : "Advanced Search & Filters"}
+                    </h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      {/* Filter 1: Listing Type */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {lang === "tr" ? "İlan Türü" : "Listing Type"}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={portfolioType}
+                            onChange={(e) =>
+                              setPortfolioType(e.target.value as any)
+                            }
+                            className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none appearance-none shadow-sm cursor-pointer"
+                          >
+                            <option value="all">
+                              {lang === "tr" ? "Tüm İlanlar" : "All Listings"}
+                            </option>
+                            <option value="real_estate">
+                              {lang === "tr" ? "Gayrimenkul" : "Real Estate"}
+                            </option>
+                            <option value="vehicle">
+                              {lang === "tr"
+                                ? "Oto Galeri / Vasıta"
+                                : "Automotive / Vehicles"}
+                            </option>
+                          </select>
+                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Filter 2: Min Price */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {lang === "tr" ? "Min Fiyat" : "Min Price"} (
+                          {store?.currency || "TRY"})
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={portfolioMinPrice}
+                          onChange={(e) => setPortfolioMinPrice(e.target.value)}
+                          className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm"
+                        />
+                      </div>
+
+                      {/* Filter 3: Max Price */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {lang === "tr" ? "Max Fiyat" : "Max Price"} (
+                          {store?.currency || "TRY"})
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="∞"
+                          value={portfolioMaxPrice}
+                          onChange={(e) => setPortfolioMaxPrice(e.target.value)}
+                          className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm"
+                        />
+                      </div>
+
+                      {/* Filter 4: Room Count (Conditional) */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {lang === "tr"
+                            ? "Oda Sayısı (Emlak)"
+                            : "Rooms (Estate)"}
+                        </label>
+                        <div className="relative">
+                          <select
+                            disabled={portfolioType === "vehicle"}
+                            value={portfolioRooms}
+                            onChange={(e) => setPortfolioRooms(e.target.value)}
+                            className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none appearance-none shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <option value="all">
+                              {lang === "tr" ? "Tümü" : "All"}
+                            </option>
+                            <option value="1">1 Oda</option>
+                            <option value="2">2 Oda</option>
+                            <option value="3">3 Oda</option>
+                            <option value="4+">4+ Oda</option>
+                          </select>
+                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Filter 5: Min Area */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {lang === "tr"
+                            ? "Min Alan (Emlak)"
+                            : "Min Area (Estate)"}
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            disabled={portfolioType === "vehicle"}
+                            placeholder="m²"
+                            value={portfolioMinM2}
+                            onChange={(e) => setPortfolioMinM2(e.target.value)}
+                            className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Clear filters trigger */}
+                    {(portfolioType !== "all" ||
+                      portfolioMinPrice ||
+                      portfolioMaxPrice ||
+                      portfolioRooms !== "all" ||
+                      portfolioMinM2) && (
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => {
+                            setPortfolioType("all");
+                            setPortfolioMinPrice("");
+                            setPortfolioMaxPrice("");
+                            setPortfolioRooms("all");
+                            setPortfolioMinM2("");
+                          }}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1.5 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          {lang === "tr"
+                            ? "Filtreleri Temizle"
+                            : "Clear Filters"}
+                        </button>
+                      </div>
                     )}
+                  </div>
+                )}
+
+                <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
+                  <div>
+                    <h2
+                      className={`text-4xl md:text-4xl md:text-4xl text-slate-900 tracking-tight mb-4 ${isLuxury ? "!font-sans !font-bold" : "font-semibold font-display tracking-tighter"}`}
+                    >
+                      {selectedCategory || t.dashboard.allProducts}
+                    </h2>
+                    <p className="text-slate-400 font-bold tracking-wide text-[10px]">
+                      <span className="text-slate-900">
+                        {sortedAndFilteredProducts.length}
+                      </span>{" "}
+                      {t.dashboard.productsFound || "ürün listeleniyor"}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-80 group">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-primary transition-colors" />
+                      <input
+                        type="text"
+                        placeholder={t.dashboard.searchProducts}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 focus:border-primary rounded-2xl transition-all outline-none text-sm font-medium shadow-sm"
+                      />
+                    </div>
+                    <div className="relative group">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                        <ArrowUpDown className="w-4 h-4" />
+                      </div>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="appearance-none pl-11 pr-12 py-3 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 outline-none cursor-pointer hover:bg-gray-50 transition-all shadow-sm min-w-[160px]"
+                      >
+                        <option value="default">
+                          {t.dashboard.newest ||
+                            (lang === "tr" ? "Varsayılan" : "Default")}
+                        </option>
+                        <option value="priceAsc">
+                          {t.dashboard.priceLow ||
+                            (lang === "tr"
+                              ? "En Düşük Fiyat"
+                              : "Price: Low to High")}
+                        </option>
+                        <option value="priceDesc">
+                          {t.dashboard.priceHigh ||
+                            (lang === "tr"
+                              ? "En Yüksek Fiyat"
+                              : "Price: High to Low")}
+                        </option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-gray-900 transition-colors" />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Brands */}
-              {brands.length > 0 && (
-                <div>
-                  <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
-                    <Tag className="w-4 h-4" />
-                    {brandsLabel}
-                  </h3>
+              {/* Mobile Horizontal Category Scroll */}
+              <div className="lg:hidden mb-8 -mx-4 px-4 overflow-x-auto custom-scrollbar flex items-center gap-2 pb-2">
+                <button
+                  onClick={() => {
+                    setSelectedCategory(null);
+                    setSelectedSubCategory(null);
+                    document
+                      .getElementById("products-grid")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className={`flex-shrink-0 px-6 py-2.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
+                    !selectedCategory
+                      ? "bg-gray-900 text-white border-gray-900 shadow-lg"
+                      : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
+                  }`}
+                >
+                  {t.dashboard.all}
+                </button>
 
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-3 border-b border-gray-50 bg-gray-50/50">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder={lang === 'tr' ? `${brandLabel} Ara...` : `Search ${brandLabel}...`}
-                          value={brandSearch}
-                          onChange={(e) => setBrandSearch(e.target.value)}
-                          className="w-full pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="p-3 max-h-64 overflow-y-auto custom-scrollbar">
-                      <div className="flex flex-wrap gap-2">
-                        {brands
-                          .filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase()))
-                          .map(brand => (
-                          <button
-                            key={brand}
-                            onClick={() => {
-                              setSelectedBrand(brand === selectedBrand ? null : brand);
-                              setSearchQuery("");
-                              document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border ${
-                              selectedBrand === brand 
-                                ? "bg-gray-900 text-white border-gray-900 shadow-md" 
-                                : "bg-white text-gray-600 border-gray-100 hover:border-gray-300 hover:bg-gray-50"
-                            }`}
-                          >
-                            {brand}
-                          </button>
-                        ))}
-                        {brands.filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
-                          <div className="w-full text-center py-4 text-gray-400 text-sm">
-                            {lang === 'tr' ? `${brandLabel} bulunamadı.` : `No ${brandLabel.toLowerCase()}s found.`}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </aside>
+                {Array.from(categories.keys())
+                  .sort()
+                  .map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        if (selectedCategory === cat) {
+                          setSelectedCategory(null);
+                          setSelectedSubCategory(null);
+                        } else {
+                          setSelectedCategory(cat);
+                          setSelectedSubCategory(null);
+                        }
+                      }}
+                      className={`flex-shrink-0 px-6 py-2.5 rounded-lg text-xss font-semibold transition-all border whitespace-nowrap ${
+                        selectedCategory === cat
+                          ? "bg-gray-900 text-white border-gray-900 shadow-lg"
+                          : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
 
-          {/* Main Content */}
-          <div className="flex-1">
-            {store?.page_layout && store.page_layout.length > 0 ? (
-              <div className="space-y-24">
-                {store.page_layout.map((section: any) => {
-                  switch (section.type) {
-                    case 'hero':
-                      return (
-                        <section key={section.id} className="relative h-[600px] flex items-center justify-center rounded-2xl overflow-hidden">
-                          <img src={store.hero_image_url} className="absolute inset-0 w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40" />
-                          <div className="relative z-10 text-center text-white p-8">
-                            <h1 className="text-4xl md:text-4xl font-semibold mb-4">{store.hero_title}</h1>
-                            <p className="text-xsl">{store.hero_subtitle}</p>
-                          </div>
-                        </section>
-                      );
-                    case 'featured':
-                      return (
-                        <section key={section.id}>
-                          <h2 className="text-3xl font-semibold text-gray-900 mb-10">{t.dashboard.featuredProducts}</h2>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                            {featuredProducts.map(p => (
-                              <ProductCard 
-                                key={p.id} 
-                                product={p} 
-                                store={store} 
-                                t={t} 
-                                addToBasket={addToBasket} 
-                                onView={setSelectedProduct} 
-                                primaryColor={primaryColor} 
-                                isLuxury={isLuxury}
-                                sector={sector}
-                              />
+                <button
+                  onClick={() => setShowMobileFilters(true)}
+                  className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-all ml-2 sticky right-0 shadow-lg"
+                >
+                  <Filter className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex flex-col lg:flex-row gap-16">
+                {/* Sidebar */}
+                <aside className="hidden lg:block lg:w-80 flex-shrink-0">
+                  <div className="sticky top-32 space-y-12">
+                    {/* Categories */}
+                    <div>
+                      <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
+                        <Filter className="w-4 h-4" />
+                        {categoriesLabel}
+                      </h3>
+
+                      {/* Removed sidebar category search bar */}
+
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => {
+                            setSelectedCategory(null);
+                            setSelectedSubCategory(null);
+                            document
+                              .getElementById("products-grid")
+                              ?.scrollIntoView({ behavior: "smooth" });
+                          }}
+                          className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
+                            !selectedCategory
+                              ? "bg-gray-900 text-white shadow-xl"
+                              : "text-gray-500 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="flex items-center gap-3">
+                            <div
+                              className={`w-1 h-1 rounded-lg ${!selectedCategory ? "bg-primary" : "bg-gray-300"}`}
+                            ></div>
+                            {t.dashboard.all}
+                          </span>
+                          <span className="text-[9px] opacity-50">
+                            {products.length}
+                          </span>
+                        </button>
+
+                        <div className="space-y-1">
+                          {Array.from(categories.keys())
+                            .filter((cat) =>
+                              cat
+                                .toLowerCase()
+                                .includes(categorySearch.toLowerCase()),
+                            )
+                            .sort()
+                            .slice(0, showAllCategories ? undefined : 5)
+                            .map((cat) => (
+                              <div key={cat} className="space-y-1">
+                                <button
+                                  onClick={() => {
+                                    if (selectedCategory === cat) {
+                                      toggleCategory(cat);
+                                    } else {
+                                      setSelectedCategory(cat);
+                                      setSelectedSubCategory(null);
+                                      if (!expandedCategories.has(cat))
+                                        toggleCategory(cat);
+                                      document
+                                        .getElementById("products-grid")
+                                        ?.scrollIntoView({
+                                          behavior: "smooth",
+                                        });
+                                    }
+                                  }}
+                                  className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
+                                    selectedCategory === cat
+                                      ? "bg-gray-100 text-gray-900"
+                                      : "text-gray-500 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div
+                                      className={`w-1 h-1 rounded-lg transition-colors ${selectedCategory === cat ? "bg-primary" : "bg-gray-300 group-hover:bg-gray-400"}`}
+                                    ></div>
+                                    <span className="truncate">{cat}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[9px] opacity-50">
+                                      {
+                                        products.filter(
+                                          (p) => p.category === cat,
+                                        ).length
+                                      }
+                                    </span>
+                                    {categories.get(cat)!.size > 0 && (
+                                      <ChevronRight
+                                        className={`w-3 h-3 transition-transform duration-300 ${expandedCategories.has(cat) ? "rotate-90" : ""}`}
+                                      />
+                                    )}
+                                  </div>
+                                </button>
+                                <AnimatePresence>
+                                  {expandedCategories.has(cat) &&
+                                    categories.get(cat)!.size > 0 && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden pl-8 space-y-1"
+                                      >
+                                        {Array.from(categories.get(cat)!)
+                                          .sort()
+                                          .map((sub) => (
+                                            <button
+                                              key={sub}
+                                              onClick={() => {
+                                                setSelectedSubCategory(sub);
+                                                document
+                                                  .getElementById(
+                                                    "products-grid",
+                                                  )
+                                                  ?.scrollIntoView({
+                                                    behavior: "smooth",
+                                                  });
+                                              }}
+                                              className={`w-full text-left px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2 ${
+                                                selectedSubCategory === sub
+                                                  ? "text-primary bg-primary/5"
+                                                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                              }`}
+                                            >
+                                              <div
+                                                className={`w-1 h-1 rounded-lg ${selectedSubCategory === sub ? "bg-primary" : "bg-transparent"}`}
+                                              ></div>
+                                              <span className="truncate">
+                                                {sub}
+                                              </span>
+                                            </button>
+                                          ))}
+                                      </motion.div>
+                                    )}
+                                </AnimatePresence>
+                              </div>
                             ))}
-                          </div>
-                        </section>
-                      );
-                    case 'blog':
-                      return (
-                        <section key={section.id} id="blog" className="py-12">
-                          <div className="flex items-center justify-between mb-10">
-                            <h2 className="text-4xl font-semibold text-gray-900 tracking-tight">{isTr ? 'Blog Yazıları' : 'Blog Posts'}</h2>
-                            <div className="hidden md:flex items-center space-x-2 text-sm font-semibold text-indigo-600 tracking-wide">
-                              <Sparkles className="w-4 h-4" />
-                              <span>{isTr ? 'YENİ İÇERİKLER' : 'NEW CONTENT'}</span>
+
+                          {Array.from(categories.keys()).length > 5 && (
+                            <button
+                              onClick={() =>
+                                setShowAllCategories(!showAllCategories)
+                              }
+                              className="w-full text-center py-1.5 text-[10px] font-semibold text-primary tracking-wide hover:bg-primary/5 rounded-lg transition-all"
+                            >
+                              {showAllCategories
+                                ? lang === "tr"
+                                  ? "Daha Az"
+                                  : "Show Less"
+                                : lang === "tr"
+                                  ? "Tümünü Gör"
+                                  : "Show All"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Brands */}
+                    {brands.length > 0 && (
+                      <div>
+                        <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-6 flex items-center gap-3">
+                          <Tag className="w-4 h-4" />
+                          {brandsLabel}
+                        </h3>
+
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                          <div className="p-3 border-b border-gray-50 bg-gray-50/50">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <input
+                                type="text"
+                                placeholder={
+                                  lang === "tr"
+                                    ? `${brandLabel} Ara...`
+                                    : `Search ${brandLabel}...`
+                                }
+                                value={brandSearch}
+                                onChange={(e) => setBrandSearch(e.target.value)}
+                                className="w-full pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                              />
                             </div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {store.blog_posts?.map(post => (
-                              <motion.div 
-                                key={post.id} 
-                                whileHover={{ y: -8 }}
-                                onClick={() => setSelectedBlogPost(post)}
-                                className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-500"
+
+                          <div className="p-3 max-h-64 overflow-y-auto custom-scrollbar">
+                            <div className="flex flex-wrap gap-2">
+                              {brands
+                                .filter((brand) =>
+                                  brand
+                                    .toLowerCase()
+                                    .includes(brandSearch.toLowerCase()),
+                                )
+                                .map((brand) => (
+                                  <button
+                                    key={brand}
+                                    onClick={() => {
+                                      setSelectedBrand(
+                                        brand === selectedBrand ? null : brand,
+                                      );
+                                      setSearchQuery("");
+                                      document
+                                        .getElementById("products-grid")
+                                        ?.scrollIntoView({
+                                          behavior: "smooth",
+                                        });
+                                    }}
+                                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border ${
+                                      selectedBrand === brand
+                                        ? "bg-gray-900 text-white border-gray-900 shadow-md"
+                                        : "bg-white text-gray-600 border-gray-100 hover:border-gray-300 hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    {brand}
+                                  </button>
+                                ))}
+                              {brands.filter((brand) =>
+                                brand
+                                  .toLowerCase()
+                                  .includes(brandSearch.toLowerCase()),
+                              ).length === 0 && (
+                                <div className="w-full text-center py-4 text-gray-400 text-sm">
+                                  {lang === "tr"
+                                    ? `${brandLabel} bulunamadı.`
+                                    : `No ${brandLabel.toLowerCase()}s found.`}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </aside>
+
+                {/* Main Content */}
+                <div className="flex-1">
+                  {store?.page_layout && store.page_layout.length > 0 ? (
+                    <div className="space-y-24">
+                      {store.page_layout.map((section: any) => {
+                        switch (section.type) {
+                          case "hero":
+                            return (
+                              <section
+                                key={section.id}
+                                className="relative h-[600px] flex items-center justify-center rounded-2xl overflow-hidden"
                               >
-                                <div className="relative h-64 overflow-hidden">
-                                  <img 
-                                    src={post.image_url || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60'} 
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                  <div className="absolute bottom-6 left-6 right-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                                    <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-lg text-xss font-semibold text-indigo-600 tracking-wide">
-                                      {isTr ? 'Okumaya Devam Et' : 'Read More'}
+                                <img
+                                  src={store.hero_image_url}
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/40" />
+                                <div className="relative z-10 text-center text-white p-8">
+                                  <h1 className="text-4xl md:text-4xl font-semibold mb-4">
+                                    {store.hero_title}
+                                  </h1>
+                                  <p className="text-xsl">
+                                    {store.hero_subtitle}
+                                  </p>
+                                </div>
+                              </section>
+                            );
+                          case "featured":
+                            return (
+                              <section key={section.id}>
+                                <h2 className="text-3xl font-semibold text-gray-900 mb-10">
+                                  {t.dashboard.featuredProducts}
+                                </h2>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                  {featuredProducts.map((p) => (
+                                    <ProductCard
+                                      key={p.id}
+                                      product={p}
+                                      store={store}
+                                      t={t}
+                                      addToBasket={addToBasket}
+                                      onView={setSelectedProduct}
+                                      primaryColor={primaryColor}
+                                      isLuxury={isLuxury}
+                                      sector={sector}
+                                    />
+                                  ))}
+                                </div>
+                              </section>
+                            );
+                          case "blog":
+                            return (
+                              <section
+                                key={section.id}
+                                id="blog"
+                                className="py-12"
+                              >
+                                <div className="flex items-center justify-between mb-10">
+                                  <h2 className="text-4xl font-semibold text-gray-900 tracking-tight">
+                                    {isTr ? "Blog Yazıları" : "Blog Posts"}
+                                  </h2>
+                                  <div className="hidden md:flex items-center space-x-2 text-sm font-semibold text-indigo-600 tracking-wide">
+                                    <Sparkles className="w-4 h-4" />
+                                    <span>
+                                      {isTr ? "YENİ İÇERİKLER" : "NEW CONTENT"}
                                     </span>
                                   </div>
                                 </div>
-                                <div className="p-8">
-                                  <div className="flex items-center gap-3 mb-4">
-                                    <span className="text-[10px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2 py-1 rounded-md">
-                                      {post.date}
-                                    </span>
-                                    <span className="w-1 h-1 rounded-lg bg-gray-300" />
-                                    <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
-                                      {Math.ceil((post.content?.length || 0) / 1000)} {isTr ? 'DAKİKA' : 'MIN READ'}
-                                    </span>
-                                  </div>
-                                  <h4 className="text-xsl font-semibold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                  {store.blog_posts?.map((post) => (
+                                    <motion.div
+                                      key={post.id}
+                                      whileHover={{ y: -8 }}
+                                      onClick={() => setSelectedBlogPost(post)}
+                                      className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-500"
+                                    >
+                                      <div className="relative h-64 overflow-hidden">
+                                        <img
+                                          src={
+                                            post.image_url ||
+                                            "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60"
+                                          }
+                                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                        <div className="absolute bottom-6 left-6 right-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                                          <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-lg text-xss font-semibold text-indigo-600 tracking-wide">
+                                            {isTr
+                                              ? "Okumaya Devam Et"
+                                              : "Read More"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="p-8">
+                                        <div className="flex items-center gap-3 mb-4">
+                                          <span className="text-[10px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2 py-1 rounded-md">
+                                            {post.date}
+                                          </span>
+                                          <span className="w-1 h-1 rounded-lg bg-gray-300" />
+                                          <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
+                                            {Math.ceil(
+                                              (post.content?.length || 0) /
+                                                1000,
+                                            )}{" "}
+                                            {isTr ? "DAKİKA" : "MIN READ"}
+                                          </span>
+                                        </div>
+                                        <h4 className="text-xsl font-semibold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
+                                          {post.title}
+                                        </h4>
+                                        <p className="text-gray-500 text-sm leading-relaxed font-medium line-clamp-3">
+                                          {post.excerpt}
+                                        </p>
+                                      </div>
+                                    </motion.div>
+                                  ))}
+                                </div>
+                              </section>
+                            );
+                          case "about":
+                            return (
+                              <section
+                                key={section.id}
+                                id="about"
+                                className="bg-gray-50 p-8 rounded-2xl"
+                              >
+                                <h2 className="text-3xl font-semibold text-gray-900 mb-6">
+                                  {lang === "tr" ? "Hakkımızda" : "About Us"}
+                                </h2>
+                                <p className="text-gray-600 leading-relaxed">
+                                  {store.about_text}
+                                </p>
+                              </section>
+                            );
+                          case "contact":
+                            return (
+                              <section
+                                key={section.id}
+                                id="contact"
+                                className="bg-gray-900 text-white p-8 rounded-2xl"
+                              >
+                                <h2 className="text-3xl font-semibold mb-6">
+                                  {lang === "tr" ? "İletişim" : "Contact"}
+                                </h2>
+                                <p>{store.address}</p>
+                                <p>{store.email}</p>
+                                <p>{store.phone}</p>
+                              </section>
+                            );
+                          default:
+                            return null;
+                        }
+                      })}
+                    </div>
+                  ) : // Fallback to original layout if no page_layout
+                  sortedAndFilteredProducts.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-6">
+                        <AnimatePresence mode="popLayout">
+                          {paginatedProducts.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              store={store}
+                              t={t}
+                              onView={setSelectedProduct}
+                              addToBasket={addToBasket}
+                              primaryColor={primaryColor}
+                              isLuxury={isLuxury}
+                              sector={sector}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                      {/* Pagination */}
+                      {totalPages > 1 && (
+                        <div className="mt-12 flex items-center justify-center gap-2">
+                          {/* ... pagination buttons logic ... */}
+                        </div>
+                      )}
+
+                      {/* Blog Posts in Fallback Layout */}
+                      {store?.blog_posts && store.blog_posts.length > 0 && (
+                        <section className="mt-32">
+                          <div className="flex items-center justify-between mb-10">
+                            <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">
+                              {lang === "tr" ? "Blog Yazıları" : "Blog Posts"}
+                            </h2>
+                            <button
+                              onClick={() => setShowBlog(true)}
+                              className="text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                            >
+                              {lang === "tr" ? "Tümünü Gör" : "See All"}
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {store.blog_posts.slice(0, 3).map((post) => (
+                              <motion.div
+                                key={post.id}
+                                whileHover={{ y: -8 }}
+                                onClick={() => {
+                                  setSelectedBlogPost(post);
+                                  setShowBlog(true);
+                                }}
+                                className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-500"
+                              >
+                                <div className="relative h-48 overflow-hidden">
+                                  <img
+                                    src={
+                                      post.image_url ||
+                                      "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60"
+                                    }
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                  />
+                                </div>
+                                <div className="p-6">
+                                  <span className="text-[10px] font-semibold text-indigo-600 tracking-wide mb-2 block">
+                                    {post.date}
+                                  </span>
+                                  <h4 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-2">
                                     {post.title}
                                   </h4>
-                                  <p className="text-gray-500 text-sm leading-relaxed font-medium line-clamp-3">
-                                    {post.excerpt}
+                                  <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed">
+                                    {post.excerpt || post.content}
                                   </p>
                                 </div>
                               </motion.div>
                             ))}
                           </div>
                         </section>
-                      );
-                    case 'about':
-                      return (
-                        <section key={section.id} id="about" className="bg-gray-50 p-8 rounded-2xl">
-                          <h2 className="text-3xl font-semibold text-gray-900 mb-6">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</h2>
-                          <p className="text-gray-600 leading-relaxed">{store.about_text}</p>
-                        </section>
-                      );
-                    case 'contact':
-                      return (
-                        <section key={section.id} id="contact" className="bg-gray-900 text-white p-8 rounded-2xl">
-                          <h2 className="text-3xl font-semibold mb-6">{lang === 'tr' ? 'İletişim' : 'Contact'}</h2>
-                          <p>{store.address}</p>
-                          <p>{store.email}</p>
-                          <p>{store.phone}</p>
-                        </section>
-                      );
-                    default:
-                      return null;
-                  }
-                })}
-              </div>
-            ) : (
-              // Fallback to original layout if no page_layout
-              sortedAndFilteredProducts.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-6">
-                    <AnimatePresence mode="popLayout">
-                      {paginatedProducts.map((product) => (
-                          <ProductCard 
-                            key={product.id} 
-                            product={product} 
-                            store={store} 
-                            t={t} 
-                            onView={setSelectedProduct}
-                            addToBasket={addToBasket}
-                            primaryColor={primaryColor}
-                            isLuxury={isLuxury}
-                            sector={sector}
-                          />
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="mt-12 flex items-center justify-center gap-2">
-                       {/* ... pagination buttons logic ... */}
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-32 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <div className="w-24 h-24 bg-white rounded-lg flex items-center justify-center shadow-xl mb-8">
+                        <Package className="w-12 h-12 text-gray-200" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                        {store?.store_type === "portfolio"
+                          ? lang === "tr"
+                            ? "İlan bulunamadı"
+                            : "No listings found"
+                          : t.dashboard.noProductsFound}
+                      </h3>
+                      <p className="text-gray-400 font-medium max-w-xs">
+                        {store?.store_type === "portfolio"
+                          ? lang === "tr"
+                            ? "Arama kriterlerinize uygun ilan veya portföy bulunmuyor."
+                            : "No listings or portfolios match your search criteria."
+                          : t.dashboard.noProductsDesc}
+                      </p>
                     </div>
                   )}
+                </div>
+              </div>
 
-                  {/* Blog Posts in Fallback Layout */}
-                  {store?.blog_posts && store.blog_posts.length > 0 && (
-                    <section className="mt-32">
-                      <div className="flex items-center justify-between mb-10">
-                        <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">{lang === 'tr' ? 'Blog Yazıları' : 'Blog Posts'}</h2>
-                        <button 
-                          onClick={() => setShowBlog(true)}
-                          className="text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
-                        >
-                          {lang === 'tr' ? 'Tümünü Gör' : 'See All'}
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {store.blog_posts.slice(0, 3).map(post => (
-                          <motion.div 
-                            key={post.id} 
-                            whileHover={{ y: -8 }}
-                            onClick={() => { setSelectedBlogPost(post); setShowBlog(true); }}
-                            className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-500"
-                          >
-                            <div className="relative h-48 overflow-hidden">
-                              <img 
-                                src={post.image_url || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60'} 
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                              />
-                            </div>
-                            <div className="p-6">
-                              <span className="text-[10px] font-semibold text-indigo-600 tracking-wide mb-2 block">{post.date}</span>
-                              <h4 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</h4>
-                              <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed">{post.excerpt || post.content}</p>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-32 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <div className="w-24 h-24 bg-white rounded-lg flex items-center justify-center shadow-xl mb-8">
-                    <Package className="w-12 h-12 text-gray-200" />
+              {/* New Arrivals Section */}
+              {!selectedCategory && !searchQuery && newArrivals.length > 0 && (
+                <section className="mt-32">
+                  <div className="flex items-center justify-between mb-10">
+                    <div>
+                      <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">
+                        {t.dashboard.newArrivals}
+                      </h2>
+                      <div
+                        className="h-1.5 w-20 mt-2 rounded-lg"
+                        style={{ backgroundColor: primaryColor }}
+                      ></div>
+                    </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    {store?.store_type === 'portfolio' 
-                      ? (lang === 'tr' ? 'İlan bulunamadı' : 'No listings found') 
-                      : t.dashboard.noProductsFound}
-                  </h3>
-                  <p className="text-gray-400 font-medium max-w-xs">
-                    {store?.store_type === 'portfolio' 
-                      ? (lang === 'tr' ? 'Arama kriterlerinize uygun ilan veya portföy bulunmuyor.' : 'No listings or portfolios match your search criteria.') 
-                      : t.dashboard.noProductsDesc}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {newArrivals.map((p) => (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        store={store}
+                        t={t}
+                        addToBasket={addToBasket}
+                        onView={setSelectedProduct}
+                        primaryColor={primaryColor}
+                        isLuxury={isLuxury}
+                        sector={sector}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Best Sellers Section */}
+              {!selectedCategory && !searchQuery && bestSellers.length > 0 && (
+                <section className="mt-32">
+                  <div className="flex items-center justify-between mb-10">
+                    <div>
+                      <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">
+                        {t.dashboard.bestSellers}
+                      </h2>
+                      <div
+                        className="h-1.5 w-20 mt-2 rounded-lg"
+                        style={{ backgroundColor: primaryColor }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {bestSellers.map((p) => (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        store={store}
+                        t={t}
+                        addToBasket={addToBasket}
+                        onView={setSelectedProduct}
+                        primaryColor={primaryColor}
+                        isLuxury={isLuxury}
+                        sector={sector}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </main>
+          </>
+        ) : (
+          <main className="max-w-7xl mx-auto px-4 md:px-8 py-1.54">
+            {isProfileView && (
+              <div className="max-w-5xl mx-auto">
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-50">
+                  <div className="grid grid-cols-1 lg:grid-cols-3">
+                    {/* Profile Sidebar */}
+                    <div className="bg-gray-50 p-6 md:p-8 border-r border-gray-100">
+                      <div className="flex flex-col items-center text-center mb-10">
+                        <div className="w-24 h-24 bg-white rounded-xl shadow-xl flex items-center justify-center mb-6 border-4 border-white">
+                          <User className="w-10 h-10 text-gray-900" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900 tracking-tighter mb-1">
+                          {customerProfile?.name} {customerProfile?.surname}
+                        </h2>
+                        <p className="text-gray-400 text-xss font-bold tracking-wide">
+                          {customerProfile?.email}
+                        </p>
+                      </div>
+
+                      <nav className="space-y-2">
+                        <button
+                          onClick={() => {
+                            setIsEditingProfile(false);
+                            navigate(`/s/${slug}/profile`);
+                          }}
+                          className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isProfileView ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-white"}`}
+                        >
+                          <User className="w-5 h-5" />
+                          {lang === "tr" ? "Profil Bilgilerim" : "My Profile"}
+                        </button>
+                        <button
+                          onClick={() => navigate(`/s/${slug}/orders`)}
+                          className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isOrdersView ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-white"}`}
+                        >
+                          <ShoppingBag className="w-5 h-5" />
+                          {lang === "tr" ? "Siparişlerim" : "My Orders"}
+                        </button>
+                        <button
+                          onClick={() => navigate(`/s/${slug}/return`)}
+                          className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isReturnView ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-white"}`}
+                        >
+                          <RotateCcw className="w-5 h-5" />
+                          {lang === "tr"
+                            ? "İade Taleplerim"
+                            : "Return Requests"}
+                        </button>
+                        <div className="pt-8">
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm text-red-500 hover:bg-red-50 transition-all"
+                          >
+                            <LogOut className="w-5 h-5" />
+                            {lang === "tr" ? "Çıkış Yap" : "Logout"}
+                          </button>
+                        </div>
+                      </nav>
+                    </div>
+
+                    {/* Profile Content */}
+                    <div className="lg:col-span-2 p-6 md:p-16">
+                      <div className="flex items-center justify-between mb-12">
+                        <h3 className="text-3xl font-bold text-gray-900 tracking-tighter">
+                          {isEditingProfile
+                            ? lang === "tr"
+                              ? "Profili Düzenle"
+                              : "Edit Profile"
+                            : lang === "tr"
+                              ? "Hesap Detayları"
+                              : "Account Details"}
+                        </h3>
+                        {!isEditingProfile && (
+                          <button
+                            onClick={() => setIsEditingProfile(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold text-xss transition-all"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            {lang === "tr" ? "Düzenle" : "Edit"}
+                          </button>
+                        )}
+                      </div>
+
+                      {customerProfile ? (
+                        isEditingProfile ? (
+                          <form
+                            onSubmit={handleProfileUpdate}
+                            className="space-y-8"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  {lang === "tr" ? "ADINIZ" : "NAME"}
+                                </label>
+                                <input
+                                  required
+                                  type="text"
+                                  value={profileEditForm.name || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      name: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  {lang === "tr" ? "SOYADINIZ" : "SURNAME"}
+                                </label>
+                                <input
+                                  required
+                                  type="text"
+                                  value={profileEditForm.surname || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      surname: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  E-POSTA
+                                </label>
+                                <input
+                                  required
+                                  type="email"
+                                  value={profileEditForm.email || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      email: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  {t.dashboard.phone}
+                                </label>
+                                <input
+                                  required
+                                  type="tel"
+                                  value={profileEditForm.phone || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      phone: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  {lang === "tr" ? "ÜLKE" : "COUNTRY"}
+                                </label>
+                                <input
+                                  required
+                                  type="text"
+                                  value={profileEditForm.country || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      country: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  {lang === "tr" ? "İL" : "CITY"}
+                                </label>
+                                <input
+                                  required
+                                  type="text"
+                                  value={profileEditForm.city || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      city: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  {lang === "tr"
+                                    ? "T.C. KİMLİK NUMARASI"
+                                    : "TC ID"}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={profileEditForm.tc_id || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      tc_id: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2 flex flex-col justify-center">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1 mb-2">
+                                  {lang === "tr"
+                                    ? "HESAP TÜRÜ"
+                                    : "ACCOUNT TYPE"}
+                                </label>
+                                <div className="flex gap-4">
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name="edit_is_corporate"
+                                      checked={!profileEditForm.is_corporate}
+                                      onChange={() =>
+                                        setProfileEditForm((prev) => ({
+                                          ...prev,
+                                          is_corporate: false,
+                                        }))
+                                      }
+                                      className="w-4 h-4 text-primary focus:ring-primary"
+                                    />
+                                    <span className="text-sm font-bold text-gray-700">
+                                      {lang === "tr"
+                                        ? "Bireysel"
+                                        : "Individual"}
+                                    </span>
+                                  </label>
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name="edit_is_corporate"
+                                      checked={profileEditForm.is_corporate}
+                                      onChange={() =>
+                                        setProfileEditForm((prev) => ({
+                                          ...prev,
+                                          is_corporate: true,
+                                        }))
+                                      }
+                                      className="w-4 h-4 text-primary focus:ring-primary"
+                                    />
+                                    <span className="text-sm font-bold text-gray-700">
+                                      {lang === "tr" ? "Kurumsal" : "Corporate"}
+                                    </span>
+                                  </label>
+                                </div>
+                              </div>
+                              <div className="md:col-span-2 space-y-2">
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                                  {t.dashboard.address}
+                                </label>
+                                <textarea
+                                  required
+                                  value={profileEditForm.address || ""}
+                                  onChange={(e) =>
+                                    setProfileEditForm((prev) => ({
+                                      ...prev,
+                                      address: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900 resize-none"
+                                  rows={3}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex gap-4 pt-6">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditingProfile(false);
+                                  setProfileEditForm(customerProfile);
+                                }}
+                                className="flex-1 py-5 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-2xl font-semibold transition-all"
+                              >
+                                {lang === "tr" ? "İptal" : "Cancel"}
+                              </button>
+                              <button
+                                type="submit"
+                                className="flex-1 py-5 text-white rounded-2xl font-semibold transition-all shadow-xl active:scale-95"
+                                style={{
+                                  backgroundColor: primaryColor,
+                                  boxShadow: `0 10px 25px -5px ${primaryColor}40`,
+                                }}
+                              >
+                                {lang === "tr" ? "Kaydet" : "Save"}
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-8">
+                              <div>
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide mb-2 block">
+                                  Kişisel Bilgiler
+                                </label>
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                      <User className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xss text-gray-400 font-bold tracking-wide">
+                                        {lang === "tr"
+                                          ? "Ad Soyad"
+                                          : "Full Name"}
+                                      </p>
+                                      <p className="text-base font-semibold text-gray-900">
+                                        {customerProfile.name}{" "}
+                                        {customerProfile.surname}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                      <Mail className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xss text-gray-400 font-bold tracking-wide">
+                                        E-posta
+                                      </p>
+                                      <p className="text-base font-semibold text-gray-900">
+                                        {customerProfile.email}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                      <CreditCard className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xss text-gray-400 font-bold tracking-wide">
+                                        {lang === "tr"
+                                          ? "T.C. Kimlik No"
+                                          : "TC ID"}
+                                      </p>
+                                      <p className="text-base font-semibold text-gray-900">
+                                        {customerProfile.tc_id || "-"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                      <Building2 className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xss text-gray-400 font-bold tracking-wide">
+                                        {lang === "tr"
+                                          ? "Hesap Türü"
+                                          : "Account Type"}
+                                      </p>
+                                      <p className="text-base font-semibold text-gray-900">
+                                        {customerProfile.is_corporate
+                                          ? lang === "tr"
+                                            ? "Kurumsal"
+                                            : "Corporate"
+                                          : lang === "tr"
+                                            ? "Bireysel"
+                                            : "Individual"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-8">
+                              <div>
+                                <label className="text-[10px] font-semibold text-gray-400 tracking-wide mb-2 block">
+                                  Adres Bilgileri
+                                </label>
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                      <MapPin className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xss text-gray-400 font-bold tracking-wide">
+                                        {lang === "tr" ? "Konum" : "Location"}
+                                      </p>
+                                      <p className="text-base font-semibold text-gray-900">
+                                        {customerProfile.city},{" "}
+                                        {customerProfile.country}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 mt-1">
+                                      <Home className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xss text-gray-400 font-bold tracking-wide">
+                                        {lang === "tr"
+                                          ? "Tam Adres"
+                                          : "Full Address"}
+                                      </p>
+                                      <p className="text-base font-semibold text-gray-900 leading-tight">
+                                        {customerProfile.address}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      ) : (
+                        <div className="text-center py-16">
+                          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+                          <p className="text-gray-500 font-bold">
+                            {lang === "tr" ? "Yükleniyor..." : "Loading..."}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {isOrdersView && (
+              <div className="max-w-5xl mx-auto">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900 tracking-tighter">
+                    {lang === "tr" ? "Siparişlerim" : "My Orders"}
+                  </h2>
+                  <div className="px-4 py-1.5 bg-gray-100 rounded-lg text-[10px] font-semibold text-gray-500 tracking-wide">
+                    {orders.length} {lang === "tr" ? "SİPARİŞ" : "ORDERS"}
+                  </div>
+                </div>
+
+                {loadingOrders ? (
+                  <div className="bg-white rounded-lg p-20 text-center border border-gray-100">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-gray-500 font-bold">
+                      {lang === "tr"
+                        ? "Siparişler yükleniyor..."
+                        : "Loading orders..."}
+                    </p>
+                  </div>
+                ) : orders.length > 0 ? (
+                  <div className="grid gap-4">
+                    {orders.map((order) => (
+                      <motion.div
+                        key={order.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="group bg-white rounded-2xl border border-gray-100 hover:border-primary/20 transition-all shadow-sm hover:shadow-xl overflow-hidden"
+                      >
+                        <div className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                          <div className="flex items-center gap-6">
+                            <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                              <ShoppingBag className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
+                                  #{order.id}
+                                </span>
+                                <span className="w-1 h-1 rounded-lg bg-gray-300"></span>
+                                <span className="text-[10px] font-bold text-gray-500">
+                                  {new Date(
+                                    order.created_at,
+                                  ).toLocaleDateString(
+                                    lang === "tr" ? "tr-TR" : "en-US",
+                                  )}
+                                </span>
+                              </div>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {order.items_count || order.items?.length || 1}{" "}
+                                {lang === "tr" ? "Ürün" : "Items"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center flex-wrap gap-4 md:gap-8">
+                            <div className="hidden sm:block">
+                              <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1">
+                                {lang === "tr" ? "ÖDEME" : "PAYMENT"}
+                              </p>
+                              <p className="text-xss font-bold text-gray-600 flex items-center gap-1.5">
+                                <CreditCard className="w-3 h-3" />
+                                {order.payment_method === "iyzico"
+                                  ? "iyzico"
+                                  : order.payment_method === "bank_transfer"
+                                    ? lang === "tr"
+                                      ? "Havale"
+                                      : "Transfer"
+                                    : order.payment_method ===
+                                        "cash_on_delivery"
+                                      ? lang === "tr"
+                                        ? "Kapıda"
+                                        : "COD"
+                                      : order.payment_method}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1">
+                                {lang === "tr" ? "TUTAR" : "TOTAL"}
+                              </p>
+                              <p className="text-sm font-semibold text-primary">
+                                {order.total_amount?.toLocaleString(
+                                  lang === "tr" ? "tr-TR" : "en-US",
+                                  { minimumFractionDigits: 2 },
+                                )}{" "}
+                                {order.currency}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1 text-right">
+                                {lang === "tr" ? "DURUM" : "STATUS"}
+                              </p>
+                              <span
+                                className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-semibold tracking-wide border transition-colors ${
+                                  order.status === "completed" ||
+                                  order.status === "delivered"
+                                    ? "bg-green-50 text-green-600 border-green-100"
+                                    : order.status === "shipped" ||
+                                        order.status === "processing"
+                                      ? "bg-blue-50 text-blue-600 border-blue-100"
+                                      : order.status === "cancelled" ||
+                                          order.status === "returned"
+                                        ? "bg-red-50 text-red-600 border-red-100"
+                                        : "bg-orange-50 text-orange-600 border-orange-100"
+                                }`}
+                              >
+                                {order.status === "pending"
+                                  ? lang === "tr"
+                                    ? "Bekliyor"
+                                    : "Pending"
+                                  : order.status === "processing"
+                                    ? lang === "tr"
+                                      ? "Hazırlanıyor"
+                                      : "Preparing"
+                                    : order.status === "shipped"
+                                      ? lang === "tr"
+                                        ? "Kargoda"
+                                        : "Shipped"
+                                      : order.status === "delivered"
+                                        ? lang === "tr"
+                                          ? "Teslim Edildi"
+                                          : "Delivered"
+                                        : order.status === "completed"
+                                          ? lang === "tr"
+                                            ? "Tamamlandı"
+                                            : "Completed"
+                                          : order.status === "cancelled"
+                                            ? lang === "tr"
+                                              ? "İptal Edildi"
+                                              : "Cancelled"
+                                            : order.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Notes Section */}
+                        {order.notes && (
+                          <div className="px-4 py-2 bg-blue-50/30 border-t border-gray-100 italic text-xss text-gray-500">
+                            {lang === "tr" ? "Not: " : "Note: "}
+                            {order.notes}
+                          </div>
+                        )}
+
+                        {/* Shipping Info */}
+                        {(order.tracking_number || order.shipping_carrier) && (
+                          <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-400">
+                                <Truck className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-semibold text-gray-400 tracking-wide">
+                                  {lang === "tr"
+                                    ? "KARGO BİLGİSİ"
+                                    : "SHIPPING INFO"}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xss font-semibold text-gray-700">
+                                    {order.shipping_carrier ||
+                                      (lang === "tr"
+                                        ? "Standart Kargo"
+                                        : "Standard Shipping")}
+                                  </span>
+                                  {order.tracking_number && (
+                                    <>
+                                      <span className="w-1 h-1 rounded-lg bg-gray-300"></span>
+                                      <span className="text-xss font-mono font-bold text-primary select-all">
+                                        {order.tracking_number}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            {order.tracking_number && (
+                              <a
+                                href={`#`} // You can add logic for carrier specific tracking URLs if needed
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  // Most Turkish carriers have a tracking query page
+                                  const carrier =
+                                    order.shipping_carrier?.toLowerCase();
+                                  let url = "";
+                                  if (carrier?.includes("aras"))
+                                    url = `https://www.araskargo.com.tr/takipp-detay?kargo_no=${order.tracking_number}`;
+                                  else if (carrier?.includes("yurtiçi"))
+                                    url = `https://www.yurticikargo.com/tr/online-servisler/gonderi-sorgula?code=${order.tracking_number}`;
+                                  else if (carrier?.includes("mng"))
+                                    url = `https://www.mngkargo.com.tr/gonderitakip/${order.tracking_number}`;
+                                  else if (carrier?.includes("ptt"))
+                                    url = `https://gonderitakip.ptt.gov.tr/Track/Verify?id=${order.tracking_number}`;
+                                  else if (carrier?.includes("ups"))
+                                    url = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
+
+                                  if (url) window.open(url, "_blank");
+                                }}
+                                className="px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-semibold text-gray-600 hover:border-primary hover:text-primary transition-all flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                {lang === "tr"
+                                  ? "KARGO TAKİP"
+                                  : "TRACK SHIPPING"}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg p-20 text-center border border-gray-100">
+                    <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-6">
+                      <ShoppingBag className="w-10 h-10 text-gray-200" />
+                    </div>
+                    <p className="text-gray-400 font-bold">
+                      {lang === "tr"
+                        ? "Henüz bir siparişiniz bulunmuyor."
+                        : "You don't have any orders yet."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            {isReturnView && (
+              <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-8 border border-gray-100">
+                <h2 className="text-3xl font-semibold text-gray-900 mb-8">
+                  {lang === "tr" ? "İade Taleplerim" : "My Return Requests"}
+                </h2>
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-6">
+                    <RotateCcw className="w-10 h-10 text-gray-300" />
+                  </div>
+                  <p className="text-gray-400 font-bold">
+                    {lang === "tr"
+                      ? "Aktif bir iade veya değişim talebiniz bulunmuyor."
+                      : "You don't have any active return or exchange requests."}
                   </p>
                 </div>
-              )
+              </div>
             )}
-          </div>
-        </div>
-
-        {/* New Arrivals Section */}
-        {!selectedCategory && !searchQuery && newArrivals.length > 0 && (
-          <section className="mt-32">
-            <div className="flex items-center justify-between mb-10">
-              <div>
-                <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">{t.dashboard.newArrivals}</h2>
-                <div className="h-1.5 w-20 mt-2 rounded-lg" style={{ backgroundColor: primaryColor }}></div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {newArrivals.map(p => (
-                <ProductCard 
-                  key={p.id} 
-                  product={p} 
-                  store={store} 
-                  t={t} 
-                  addToBasket={addToBasket} 
-                  onView={setSelectedProduct} 
-                  primaryColor={primaryColor} 
-                  isLuxury={isLuxury}
-                  sector={sector}
-                />
-              ))}
-            </div>
-          </section>
+          </main>
         )}
 
-        {/* Best Sellers Section */}
-        {!selectedCategory && !searchQuery && bestSellers.length > 0 && (
-          <section className="mt-32">
-            <div className="flex items-center justify-between mb-10">
-              <div>
-                <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">{t.dashboard.bestSellers}</h2>
-                <div className="h-1.5 w-20 mt-2 rounded-lg" style={{ backgroundColor: primaryColor }}></div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {bestSellers.map(p => (
-                <ProductCard 
-                  key={p.id} 
-                  product={p} 
-                  store={store} 
-                  t={t} 
-                  addToBasket={addToBasket} 
-                  onView={setSelectedProduct} 
-                  primaryColor={primaryColor} 
-                  isLuxury={isLuxury}
-                  sector={sector}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-      </main>
-      </>
-      ) : (
-        <main className="max-w-7xl mx-auto px-4 md:px-8 py-1.54">
-          {isProfileView && (
-            <div className="max-w-5xl mx-auto">
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-50">
-                <div className="grid grid-cols-1 lg:grid-cols-3">
-                  {/* Profile Sidebar */}
-                  <div className="bg-gray-50 p-6 md:p-8 border-r border-gray-100">
-                    <div className="flex flex-col items-center text-center mb-10">
-                      <div className="w-24 h-24 bg-white rounded-xl shadow-xl flex items-center justify-center mb-6 border-4 border-white">
-                        <User className="w-10 h-10 text-gray-900" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-gray-900 tracking-tighter mb-1">
-                        {customerProfile?.name} {customerProfile?.surname}
-                      </h2>
-                      <p className="text-gray-400 text-xss font-bold tracking-wide">{customerProfile?.email}</p>
-                    </div>
-
-                    <nav className="space-y-2">
-                      <button 
-                        onClick={() => { setIsEditingProfile(false); navigate(`/s/${slug}/profile`); }}
-                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isProfileView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
-                      >
-                        <User className="w-5 h-5" />
-                        {lang === 'tr' ? 'Profil Bilgilerim' : 'My Profile'}
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/s/${slug}/orders`)}
-                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isOrdersView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
-                      >
-                        <ShoppingBag className="w-5 h-5" />
-                        {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/s/${slug}/return`)}
-                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isReturnView ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-500 hover:bg-white'}`}
-                      >
-                        <RotateCcw className="w-5 h-5" />
-                        {lang === 'tr' ? 'İade Taleplerim' : 'Return Requests'}
-                      </button>
-                      <div className="pt-8">
-                        <button 
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm text-red-500 hover:bg-red-50 transition-all"
-                        >
-                          <LogOut className="w-5 h-5" />
-                          {lang === 'tr' ? 'Çıkış Yap' : 'Logout'}
-                        </button>
-                      </div>
-                    </nav>
-                  </div>
-
-                  {/* Profile Content */}
-                  <div className="lg:col-span-2 p-6 md:p-16">
-                    <div className="flex items-center justify-between mb-12">
-                      <h3 className="text-3xl font-bold text-gray-900 tracking-tighter">
-                        {isEditingProfile ? (lang === 'tr' ? 'Profili Düzenle' : 'Edit Profile') : (lang === 'tr' ? 'Hesap Detayları' : 'Account Details')}
-                      </h3>
-                      {!isEditingProfile && (
-                        <button 
-                          onClick={() => setIsEditingProfile(true)}
-                          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold text-xss transition-all"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          {lang === 'tr' ? 'Düzenle' : 'Edit'}
-                        </button>
-                      )}
-                    </div>
-
-                    {customerProfile ? (
-                      isEditingProfile ? (
-                        <form onSubmit={handleProfileUpdate} className="space-y-8">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
-                              <input 
-                                required
-                                type="text"
-                                value={profileEditForm.name || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, name: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
-                              <input 
-                                required
-                                type="text"
-                                value={profileEditForm.surname || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, surname: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">E-POSTA</label>
-                              <input 
-                                required
-                                type="email"
-                                value={profileEditForm.email || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, email: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.phone}</label>
-                              <input 
-                                required
-                                type="tel"
-                                value={profileEditForm.phone || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
-                              <input 
-                                required
-                                type="text"
-                                value={profileEditForm.country || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, country: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
-                              <input 
-                                required
-                                type="text"
-                                value={profileEditForm.city || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, city: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
-                              <input 
-                                type="text"
-                                value={profileEditForm.tc_id || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, tc_id: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900"
-                              />
-                            </div>
-                            <div className="space-y-2 flex flex-col justify-center">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
-                              <div className="flex gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input 
-                                    type="radio" 
-                                    name="edit_is_corporate" 
-                                    checked={!profileEditForm.is_corporate} 
-                                    onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: false }))}
-                                    className="w-4 h-4 text-primary focus:ring-primary"
-                                  />
-                                  <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input 
-                                    type="radio" 
-                                    name="edit_is_corporate" 
-                                    checked={profileEditForm.is_corporate} 
-                                    onChange={() => setProfileEditForm(prev => ({ ...prev, is_corporate: true }))}
-                                    className="w-4 h-4 text-primary focus:ring-primary"
-                                  />
-                                  <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
-                                </label>
-                              </div>
-                            </div>
-                            <div className="md:col-span-2 space-y-2">
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.address}</label>
-                              <textarea 
-                                required
-                                value={profileEditForm.address || ''}
-                                onChange={(e) => setProfileEditForm(prev => ({ ...prev, address: e.target.value }))}
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-gray-100 rounded-2xl transition-all outline-none font-bold text-gray-900 resize-none"
-                                rows={3}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex gap-4 pt-6">
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setIsEditingProfile(false);
-                                setProfileEditForm(customerProfile);
-                              }}
-                              className="flex-1 py-5 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-2xl font-semibold transition-all"
-                            >
-                              {lang === 'tr' ? 'İptal' : 'Cancel'}
-                            </button>
-                            <button 
-                              type="submit"
-                              className="flex-1 py-5 text-white rounded-2xl font-semibold transition-all shadow-xl active:scale-95"
-                              style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
-                            >
-                              {lang === 'tr' ? 'Kaydet' : 'Save'}
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div className="space-y-8">
-                            <div>
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide mb-2 block">Kişisel Bilgiler</label>
-                              <div className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                                    <User className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Ad Soyad' : 'Full Name'}</p>
-                                    <p className="text-base font-semibold text-gray-900">{customerProfile.name} {customerProfile.surname}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                                    <Mail className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xss text-gray-400 font-bold tracking-wide">E-posta</p>
-                                    <p className="text-base font-semibold text-gray-900">{customerProfile.email}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                                    <CreditCard className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'T.C. Kimlik No' : 'TC ID'}</p>
-                                    <p className="text-base font-semibold text-gray-900">{customerProfile.tc_id || '-'}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                                    <Building2 className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Hesap Türü' : 'Account Type'}</p>
-                                    <p className="text-base font-semibold text-gray-900">{customerProfile.is_corporate ? (lang === 'tr' ? 'Kurumsal' : 'Corporate') : (lang === 'tr' ? 'Bireysel' : 'Individual')}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-8">
-                            <div>
-                              <label className="text-[10px] font-semibold text-gray-400 tracking-wide mb-2 block">Adres Bilgileri</label>
-                              <div className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                                    <MapPin className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Konum' : 'Location'}</p>
-                                    <p className="text-base font-semibold text-gray-900">{customerProfile.city}, {customerProfile.country}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-start gap-4">
-                                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 mt-1">
-                                    <Home className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xss text-gray-400 font-bold tracking-wide">{lang === 'tr' ? 'Tam Adres' : 'Full Address'}</p>
-                                    <p className="text-base font-semibold text-gray-900 leading-tight">{customerProfile.address}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    ) : (
-                      <div className="text-center py-16">
-                        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-                        <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          {isOrdersView && (
-            <div className="max-w-5xl mx-auto">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 tracking-tighter">
-                  {lang === 'tr' ? 'Siparişlerim' : 'My Orders'}
-                </h2>
-                <div className="px-4 py-1.5 bg-gray-100 rounded-lg text-[10px] font-semibold text-gray-500 tracking-wide">
-                  {orders.length} {lang === 'tr' ? 'SİPARİŞ' : 'ORDERS'}
-                </div>
-              </div>
-              
-              {loadingOrders ? (
-                <div className="bg-white rounded-lg p-20 text-center border border-gray-100">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-gray-500 font-bold">{lang === 'tr' ? 'Siparişler yükleniyor...' : 'Loading orders...'}</p>
-                </div>
-              ) : orders.length > 0 ? (
-                <div className="grid gap-4">
-                  {orders.map((order) => (
-                    <motion.div 
-                      key={order.id} 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="group bg-white rounded-2xl border border-gray-100 hover:border-primary/20 transition-all shadow-sm hover:shadow-xl overflow-hidden"
-                    >
-                      <div className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-6">
-                          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
-                            <ShoppingBag className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] font-semibold text-gray-400 tracking-wide">#{order.id}</span>
-                              <span className="w-1 h-1 rounded-lg bg-gray-300"></span>
-                              <span className="text-[10px] font-bold text-gray-500">{new Date(order.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</span>
-                            </div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {order.items_count || (order.items?.length || 1)} {lang === 'tr' ? 'Ürün' : 'Items'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center flex-wrap gap-4 md:gap-8">
-                          <div className="hidden sm:block">
-                            <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1">{lang === 'tr' ? 'ÖDEME' : 'PAYMENT'}</p>
-                            <p className="text-xss font-bold text-gray-600 flex items-center gap-1.5">
-                              <CreditCard className="w-3 h-3" />
-                              {order.payment_method === 'iyzico' ? 'iyzico' : 
-                               order.payment_method === 'bank_transfer' ? (lang === 'tr' ? 'Havale' : 'Transfer') :
-                               order.payment_method === 'cash_on_delivery' ? (lang === 'tr' ? 'Kapıda' : 'COD') : order.payment_method}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1">{lang === 'tr' ? 'TUTAR' : 'TOTAL'}</p>
-                            <p className="text-sm font-semibold text-primary">
-                              {order.total_amount?.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {order.currency}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] font-semibold text-gray-400 tracking-wide mb-1 text-right">{lang === 'tr' ? 'DURUM' : 'STATUS'}</p>
-                            <span className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-semibold tracking-wide border transition-colors ${
-                              order.status === 'completed' || order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
-                              order.status === 'shipped' || order.status === 'processing' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                              order.status === 'cancelled' || order.status === 'returned' ? 'bg-red-50 text-red-600 border-red-100' :
-                              'bg-orange-50 text-orange-600 border-orange-100'
-                            }`}>
-                              {order.status === 'pending' ? (lang === 'tr' ? 'Bekliyor' : 'Pending') :
-                               order.status === 'processing' ? (lang === 'tr' ? 'Hazırlanıyor' : 'Preparing') :
-                               order.status === 'shipped' ? (lang === 'tr' ? 'Kargoda' : 'Shipped') :
-                               order.status === 'delivered' ? (lang === 'tr' ? 'Teslim Edildi' : 'Delivered') :
-                               order.status === 'completed' ? (lang === 'tr' ? 'Tamamlandı' : 'Completed') :
-                               order.status === 'cancelled' ? (lang === 'tr' ? 'İptal Edildi' : 'Cancelled') : order.status}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Notes Section */}
-                      {order.notes && (
-                        <div className="px-4 py-2 bg-blue-50/30 border-t border-gray-100 italic text-xss text-gray-500">
-                          {lang === 'tr' ? 'Not: ' : 'Note: '}{order.notes}
-                        </div>
-                      )}
-                      
-                      {/* Shipping Info */}
-                      {(order.tracking_number || order.shipping_carrier) && (
-                        <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-400">
-                              <Truck className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <p className="text-[9px] font-semibold text-gray-400 tracking-wide">{lang === 'tr' ? 'KARGO BİLGİSİ' : 'SHIPPING INFO'}</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xss font-semibold text-gray-700">{order.shipping_carrier || (lang === 'tr' ? 'Standart Kargo' : 'Standard Shipping')}</span>
-                                {order.tracking_number && (
-                                  <>
-                                    <span className="w-1 h-1 rounded-lg bg-gray-300"></span>
-                                    <span className="text-xss font-mono font-bold text-primary select-all">{order.tracking_number}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {order.tracking_number && (
-                            <a 
-                              href={`#`} // You can add logic for carrier specific tracking URLs if needed
-                              onClick={(e) => {
-                                e.preventDefault();
-                                // Most Turkish carriers have a tracking query page
-                                const carrier = order.shipping_carrier?.toLowerCase();
-                                let url = '';
-                                if (carrier?.includes('aras')) url = `https://www.araskargo.com.tr/takipp-detay?kargo_no=${order.tracking_number}`;
-                                else if (carrier?.includes('yurtiçi')) url = `https://www.yurticikargo.com/tr/online-servisler/gonderi-sorgula?code=${order.tracking_number}`;
-                                else if (carrier?.includes('mng')) url = `https://www.mngkargo.com.tr/gonderitakip/${order.tracking_number}`;
-                                else if (carrier?.includes('ptt')) url = `https://gonderitakip.ptt.gov.tr/Track/Verify?id=${order.tracking_number}`;
-                                else if (carrier?.includes('ups')) url = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
-                                
-                                if (url) window.open(url, '_blank');
-                              }}
-                              className="px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-semibold text-gray-600 hover:border-primary hover:text-primary transition-all flex items-center gap-2"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              {lang === 'tr' ? 'KARGO TAKİP' : 'TRACK SHIPPING'}
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white rounded-lg p-20 text-center border border-gray-100">
-                  <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-6">
-                    <ShoppingBag className="w-10 h-10 text-gray-200" />
-                  </div>
-                  <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Henüz bir siparişiniz bulunmuyor.' : 'You don\'t have any orders yet.'}</p>
-                </div>
-              )}
-            </div>
-          )}
-          {isReturnView && (
-            <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-8 border border-gray-100">
-              <h2 className="text-3xl font-semibold text-gray-900 mb-8">{lang === 'tr' ? 'İade Taleplerim' : 'My Return Requests'}</h2>
-              <div className="text-center py-16">
-                <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-6">
-                  <RotateCcw className="w-10 h-10 text-gray-300" />
-                </div>
-                <p className="text-gray-400 font-bold">{lang === 'tr' ? 'Aktif bir iade veya değişim talebiniz bulunmuyor.' : 'You don\'t have any active return or exchange requests.'}</p>
-              </div>
-            </div>
-          )}
-        </main>
-      )}
-
-      {/* Mobile Filters Modal */}
-      <AnimatePresence>
-        {showMobileFilters && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowMobileFilters(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white rounded-t-[3rem] z-[101] overflow-hidden flex flex-col shadow-lg"
-            >
-              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                <div>
-                  <h3 className="text-2xl font-semibold text-gray-900 tracking-tighter">Filtrele</h3>
-                  <p className="text-xss text-gray-400 font-bold tracking-wide">{products.length} Ürün Mevcut</p>
-                </div>
-                <button 
-                  onClick={() => setShowMobileFilters(false)}
-                  className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-10">
-                {/* Mobile Subcategories */}
-                {selectedCategory && categories.get(selectedCategory)!.size > 0 && (
+        {/* Mobile Filters Modal */}
+        <AnimatePresence>
+          {showMobileFilters && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowMobileFilters(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+              />
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white rounded-t-[3rem] z-[101] overflow-hidden flex flex-col shadow-lg"
+              >
+                <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
                   <div>
-                    <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-4">{t.dashboard.subCategories || 'ALT KATEGORİLER'}</h4>
-                    <div className="flex flex-wrap gap-2">
-                        <button
+                    <h3 className="text-2xl font-semibold text-gray-900 tracking-tighter">
+                      Filtrele
+                    </h3>
+                    <p className="text-xss text-gray-400 font-bold tracking-wide">
+                      {products.length} Ürün Mevcut
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowMobileFilters(false)}
+                    className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-10">
+                  {/* Mobile Subcategories */}
+                  {selectedCategory &&
+                    categories.get(selectedCategory)!.size > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-4">
+                          {t.dashboard.subCategories || "ALT KATEGORİLER"}
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          <button
                             onClick={() => setSelectedSubCategory(null)}
                             className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
-                                !selectedSubCategory ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
+                              !selectedSubCategory
+                                ? "bg-primary text-white border-primary shadow-lg"
+                                : "bg-white text-gray-500 border-gray-100"
                             }`}
-                        >
+                          >
                             Hepsi
-                        </button>
-                        {Array.from(categories.get(selectedCategory)!).sort().map(sub => (
-                            <button
+                          </button>
+                          {Array.from(categories.get(selectedCategory)!)
+                            .sort()
+                            .map((sub) => (
+                              <button
                                 key={sub}
                                 onClick={() => setSelectedSubCategory(sub)}
                                 className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
-                                    selectedSubCategory === sub ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
+                                  selectedSubCategory === sub
+                                    ? "bg-primary text-white border-primary shadow-lg"
+                                    : "bg-white text-gray-500 border-gray-100"
                                 }`}
-                            >
+                              >
                                 {sub}
-                            </button>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Brands */}
+                  <div>
+                    <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-4">
+                      {brandsLabel}
+                    </h4>
+                    <div className="relative mb-4">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder={
+                          lang === "tr"
+                            ? `${brandLabel} Ara...`
+                            : `Search ${brandLabel}...`
+                        }
+                        value={brandSearch}
+                        onChange={(e) => setBrandSearch(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setSelectedBrand(null)}
+                        className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
+                          !selectedBrand
+                            ? "bg-primary text-white border-primary shadow-lg"
+                            : "bg-white text-gray-500 border-gray-100"
+                        }`}
+                      >
+                        {lang === "tr" ? "Hepsi" : "All"}
+                      </button>
+                      {brands
+                        .filter((brand) =>
+                          brand
+                            .toLowerCase()
+                            .includes(brandSearch.toLowerCase()),
+                        )
+                        .map((brand) => (
+                          <button
+                            key={brand}
+                            onClick={() => setSelectedBrand(brand)}
+                            className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
+                              selectedBrand === brand
+                                ? "bg-primary text-white border-primary shadow-lg"
+                                : "bg-white text-gray-500 border-gray-100"
+                            }`}
+                          >
+                            {brand}
+                          </button>
                         ))}
                     </div>
                   </div>
-                )}
-
-                {/* Brands */}
-                <div>
-                  <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400 mb-4">{brandsLabel}</h4>
-                  <div className="relative mb-4">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder={lang === 'tr' ? `${brandLabel} Ara...` : `Search ${brandLabel}...`}
-                      value={brandSearch}
-                      onChange={(e) => setBrandSearch(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={() => setSelectedBrand(null)}
-                        className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
-                            !selectedBrand ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
-                        }`}
-                    >
-                        {lang === 'tr' ? 'Hepsi' : 'All'}
-                    </button>
-                    {brands
-                      .filter(brand => brand.toLowerCase().includes(brandSearch.toLowerCase()))
-                      .map(brand => (
-                        <button
-                          key={brand}
-                          onClick={() => setSelectedBrand(brand)}
-                          className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
-                            selectedBrand === brand ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-gray-500 border-gray-100"
-                          }`}
-                        >
-                          {brand}
-                        </button>
-                      ))}
-                  </div>
                 </div>
-              </div>
 
-              <div className="p-8 bg-gray-50">
-                <button 
-                  onClick={() => setShowMobileFilters(false)}
-                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-semibold text-lg shadow-xl shadow-gray-900/20 active:scale-95 transition-all"
-                >
-                  Sonuçları Gör
-                </button>
-                <button 
-                  onClick={() => {
-                    setSelectedCategory(null);
-                    setSelectedSubCategory(null);
-                    setSelectedBrand(null);
-                    setShowMobileFilters(false);
-                  }}
-                  className="w-full mt-4 py-1.5 text-gray-400 text-xss font-bold hover:text-gray-600 transition-all"
-                >
-                  Filtreleri Temizle
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Newsletter Section */}
-      {layoutSettings.show_newsletter && (
-      <section className="bg-white py-1.54 px-4 md:px-8 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-gray-900 rounded-[4rem] p-6 md:p-24 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-600/30 via-indigo-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/20 rounded-lg blur-[100px]" />
-            
-            <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
-              <div className="max-w-xl text-center lg:text-left">
-                <h2 className="text-4xl md:text-7xl font-bold text-white tracking-tighter mb-8 leading-[0.9]">
-                  {lang === 'tr' ? 'Fırsatları Kaçırmayın' : 'Never Miss a Deal'}
-                </h2>
-                <p className="text-white/60 font-medium text-xsl md:text-2xl leading-relaxed">
-                  {lang === 'tr' ? 'Yeni ürünler ve özel indirimlerden ilk siz haberdar olun. Hemen abone olun!' : 'Be the first to know about new products and special discounts. Subscribe now!'}
-                </p>
-              </div>
-
-              <div className="w-full max-w-md">
-                <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-                  <div className="relative">
-                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input 
-                      type="email" 
-                      placeholder={lang === 'tr' ? 'E-posta adresiniz' : 'Your email address'}
-                      className="w-full pl-16 pr-6 py-4 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-500 font-bold focus:bg-white/20 focus:border-white/30 transition-all outline-none text-lg"
-                    />
-                  </div>
-                  <button className="w-full py-4 bg-white text-gray-900 rounded-lg font-semibold text-lg tracking-wide hover:bg-blue-50 hover:scale-[0.98] transition-all shadow-lg shadow-black/20">
-                    {lang === 'tr' ? 'ABONE OL VE KEŞFET' : 'SUBSCRIBE & DISCOVER'}
+                <div className="p-8 bg-gray-50">
+                  <button
+                    onClick={() => setShowMobileFilters(false)}
+                    className="w-full py-4 bg-gray-900 text-white rounded-2xl font-semibold text-lg shadow-xl shadow-gray-900/20 active:scale-95 transition-all"
+                  >
+                    Sonuçları Gör
                   </button>
-                </form>
-                <div className="flex items-center justify-center lg:justify-start gap-4 mt-8 opacity-40">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-3 h-3 text-white" />
-                    <span className="text-[10px] text-white font-semibold tracking-wide">KVKK GÜVENLİ</span>
+                  <button
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      setSelectedSubCategory(null);
+                      setSelectedBrand(null);
+                      setShowMobileFilters(false);
+                    }}
+                    className="w-full mt-4 py-1.5 text-gray-400 text-xss font-bold hover:text-gray-600 transition-all"
+                  >
+                    Filtreleri Temizle
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Newsletter Section */}
+        {layoutSettings.show_newsletter && (
+          <section className="bg-white py-1.54 px-4 md:px-8 border-t border-gray-100">
+            <div className="max-w-7xl mx-auto">
+              <div className="bg-gray-900 rounded-[4rem] p-6 md:p-24 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-600/30 via-indigo-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/20 rounded-lg blur-[100px]" />
+
+                <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
+                  <div className="max-w-xl text-center lg:text-left">
+                    <h2 className="text-4xl md:text-7xl font-bold text-white tracking-tighter mb-8 leading-[0.9]">
+                      {lang === "tr"
+                        ? "Fırsatları Kaçırmayın"
+                        : "Never Miss a Deal"}
+                    </h2>
+                    <p className="text-white/60 font-medium text-xsl md:text-2xl leading-relaxed">
+                      {lang === "tr"
+                        ? "Yeni ürünler ve özel indirimlerden ilk siz haberdar olun. Hemen abone olun!"
+                        : "Be the first to know about new products and special discounts. Subscribe now!"}
+                    </p>
                   </div>
-                  <div className="w-1 h-1 rounded-lg bg-white/20" />
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-3 h-3 text-white" />
-                    <span className="text-[10px] text-white font-semibold tracking-wide">SSL KORUMALI</span>
+
+                  <div className="w-full max-w-md">
+                    <form
+                      className="space-y-4"
+                      onSubmit={(e) => e.preventDefault()}
+                    >
+                      <div className="relative">
+                        <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                        <input
+                          type="email"
+                          placeholder={
+                            lang === "tr"
+                              ? "E-posta adresiniz"
+                              : "Your email address"
+                          }
+                          className="w-full pl-16 pr-6 py-4 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-500 font-bold focus:bg-white/20 focus:border-white/30 transition-all outline-none text-lg"
+                        />
+                      </div>
+                      <button className="w-full py-4 bg-white text-gray-900 rounded-lg font-semibold text-lg tracking-wide hover:bg-blue-50 hover:scale-[0.98] transition-all shadow-lg shadow-black/20">
+                        {lang === "tr"
+                          ? "ABONE OL VE KEŞFET"
+                          : "SUBSCRIBE & DISCOVER"}
+                      </button>
+                    </form>
+                    <div className="flex items-center justify-center lg:justify-start gap-4 mt-8 opacity-40">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-3 h-3 text-white" />
+                        <span className="text-[10px] text-white font-semibold tracking-wide">
+                          KVKK GÜVENLİ
+                        </span>
+                      </div>
+                      <div className="w-1 h-1 rounded-lg bg-white/20" />
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-3 h-3 text-white" />
+                        <span className="text-[10px] text-white font-semibold tracking-wide">
+                          SSL KORUMALI
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-      )}
+          </section>
+        )}
 
-      {/* Footer */}
-      <footer className="bg-black pt-32 pb-12 overflow-hidden relative">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-        
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-4 mb-8">
-                {store?.logo_url ? (
-                  <img src={store.logo_url} alt={store.name} className="h-12 w-auto object-contain" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white bg-blue-600 shadow-xl shadow-blue-500/20">
-                    <ShoppingBag className="w-6 h-6" />
-                  </div>
-                )}
-                <span className="text-3xl font-bold tracking-tighter text-white">{store?.name}</span>
+        {/* Footer */}
+        <footer className="bg-black pt-32 pb-12 overflow-hidden relative">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+
+          <div className="max-w-7xl mx-auto px-4 md:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
+              <div className="col-span-1 md:col-span-2">
+                <div className="flex items-center gap-4 mb-8">
+                  {store?.logo_url ? (
+                    <img
+                      src={store.logo_url}
+                      alt={store.name}
+                      className="h-12 w-auto object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white bg-blue-600 shadow-xl shadow-blue-500/20">
+                      <ShoppingBag className="w-6 h-6" />
+                    </div>
+                  )}
+                  <span className="text-3xl font-bold tracking-tighter text-white">
+                    {store?.name}
+                  </span>
+                </div>
+                <p className="text-gray-500 text-lg font-medium max-w-md leading-relaxed mb-10">
+                  {store?.description ||
+                    (store?.store_type === "portfolio"
+                      ? lang === "tr"
+                        ? "En seçkin gayrimenkul ve araç ilanlarını en avantajlı fırsatlarla sizlere sunuyoruz. Müşteri memnuniyeti önceliğimizdir."
+                        : "We provide the most exclusive real estate and vehicle listings with premium opportunities. Customer satisfaction is our priority."
+                      : lang === "tr"
+                        ? "En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir."
+                        : "We offer you the highest quality products at the most affordable prices. Customer satisfaction is always our priority.")}
+                </p>
+
+                <div className="flex items-center gap-4">
+                  {[
+                    {
+                      id: "instagram_url",
+                      icon: Instagram,
+                      color: "hover:text-xsink-500",
+                      bg: "hover:bg-pink-500/10",
+                    },
+                    {
+                      id: "facebook_url",
+                      icon: Facebook,
+                      color: "hover:text-blue-500",
+                      bg: "hover:bg-blue-500/10",
+                    },
+                    {
+                      id: "twitter_url",
+                      icon: Twitter,
+                      color: "hover:text-sky-400",
+                      bg: "hover:bg-sky-400/10",
+                    },
+                    {
+                      id: "whatsapp_number",
+                      icon: MessageCircle,
+                      color: "hover:text-green-500",
+                      bg: "hover:bg-green-500/10",
+                    },
+                  ].map((social) => {
+                    const url = store?.[social.id as keyof StoreInfo];
+                    if (!url) return null;
+
+                    let href = String(url);
+                    if (social.id === "whatsapp_number") {
+                      href = `https://wa.me/${href.replace(/[^0-9]/g, "")}`;
+                    } else if (!href.startsWith("http")) {
+                      const base = social.id.split("_")[0];
+                      href = `https://${base}.com/${href}`;
+                    }
+
+                    return (
+                      <a
+                        key={social.id}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 transition-all duration-500 ${social.color} ${social.bg} hover:border-current hover:scale-110`}
+                      >
+                        <social.icon className="w-6 h-6" />
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
-              <p className="text-gray-500 text-lg font-medium max-w-md leading-relaxed mb-10">
-                {store?.description || (
-                  store?.store_type === 'portfolio'
-                    ? (lang === 'tr' ? 'En seçkin gayrimenkul ve araç ilanlarını en avantajlı fırsatlarla sizlere sunuyoruz. Müşteri memnuniyeti önceliğimizdir.' : 'We provide the most exclusive real estate and vehicle listings with premium opportunities. Customer satisfaction is our priority.')
-                    : (lang === 'tr' ? 'En kaliteli ürünleri en uygun fiyatlarla sizlere sunuyoruz. Müşteri memnuniyeti bizim için her zaman önceliklidir.' : 'We offer you the highest quality products at the most affordable prices. Customer satisfaction is always our priority.')
-                )}
-              </p>
-              
-              <div className="flex items-center gap-4">
-                {[
-                  { id: 'instagram_url', icon: Instagram, color: 'hover:text-xsink-500', bg: 'hover:bg-pink-500/10' },
-                  { id: 'facebook_url', icon: Facebook, color: 'hover:text-blue-500', bg: 'hover:bg-blue-500/10' },
-                  { id: 'twitter_url', icon: Twitter, color: 'hover:text-sky-400', bg: 'hover:bg-sky-400/10' },
-                  { id: 'whatsapp_number', icon: MessageCircle, color: 'hover:text-green-500', bg: 'hover:bg-green-500/10' }
-                ].map((social) => {
-                  const url = store?.[social.id as keyof StoreInfo];
-                  if (!url) return null;
-                  
-                  let href = String(url);
-                  if (social.id === 'whatsapp_number') {
-                    href = `https://wa.me/${href.replace(/[^0-9]/g, '')}`;
-                  } else if (!href.startsWith('http')) {
-                    const base = social.id.split('_')[0];
-                    href = `https://${base}.com/${href}`;
-                  }
 
-                  return (
-                    <a 
-                      key={social.id}
-                      href={href}
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={`w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 transition-all duration-500 ${social.color} ${social.bg} hover:border-current hover:scale-110`}
-                    >
-                      <social.icon className="w-6 h-6" />
-                    </a>
-                  );
-                })}
+              {/* Quick Links */}
+              <div>
+                <h4 className="text-xss font-semibold uppercase tracking-[0.3em] text-white/40 mb-8">
+                  {lang === "tr" ? "HIZLI ERİŞİM" : "QUICK LINKS"}
+                </h4>
+                <ul className="space-y-4">
+                  {store?.about_text && (
+                    <li>
+                      <button
+                        onClick={() => setShowAboutModal(true)}
+                        className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                        {lang === "tr" ? "Hakkımızda" : "About Us"}
+                      </button>
+                    </li>
+                  )}
+                  {store?.locations && store.locations.length > 0 && (
+                    <li>
+                      <button
+                        onClick={() => setShowStoreLocatorModal(true)}
+                        className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                        {lang === "tr" ? "Mağazalarımız" : "Our Stores"}
+                      </button>
+                    </li>
+                  )}
+                  {(store?.menu_links || []).map((link: any, index: number) => (
+                    <li key={index}>
+                      <a
+                        href={link.url}
+                        className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                  {/* Removed 'No menu links' message to avoid UX issues */}
+                </ul>
               </div>
-            </div>
 
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-xss font-semibold uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'HIZLI ERİŞİM' : 'QUICK LINKS'}</h4>
-              <ul className="space-y-4">
-                {store?.about_text && (
-                  <li>
-                    <button 
-                      onClick={() => setShowAboutModal(true)}
-                      className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
-                      {lang === 'tr' ? 'Hakkımızda' : 'About Us'}
-                    </button>
-                  </li>
-                )}
-                {store?.locations && store.locations.length > 0 && (
-                  <li>
-                    <button 
-                      onClick={() => setShowStoreLocatorModal(true)}
-                      className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
-                      {lang === 'tr' ? 'Mağazalarımız' : 'Our Stores'}
-                    </button>
-                  </li>
-                )}
-                {(store?.menu_links || []).map((link: any, index: number) => (
-                  <li key={index}>
-                    <a href={link.url} className="text-gray-500 hover:text-white text-sm font-bold transition-colors flex items-center gap-2 group">
-                      <div className="w-1.5 h-1.5 rounded-lg bg-blue-600 scale-0 group-hover:scale-100 transition-transform" />
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-                {/* Removed 'No menu links' message to avoid UX issues */}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-xss font-semibold uppercase tracking-[0.3em] text-white/40 mb-8">{lang === 'tr' ? 'İLETİŞİM' : 'CONTACT US'}</h4>
-              <ul className="space-y-6">
-                {(store?.emails && store.emails.some(e => e?.trim())) ? (
-                  store.emails.filter(e => e?.trim()).map((e, idx) => (
-                    <li key={`email-${idx}`} className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
+              <div>
+                <h4 className="text-xss font-semibold uppercase tracking-[0.3em] text-white/40 mb-8">
+                  {lang === "tr" ? "İLETİŞİM" : "CONTACT US"}
+                </h4>
+                <ul className="space-y-6">
+                  {store?.emails && store.emails.some((e) => e?.trim()) ? (
+                    store.emails
+                      .filter((e) => e?.trim())
+                      .map((e, idx) => (
+                        <li
+                          key={`email-${idx}`}
+                          className="flex items-center gap-4 text-gray-500 text-sm font-bold group"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-all">
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          {e}
+                        </li>
+                      ))
+                  ) : (
+                    <li className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
                       <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-all">
                         <Mail className="w-4 h-4" />
                       </div>
-                      {e}
+                      {store?.email || "destek@lookprice.net"}
                     </li>
-                  ))
-                ) : (
-                  <li className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-all">
-                      <Mail className="w-4 h-4" />
-                    </div>
-                    {store?.email || 'destek@lookprice.net'}
-                  </li>
-                )}
-                
-                {(store?.phones && store.phones.some(p => p?.trim())) ? (
-                  store.phones.filter(p => p?.trim()).map((p, idx) => (
-                    <li key={`phone-${idx}`} className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
-                       <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-green-600/10 group-hover:text-green-500 transition-all">
-                        <Phone className="w-4 h-4" />
-                      </div>
-                      {p}
-                    </li>
-                  ))
-                ) : (
-                  <li className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
-                     <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-green-600/10 group-hover:text-green-500 transition-all">
-                        <Phone className="w-4 h-4" />
-                      </div>
-                    {store?.phone || '+90 212 000 00 00'}
-                  </li>
-                )}
-              </ul>
-            </div>
-          </div>
+                  )}
 
-          {/* Bottom Footer */}
-          <div className="pt-12 border-t border-white/5">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="flex flex-wrap items-center justify-center gap-8 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
+                  {store?.phones && store.phones.some((p) => p?.trim()) ? (
+                    store.phones
+                      .filter((p) => p?.trim())
+                      .map((p, idx) => (
+                        <li
+                          key={`phone-${idx}`}
+                          className="flex items-center gap-4 text-gray-500 text-sm font-bold group"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-green-600/10 group-hover:text-green-500 transition-all">
+                            <Phone className="w-4 h-4" />
+                          </div>
+                          {p}
+                        </li>
+                      ))
+                  ) : (
+                    <li className="flex items-center gap-4 text-gray-500 text-sm font-bold group">
+                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-gray-600 group-hover:bg-green-600/10 group-hover:text-green-500 transition-all">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      {store?.phone || "+90 212 000 00 00"}
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            {/* Bottom Footer */}
+            <div className="pt-12 border-t border-white/5">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="flex flex-wrap items-center justify-center gap-8 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
+                  <div className="flex items-center gap-6">
+                    <span className="text-[10px] font-semibold text-white tracking-wide underline underline-offset-8 decoration-blue-600">
+                      Secure Payments
+                    </span>
+                    <div className="flex items-center gap-4">
+                      <CreditCard className="w-5 h-5 text-white" />
+                      <ShieldCheck className="w-5 h-5 text-white" />
+                      <Globe className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-gray-600 font-bold text-[10px] tracking-wide">
+                  © {new Date().getFullYear()} {store?.name}.{" "}
+                  {lang === "tr"
+                    ? "TÜM HAKLARI SAKLIDIR."
+                    : "ALL RIGHTS RESERVED."}
+                </p>
+
                 <div className="flex items-center gap-6">
-                  <span className="text-[10px] font-semibold text-white tracking-wide underline underline-offset-8 decoration-blue-600">Secure Payments</span>
-                  <div className="flex items-center gap-4">
-                    <CreditCard className="w-5 h-5 text-white" />
-                    <ShieldCheck className="w-5 h-5 text-white" />
-                    <Globe className="w-5 h-5 text-white" />
-                  </div>
+                  {store?.about_text && (
+                    <button
+                      onClick={() => setShowAboutModal(true)}
+                      className="text-gray-600 hover:text-white text-[10px] font-semibold tracking-wide transition-colors"
+                    >
+                      {lang === "tr" ? "Hakkımızda" : "Our Story"}
+                    </button>
+                  )}
+                  {(store?.footer_links || []).map(
+                    (page: any, index: number) => (
+                      <a
+                        key={index}
+                        href={page.url}
+                        className="text-gray-600 hover:text-white text-[10px] font-semibold tracking-wide transition-colors"
+                      >
+                        {page.label}
+                      </a>
+                    ),
+                  )}
                 </div>
-              </div>
-
-              <p className="text-gray-600 font-bold text-[10px] tracking-wide">
-                © {new Date().getFullYear()} {store?.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
-              </p>
-
-              <div className="flex items-center gap-6">
-                {store?.about_text && (
-                  <button onClick={() => setShowAboutModal(true)} className="text-gray-600 hover:text-white text-[10px] font-semibold tracking-wide transition-colors">
-                    {lang === 'tr' ? 'Hakkımızda' : 'Our Story'}
-                  </button>
-                )}
-                {(store?.footer_links || []).map((page: any, index: number) => (
-                  <a key={index} href={page.url} className="text-gray-600 hover:text-white text-[10px] font-semibold tracking-wide transition-colors">{page.label}</a>
-                ))}
               </div>
             </div>
           </div>
-        </div>
-        
-        {/* Abstract Background Element */}
-        <div className="absolute -bottom-48 -left-48 w-96 h-96 bg-blue-600/5 rounded-lg blur-[120px]" />
-      </footer>
 
-      {/* Floating Basket Summary (Mobile) */}
-      {basketCount > 0 && !isBasketOpen && (
-        <motion.div 
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          className="fixed bottom-6 left-4 right-4 z-40 md:hidden"
-        >
-          <button 
-            onClick={() => setIsBasketOpen(true)}
-            className="w-full text-white p-4 rounded-2xl shadow-lg flex items-center justify-between font-bold"
-            style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
+          {/* Abstract Background Element */}
+          <div className="absolute -bottom-48 -left-48 w-96 h-96 bg-blue-600/5 rounded-lg blur-[120px]" />
+        </footer>
+
+        {/* Floating Basket Summary (Mobile) */}
+        {basketCount > 0 && !isBasketOpen && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            className="fixed bottom-6 left-4 right-4 z-40 md:hidden"
           >
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <ShoppingBasket className="w-6 h-6" />
-              </div>
-              <span>{basketCount} {t.dashboard.productsCount}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>{basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}</span>
-              <ChevronRight className="w-5 h-5" />
-            </div>
-          </button>
-        </motion.div>
-      )}
-
-      {/* Basket Sidebar */}
-      <AnimatePresence>
-        {isBasketOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsBasketOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]"
-            />
-            <motion.div 
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-lg z-[101] flex flex-col"
+            <button
+              onClick={() => setIsBasketOpen(true)}
+              className="w-full text-white p-4 rounded-2xl shadow-lg flex items-center justify-between font-bold"
+              style={{
+                backgroundColor: primaryColor,
+                boxShadow: `0 10px 25px -5px ${primaryColor}40`,
+              }}
             >
-              <div className="p-8 border-b flex items-center justify-between bg-gray-50">
-                <div className="flex items-center gap-4">
-                  <div 
-                    className="w-12 h-12 text-white rounded-2xl flex items-center justify-center shadow-lg"
-                    style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
-                  >
-                    <ShoppingBasket className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xsl font-semibold tracking-normal">{t.dashboard.cart}</h2>
-                    <p className="text-gray-500 text-xss font-bold tracking-wide">{basketCount} {t.dashboard.product}</p>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-lg">
+                  <ShoppingBasket className="w-6 h-6" />
                 </div>
-                <button onClick={() => setIsBasketOpen(false)} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
+                <span>
+                  {basketCount} {t.dashboard.productsCount}
+                </span>
               </div>
+              <div className="flex items-center gap-2">
+                <span>
+                  {basketTotal.toLocaleString("tr-TR", {
+                    minimumFractionDigits: 2,
+                  })}{" "}
+                  {store?.currency || "TL"}
+                </span>
+                <ChevronRight className="w-5 h-5" />
+              </div>
+            </button>
+          </motion.div>
+        )}
 
-              <div className="flex-1 overflow-y-auto p-8">
-                {basket.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center">
-                    <div className="w-24 h-24 bg-gray-50 rounded-[40px] flex items-center justify-center mb-6">
-                      <ShoppingBasket className="w-12 h-12 text-gray-300" />
+        {/* Basket Sidebar */}
+        <AnimatePresence>
+          {isBasketOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsBasketOpen(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]"
+              />
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-lg z-[101] flex flex-col"
+              >
+                <div className="p-8 border-b flex items-center justify-between bg-gray-50">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-12 h-12 text-white rounded-2xl flex items-center justify-center shadow-lg"
+                      style={{
+                        backgroundColor: primaryColor,
+                        boxShadow: `0 10px 25px -5px ${primaryColor}40`,
+                      }}
+                    >
+                      <ShoppingBasket className="w-6 h-6" />
                     </div>
-                    <h3 className="text-xsl font-semibold text-gray-900">{t.dashboard.emptyBasket}</h3>
-                    <p className="text-gray-500 mt-2 max-w-[200px]">{t.dashboard.startShopping}</p>
+                    <div>
+                      <h2 className="text-xsl font-semibold tracking-normal">
+                        {t.dashboard.cart}
+                      </h2>
+                      <p className="text-gray-500 text-xss font-bold tracking-wide">
+                        {basketCount} {t.dashboard.product}
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-8">
-                    {basket.map((item) => (
-                      <div key={item.id} className="flex gap-6 group">
-                        <div className="w-24 h-24 bg-gray-50 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm group-hover:shadow-md transition-shadow">
-                          {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="w-full h-full object-contain p-2 bg-white" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-300">
-                              <Package className="w-10 h-10" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-                          <div>
-                            <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:opacity-80 transition-colors" style={{ color: primaryColor }}>{item.name}</h4>
-                            {item.branch_name && item.branch_name !== store?.name && (
-                              <div className="flex items-center gap-1 mt-1 opacity-70">
-                                <MapPin className="w-3 h-3 text-gray-500" />
-                                <span className="text-[10px] font-bold text-gray-500 tracking-tight">{item.branch_name}</span>
+                  <button
+                    onClick={() => setIsBasketOpen(false)}
+                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-8">
+                  {basket.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center">
+                      <div className="w-24 h-24 bg-gray-50 rounded-[40px] flex items-center justify-center mb-6">
+                        <ShoppingBasket className="w-12 h-12 text-gray-300" />
+                      </div>
+                      <h3 className="text-xsl font-semibold text-gray-900">
+                        {t.dashboard.emptyBasket}
+                      </h3>
+                      <p className="text-gray-500 mt-2 max-w-[200px]">
+                        {t.dashboard.startShopping}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      {basket.map((item) => (
+                        <div key={item.id} className="flex gap-6 group">
+                          <div className="w-24 h-24 bg-gray-50 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm group-hover:shadow-md transition-shadow">
+                            {item.image_url ? (
+                              <img
+                                src={item.image_url}
+                                alt={item.name}
+                                className="w-full h-full object-contain p-2 bg-white"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                <Package className="w-10 h-10" />
                               </div>
                             )}
-                            <p className="font-semibold mt-1" style={{ color: primaryColor }}>
-                              {(basketItemPrices[item.id] || item.price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
-                            </p>
                           </div>
-                          <div className="flex items-center justify-between mt-4">
-                            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
-                              <button 
-                                onClick={() => removeFromBasket(item.id)}
-                                className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded-lg transition-all shadow-sm active:scale-90"
+                          <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                            <div>
+                              <h4
+                                className="font-bold text-gray-900 line-clamp-1 group-hover:opacity-80 transition-colors"
+                                style={{ color: primaryColor }}
                               >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="font-semibold w-8 text-center text-sm">{item.quantity}</span>
-                              <button 
-                                onClick={() => addToBasket(item)}
-                                className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded-lg transition-all shadow-sm active:scale-90"
+                                {item.name}
+                              </h4>
+                              {item.branch_name &&
+                                item.branch_name !== store?.name && (
+                                  <div className="flex items-center gap-1 mt-1 opacity-70">
+                                    <MapPin className="w-3 h-3 text-gray-500" />
+                                    <span className="text-[10px] font-bold text-gray-500 tracking-tight">
+                                      {item.branch_name}
+                                    </span>
+                                  </div>
+                                )}
+                              <p
+                                className="font-semibold mt-1"
+                                style={{ color: primaryColor }}
                               >
-                                <Plus className="w-4 h-4" />
+                                {(
+                                  basketItemPrices[item.id] || item.price
+                                ).toLocaleString("tr-TR", {
+                                  minimumFractionDigits: 2,
+                                })}{" "}
+                                {store?.currency || "TL"}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-between mt-4">
+                              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+                                <button
+                                  onClick={() => removeFromBasket(item.id)}
+                                  className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded-lg transition-all shadow-sm active:scale-90"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="font-semibold w-8 text-center text-sm">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  onClick={() => addToBasket(item)}
+                                  className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded-lg transition-all shadow-sm active:scale-90"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setBasket((prev) =>
+                                    prev.filter((i) => i.id !== item.id),
+                                  );
+                                }}
+                                className="text-red-400 hover:text-red-600 p-2 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
                               </button>
                             </div>
-                            <button 
-                              onClick={() => {
-                                setBasket(prev => prev.filter(i => i.id !== item.id));
-                              }}
-                              className="text-red-400 hover:text-red-600 p-2 transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {basket.length > 0 && (
+                  <div className="p-8 border-t bg-gray-50 space-y-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-gray-500 text-sm font-bold tracking-wide">
+                        <span>{t.dashboard.subtotal}</span>
+                        <span>
+                          {basketSubtotal.toLocaleString("tr-TR", {
+                            minimumFractionDigits: 2,
+                          })}{" "}
+                          {store?.currency || "TL"}
+                        </span>
                       </div>
-                    ))}
+                      <div className="flex items-center justify-between text-green-600 text-sm font-bold tracking-wide">
+                        <span>{t.dashboard.shipping}</span>
+                        <span>
+                          {basketShippingTotal > 0
+                            ? `${basketShippingTotal.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${store?.currency || "TL"}`
+                            : t.dashboard.freeShipping}
+                        </span>
+                      </div>
+                      <div className="h-px bg-gray-200 my-4"></div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-900 font-semibold tracking-wide">
+                          {t.dashboard.total}
+                        </span>
+                        <span
+                          className="text-3xl font-semibold"
+                          style={{ color: primaryColor }}
+                        >
+                          {basketTotal.toLocaleString("tr-TR", {
+                            minimumFractionDigits: 2,
+                          })}{" "}
+                          {store?.currency || "TL"}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsCheckoutModalOpen(true)}
+                      className="w-full py-5 text-white rounded-2xl font-semibold text-xsl transition-all shadow-lg active:scale-95 tracking-wide"
+                      style={{
+                        backgroundColor: primaryColor,
+                        boxShadow: `0 10px 25px -5px ${primaryColor}40`,
+                      }}
+                    >
+                      {t.dashboard.checkout}
+                    </button>
                   </div>
                 )}
-              </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
-              {basket.length > 0 && (
-                <div className="p-8 border-t bg-gray-50 space-y-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-gray-500 text-sm font-bold tracking-wide">
-                      <span>{t.dashboard.subtotal}</span>
-                      <span>{basketSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-green-600 text-sm font-bold tracking-wide">
-                      <span>{t.dashboard.shipping}</span>
-                      <span>
-                        {basketShippingTotal > 0 
-                          ? `${basketShippingTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${store?.currency || "TL"}`
-                          : t.dashboard.freeShipping
-                        }
-                      </span>
-                    </div>
-                    <div className="h-px bg-gray-200 my-4"></div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-900 font-semibold tracking-wide">{t.dashboard.total}</span>
-                      <span className="text-3xl font-semibold" style={{ color: primaryColor }}>
-                        {basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
-                      </span>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setIsCheckoutModalOpen(true)}
-                    className="w-full py-5 text-white rounded-2xl font-semibold text-xsl transition-all shadow-lg active:scale-95 tracking-wide"
-                    style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
+        {/* FAQ Modal */}
+        <AnimatePresence>
+          {showFaq && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowFaq(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white w-full max-w-2xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[80vh] flex flex-col"
+              >
+                <div className="p-8 border-b flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">
+                    {lang === "tr" ? "Sıkça Sorulan Sorular" : "FAQ"}
+                  </h2>
+                  <button
+                    onClick={() => setShowFaq(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
                   >
-                    {t.dashboard.checkout}
+                    <X className="w-6 h-6" />
                   </button>
                 </div>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* FAQ Modal */}
-      <AnimatePresence>
-        {showFaq && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowFaq(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-2xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[80vh] flex flex-col"
-            >
-              <div className="p-8 border-b flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">{lang === 'tr' ? 'Sıkça Sorulan Sorular' : 'FAQ'}</h2>
-                <button onClick={() => setShowFaq(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
-              </div>
-              <div className="p-8 overflow-y-auto space-y-4">
-                {store?.faq?.length ? store.faq.map((item, i) => (
-                  <div key={i} className="p-6 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 mb-2">{item.question}</h4>
-                    <p className="text-gray-600 text-sm leading-relaxed">{item.answer}</p>
-                  </div>
-                )) : (
-                  <p className="text-center text-gray-400 py-10">{lang === 'tr' ? 'Henüz soru eklenmemiş.' : 'No questions added yet.'}</p>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Blog Modal */}
-      <AnimatePresence>
-        {showBlog && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowBlog(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-4xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
-            >
-              <div className="p-8 border-b flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">{lang === 'tr' ? 'Blog' : 'Blog'}</h2>
-                <button onClick={() => setShowBlog(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
-              </div>
-              <div className="p-8 overflow-y-auto custom-scrollbar">
-                {selectedBlogPost ? (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <button 
-                      onClick={() => setSelectedBlogPost(null)} 
-                      className="group mb-8 flex items-center gap-2 text-sm font-semibold text-indigo-600 tracking-wide hover:text-indigo-700 transition-colors"
-                    >
-                      <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
-                      {lang === 'tr' ? 'TÜM YAZILAR' : 'ALL POSTS'}
-                    </button>
-                    
-                    {selectedBlogPost.image_url && (
-                      <div className="relative h-96 rounded-xl overflow-hidden mb-10 shadow-lg">
-                        <img 
-                          src={selectedBlogPost.image_url} 
-                          alt={selectedBlogPost.title} 
-                          className="w-full h-full object-cover" 
-                        />
+                <div className="p-8 overflow-y-auto space-y-4">
+                  {store?.faq?.length ? (
+                    store.faq.map((item, i) => (
+                      <div key={i} className="p-6 bg-gray-50 rounded-lg">
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          {item.question}
+                        </h4>
+                        <p className="text-gray-600 text-sm leading-relaxed">
+                          {item.answer}
+                        </p>
                       </div>
-                    )}
-                    
-                    <div className="max-w-2xl mx-auto">
-                      <div className="flex items-center gap-3 mb-6">
-                        <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-semibold tracking-wide leading-none">
-                          {selectedBlogPost.date}
-                        </span>
-                        <span className="w-1.5 h-1.5 rounded-lg bg-gray-200" />
-                        <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
-                          {Math.ceil((selectedBlogPost.content?.length || 0) / 1000)} {isTr ? 'DAKİKA OKUMA' : 'MIN READ'}
-                        </span>
-                      </div>
-                      
-                      <h3 className="text-4xl md:text-4xl font-semibold text-gray-900 leading-tight mb-10 tracking-tight">
-                        {selectedBlogPost.title}
-                      </h3>
-                      
-                      <div className="whitespace-pre-wrap text-gray-600 text-lg leading-relaxed font-normal space-y-6">
-                        {selectedBlogPost.content}
-                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-400 py-10">
+                      {lang === "tr"
+                        ? "Henüz soru eklenmemiş."
+                        : "No questions added yet."}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
-                      {/* Social Share for Blog */}
-                      <div className="mt-16 pt-10 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                          <span className="text-xss font-semibold text-gray-400 tracking-wide">{isTr ? 'PAYLAŞ:' : 'SHARE:'}</span>
-                          <div className="flex items-center gap-2">
-                             <button className="p-3 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all"><Facebook className="w-5 h-5" /></button>
-                             <button className="p-3 bg-gray-50 hover:bg-sky-50 hover:text-sky-600 rounded-2xl transition-all"><Twitter className="w-5 h-5" /></button>
-                             <button className="p-3 bg-gray-50 hover:bg-emerald-50 hover:text-emerald-600 rounded-2xl transition-all"><MessageSquare className="w-5 h-5" /></button>
-                          </div>
+        {/* Blog Modal */}
+        <AnimatePresence>
+          {showBlog && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowBlog(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white w-full max-w-4xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
+              >
+                <div className="p-8 border-b flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">
+                    {lang === "tr" ? "Blog" : "Blog"}
+                  </h2>
+                  <button
+                    onClick={() => setShowBlog(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="p-8 overflow-y-auto custom-scrollbar">
+                  {selectedBlogPost ? (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <button
+                        onClick={() => setSelectedBlogPost(null)}
+                        className="group mb-8 flex items-center gap-2 text-sm font-semibold text-indigo-600 tracking-wide hover:text-indigo-700 transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        {lang === "tr" ? "TÜM YAZILAR" : "ALL POSTS"}
+                      </button>
+
+                      {selectedBlogPost.image_url && (
+                        <div className="relative h-96 rounded-xl overflow-hidden mb-10 shadow-lg">
+                          <img
+                            src={selectedBlogPost.image_url}
+                            alt={selectedBlogPost.title}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            alert(isTr ? 'Bağlantı kopyalandı!' : 'Link copied!');
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-2xl font-semibold text-xss tracking-wide hover:bg-gray-800 transition-all active:scale-95"
-                        >
-                          <Link2 className="w-4 h-4" />
-                          <span>{isTr ? 'BAĞLANTIYI KOPYALA' : 'COPY LINK'}</span>
-                        </button>
+                      )}
+
+                      <div className="max-w-2xl mx-auto">
+                        <div className="flex items-center gap-3 mb-6">
+                          <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-semibold tracking-wide leading-none">
+                            {selectedBlogPost.date}
+                          </span>
+                          <span className="w-1.5 h-1.5 rounded-lg bg-gray-200" />
+                          <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
+                            {Math.ceil(
+                              (selectedBlogPost.content?.length || 0) / 1000,
+                            )}{" "}
+                            {isTr ? "DAKİKA OKUMA" : "MIN READ"}
+                          </span>
+                        </div>
+
+                        <h3 className="text-4xl md:text-4xl font-semibold text-gray-900 leading-tight mb-10 tracking-tight">
+                          {selectedBlogPost.title}
+                        </h3>
+
+                        <div className="whitespace-pre-wrap text-gray-600 text-lg leading-relaxed font-normal space-y-6">
+                          {selectedBlogPost.content}
+                        </div>
+
+                        {/* Social Share for Blog */}
+                        <div className="mt-16 pt-10 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                          <div className="flex items-center gap-4">
+                            <span className="text-xss font-semibold text-gray-400 tracking-wide">
+                              {isTr ? "PAYLAŞ:" : "SHARE:"}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button className="p-3 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all">
+                                <Facebook className="w-5 h-5" />
+                              </button>
+                              <button className="p-3 bg-gray-50 hover:bg-sky-50 hover:text-sky-600 rounded-2xl transition-all">
+                                <Twitter className="w-5 h-5" />
+                              </button>
+                              <button className="p-3 bg-gray-50 hover:bg-emerald-50 hover:text-emerald-600 rounded-2xl transition-all">
+                                <MessageSquare className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                window.location.href,
+                              );
+                              alert(
+                                isTr ? "Bağlantı kopyalandı!" : "Link copied!",
+                              );
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-2xl font-semibold text-xss tracking-wide hover:bg-gray-800 transition-all active:scale-95"
+                          >
+                            <Link2 className="w-4 h-4" />
+                            <span>
+                              {isTr ? "BAĞLANTIYI KOPYALA" : "COPY LINK"}
+                            </span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {store?.blog_posts?.length ? store.blog_posts.map((post) => (
-                      <motion.div 
-                        key={post.id} 
-                        whileHover={{ y: -4 }}
-                        onClick={() => setSelectedBlogPost(post)} 
-                        className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
-                      >
-                        <div className="relative h-56 overflow-hidden">
-                          {post.image_url ? (
-                            <img src={post.image_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          ) : (
-                            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                               <BookOpen className="w-12 h-12 text-slate-300" />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {store?.blog_posts?.length ? (
+                        store.blog_posts.map((post) => (
+                          <motion.div
+                            key={post.id}
+                            whileHover={{ y: -4 }}
+                            onClick={() => setSelectedBlogPost(post)}
+                            className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+                          >
+                            <div className="relative h-56 overflow-hidden">
+                              {post.image_url ? (
+                                <img
+                                  src={post.image_url}
+                                  alt={post.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                                  <BookOpen className="w-12 h-12 text-slate-300" />
+                                </div>
+                              )}
                             </div>
-                          )}
+                            <div className="p-8">
+                              <span className="text-[10px] font-semibold text-indigo-600 tracking-wide mb-3 block">
+                                {post.date}
+                              </span>
+                              <h4 className="text-xsl font-semibold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
+                                {post.title}
+                              </h4>
+                              <p className="text-gray-500 text-sm font-medium line-clamp-3 leading-relaxed">
+                                {post.excerpt || post.content}
+                              </p>
+                            </div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="col-span-full text-center py-16 px-8">
+                          <div className="p-6 bg-slate-50 rounded-lg w-20 h-20 flex items-center justify-center mx-auto mb-6 text-slate-300">
+                            <BookOpen className="w-10 h-10" />
+                          </div>
+                          <p className="text-xsl font-semibold text-slate-900 mb-2">
+                            {isTr ? "Henüz Yazı Yok" : "No Posts Yet"}
+                          </p>
+                          <p className="text-slate-500 font-medium">
+                            {isTr
+                              ? "Yakında yeni içeriklerimizle burada olacağız."
+                              : "We will be here with new content soon."}
+                          </p>
                         </div>
-                        <div className="p-8">
-                          <span className="text-[10px] font-semibold text-indigo-600 tracking-wide mb-3 block">
-                            {post.date}
-                          </span>
-                          <h4 className="text-xsl font-semibold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">{post.title}</h4>
-                          <p className="text-gray-500 text-sm font-medium line-clamp-3 leading-relaxed">{post.excerpt || post.content}</p>
-                        </div>
-                      </motion.div>
-                    )) : (
-                      <div className="col-span-full text-center py-16 px-8">
-                        <div className="p-6 bg-slate-50 rounded-lg w-20 h-20 flex items-center justify-center mx-auto mb-6 text-slate-300">
-                           <BookOpen className="w-10 h-10" />
-                        </div>
-                        <p className="text-xsl font-semibold text-slate-900 mb-2">{isTr ? 'Henüz Yazı Yok' : 'No Posts Yet'}</p>
-                        <p className="text-slate-500 font-medium">{isTr ? 'Yakında yeni içeriklerimizle burada olacağız.' : 'We will be here with new content soon.'}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Legal Modal */}
-      <AnimatePresence>
-        {showLegal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowLegal(null)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-3xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[85vh] flex flex-col"
-            >
-              <div className="p-8 border-b flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">
-                  {showLegal === 'kvkk' ? (lang === 'tr' ? 'KVKK ve Gizlilik Politikası' : 'Privacy Policy') : 
-                   showLegal === 'sales' ? (lang === 'tr' ? 'Mesafeli Satış Sözleşmesi' : 'Sales Agreement') : 
-                   (lang === 'tr' ? 'Ön Bilgilendirme Formu' : 'Pre-Information Form')}
-                </h2>
-                <button onClick={() => setShowLegal(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
-              </div>
-              <div className="p-8 overflow-y-auto prose prose-blue max-w-none text-gray-600 leading-relaxed">
-                {showLegal === 'kvkk' ? store?.legal_pages?.kvkk?.content : 
-                 showLegal === 'sales' ? store?.legal_pages?.sales_agreement?.content : 
-                 store?.legal_pages?.pre_info?.content}
-                {!store?.legal_pages?.[showLegal === 'kvkk' ? 'kvkk' : showLegal === 'sales' ? 'sales_agreement' : 'pre_info'] && (
-                  <p className="text-center text-gray-400 py-10">{lang === 'tr' ? 'İçerik henüz eklenmemiş.' : 'Content not added yet.'}</p>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Auth Modal */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowAuthModal(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[40px] shadow-lg relative z-10 overflow-y-auto max-h-[90vh]"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex gap-4">
-                    <button 
-                      onClick={() => setAuthMode('login')}
-                      className={`text-2xl font-semibold tracking-tight transition-colors ${authMode === 'login' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
-                    >
-                      {lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN'}
-                    </button>
-                    <button 
-                      onClick={() => setAuthMode('register')}
-                      className={`text-2xl font-semibold tracking-tight transition-colors ${authMode === 'register' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-500'}`}
-                    >
-                      {lang === 'tr' ? 'ÜYE OL' : 'REGISTER'}
-                    </button>
-                  </div>
-                  <button onClick={() => setShowAuthModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
-                </div>
-
-                <form onSubmit={authMode === 'login' ? handleCustomerLogin : handleCustomerRegister} className="space-y-4">
-                  {authMode === 'register' && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ADINIZ' : 'NAME'}</label>
-                          <input 
-                            required
-                            type="text"
-                            value={customerInfo.name}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            style={{ borderFocusColor: primaryColor } as any}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'SOYADINIZ' : 'SURNAME'}</label>
-                          <input 
-                            required
-                            type="text"
-                            value={customerInfo.surname}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, surname: e.target.value }))}
-                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            style={{ borderFocusColor: primaryColor } as any}
-                          />
-                        </div>
-                      </div>
-                    </>
+                      )}
+                    </div>
                   )}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">E-POSTA</label>
-                    <input 
-                      required
-                      type="email"
-                      value={customerInfo.email}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                      style={{ borderFocusColor: primaryColor } as any}
-                    />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Legal Modal */}
+        <AnimatePresence>
+          {showLegal && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowLegal(null)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white w-full max-w-3xl rounded-[40px] shadow-lg relative z-10 overflow-hidden max-h-[85vh] flex flex-col"
+              >
+                <div className="p-8 border-b flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">
+                    {showLegal === "kvkk"
+                      ? lang === "tr"
+                        ? "KVKK ve Gizlilik Politikası"
+                        : "Privacy Policy"
+                      : showLegal === "sales"
+                        ? lang === "tr"
+                          ? "Mesafeli Satış Sözleşmesi"
+                          : "Sales Agreement"
+                        : lang === "tr"
+                          ? "Ön Bilgilendirme Formu"
+                          : "Pre-Information Form"}
+                  </h2>
+                  <button
+                    onClick={() => setShowLegal(null)}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="p-8 overflow-y-auto prose prose-blue max-w-none text-gray-600 leading-relaxed">
+                  {showLegal === "kvkk"
+                    ? store?.legal_pages?.kvkk?.content
+                    : showLegal === "sales"
+                      ? store?.legal_pages?.sales_agreement?.content
+                      : store?.legal_pages?.pre_info?.content}
+                  {!store?.legal_pages?.[
+                    showLegal === "kvkk"
+                      ? "kvkk"
+                      : showLegal === "sales"
+                        ? "sales_agreement"
+                        : "pre_info"
+                  ] && (
+                    <p className="text-center text-gray-400 py-10">
+                      {lang === "tr"
+                        ? "İçerik henüz eklenmemiş."
+                        : "Content not added yet."}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Auth Modal */}
+        <AnimatePresence>
+          {showAuthModal && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowAuthModal(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white w-full max-w-md rounded-[40px] shadow-lg relative z-10 overflow-y-auto max-h-[90vh]"
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => setAuthMode("login")}
+                        className={`text-2xl font-semibold tracking-tight transition-colors ${authMode === "login" ? "text-gray-900" : "text-gray-300 hover:text-gray-500"}`}
+                      >
+                        {lang === "tr" ? "GİRİŞ YAP" : "LOGIN"}
+                      </button>
+                      <button
+                        onClick={() => setAuthMode("register")}
+                        className={`text-2xl font-semibold tracking-tight transition-colors ${authMode === "register" ? "text-gray-900" : "text-gray-300 hover:text-gray-500"}`}
+                      >
+                        {lang === "tr" ? "ÜYE OL" : "REGISTER"}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setShowAuthModal(false)}
+                      className="p-2 hover:bg-gray-100 rounded-lg"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+
+                  <form
+                    onSubmit={
+                      authMode === "login"
+                        ? handleCustomerLogin
+                        : handleCustomerRegister
+                    }
+                    className="space-y-4"
+                  >
+                    {authMode === "register" && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "ADINIZ" : "NAME"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.name}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  name: e.target.value,
+                                }))
+                              }
+                              className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "SOYADINIZ" : "SURNAME"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.surname}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  surname: e.target.value,
+                                }))
+                              }
+                              className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">ŞİFRE</label>
-                      <input 
+                      <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                        E-POSTA
+                      </label>
+                      <input
                         required
-                        type="password"
-                        value={customerInfo.password}
-                        onChange={(e) => setCustomerInfo(prev => ({ ...prev, password: e.target.value }))}
+                        type="email"
+                        value={customerInfo.email}
+                        onChange={(e) =>
+                          setCustomerInfo((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
                         className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
                         style={{ borderFocusColor: primaryColor } as any}
                       />
                     </div>
-                    {authMode === 'register' && (
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ŞİFRE TEKRAR' : 'PASSWORD CONFIRM'}</label>
-                        <input 
+                        <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                          ŞİFRE
+                        </label>
+                        <input
                           required
                           type="password"
-                          value={customerInfo.passwordConfirm}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, passwordConfirm: e.target.value }))}
+                          value={customerInfo.password}
+                          onChange={(e) =>
+                            setCustomerInfo((prev) => ({
+                              ...prev,
+                              password: e.target.value,
+                            }))
+                          }
                           className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
                           style={{ borderFocusColor: primaryColor } as any}
                         />
                       </div>
-                    )}
-                  </div>
-                  {authMode === 'register' && (
-                    <>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.phone}</label>
-                        <input 
-                          required
-                          type="tel"
-                          value={customerInfo.phone}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
-                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                          style={{ borderFocusColor: primaryColor } as any}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      {authMode === "register" && (
                         <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
-                          <input 
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                            {lang === "tr"
+                              ? "ŞİFRE TEKRAR"
+                              : "PASSWORD CONFIRM"}
+                          </label>
+                          <input
                             required
-                            type="text"
-                            value={customerInfo.country}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, country: e.target.value }))}
+                            type="password"
+                            value={customerInfo.passwordConfirm}
+                            onChange={(e) =>
+                              setCustomerInfo((prev) => ({
+                                ...prev,
+                                passwordConfirm: e.target.value,
+                              }))
+                            }
                             className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
                             style={{ borderFocusColor: primaryColor } as any}
                           />
                         </div>
+                      )}
+                    </div>
+                    {authMode === "register" && (
+                      <>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'İL' : 'CITY'}</label>
-                          <input 
-                            required
-                            type="text"
-                            value={customerInfo.city}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, city: e.target.value }))}
-                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            style={{ borderFocusColor: primaryColor } as any}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.address}</label>
-                        <textarea 
-                          required
-                          value={customerInfo.address}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, address: e.target.value }))}
-                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900 resize-none"
-                          rows={2}
-                          style={{ borderFocusColor: primaryColor } as any}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'T.C. KİMLİK NUMARASI' : 'TC ID'}</label>
-                          <input 
-                            type="text"
-                            value={customerInfo.tc_id}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, tc_id: e.target.value }))}
-                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            style={{ borderFocusColor: primaryColor } as any}
-                          />
-                        </div>
-                        <div className="space-y-1 flex flex-col justify-center">
-                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1 mb-2">{lang === 'tr' ? 'HESAP TÜRÜ' : 'ACCOUNT TYPE'}</label>
-                          <div className="flex gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input 
-                                type="radio" 
-                                name="is_corporate" 
-                                checked={!customerInfo.is_corporate} 
-                                onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: false }))}
-                                className="w-4 h-4 text-primary focus:ring-primary"
-                              />
-                              <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Bireysel' : 'Individual'}</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input 
-                                type="radio" 
-                                name="is_corporate" 
-                                checked={customerInfo.is_corporate} 
-                                onChange={() => setCustomerInfo(prev => ({ ...prev, is_corporate: true }))}
-                                className="w-4 h-4 text-primary focus:ring-primary"
-                              />
-                              <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</span>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3 mt-4 bg-gray-50 p-4 rounded-2xl">
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={customerInfo.marketing_email}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_email: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
-                          />
-                          <span className="text-xss font-medium text-gray-600 leading-tight">
-                            {lang === 'tr' ? 'Kampanyalardan haberdar olmak için elektronik ileti almak istiyorum.' : 'I want to receive electronic messages to be informed about campaigns.'}
-                          </span>
-                        </label>
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={customerInfo.marketing_sms}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, marketing_sms: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
-                          />
-                          <span className="text-xss font-medium text-gray-600 leading-tight">
-                            {lang === 'tr' ? 'Kampanyalardan haberdar olmak için SMS almak istiyorum.' : 'I want to receive SMS to be informed about campaigns.'}
-                          </span>
-                        </label>
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            required
-                            checked={customerInfo.accept_terms}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, accept_terms: e.target.checked }))}
-                            className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
-                          />
-                          <span className="text-xss font-medium text-gray-600 leading-tight">
-                            {lang === 'tr' ? 'Üyelik sözleşmesini ve kişisel verilerin işlenmesine ilişkin aydınlatma metnini okudum, kabul ediyorum.' : 'I have read and accept the membership agreement and the clarification text on the processing of personal data.'}
-                          </span>
-                        </label>
-                      </div>
-                    </>
-                  )}
-
-                  <button 
-                    type="submit"
-                    className="w-full py-5 text-white rounded-2xl font-semibold text-xsl transition-all shadow-lg active:scale-95 mt-4"
-                    style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
-                  >
-                    {authMode === 'login' ? (lang === 'tr' ? 'GİRİŞ YAP' : 'LOGIN') : (lang === 'tr' ? 'KAYIT OL' : 'REGISTER')}
-                  </button>
-
-                  <div className="relative flex items-center py-4">
-                    <div className="flex-grow border-t border-gray-200"></div>
-                    <span className="flex-shrink-0 mx-4 text-gray-400 text-xss font-bold tracking-wide">
-                      {lang === 'tr' ? 'VEYA' : 'OR'}
-                    </span>
-                    <div className="flex-grow border-t border-gray-200"></div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        alert(lang === 'tr' ? 'Google ile giriş yakında eklenecek!' : 'Google login coming soon!');
-                      }}
-                      className="w-full py-4 bg-white border-2 border-gray-100 hover:border-gray-200 hover:bg-gray-50 text-gray-700 rounded-2xl font-bold transition-all flex items-center justify-center gap-3"
-                    >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                        <path fill="none" d="M1 1h22v22H1z" />
-                      </svg>
-                      {lang === 'tr' ? 'Google ile Devam Et' : 'Continue with Google'}
-                    </button>
-                    
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        setShowAuthModal(false);
-                        setIsCheckoutModalOpen(true);
-                      }}
-                      className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold transition-all"
-                    >
-                      {lang === 'tr' ? 'Misafir Olarak Devam Et' : 'Continue as Guest'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Product Detail Modal */}
-      <AnimatePresence>
-        {selectedProduct && (
-          <ProductDetailModal 
-            product={selectedProduct} 
-            store={store} 
-            t={t} 
-            slug={slug}
-            onClose={() => {
-              setSelectedProduct(null);
-              // Safely pop barcode / direct product param out of browser URI to unlock close action
-              if (urlBarcode) {
-                const isCustomDomain = !window.location.pathname.startsWith('/s/');
-                const cleanSlug = store?.slug || slug || urlSlug;
-                if (isCustomDomain) {
-                  navigate('/', { replace: true });
-                } else if (cleanSlug) {
-                  navigate(`/s/${cleanSlug}`, { replace: true });
-                } else {
-                  navigate(-1);
-                }
-              }
-            }} 
-            addToBasket={addToBasket} 
-            primaryColor={primaryColor}
-            isLuxury={isLuxury}
-            sector={sector}
-            showAboutModal={showAboutModal}
-            setShowAboutModal={setShowAboutModal}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Checkout Modal */}
-      <AnimatePresence>
-        {isCheckoutModalOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => checkoutStatus !== 'loading' && setIsCheckoutModalOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[32px] shadow-lg relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
-            >
-              <div className="p-6 md:p-8 overflow-y-auto no-scrollbar">
-                {iyzicoPaymentUrl ? (
-                  <div className="w-full flex flex-col h-[70vh] min-h-[500px]">
-                    <div className="flex items-center justify-between mb-4 shrink-0">
-                      <h2 className="text-xsl font-semibold text-gray-900 tracking-normal">{lang === 'tr' ? 'Güvenli Ödeme' : 'Secure Payment'}</h2>
-                      <button 
-                        onClick={() => {
-                          setIyzicoPaymentUrl(null);
-                          setIsCheckoutModalOpen(false);
-                        }}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <X className="w-6 h-6" />
-                      </button>
-                    </div>
-                    <iframe 
-                      src={iyzicoPaymentUrl} 
-                      className="w-full flex-1 border-0 rounded-2xl"
-                      title="Iyzico Payment"
-                    />
-                  </div>
-                ) : checkoutStatus === 'success' ? (
-                  <div className="text-center py-10">
-                    <div className="w-24 h-24 bg-green-100 text-green-600 rounded-[40px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-100">
-                      <CheckCircle2 className="w-12 h-12" />
-                    </div>
-                    <h2 className="text-3xl font-semibold text-gray-900 mb-4 tracking-tight">{t.dashboard.orderReceived}</h2>
-                    <p className="text-gray-500 font-medium leading-relaxed">{t.dashboard.orderReceivedDesc}</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between mb-10">
-                      <div>
-                        <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">{t.dashboard.orderSummary}</h2>
-                        <div className="h-1 w-12 mt-1 rounded-lg" style={{ backgroundColor: primaryColor }}></div>
-                      </div>
-                      <button 
-                        onClick={() => setIsCheckoutModalOpen(false)}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <X className="w-6 h-6" />
-                      </button>
-                    </div>
-
-                    <div className="mb-8 space-y-4 max-h-48 overflow-y-auto pr-2 no-scrollbar border-b border-gray-100 pb-6">
-                      {Object.entries(basketByBranch).map(([branchName, items]) => (
-                        <div key={branchName} className="space-y-2">
-                          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
-                            <Building2 className="w-3 h-3" />
-                            {branchName}
-                          </div>
-                          {items.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600 font-medium">
-                                <span className="font-bold text-gray-900">{item.quantity}x</span> {item.name}
-                              </span>
-                              <span className="font-bold text-gray-900">
-                                {(item.price * item.quantity).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-
-                    <form onSubmit={handleCheckout} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.customerName}</label>
-                          <input 
-                            required
-                            type="text"
-                            value={customerInfo.name}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            style={{ borderFocusColor: primaryColor } as any}
-                            placeholder={lang === 'tr' ? 'Ad' : 'First Name'}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'SOYAD' : 'SURNAME'}</label>
-                          <input 
-                            required
-                            type="text"
-                            value={customerInfo.surname}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, surname: e.target.value }))}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            style={{ borderFocusColor: primaryColor } as any}
-                            placeholder={lang === 'tr' ? 'Soyad' : 'Surname'}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.phone}</label>
-                          <input 
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                            {t.dashboard.phone}
+                          </label>
+                          <input
                             required
                             type="tel"
                             value={customerInfo.phone}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            onChange={(e) =>
+                              setCustomerInfo((prev) => ({
+                                ...prev,
+                                phone: e.target.value,
+                              }))
+                            }
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
                             style={{ borderFocusColor: primaryColor } as any}
-                            placeholder="05xx xxx xx xx"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'T.C. KİMLİK NO' : 'IDENTITY NUMBER'}</label>
-                          <input 
-                            required
-                            type="text"
-                            maxLength={11}
-                            value={customerInfo.tc_id}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, tc_id: e.target.value }))}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            style={{ borderFocusColor: primaryColor } as any}
-                            placeholder="11111111111"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'E-POSTA' : 'EMAIL'}</label>
-                        <input 
-                          required
-                          type="email"
-                          value={customerInfo.email}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                          style={{ borderFocusColor: primaryColor } as any}
-                          placeholder="email@example.com"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ŞEHİR' : 'CITY'}</label>
-                          <input 
-                            required
-                            type="text"
-                            value={customerInfo.city}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, city: e.target.value }))}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            placeholder={lang === 'tr' ? 'Şehir' : 'City'}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÜLKE' : 'COUNTRY'}</label>
-                          <input 
-                            required
-                            type="text"
-                            value={customerInfo.country}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, country: e.target.value }))}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
-                            placeholder={lang === 'tr' ? 'Ülke' : 'Country'}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{t.dashboard.address}</label>
-                        <textarea 
-                          required
-                          rows={2}
-                          value={customerInfo.address}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, address: e.target.value }))}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none resize-none font-bold text-gray-900"
-                          style={{ borderFocusColor: primaryColor } as any}
-                          placeholder={t.dashboard.address}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input 
-                            type="checkbox"
-                            checked={customerInfo.createAccount}
-                            onChange={(e) => setCustomerInfo(prev => ({ ...prev, createAccount: e.target.checked }))}
-                            className="w-4 h-4 rounded text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm font-bold text-gray-700">{lang === 'tr' ? 'Hesap oluştur' : 'Create an account'}</span>
-                        </label>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">{lang === 'tr' ? 'ÖDEME YÖNTEMİ' : 'PAYMENT METHOD'}</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {/* 1. Iyzico (Primary Credit Card if enabled) */}
-                          {store?.payment_settings?.iyzico_enabled && (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentMethod('iyzico')}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'iyzico' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                              style={{ borderColor: paymentMethod === 'iyzico' ? primaryColor : undefined }}
-                            >
-                              <ShieldCheck className={`w-6 h-6 mb-2 ${paymentMethod === 'iyzico' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'iyzico' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xss text-center ${paymentMethod === 'iyzico' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
-                            </button>
-                          )}
-
-                          {/* 2. Generic Credit Card - ONLY if iyzico is NOT enabled AND some other POS is enabled */}
-                          {!store?.payment_settings?.iyzico_enabled && (store?.payment_settings?.paypal_enabled || store?.payment_settings?.payoneer_enabled) && (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentMethod('credit_card')}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'credit_card' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                              style={{ borderColor: paymentMethod === 'credit_card' ? primaryColor : undefined }}
-                            >
-                              <ShieldCheck className={`w-6 h-6 mb-2 ${paymentMethod === 'credit_card' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'credit_card' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xss text-center ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
-                            </button>
-                          )}
-
-                          {/* 3. Payoneer */}
-                          {store?.payment_settings?.payoneer_enabled && (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentMethod('payoneer')}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'payoneer' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                              style={{ borderColor: paymentMethod === 'payoneer' ? primaryColor : undefined }}
-                            >
-                              <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'payoneer' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'payoneer' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xss text-center ${paymentMethod === 'payoneer' ? 'text-gray-900' : 'text-gray-500'}`}>Payoneer</span>
-                            </button>
-                          )}
-
-                          {/* 4. PayPal */}
-                          {store?.payment_settings?.paypal_enabled && (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentMethod('paypal')}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'paypal' ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                              style={{ borderColor: paymentMethod === 'paypal' ? primaryColor : undefined }}
-                            >
-                              <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'paypal' ? 'text-blue-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'paypal' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xss text-center ${paymentMethod === 'paypal' ? 'text-gray-900' : 'text-gray-500'}`}>PayPal</span>
-                            </button>
-                          )}
-
-                          {/* Bank Transfer */}
-                          {store?.payment_settings?.bank_transfer_enabled && (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentMethod('bank_transfer')}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'bank_transfer' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                              style={{ borderColor: paymentMethod === 'bank_transfer' ? primaryColor : undefined }}
-                            >
-                              <RotateCcw className={`w-6 h-6 mb-2 ${paymentMethod === 'bank_transfer' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'bank_transfer' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xss text-center ${paymentMethod === 'bank_transfer' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Havale / EFT' : 'Bank Transfer'}</span>
-                            </button>
-                          )}
-                          
-                          {/* Cash on Delivery */}
-                          {store?.payment_settings?.cod_enabled && (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentMethod('cash_on_delivery')}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'cash_on_delivery' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                              style={{ borderColor: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }}
-                            >
-                              <Truck className={`w-6 h-6 mb-2 ${paymentMethod === 'cash_on_delivery' ? 'text-primary' : 'text-gray-400'}`} style={{ color: paymentMethod === 'cash_on_delivery' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xss text-center ${paymentMethod === 'cash_on_delivery' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</span>
-                            </button>
-                          )}
-
-                          {/* In-Store Pickup */}
-                          {store?.reservation_enabled && (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentMethod('store_reservation')}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === 'store_reservation' ? 'border-amber-600 bg-amber-50 shadow-sm' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
-                              style={{ borderColor: paymentMethod === 'store_reservation' ? primaryColor : undefined }}
-                            >
-                              <MapPin className={`w-6 h-6 mb-2 ${paymentMethod === 'store_reservation' ? 'text-amber-600' : 'text-gray-400'}`} style={{ color: paymentMethod === 'store_reservation' ? primaryColor : undefined }} />
-                              <span className={`font-bold text-xss text-center ${paymentMethod === 'store_reservation' ? 'text-gray-900' : 'text-gray-500'}`}>{lang === 'tr' ? 'Mağazadan Teslim' : 'In-Store Pickup'}</span>
-                            </button>
-                          )}
-                        </div>
-                        
-                        {/* Bank Details Display */}
-                        {paymentMethod === 'bank_transfer' && store?.payment_settings?.bank_details && (
-                          <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-sm font-medium whitespace-pre-wrap">
-                            {store.payment_settings.bank_details}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "ÜLKE" : "COUNTRY"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.country}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  country: e.target.value,
+                                }))
+                              }
+                              className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                            />
                           </div>
-                        )}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "İL" : "CITY"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.city}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  city: e.target.value,
+                                }))
+                              }
+                              className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                            {t.dashboard.address}
+                          </label>
+                          <textarea
+                            required
+                            value={customerInfo.address}
+                            onChange={(e) =>
+                              setCustomerInfo((prev) => ({
+                                ...prev,
+                                address: e.target.value,
+                              }))
+                            }
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900 resize-none"
+                            rows={2}
+                            style={{ borderFocusColor: primaryColor } as any}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "T.C. KİMLİK NUMARASI" : "TC ID"}
+                            </label>
+                            <input
+                              type="text"
+                              value={customerInfo.tc_id}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  tc_id: e.target.value,
+                                }))
+                              }
+                              className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                            />
+                          </div>
+                          <div className="space-y-1 flex flex-col justify-center">
+                            <label className="text-[10px] font-semibold text-gray-400 tracking-wide ml-1 mb-2">
+                              {lang === "tr" ? "HESAP TÜRÜ" : "ACCOUNT TYPE"}
+                            </label>
+                            <div className="flex gap-4">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="is_corporate"
+                                  checked={!customerInfo.is_corporate}
+                                  onChange={() =>
+                                    setCustomerInfo((prev) => ({
+                                      ...prev,
+                                      is_corporate: false,
+                                    }))
+                                  }
+                                  className="w-4 h-4 text-primary focus:ring-primary"
+                                />
+                                <span className="text-sm font-bold text-gray-700">
+                                  {lang === "tr" ? "Bireysel" : "Individual"}
+                                </span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="is_corporate"
+                                  checked={customerInfo.is_corporate}
+                                  onChange={() =>
+                                    setCustomerInfo((prev) => ({
+                                      ...prev,
+                                      is_corporate: true,
+                                    }))
+                                  }
+                                  className="w-4 h-4 text-primary focus:ring-primary"
+                                />
+                                <span className="text-sm font-bold text-gray-700">
+                                  {lang === "tr" ? "Kurumsal" : "Corporate"}
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
 
-                        {/* Store Locator Selection */}
-                        {paymentMethod === 'store_reservation' && (store?.branches?.length || store?.locations?.length) && (
-                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-[2rem] text-amber-900 text-sm mt-4">
-                            <h4 className="font-bold mb-4 px-2">{lang === 'tr' ? 'Teslimat Şubesi Seçiniz:' : 'Select Pickup Branch:'}</h4>
-                            <div className="space-y-2">
-                              {(store?.branches || store?.locations || []).map((loc: any, idx) => {
-                                  const branchNamesInBasket = Object.keys(basketByBranch);
-                                  const isRecommended = branchNamesInBasket.includes(loc.name);
-                                  return (
-                                    <label key={idx} className="flex items-center gap-3 p-4 bg-white/80 rounded-2xl cursor-pointer transition-all hover:bg-white hover:shadow-md border border-amber-100 group">
-                                        <input 
-                                          type="radio" 
-                                          value={loc.name} 
-                                          name="selected_store_location" 
-                                          className="w-5 h-5 text-amber-600 focus:ring-amber-500 border-amber-200" 
-                                          defaultChecked={branchNamesInBasket.length === 1 && branchNamesInBasket[0] === loc.name}
+                        <div className="space-y-3 mt-4 bg-gray-50 p-4 rounded-2xl">
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={customerInfo.marketing_email}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  marketing_email: e.target.checked,
+                                }))
+                              }
+                              className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                            />
+                            <span className="text-xss font-medium text-gray-600 leading-tight">
+                              {lang === "tr"
+                                ? "Kampanyalardan haberdar olmak için elektronik ileti almak istiyorum."
+                                : "I want to receive electronic messages to be informed about campaigns."}
+                            </span>
+                          </label>
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={customerInfo.marketing_sms}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  marketing_sms: e.target.checked,
+                                }))
+                              }
+                              className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                            />
+                            <span className="text-xss font-medium text-gray-600 leading-tight">
+                              {lang === "tr"
+                                ? "Kampanyalardan haberdar olmak için SMS almak istiyorum."
+                                : "I want to receive SMS to be informed about campaigns."}
+                            </span>
+                          </label>
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              required
+                              checked={customerInfo.accept_terms}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  accept_terms: e.target.checked,
+                                }))
+                              }
+                              className="mt-1 w-4 h-4 rounded text-primary focus:ring-primary"
+                            />
+                            <span className="text-xss font-medium text-gray-600 leading-tight">
+                              {lang === "tr"
+                                ? "Üyelik sözleşmesini ve kişisel verilerin işlenmesine ilişkin aydınlatma metnini okudum, kabul ediyorum."
+                                : "I have read and accept the membership agreement and the clarification text on the processing of personal data."}
+                            </span>
+                          </label>
+                        </div>
+                      </>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="w-full py-5 text-white rounded-2xl font-semibold text-xsl transition-all shadow-lg active:scale-95 mt-4"
+                      style={{
+                        backgroundColor: primaryColor,
+                        boxShadow: `0 10px 25px -5px ${primaryColor}40`,
+                      }}
+                    >
+                      {authMode === "login"
+                        ? lang === "tr"
+                          ? "GİRİŞ YAP"
+                          : "LOGIN"
+                        : lang === "tr"
+                          ? "KAYIT OL"
+                          : "REGISTER"}
+                    </button>
+
+                    <div className="relative flex items-center py-4">
+                      <div className="flex-grow border-t border-gray-200"></div>
+                      <span className="flex-shrink-0 mx-4 text-gray-400 text-xss font-bold tracking-wide">
+                        {lang === "tr" ? "VEYA" : "OR"}
+                      </span>
+                      <div className="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          alert(
+                            lang === "tr"
+                              ? "Google ile giriş yakında eklenecek!"
+                              : "Google login coming soon!",
+                          );
+                        }}
+                        className="w-full py-4 bg-white border-2 border-gray-100 hover:border-gray-200 hover:bg-gray-50 text-gray-700 rounded-2xl font-bold transition-all flex items-center justify-center gap-3"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path
+                            fill="currentColor"
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          />
+                          <path
+                            fill="#34A853"
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          />
+                          <path
+                            fill="#FBBC05"
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                          />
+                          <path
+                            fill="#EA4335"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          />
+                          <path fill="none" d="M1 1h22v22H1z" />
+                        </svg>
+                        {lang === "tr"
+                          ? "Google ile Devam Et"
+                          : "Continue with Google"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAuthModal(false);
+                          setIsCheckoutModalOpen(true);
+                        }}
+                        className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold transition-all"
+                      >
+                        {lang === "tr"
+                          ? "Misafir Olarak Devam Et"
+                          : "Continue as Guest"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Product Detail Modal */}
+        <AnimatePresence>
+          {selectedProduct && (
+            <ProductDetailModal
+              product={selectedProduct}
+              store={store}
+              t={t}
+              slug={slug}
+              onClose={() => {
+                setSelectedProduct(null);
+                // Safely pop barcode / direct product param out of browser URI to unlock close action
+                if (urlBarcode) {
+                  const isCustomDomain =
+                    !window.location.pathname.startsWith("/s/");
+                  const cleanSlug = store?.slug || slug || urlSlug;
+                  if (isCustomDomain) {
+                    navigate("/", { replace: true });
+                  } else if (cleanSlug) {
+                    navigate(`/s/${cleanSlug}`, { replace: true });
+                  } else {
+                    navigate(-1);
+                  }
+                }
+              }}
+              addToBasket={addToBasket}
+              primaryColor={primaryColor}
+              isLuxury={isLuxury}
+              sector={sector}
+              showAboutModal={showAboutModal}
+              setShowAboutModal={setShowAboutModal}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Checkout Modal */}
+        <AnimatePresence>
+          {isCheckoutModalOpen && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() =>
+                  checkoutStatus !== "loading" && setIsCheckoutModalOpen(false)
+                }
+                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white w-full max-w-md rounded-[32px] shadow-lg relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
+              >
+                <div className="p-6 md:p-8 overflow-y-auto no-scrollbar">
+                  {iyzicoPaymentUrl ? (
+                    <div className="w-full flex flex-col h-[70vh] min-h-[500px]">
+                      <div className="flex items-center justify-between mb-4 shrink-0">
+                        <h2 className="text-xsl font-semibold text-gray-900 tracking-normal">
+                          {lang === "tr" ? "Güvenli Ödeme" : "Secure Payment"}
+                        </h2>
+                        <button
+                          onClick={() => {
+                            setIyzicoPaymentUrl(null);
+                            setIsCheckoutModalOpen(false);
+                          }}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
+                      <iframe
+                        src={iyzicoPaymentUrl}
+                        className="w-full flex-1 border-0 rounded-2xl"
+                        title="Iyzico Payment"
+                      />
+                    </div>
+                  ) : checkoutStatus === "success" ? (
+                    <div className="text-center py-10">
+                      <div className="w-24 h-24 bg-green-100 text-green-600 rounded-[40px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-100">
+                        <CheckCircle2 className="w-12 h-12" />
+                      </div>
+                      <h2 className="text-3xl font-semibold text-gray-900 mb-4 tracking-tight">
+                        {t.dashboard.orderReceived}
+                      </h2>
+                      <p className="text-gray-500 font-medium leading-relaxed">
+                        {t.dashboard.orderReceivedDesc}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-10">
+                        <div>
+                          <h2 className="text-2xl font-semibold text-gray-900 tracking-normal">
+                            {t.dashboard.orderSummary}
+                          </h2>
+                          <div
+                            className="h-1 w-12 mt-1 rounded-lg"
+                            style={{ backgroundColor: primaryColor }}
+                          ></div>
+                        </div>
+                        <button
+                          onClick={() => setIsCheckoutModalOpen(false)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
+
+                      <div className="mb-8 space-y-4 max-h-48 overflow-y-auto pr-2 no-scrollbar border-b border-gray-100 pb-6">
+                        {Object.entries(basketByBranch).map(
+                          ([branchName, items]) => (
+                            <div key={branchName} className="space-y-2">
+                              <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+                                <Building2 className="w-3 h-3" />
+                                {branchName}
+                              </div>
+                              {items.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between text-sm"
+                                >
+                                  <span className="text-gray-600 font-medium">
+                                    <span className="font-bold text-gray-900">
+                                      {item.quantity}x
+                                    </span>{" "}
+                                    {item.name}
+                                  </span>
+                                  <span className="font-bold text-gray-900">
+                                    {(
+                                      item.price * item.quantity
+                                    ).toLocaleString("tr-TR", {
+                                      minimumFractionDigits: 2,
+                                    })}{" "}
+                                    {store?.currency || "TL"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ),
+                        )}
+                      </div>
+
+                      <form onSubmit={handleCheckout} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                              {t.dashboard.customerName}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.name}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  name: e.target.value,
+                                }))
+                              }
+                              className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                              placeholder={lang === "tr" ? "Ad" : "First Name"}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "SOYAD" : "SURNAME"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.surname}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  surname: e.target.value,
+                                }))
+                              }
+                              className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                              placeholder={lang === "tr" ? "Soyad" : "Surname"}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                              {t.dashboard.phone}
+                            </label>
+                            <input
+                              required
+                              type="tel"
+                              value={customerInfo.phone}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  phone: e.target.value,
+                                }))
+                              }
+                              className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                              placeholder="05xx xxx xx xx"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr"
+                                ? "T.C. KİMLİK NO"
+                                : "IDENTITY NUMBER"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              maxLength={11}
+                              value={customerInfo.tc_id}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  tc_id: e.target.value,
+                                }))
+                              }
+                              className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              style={{ borderFocusColor: primaryColor } as any}
+                              placeholder="11111111111"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                            {lang === "tr" ? "E-POSTA" : "EMAIL"}
+                          </label>
+                          <input
+                            required
+                            type="email"
+                            value={customerInfo.email}
+                            onChange={(e) =>
+                              setCustomerInfo((prev) => ({
+                                ...prev,
+                                email: e.target.value,
+                              }))
+                            }
+                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                            placeholder="email@example.com"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "ŞEHİR" : "CITY"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.city}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  city: e.target.value,
+                                }))
+                              }
+                              className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              placeholder={lang === "tr" ? "Şehir" : "City"}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                              {lang === "tr" ? "ÜLKE" : "COUNTRY"}
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              value={customerInfo.country}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  country: e.target.value,
+                                }))
+                              }
+                              className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-900"
+                              placeholder={lang === "tr" ? "Ülke" : "Country"}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                            {t.dashboard.address}
+                          </label>
+                          <textarea
+                            required
+                            rows={2}
+                            value={customerInfo.address}
+                            onChange={(e) =>
+                              setCustomerInfo((prev) => ({
+                                ...prev,
+                                address: e.target.value,
+                              }))
+                            }
+                            className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent focus:bg-white rounded-2xl transition-all outline-none resize-none font-bold text-gray-900"
+                            style={{ borderFocusColor: primaryColor } as any}
+                            placeholder={t.dashboard.address}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={customerInfo.createAccount}
+                              onChange={(e) =>
+                                setCustomerInfo((prev) => ({
+                                  ...prev,
+                                  createAccount: e.target.checked,
+                                }))
+                              }
+                              className="w-4 h-4 rounded text-primary focus:ring-primary"
+                            />
+                            <span className="text-sm font-bold text-gray-700">
+                              {lang === "tr"
+                                ? "Hesap oluştur"
+                                : "Create an account"}
+                            </span>
+                          </label>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-xss font-semibold text-gray-400 tracking-wide ml-1">
+                            {lang === "tr" ? "ÖDEME YÖNTEMİ" : "PAYMENT METHOD"}
+                          </label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {/* 1. Iyzico (Primary Credit Card if enabled) */}
+                            {store?.payment_settings?.iyzico_enabled && (
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod("iyzico")}
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === "iyzico" ? "border-blue-600 bg-blue-50 shadow-sm" : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+                                style={{
+                                  borderColor:
+                                    paymentMethod === "iyzico"
+                                      ? primaryColor
+                                      : undefined,
+                                }}
+                              >
+                                <ShieldCheck
+                                  className={`w-6 h-6 mb-2 ${paymentMethod === "iyzico" ? "text-blue-600" : "text-gray-400"}`}
+                                  style={{
+                                    color:
+                                      paymentMethod === "iyzico"
+                                        ? primaryColor
+                                        : undefined,
+                                  }}
+                                />
+                                <span
+                                  className={`font-bold text-xss text-center ${paymentMethod === "iyzico" ? "text-gray-900" : "text-gray-500"}`}
+                                >
+                                  {lang === "tr"
+                                    ? "Kredi Kartı"
+                                    : "Credit Card"}
+                                </span>
+                              </button>
+                            )}
+
+                            {/* 2. Generic Credit Card - ONLY if iyzico is NOT enabled AND some other POS is enabled */}
+                            {!store?.payment_settings?.iyzico_enabled &&
+                              (store?.payment_settings?.paypal_enabled ||
+                                store?.payment_settings?.payoneer_enabled) && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPaymentMethod("credit_card")
+                                  }
+                                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === "credit_card" ? "border-blue-600 bg-blue-50 shadow-sm" : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+                                  style={{
+                                    borderColor:
+                                      paymentMethod === "credit_card"
+                                        ? primaryColor
+                                        : undefined,
+                                  }}
+                                >
+                                  <ShieldCheck
+                                    className={`w-6 h-6 mb-2 ${paymentMethod === "credit_card" ? "text-blue-600" : "text-gray-400"}`}
+                                    style={{
+                                      color:
+                                        paymentMethod === "credit_card"
+                                          ? primaryColor
+                                          : undefined,
+                                    }}
+                                  />
+                                  <span
+                                    className={`font-bold text-xss text-center ${paymentMethod === "credit_card" ? "text-gray-900" : "text-gray-500"}`}
+                                  >
+                                    {lang === "tr"
+                                      ? "Kredi Kartı"
+                                      : "Credit Card"}
+                                  </span>
+                                </button>
+                              )}
+
+                            {/* 3. Payoneer */}
+                            {store?.payment_settings?.payoneer_enabled && (
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod("payoneer")}
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === "payoneer" ? "border-blue-600 bg-blue-50 shadow-sm" : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+                                style={{
+                                  borderColor:
+                                    paymentMethod === "payoneer"
+                                      ? primaryColor
+                                      : undefined,
+                                }}
+                              >
+                                <CreditCard
+                                  className={`w-6 h-6 mb-2 ${paymentMethod === "payoneer" ? "text-blue-600" : "text-gray-400"}`}
+                                  style={{
+                                    color:
+                                      paymentMethod === "payoneer"
+                                        ? primaryColor
+                                        : undefined,
+                                  }}
+                                />
+                                <span
+                                  className={`font-bold text-xss text-center ${paymentMethod === "payoneer" ? "text-gray-900" : "text-gray-500"}`}
+                                >
+                                  Payoneer
+                                </span>
+                              </button>
+                            )}
+
+                            {/* 4. PayPal */}
+                            {store?.payment_settings?.paypal_enabled && (
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod("paypal")}
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === "paypal" ? "border-blue-600 bg-blue-50 shadow-sm" : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+                                style={{
+                                  borderColor:
+                                    paymentMethod === "paypal"
+                                      ? primaryColor
+                                      : undefined,
+                                }}
+                              >
+                                <CreditCard
+                                  className={`w-6 h-6 mb-2 ${paymentMethod === "paypal" ? "text-blue-600" : "text-gray-400"}`}
+                                  style={{
+                                    color:
+                                      paymentMethod === "paypal"
+                                        ? primaryColor
+                                        : undefined,
+                                  }}
+                                />
+                                <span
+                                  className={`font-bold text-xss text-center ${paymentMethod === "paypal" ? "text-gray-900" : "text-gray-500"}`}
+                                >
+                                  PayPal
+                                </span>
+                              </button>
+                            )}
+
+                            {/* Bank Transfer */}
+                            {store?.payment_settings?.bank_transfer_enabled && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPaymentMethod("bank_transfer")
+                                }
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === "bank_transfer" ? "border-primary bg-primary/5 shadow-sm" : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+                                style={{
+                                  borderColor:
+                                    paymentMethod === "bank_transfer"
+                                      ? primaryColor
+                                      : undefined,
+                                }}
+                              >
+                                <RotateCcw
+                                  className={`w-6 h-6 mb-2 ${paymentMethod === "bank_transfer" ? "text-primary" : "text-gray-400"}`}
+                                  style={{
+                                    color:
+                                      paymentMethod === "bank_transfer"
+                                        ? primaryColor
+                                        : undefined,
+                                  }}
+                                />
+                                <span
+                                  className={`font-bold text-xss text-center ${paymentMethod === "bank_transfer" ? "text-gray-900" : "text-gray-500"}`}
+                                >
+                                  {lang === "tr"
+                                    ? "Havale / EFT"
+                                    : "Bank Transfer"}
+                                </span>
+                              </button>
+                            )}
+
+                            {/* Cash on Delivery */}
+                            {store?.payment_settings?.cod_enabled && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPaymentMethod("cash_on_delivery")
+                                }
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === "cash_on_delivery" ? "border-primary bg-primary/5 shadow-sm" : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+                                style={{
+                                  borderColor:
+                                    paymentMethod === "cash_on_delivery"
+                                      ? primaryColor
+                                      : undefined,
+                                }}
+                              >
+                                <Truck
+                                  className={`w-6 h-6 mb-2 ${paymentMethod === "cash_on_delivery" ? "text-primary" : "text-gray-400"}`}
+                                  style={{
+                                    color:
+                                      paymentMethod === "cash_on_delivery"
+                                        ? primaryColor
+                                        : undefined,
+                                  }}
+                                />
+                                <span
+                                  className={`font-bold text-xss text-center ${paymentMethod === "cash_on_delivery" ? "text-gray-900" : "text-gray-500"}`}
+                                >
+                                  {lang === "tr"
+                                    ? "Kapıda Ödeme"
+                                    : "Cash on Delivery"}
+                                </span>
+                              </button>
+                            )}
+
+                            {/* In-Store Pickup */}
+                            {store?.reservation_enabled && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPaymentMethod("store_reservation")
+                                }
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${paymentMethod === "store_reservation" ? "border-amber-600 bg-amber-50 shadow-sm" : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+                                style={{
+                                  borderColor:
+                                    paymentMethod === "store_reservation"
+                                      ? primaryColor
+                                      : undefined,
+                                }}
+                              >
+                                <MapPin
+                                  className={`w-6 h-6 mb-2 ${paymentMethod === "store_reservation" ? "text-amber-600" : "text-gray-400"}`}
+                                  style={{
+                                    color:
+                                      paymentMethod === "store_reservation"
+                                        ? primaryColor
+                                        : undefined,
+                                  }}
+                                />
+                                <span
+                                  className={`font-bold text-xss text-center ${paymentMethod === "store_reservation" ? "text-gray-900" : "text-gray-500"}`}
+                                >
+                                  {lang === "tr"
+                                    ? "Mağazadan Teslim"
+                                    : "In-Store Pickup"}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Bank Details Display */}
+                          {paymentMethod === "bank_transfer" &&
+                            store?.payment_settings?.bank_details && (
+                              <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-sm font-medium whitespace-pre-wrap">
+                                {store.payment_settings.bank_details}
+                              </div>
+                            )}
+
+                          {/* Store Locator Selection */}
+                          {paymentMethod === "store_reservation" &&
+                            (store?.branches?.length ||
+                              store?.locations?.length) && (
+                              <div className="p-4 bg-amber-50 border border-amber-200 rounded-[2rem] text-amber-900 text-sm mt-4">
+                                <h4 className="font-bold mb-4 px-2">
+                                  {lang === "tr"
+                                    ? "Teslimat Şubesi Seçiniz:"
+                                    : "Select Pickup Branch:"}
+                                </h4>
+                                <div className="space-y-2">
+                                  {(
+                                    store?.branches ||
+                                    store?.locations ||
+                                    []
+                                  ).map((loc: any, idx) => {
+                                    const branchNamesInBasket =
+                                      Object.keys(basketByBranch);
+                                    const isRecommended =
+                                      branchNamesInBasket.includes(loc.name);
+                                    return (
+                                      <label
+                                        key={idx}
+                                        className="flex items-center gap-3 p-4 bg-white/80 rounded-2xl cursor-pointer transition-all hover:bg-white hover:shadow-md border border-amber-100 group"
+                                      >
+                                        <input
+                                          type="radio"
+                                          value={loc.name}
+                                          name="selected_store_location"
+                                          className="w-5 h-5 text-amber-600 focus:ring-amber-500 border-amber-200"
+                                          defaultChecked={
+                                            branchNamesInBasket.length === 1 &&
+                                            branchNamesInBasket[0] === loc.name
+                                          }
                                         />
                                         <div className="flex flex-col flex-1">
                                           <div className="flex items-center justify-between">
-                                            <span className="font-bold text-slate-900">{loc.name}</span>
+                                            <span className="font-bold text-slate-900">
+                                              {loc.name}
+                                            </span>
                                             {isRecommended && (
                                               <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
-                                                {lang === 'tr' ? 'Ürünleriniz Burada' : 'Items Here'}
+                                                {lang === "tr"
+                                                  ? "Ürünleriniz Burada"
+                                                  : "Items Here"}
                                               </span>
                                             )}
                                           </div>
-                                          <span className="text-[11px] text-slate-500 font-medium mt-0.5 line-clamp-1">{loc.address}</span>
+                                          <span className="text-[11px] text-slate-500 font-medium mt-0.5 line-clamp-1">
+                                            {loc.address}
+                                          </span>
                                         </div>
-                                    </label>
-                                  );
-                              })}
-                            </div>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                        </div>
+
+                        {checkoutStatus === "error" && (
+                          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl mb-6 flex items-center gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                            <p className="text-red-600 text-sm font-bold">
+                              {error || t.dashboard.orderError}
+                            </p>
                           </div>
                         )}
-                      </div>
 
-                      {checkoutStatus === 'error' && (
-                        <div className="p-4 bg-red-50 border border-red-100 rounded-2xl mb-6 flex items-center gap-3">
-                          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                          <p className="text-red-600 text-sm font-bold">
-                            {error || t.dashboard.orderError}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="pt-6">
-                        <div 
-                          className="flex items-center justify-between mb-6 p-5 rounded-2xl text-white shadow-xl"
-                          style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-white/70 text-[10px] font-semibold tracking-wide mb-1">{t.dashboard.amountToPay}</span>
-                            <span className="text-xss font-bold flex items-center gap-1.5">
-                              <ShieldCheck className="w-3 h-3" />
-                              {t.dashboard.securePayment}
+                        <div className="pt-6">
+                          <div
+                            className="flex items-center justify-between mb-6 p-5 rounded-2xl text-white shadow-xl"
+                            style={{
+                              backgroundColor: primaryColor,
+                              boxShadow: `0 10px 25px -5px ${primaryColor}40`,
+                            }}
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-white/70 text-[10px] font-semibold tracking-wide mb-1">
+                                {t.dashboard.amountToPay}
+                              </span>
+                              <span className="text-xss font-bold flex items-center gap-1.5">
+                                <ShieldCheck className="w-3 h-3" />
+                                {t.dashboard.securePayment}
+                              </span>
+                            </div>
+                            <span className="text-2xl font-semibold">
+                              {basketTotal.toLocaleString("tr-TR", {
+                                minimumFractionDigits: 2,
+                              })}{" "}
+                              {store?.currency || "TL"}
                             </span>
                           </div>
-                          <span className="text-2xl font-semibold">
-                            {basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {store?.currency || "TL"}
-                          </span>
+                          <button
+                            type="submit"
+                            disabled={checkoutStatus === "loading"}
+                            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-semibold text-lg hover:bg-black transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-95 tracking-wide"
+                          >
+                            {checkoutStatus === "loading" ? (
+                              <>
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                                {t.dashboard.processing}
+                              </>
+                            ) : (
+                              <>
+                                <ShoppingBasket className="w-6 h-6" />
+                                {t.dashboard.checkout}
+                              </>
+                            )}
+                          </button>
                         </div>
-                        <button 
-                          type="submit"
-                          disabled={checkoutStatus === 'loading'}
-                          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-semibold text-lg hover:bg-black transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-95 tracking-wide"
-                        >
-                          {checkoutStatus === 'loading' ? (
-                            <>
-                              <Loader2 className="w-6 h-6 animate-spin" />
-                              {t.dashboard.processing}
-                            </>
-                          ) : (
-                            <>
-                              <ShoppingBasket className="w-6 h-6" />
-                              {t.dashboard.checkout}
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                )}
+                      </form>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+      {/* WhatsApp Button */}
+      {store?.whatsapp_number && (
+        <a
+          href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9+]/g, "")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-28 md:bottom-24 right-4 md:right-8 z-[100] bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-3 transition-all active:scale-95"
+        >
+          <MessageCircle className="w-7 h-7" />
+          <span className="text-sm font-bold hidden md:block">
+            {lang === "tr" ? "Yardım Al" : "WhatsApp"}
+          </span>
+        </a>
+      )}
+
+      {/* Small Footer for Compliance */}
+      <div className="py-12 bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-400 text-xs font-semibold">
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 uppercase tracking-widest">
+            <a
+              href={`/api/public/store/${store?.slug}/about-us`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-black transition-colors"
+            >
+              {lang === "tr" ? "Hakkımızda" : "About Us"}
+            </a>
+            {store?.store_type !== "portfolio" && (
+              <>
+                <a
+                  href={`/api/public/store/${store?.slug}/return-policy`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-black transition-colors"
+                >
+                  {lang === "tr" ? "İade Politikası" : "Return Policy"}
+                </a>
+                <a
+                  href={`/api/public/store/${store?.slug}/shipping-policy`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-black transition-colors"
+                >
+                  {lang === "tr" ? "Teslimat Politikası" : "Shipping Policy"}
+                </a>
+              </>
+            )}
+            <a
+              href={`/api/public/store/${store?.slug}/privacy`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-black transition-colors"
+            >
+              {lang === "tr" ? "Gizlilik Politikası" : "Privacy Policy"}
+            </a>
+          </div>
+          <div className="text-center md:text-right">
+            &copy; {new Date().getFullYear()} {store?.name}.{" "}
+            {lang === "tr" ? "Tüm hakları saklıdır." : "All rights reserved."}
+          </div>
+        </div>
+      </div>
+
+      {showStoreLocatorModal && store?.locations && (
+        <StoreLocatorModal
+          locations={store.locations}
+          onClose={() => setShowStoreLocatorModal(false)}
+        />
+      )}
+
+      {/* Discover Stories Modal */}
+      <AnimatePresence>
+        {showDiscoverModal && (
+          <DiscoverModal
+            products={products.slice(0, 10)}
+            onClose={() => setShowDiscoverModal(false)}
+            onViewProduct={(p) => {
+              setSelectedProduct(p);
+              // Optionally fetch details...
+            }}
+            lang={lang}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* About Modal */}
+      <AnimatePresence>
+        {showAboutModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAboutModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-3xl md:rounded-[4rem] overflow-hidden shadow-lg max-h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative h-40 md:h-48 bg-slate-900 overflow-hidden shrink-0">
+                <div className="absolute inset-0 opacity-30">
+                  <img
+                    src={
+                      store?.hero_image_url ||
+                      "https://images.unsplash.com/photo-1441986300917-64674bd600d8"
+                    }
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent" />
+                <button
+                  onClick={() => setShowAboutModal(false)}
+                  className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 rounded-lg bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all z-20"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="absolute bottom-6 left-6 md:left-10 z-10">
+                  <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tighter">
+                    {lang === "tr" ? "Hikayemiz" : "Our Story"}
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6 md:p-8 overflow-y-auto">
+                <div className="prose prose-slate max-w-none">
+                  <p className="text-slate-600 text-base md:text-lg leading-relaxed font-semibold whitespace-pre-wrap">
+                    {store?.about_text ||
+                      (lang === "tr"
+                        ? "Henüz hakkımızda yazısı eklenmedi."
+                        : "No about text added yet.")}
+                  </p>
+                </div>
+                <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-slate-100 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-slate-900 font-bold text-sm tracking-tight">
+                      {lang === "tr"
+                        ? "Güvenilir Alışveriş"
+                        : "Trusted Shopping"}
+                    </h4>
+                    <p className="text-slate-400 text-xs md:text-sm font-medium">
+                      {store?.name}{" "}
+                      {lang === "tr" ? "güvencesiyle." : "guarantee."}
+                    </p>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-    </div>
-    {/* WhatsApp Button */} 
-    {store?.whatsapp_number && (
-      <a 
-        href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9+]/g, '')}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-28 md:bottom-24 right-4 md:right-8 z-[100] bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-3 transition-all active:scale-95"
-      >
-        <MessageCircle className="w-7 h-7" />
-        <span className="text-sm font-bold hidden md:block">{lang === 'tr' ? 'Yardım Al' : 'WhatsApp'}</span>
-      </a>
-    )}
-
-    {/* Small Footer for Compliance */}
-    <div className="py-12 bg-white border-t border-gray-100">
-      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-400 text-xs font-semibold">
-        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 uppercase tracking-widest">
-          <a href={`/api/public/store/${store?.slug}/about-us`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Hakkımızda' : 'About Us'}</a>
-          {store?.store_type !== 'portfolio' && (
-            <>
-              <a href={`/api/public/store/${store?.slug}/return-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'İade Politikası' : 'Return Policy'}</a>
-              <a href={`/api/public/store/${store?.slug}/shipping-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Teslimat Politikası' : 'Shipping Policy'}</a>
-            </>
-          )}
-          <a href={`/api/public/store/${store?.slug}/privacy`} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">{lang === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}</a>
-        </div>
-        <div className="text-center md:text-right">
-          &copy; {new Date().getFullYear()} {store?.name}. {lang === 'tr' ? 'Tüm hakları saklıdır.' : 'All rights reserved.'}
-        </div>
-      </div>
-    </div>
-
-    {showStoreLocatorModal && store?.locations && (
-      <StoreLocatorModal 
-        locations={store.locations} 
-        onClose={() => setShowStoreLocatorModal(false)}
-      />
-    )}
-
-    {/* Discover Stories Modal */}
-    <AnimatePresence>
-      {showDiscoverModal && (
-        <DiscoverModal 
-          products={products.slice(0, 10)} 
-          onClose={() => setShowDiscoverModal(false)}
-          onViewProduct={(p) => {
-            setSelectedProduct(p);
-            // Optionally fetch details...
-          }}
-          lang={lang}
-        />
-      )}
-    </AnimatePresence>
-
-    {/* About Modal */}
-    <AnimatePresence>
-      {showAboutModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowAboutModal(false)}
-            className="absolute inset-0 bg-black/80 backdrop-blur-xl"
-          />
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-2xl bg-white rounded-3xl md:rounded-[4rem] overflow-hidden shadow-lg max-h-[90vh] flex flex-col"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="relative h-40 md:h-48 bg-slate-900 overflow-hidden shrink-0">
-              <div className="absolute inset-0 opacity-30">
-                <img src={store?.hero_image_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent" />
-              <button 
-                onClick={() => setShowAboutModal(false)}
-                className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 rounded-lg bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all z-20"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="absolute bottom-6 left-6 md:left-10 z-10">
-                 <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tighter">
-                   {lang === 'tr' ? 'Hikayemiz' : 'Our Story'}
-                 </h2>
-              </div>
-            </div>
-            <div className="p-6 md:p-8 overflow-y-auto">
-              <div className="prose prose-slate max-w-none">
-                 <p className="text-slate-600 text-base md:text-lg leading-relaxed font-semibold whitespace-pre-wrap">
-                   {store?.about_text || (lang === 'tr' ? 'Henüz hakkımızda yazısı eklenmedi.' : 'No about text added yet.')}
-                 </p>
-              </div>
-              <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-slate-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="text-slate-900 font-bold text-sm tracking-tight">{lang === 'tr' ? 'Güvenilir Alışveriş' : 'Trusted Shopping'}</h4>
-                  <p className="text-slate-400 text-xs md:text-sm font-medium">{store?.name} {lang === 'tr' ? 'güvencesiyle.' : 'guarantee.'}</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
     </ErrorBoundary>
   );
 };

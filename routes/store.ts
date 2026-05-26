@@ -5118,6 +5118,75 @@ router.get("/branches", async (req: any, res) => {
   }
 });
 
+// Create a new branch
+router.post("/branches", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { name, slug, address, phone } = req.body;
+  if (!name || !slug) return res.status(400).json({ error: "Name and slug are required" });
+
+  try {
+    const parentStoreRes = await pool.query("SELECT parent_id, branding, theme, store_type, sector FROM stores WHERE id = $1", [storeId]);
+    const parent = parentStoreRes.rows[0];
+    const parentId = parent?.parent_id || storeId;
+
+    const result = await pool.query(
+      `INSERT INTO stores (name, slug, address, phone, parent_id, branding, theme, store_type, sector) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [name, slug, address || '', phone || '', parentId, parent?.branding || {}, parent?.theme || 'modern', parent?.store_type || 'general', parent?.sector || 'general']
+    );
+
+    await logAction(req.user.id, storeId, 'ADD_BRANCH', `Added branch: ${name} (ID: ${result.rows[0].id})`);
+    res.status(201).json(result.rows[0]);
+  } catch (error: any) {
+    if (error.code === '23505') return res.status(400).json({ error: "Bu slug zaten kullanımda" });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a branch
+router.put("/branches/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { id } = req.params;
+  const { name, slug, address, phone } = req.body;
+
+  try {
+    // Check ownership
+    const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+    const parentId = currentStoreRes.rows[0]?.parent_id || storeId;
+    
+    const checkRes = await pool.query("SELECT id FROM stores WHERE id = $1 AND parent_id = $2", [id, parentId]);
+    if (checkRes.rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
+
+    const result = await pool.query(
+      "UPDATE stores SET name = $1, slug = $2, address = $3, phone = $4 WHERE id = $5 RETURNING *",
+      [name, slug, address, phone, id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a branch
+router.delete("/branches/:id", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { id } = req.params;
+
+  try {
+    const currentStoreRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+    const parentId = currentStoreRes.rows[0]?.parent_id || storeId;
+    
+    const checkRes = await pool.query("SELECT id FROM stores WHERE id = $1 AND parent_id = $2", [id, parentId]);
+    if (checkRes.rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
+
+    await pool.query("DELETE FROM stores WHERE id = $1", [id]);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Check stock in other branches
 router.get("/branches/stock/:barcode", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
@@ -5554,6 +5623,73 @@ router.get("/notifications", async (req: any, res) => {
   } catch (e: any) {
     // If table doesn't exist, return empty array to avoid frontend errors
     res.json([]);
+  }
+});
+
+// --- CONSULTANTS (CRM) ---
+
+// Get all consultants
+router.get("/consultants", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM consultants WHERE store_id = $1 ORDER BY name ASC",
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch consultants" });
+  }
+});
+
+// Create consultant
+router.post("/consultants", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { name, email, phone, role, branch_id, image_url, performance } = req.body;
+  try {
+    const result = await pool.query(
+      `INSERT INTO consultants (store_id, branch_id, name, email, phone, role, image_url, performance) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [storeId, branch_id, name, email, phone, role, image_url, performance || {}]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create consultant" });
+  }
+});
+
+// Update consultant
+router.put("/consultants/:id", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { name, email, phone, role, branch_id, image_url, status, performance } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE consultants SET 
+        name = $1, email = $2, phone = $3, role = $4, branch_id = $5, image_url = $6, status = $7, performance = $8, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $9 AND store_id = $10 RETURNING *`,
+      [name, email, phone, role, branch_id, image_url, status, performance, id, storeId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Consultant not found" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update consultant" });
+  }
+});
+
+// Delete consultant
+router.delete("/consultants/:id", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query(
+      "DELETE FROM consultants WHERE id = $1 AND store_id = $2 RETURNING *",
+      [id, storeId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Consultant not found" });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete consultant" });
   }
 });
 

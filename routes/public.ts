@@ -667,7 +667,7 @@ router.get("/store/:slug/products", async (req, res) => {
 
   const realEstateRes = await pool.query(`
     SELECT r.*, s.name as branch_name, s.slug as branch_slug 
-    FROM real_estate r 
+    FROM real_estate_properties r 
     JOIN stores s ON r.store_id = s.id
     WHERE (r.store_id = $1 OR s.parent_id = $1) 
     AND r.status = 'active'
@@ -713,13 +713,13 @@ router.get("/store/:slug/products", async (req, res) => {
       image_url: r.images && r.images.length > 0 ? r.images[0] : null,
       sector_data: {
         square_meters: r.square_meters,
-        rooms: r.rooms,
+        rooms: r.room_count,
         virtual_tour_url: r.virtual_tour_url,
         ai_tour_enabled: r.ai_tour_enabled
       }
     });
   });
-  
+
   // Convert prices to store's default currency
   const defaultCurrency = store.default_currency || 'TRY';
   const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });

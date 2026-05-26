@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Plus, 
   Search, 
@@ -31,7 +31,8 @@ import {
   Award,
   Scale,
   Filter,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Loader2
 } from "lucide-react";
 import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -39,6 +40,7 @@ import { RealEstateModal } from "../../components/RealEstateModal";
 import { LegalContractModal } from "../../components/LegalContractModal";
 import { RealEstateProperty } from "../../types";
 import { ConsultingInsights } from '../../components/ConsultingInsights';
+import { api } from "../../services/api";
 
 interface RealEstateTabProps {
   properties: RealEstateProperty[];
@@ -299,50 +301,73 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
     }
   ]);
 
-  const handleAIScanAlerts = () => {
-    const simulatedTitles = [
-      {
-        title: "Şok Gelişme: Lefkoşa Gönyeli Bölgesi İmar Sınırları Genişletildi!",
-        summary: "Yeni belediye meclis kararına göre Lefkoşa sınırındaki imar parselasyonu genişletilerek 120 adet yeni lüks konut arazisi tescil hakkı kazandı.",
-        tag: "Lefkoşa imar",
-        source: "Google Alerts (lookpriceAI)"
-      },
-      {
-        title: "Girne Yeni Marina Projesi ÇED Raporu Onaylandı",
-        summary: "Kordonboyu derin deniz derinleştirme çalışmaları ve yat yatırma limanı projesi onaylanarak önümüzdeki ay tescil ve hafriyat başlayacaktır.",
-        tag: "Girne marina",
-        source: "Resmi Kabine Kararı"
-      },
-      {
-        title: "Konut Kredilerinde İndirim Rüzgarı Emlak Taleplerini Tetikledi",
-        summary: "GBP kredilerinde yıllık faiz oranı %4.2 seviyesine çekildi. Özellikle yabancı İngiliz yatırımcı taleplerinde gözle görülür artış önörülüyor.",
-        tag: "faiz oranları",
-        source: "lookprice Analiz"
-      },
-      {
-        title: "İskele LongBeach Bölgesinde 1000 Konutluk Rezidans Yasası Kabul Edildi",
-        summary: "Yeni meclis oturumunda İskele ve çevresi için altyapı katılım payı ödemeli tapu kotaları %20 oranında gevşetildi.",
-        tag: "yabancı satın alma",
-        source: "Kıbrıs Postası"
-      }
-    ];
-
-    const randomChoice = simulatedTitles[Math.floor(Math.random() * simulatedTitles.length)];
+  // Simulated 12-hour Cron Job for the frontend session
+  useEffect(() => {
+    const cronInterval = setInterval(() => {
+      console.log('⏰ Running 12-hour scheduled AI news scan...');
+      handleAIScanAlerts();
+    }, 12 * 60 * 60 * 1000);
     
-    const newAlert = {
-      id: `news-${Date.now()}`,
-      title: randomChoice.title,
-      summary: randomChoice.summary,
-      source: randomChoice.source,
-      date: 'Az Önce (Live)',
-      tags: [randomChoice.tag],
-      intensity: 'high',
-      publishedOnStore: false,
-      publishedOnEnrakipsiz: false
-    };
+    return () => clearInterval(cronInterval);
+  }, [newsTags]);
 
-    setNewsFeed([newAlert, ...newsFeed]);
-    alert(`🛎️ GOOGLE ALERTS UYARISI TETİKLENDİ!\n\n"${randomChoice.tag}" konu başlığında yeni bir gelişme yakalandı ve listenize eklendi!`);
+  const [isScanningNews, setIsScanningNews] = useState(false);
+  const [branches, setBranches] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  const fetchBranches = async () => {
+    try {
+      const data = await api.getBranches();
+      setBranches(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch branches:', error);
+    }
+  };
+
+  const handleAIScanAlerts = async () => {
+    setIsScanningNews(true);
+    try {
+      const activeTags = newsTags.map(t => t.value);
+      const res = await fetch('/api/real-estate/news', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ tags: activeTags })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch news');
+      
+      if (Array.isArray(data) && data.length > 0) {
+        // Map backend keys to frontend keys
+        const incomingNews = data.map((item: any) => ({
+          id: `live-${item.id || Date.now()}-${Math.random()}`,
+          title: item.title,
+          summary: item.category || 'Canlı AI Gelişmesi',
+          image: item.img, // Capture the image too
+          source: 'Live Radar & AI Search',
+          date: item.date || 'Az Önce',
+          tags: item.tags || [activeTags[0]],
+          intensity: item.priority === 'high' ? 'high' : 'normal',
+          publishedOnStore: false, 
+          publishedOnEnrakipsiz: false
+        }));
+        setNewsFeed(prev => [...incomingNews, ...prev]);
+        alert(`🛎️ ${data.length} YENİ CANLI HABER BULUNDU!\n\nAI Radarı etiketlerinize uygun en güncel gerçek haberleri getirdi.`);
+      } else {
+        alert(`🛎️ Şu anda belirlediğiniz etiketlerle eşleşen yeni bir kritik rapor bulunamadı.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Hata: Canlı AI haberi alınamadı.');
+    } finally {
+      setIsScanningNews(false);
+    }
   };
 
   // Simple currency conversion helper for the matching algorithm
@@ -583,13 +608,24 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
             </p>
           </div>
 
-          <button
-            onClick={handleAIScanAlerts}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase shadow-md transition-all border border-indigo-505 hover:scale-[1.02] active:scale-95"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            ⚡ AI ile Gelişmeleri Taramayı Tetikle
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button
+              onClick={handleAIScanAlerts}
+              disabled={isScanningNews}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase shadow-md transition-all border ${isScanningNews ? 'bg-slate-700 border-slate-600 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-505 hover:scale-[1.02] active:scale-95'}`}
+            >
+              {isScanningNews ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-amber-300" />
+              )}
+              {isScanningNews ? 'AI Tarıyor...' : '⚡ AI ile Gelişmeleri Taramayı Tetikle'}
+            </button>
+            <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20 shadow-sm cursor-help" title="Sistem belirlediğiniz etiketleri günde 2 kez otomatik tarar.">
+               <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+               {lang === 'tr' ? '12 SAATLIK OTOMATİK CRON JOB AKTİF' : '12H AUTO CRON JOB ACTIVE'}
+            </div>
+          </div>
         </div>
 
         {/* TAGS & SUBSCRIPTIONS HUB */}
@@ -839,24 +875,27 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
         <div className="flex flex-col gap-2">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Şubeler Arası Portföy Süzgeci</span>
           <div className="flex flex-wrap gap-1.5">
-            {[
-              { id: "all", label: "Tüm Şubeler" },
-              { id: "Merkez Ofis", label: "Merkez Ofis (Lefkoşa)" },
-              { id: "Girne Harbour Ofisi", label: "Girne Harbour Ofisi" },
-              { id: "İskele LongBeach Şubesi", label: "İskele LongBeach Şubesi" },
-              { id: "Gazi Mağusa Ofisi", label: "Gazi Mağusa Ofisi" },
-              { id: "İstanbul High-End Ofisi", label: "İstanbul High-End" },
-            ].map(b => (
+            <button
+              onClick={() => setFilterBranch("all")}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                filterBranch === "all" 
+                  ? "bg-slate-900 text-white shadow-sm scale-102"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              Tüm Şubeler
+            </button>
+            {branches.map(b => (
               <button
                 key={b.id}
-                onClick={() => setFilterBranch(b.id)}
+                onClick={() => setFilterBranch(b.name)}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterBranch === b.id 
+                  filterBranch === b.name 
                     ? "bg-slate-900 text-white shadow-sm scale-102"
                     : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
                 }`}
               >
-                {b.label}
+                {b.name}
               </button>
             ))}
           </div>
@@ -1358,6 +1397,22 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
                         >
                           <FileSignature className="w-3.5 h-3.5 stroke-[2.5]" />
                           Sözleşme
+                        </button>
+                        <button 
+                         onClick={() => {
+                           if (onSave) {
+                             const isLocked = !!property.reserved_by_branch;
+                             onSave({
+                               ...property,
+                               reserved_by_branch: isLocked ? '' : (property.branch_name || 'Merkez Ofis'),
+                               reservation_notes: isLocked ? '' : (lang === 'tr' ? 'Hızlı Kilit (İşlem Bekliyor)' : 'Fast Lock (Pending)')
+                             });
+                           }
+                         }}
+                         className={`p-2 rounded-xl transition-all border ${property.reserved_by_branch ? 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100' : 'text-slate-400 border-slate-100 hover:text-indigo-600 hover:bg-slate-100'}`}
+                         title={property.reserved_by_branch ? (lang === 'tr' ? 'Kilidi Kaldır' : 'Unlock') : (lang === 'tr' ? 'Hızlı Kilitle' : 'Quick Lock')}
+                        >
+                          {property.reserved_by_branch ? <Lock className="w-4 h-4" /> : <FolderLock className="w-4 h-4" />}
                         </button>
                         <button 
                           onClick={() => { setSelectedProperty(property); setIsModalOpen(true); }}
