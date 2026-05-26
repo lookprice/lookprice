@@ -261,6 +261,10 @@ export interface RealEstateProperty {
   reserved_by_branch?: string;
   reservation_notes?: string;
   reservation_expiry?: string;
+  external_crm_id?: string;
+  external_crm_name?: string;
+  sync_status?: 'pending' | 'success' | 'error';
+  last_sync_at?: string;
   documents?: {
     id: string;
     name: string;

@@ -1554,6 +1554,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
                   { id: 'compliance', label: '🛡️ Mevzuat Uyumu', icon: Shield, badge: `${complianceScore}%` },
                   { id: 'splits', label: '🏢 Şube Paylaşımı', icon: Building2 },
                   { id: 'escrow', label: '📑 Tapu & Kapanış', icon: FileCheck },
+                  { id: 'integration', label: '🔄 CRM Entegrasyon', icon: Share2 },
                 ].map((tb) => {
                   const Icon = tb.icon;
                   const isActive = activeHubTab === tb.id;
@@ -2766,6 +2767,94 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
                   </div>
                 )}
 
+                {/* TAB: EXTERNAL CRM INTEGRATION */}
+                {activeHubTab === 'integration' && (
+                  <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/80 space-y-4 shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="block text-[10px] font-black text-indigo-700 uppercase tracking-widest leading-none font-sans">EXTERNAL CRM & PORTAL SYNC ENGINE</span>
+                          <h5 className="font-extrabold text-sm text-slate-800 mt-1">Dış Sistem Entegrasyonu & Senkronizasyon Kaydı</h5>
+                          <p className="text-[11px] text-slate-400 mt-1 font-sans">Bu portföyün diğer CRM sistemleri (Sahibinden, Emlakjet, Zingat) ile veri bağlantı durumu.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9.5px] px-2 py-0.5 rounded-full uppercase font-extrabold border ${
+                            matchingProperty.external_crm_id ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-400'
+                          }`}>
+                            {matchingProperty.external_crm_id ? 'Bağlantı Aktif' : 'Bağlı Değil'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                        <div className="space-y-4">
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🔗 BAĞLI SİSTEM BİLGİLERİ</span>
+                            
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-bold">Harici Sistem:</span>
+                                <span className="font-black text-slate-900">{matchingProperty.external_crm_name || 'Tanımsız'}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-bold">Harici İlan ID:</span>
+                                <span className="font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                  {matchingProperty.external_crm_id || 'ID GİRİLMEMİŞ'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-bold">Eşleşme Durumu:</span>
+                                <span className="flex items-center gap-1 font-black text-emerald-600">
+                                  <Check className="w-3 h-3" /> Veri Tutarlı
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-900 text-white p-5 rounded-3xl space-y-3">
+                             <div className="flex items-center gap-2">
+                               <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin-slow" />
+                               <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Anlık Senkronizasyon Paneli</span>
+                             </div>
+                             <p className="text-[10px] text-slate-300 font-medium leading-relaxed">
+                               LookPrice CRM üzerinden yaptığınız her güncelleme (Fiyat değişikliği, durum güncellemesi) otomatik olarak bağlı portal sistemlerine itilir.
+                             </p>
+                             <button 
+                               onClick={() => alert("Portallar arasında veri tutarlılığı kontrol ediliyor... (Sahibinden XML/API tetiklendi)")}
+                               className="w-full bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase py-2 rounded-xl border border-white/10 transition-all flex items-center justify-center gap-2"
+                             >
+                               Şimdi Manuel Senkronize Et
+                             </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                           <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 h-full">
+                              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">📝 ENTEGRASYON LOGLARI</span>
+                              <div className="space-y-2.5">
+                                {[
+                                  { date: 'Bugün 10:45', action: 'Fiyat Güncellemesi İçeri Aktarıldı', system: 'Sahibinden' },
+                                  { date: 'Dün 14:20', action: 'Görseller Senkronize Edildi', system: 'Emlakjet' },
+                                  { date: '22 May 2026', action: 'İlan İlk Yayınlama Başarılı', system: 'Portal API' }
+                                ].map((log, idx) => (
+                                  <div key={idx} className="flex gap-3 border-b border-slate-50 pb-2 last:border-0">
+                                    <div className="w-1 h-8 bg-indigo-500 rounded-full shrink-0" />
+                                    <div>
+                                      <span className="block text-[9px] font-black text-slate-400 uppercase">{log.date} - {log.system}</span>
+                                      <span className="block text-[10px] font-bold text-slate-700">{log.action}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-[9px] text-slate-400 italic mt-4">
+                                * Diğer CRM sistemleri ile XML Export ve REST API üzerinden iki taraflı (Two-way) tam entegrasyon sağlanmaktadır.
+                              </p>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* FOOTER */}

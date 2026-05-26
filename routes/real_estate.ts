@@ -65,6 +65,10 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS sharing_scope TEXT DEFAULT 'shared_pool';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS reserved_by_branch TEXT DEFAULT '';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS reservation_notes TEXT DEFAULT '';`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS external_crm_id TEXT;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS external_crm_name TEXT;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS sync_status TEXT DEFAULT 'pending';`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMP;`);
 
     // Create Audit Log table
     await pool.query(`
@@ -240,14 +244,28 @@ router.get('/properties', authenticate, async (req: any, res) => {
     // 2. Properties where this store is the authorized branch
     // 3. Properties shared with the entire network (sharing_scope = 'all')
     const result = await pool.query(
-      `SELECT * FROM real_estate_properties 
-       WHERE store_id = $1 
-       OR authorized_branch_id = $1 
-       OR sharing_scope = 'all'
-       ORDER BY created_at DESC`,
+      `SELECT p.*, 
+              c.name as consultant_name, 
+              c.phone as consultant_phone,
+              s.name as branch_name_official
+       FROM real_estate_properties p
+       LEFT JOIN consultants c ON p.responsible_consultant_id = c.id
+       LEFT JOIN stores s ON p.authorized_branch_id = s.id
+       WHERE p.store_id = $1 
+       OR p.authorized_branch_id = $1 
+       OR p.sharing_scope = 'all'
+       ORDER BY p.created_at DESC`,
       [storeId]
     );
-    res.json(result.rows);
+    
+    // Fallback logic for name display if joined names are missing
+    const rows = result.rows.map(row => ({
+      ...row,
+      responsible_agent: row.consultant_name || row.responsible_agent || 'Belirtilmedi',
+      branch_name: row.branch_name_official || row.branch_name || 'Merkez Ofis'
+    }));
+
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching properties:', error);
     res.status(500).json({ error: 'Internal server error' });

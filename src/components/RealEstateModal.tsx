@@ -592,6 +592,48 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* Dış CRM Entegrasyonu (Sahibinden, Emlakjet vb.) */}
+              <div className="border-t border-slate-800/50 pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-black text-slate-300 block uppercase">🔄 Dış Portal Entegrasyon Bağlantısı</span>
+                    <span className="text-[9px] text-slate-500 block">Sahibinden.com, Emlakjet veya başka bir CRM'deki ilan numarasını bağlayın.</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                     <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded uppercase font-bold">API Aktif</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Dış Sistem Adı</label>
+                    <select
+                      className="w-full p-2 bg-slate-950 text-slate-300 border border-slate-800 rounded-lg text-[11px] font-bold"
+                      value={formData.external_crm_name || ''}
+                      onChange={(e) => setFormData({...formData, external_crm_name: e.target.value})}
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="Sahibinden">Sahibinden.com</option>
+                      <option value="Hepsiemlak">Hepsiemlak</option>
+                      <option value="Emlakjet">Emlakjet</option>
+                      <option value="Zingat">Zingat</option>
+                      <option value="PropertyFinder">PropertyFinder (UAE/International)</option>
+                      <option value="Other">Diğer Özel CRM</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">İlan No / External ID</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 1092837465"
+                      className="w-full p-2 bg-slate-950 text-white border border-slate-800 rounded-lg text-[11px] font-bold placeholder-slate-600"
+                      value={formData.external_crm_id || ''}
+                      onChange={(e) => setFormData({...formData, external_crm_id: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

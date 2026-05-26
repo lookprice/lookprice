@@ -221,43 +221,41 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                       onClick={() => onViewProduct(p)}
                       className="group cursor-pointer"
                     >
-                      <div className="bg-slate-50 rounded-[2.5rem] overflow-hidden relative shadow-md group-hover:shadow-xl transition-all duration-500 aspect-[4/3]">
+                      <div className="bg-slate-50 rounded-[3rem] overflow-hidden relative shadow-sm group-hover:shadow-2xl transition-all duration-700 aspect-[16/10]">
                         <div
-                          className="h-full w-full bg-cover bg-center transition-transform duration-[2s] group-hover:scale-110"
+                          className="h-full w-full bg-cover bg-center transition-transform duration-[2s] group-hover:scale-105"
                           style={{
                             backgroundImage: `url(${p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"})`,
                           }}
                         ></div>
-                        <div className="absolute top-6 left-6 flex gap-2">
-                          <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black text-slate-900 uppercase tracking-widest shadow-sm">
-                            {p.category || "MÜLK"}
+                        <div className="absolute top-8 left-8 flex gap-2">
+                          <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl text-[10px] font-black text-slate-950 uppercase tracking-[0.2em] shadow-xl border border-slate-100">
+                            {p.category || "GAYRİMENKUL"}
                           </div>
                         </div>
-                        <div className="absolute bottom-0 left-0 w-full p-8 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                          <button className="w-full py-3 bg-white text-slate-900 rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl shadow-slate-900/20">
-                            {lang === "tr" ? "DETAYLARI GÖR" : "VIEW DETAILS"}
+                        <div className="absolute bottom-0 left-0 w-full p-10 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+                          <button className="w-full py-4 bg-white text-slate-950 rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] shadow-2xl hover:bg-slate-50 transition-colors">
+                            {lang === "tr" ? "MÜLKÜ İNCELE" : "EXPLORE PROPERTY"}
                           </button>
                         </div>
                       </div>
-                      <div className="mt-6 space-y-2 px-2">
+                      <div className="mt-8 space-y-3 px-4">
                         <div className="flex justify-between items-start">
-                          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight group-hover:text-indigo-600 transition-colors w-2/3 truncate">
+                          <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter group-hover:text-indigo-600 transition-colors leading-none">
                             {p.name}
                           </h4>
-                          <div className="text-right w-1/3">
-                            <p className="text-lg font-black text-indigo-600">
-                              {priceStr}
-                            </p>
-                          </div>
                         </div>
-                        {(p.sector_data?.city || p.sector_data?.district) && (
-                          <div className="flex items-center gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 w-fit px-3 py-2 rounded-lg">
-                            <span className="flex items-center gap-1.5">
-                              <Map className="h-4 w-4 text-indigo-500" />{" "}
-                              {p.sector_data?.district} {p.sector_data?.city}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex items-center justify-between">
+                           <p className="text-xl font-black text-indigo-600 tracking-tight">
+                              {priceStr}
+                           </p>
+                           {(p.sector_data?.city || p.sector_data?.district) && (
+                             <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                               <Map className="h-3.5 w-3.5 text-indigo-500" />
+                               {p.sector_data?.district || p.sector_data?.city}
+                             </div>
+                           )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -323,6 +321,73 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
               </div>
             </div>
           )}
+
+              {/* Standalone Financing Calculator for Portfolio */}
+              {isSectionEnabled("financing") && (
+                <div className="pt-24">
+                  <div className="bg-slate-900 rounded-[3.5rem] p-8 md:p-16 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full" />
+                    <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                      <div className="space-y-8">
+                        <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-2xl border border-white/5">
+                          <Check className="h-4 w-4 text-indigo-400" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Akıllı Finansal Asistan</span>
+                        </div>
+                        <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none">
+                          {lang === "tr" ? "Yatırımınızı\nPlanlayın" : "Plan Your\nInvestment"}
+                        </h2>
+                        <p className="text-slate-400 font-bold max-w-md">
+                          {lang === "tr" 
+                            ? "Hayalinizdeki mülk için size özel ödeme planlarını ve kredi seçeneklerini anında hesaplayın."
+                            : "Calculate your personalized payment plans and credit options for your dream property instantly."}
+                        </p>
+                        <div className="flex flex-wrap gap-4 pt-4">
+                           <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center flex-1 min-w-[120px]">
+                              <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Düşük Faiz</p>
+                              <p className="text-lg font-black text-emerald-400">%1.89</p>
+                           </div>
+                           <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center flex-1 min-w-[120px]">
+                              <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Vade</p>
+                              <p className="text-lg font-black text-indigo-400">120 Ay</p>
+                           </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white text-slate-900 p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-6">
+                         <div className="space-y-6">
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mülk Tutarı</label>
+                               <div className="relative">
+                                  <input type="text" defaultValue="5.000.000" className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xl font-black focus:ring-2 focus:ring-indigo-600 outline-none transition-all" />
+                                  <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-400">TRY</span>
+                               </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                               <div className="space-y-2">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peşinat (%)</label>
+                                  <input type="number" defaultValue="30" className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-black focus:ring-2 focus:ring-indigo-600 outline-none" />
+                               </div>
+                               <div className="space-y-2">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vade (Ay)</label>
+                                  <select className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-black focus:ring-2 focus:ring-indigo-600 outline-none appearance-none">
+                                     <option>36</option>
+                                     <option>60</option>
+                                     <option>120</option>
+                                  </select>
+                               </div>
+                            </div>
+                            <button className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl">
+                               Şimdi Hesapla
+                            </button>
+                            <p className="text-[9px] text-slate-400 text-center font-bold italic">
+                               * Hesaplamalar genel bilgilendirme amaçlıdır. Güncel banka verilerine göre değişiklik gösterebilir.
+                            </p>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
           {/* Trust Anchor Team Section */}
           {isSectionEnabled("team") && (

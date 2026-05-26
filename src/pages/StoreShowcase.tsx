@@ -431,39 +431,79 @@ const SectorSpecs: React.FC<{ sector: string; data: any }> = ({
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.square_meters && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">
-            {lang === "tr" ? "METREKARE" : "SQUARE METERS"}
+          <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "NET METREKARE" : "NET AREA"}
           </p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">
+          <p className="text-sm font-black text-emerald-900 transition-colors uppercase">
             {data.square_meters} m²
           </p>
         </div>
       )}
       {data.rooms && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
-          <p className="text-[8px] font-semibold text-emerald-500 tracking-wide mb-1">
-            {lang === "tr" ? "ODA SAYISI" : "ROOMS"}
+          <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ODA SAYISI" : "ROOM COUNT"}
           </p>
-          <p className="text-sm font-semibold text-emerald-900 transition-colors uppercase">
+          <p className="text-sm font-black text-emerald-900 transition-colors uppercase">
             {data.rooms}
           </p>
         </div>
       )}
+      {data.city && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ŞEHİR / BÖLGE" : "CITY / REGION"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.city} / {data.district || '---'}
+          </p>
+        </div>
+      )}
+      {data.island && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ADA / PARSEL" : "ISLAND / PLOT"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.island} / {data.plot || '---'}
+          </p>
+        </div>
+      )}
+      {data.kktc_title_type && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "KOÇAN TİPİ" : "TITLE TYPE"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.kktc_title_type}
+          </p>
+        </div>
+      )}
+      {data.heating && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ISITMA SİSTEMİ" : "HEATING"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.heating}
+          </p>
+        </div>
+      )}
       {data.virtual_tour_url && (
-        <div className="col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
+        <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
           <div>
-            <p className="text-[8px] font-semibold text-indigo-500 tracking-wide mb-1">
+            <p className="text-[8px] font-black text-indigo-500 tracking-widest mb-1 uppercase">
               {lang === "tr" ? "SANAL TUR" : "VIRTUAL TOUR"}
             </p>
-            <p className="text-sm font-bold text-indigo-900">
-              {lang === "tr" ? "3D Gezinti Mevcut" : "3D Tour Available"}
+            <p className="text-sm font-black text-indigo-900 uppercase">
+              {lang === "tr" ? "3D GEZİNTİ MEVCUT" : "3D TOUR AVAILABLE"}
             </p>
           </div>
           <button
             onClick={() => window.open(data.virtual_tour_url, "_blank")}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
           >
-            {lang === "tr" ? "Turu Başlat" : "Start Tour"}
+            {lang === "tr" ? "TURU BAŞLAT" : "START TOUR"}
           </button>
         </div>
       )}
@@ -536,39 +576,43 @@ const SectorSpecs: React.FC<{ sector: string; data: any }> = ({
   );
 };
 
-const DigitalSignature: React.FC<{ storeName: string; lang: string }> = ({
+const DigitalSignature: React.FC<{ storeName: string; lang: string; isPortfolio?: boolean }> = ({
   storeName,
   lang,
-}) => (
-  <div className="mt-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between overflow-hidden relative group">
-    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-      <ShieldCheck className="w-24 h-24 text-slate-900" />
-    </div>
-    <div className="relative z-10">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-1.5 h-1.5 rounded-lg bg-green-500 animate-pulse" />
-        <span className="text-[10px] font-semibold text-slate-400 tracking-wide">
-          {lang === "tr" ? "DOĞRULANMIŞ ÜRÜN" : "VERIFIED PRODUCT"}
+  isPortfolio
+}) => {
+  if (isPortfolio) return null;
+  return (
+    <div className="mt-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between overflow-hidden relative group">
+      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+        <ShieldCheck className="w-24 h-24 text-slate-900" />
+      </div>
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-1.5 h-1.5 rounded-lg bg-green-500 animate-pulse" />
+          <span className="text-[10px] font-semibold text-slate-400 tracking-wide">
+            {lang === "tr" ? "DOĞRULANMIŞ ÜRÜN" : "VERIFIED PRODUCT"}
+          </span>
+        </div>
+        <p className="text-xss font-bold text-slate-600 leading-tight">
+          {lang === "tr"
+            ? `Bu ürün ${storeName} tarafından kalite kontrolünden geçmiştir.`
+            : `This product has been quality-checked by ${storeName}.`}
+        </p>
+      </div>
+      <div className="relative z-10 text-right">
+        <span className="text-[10px] font-semibold text-slate-900 tracking-wide block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">
+          SECURE_PASS_ID
         </span>
-      </div>
-      <p className="text-xss font-bold text-slate-600 leading-tight">
-        {lang === "tr"
-          ? `Bu ürün ${storeName} tarafından kalite kontrolünden geçmiştir.`
-          : `This product has been quality-checked by ${storeName}.`}
-      </p>
-    </div>
-    <div className="relative z-10 text-right">
-      <span className="text-[10px] font-semibold text-slate-900 tracking-wide block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">
-        SECURE_PASS_ID
-      </span>
-      <div className="flex gap-0.5 justify-end">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="w-1 h-4 bg-slate-900/10 rounded-lg" />
-        ))}
+        <div className="flex gap-0.5 justify-end">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="w-1 h-4 bg-slate-900/10 rounded-lg" />
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const DiscoverModal: React.FC<{
   products: Product[];
@@ -973,9 +1017,13 @@ const ProductDetailModal: React.FC<{
     return () => cancelAnimationFrame(frameId);
   }, [isOrbiting, orbitSpeed, activeViewMode]);
 
-  const brandLabel = store?.brand_label || (lang === "tr" ? "Marka" : "Brand");
-  const categoryLabel =
-    store?.category_label || (lang === "tr" ? "Kategori" : "Category");
+  const brandLabel = product?.type === "real_estate" 
+    ? (lang === "tr" ? "KONUM" : "LOCATION")
+    : store?.brand_label || (lang === "tr" ? "Marka" : "Brand");
+    
+  const categoryLabel = product?.type === "real_estate"
+    ? (lang === "tr" ? "MÜLK TİPİ" : "PROPERTY TYPE")
+    : store?.category_label || (lang === "tr" ? "Kategori" : "Category");
   const stockLabel = store?.stock_label || (lang === "tr" ? "Stok" : "Stock");
 
   useEffect(() => {
@@ -1098,7 +1146,7 @@ const ProductDetailModal: React.FC<{
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white w-full max-w-5xl rounded-xl shadow-lg relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
+        className="bg-white w-full max-w-7xl rounded-[3rem] shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[95vh] border border-slate-200"
       >
         <button
           onClick={onClose}
@@ -1107,19 +1155,19 @@ const ProductDetailModal: React.FC<{
           <X className="w-5 h-5" />
         </button>
 
-        <div className="md:w-1/2 bg-gray-50 relative overflow-hidden h-80 md:h-auto">
+        <div className="md:w-1/2 bg-gray-50 relative overflow-hidden h-[400px] md:h-auto">
           {/* Share Buttons Overlay */}
-          <div className="absolute top-6 left-6 flex flex-col gap-2 z-20">
+          <div className="absolute top-6 left-6 flex items-center gap-2 z-20">
             <button
               onClick={shareProduct}
-              className="p-3 bg-white/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-white transition-all active:scale-90 group"
+              className="p-3 bg-white/95 backdrop-blur-md rounded-xl shadow-lg hover:bg-white transition-all active:scale-90 group border border-slate-200"
               title={lang === "tr" ? "Paylaş" : "Share"}
             >
               <Share2 className="w-5 h-5 text-indigo-600" />
             </button>
             <button
               onClick={shareOnWhatsApp}
-              className="p-3 bg-emerald-500/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-emerald-500 transition-all active:scale-90"
+              className="p-3 bg-emerald-500/95 backdrop-blur-md rounded-xl shadow-lg hover:bg-emerald-500 transition-all active:scale-90 border border-emerald-400/20"
               title="WhatsApp"
             >
               <svg
@@ -1131,7 +1179,7 @@ const ProductDetailModal: React.FC<{
             </button>
             <button
               onClick={copyLink}
-              className="p-3 bg-white/90 backdrop-blur-md rounded-lg shadow-lg hover:bg-white transition-all active:scale-90 flex items-center gap-2 group overflow-hidden"
+              className="p-3 bg-white/95 backdrop-blur-md rounded-xl shadow-lg hover:bg-white transition-all active:scale-90 flex items-center gap-2 group overflow-hidden border border-slate-200"
               title={lang === "tr" ? "Linki Kopyala" : "Copy Link"}
             >
               <div className="flex items-center gap-2">
@@ -1146,7 +1194,7 @@ const ProductDetailModal: React.FC<{
                       initial={{ opacity: 0, width: 0 }}
                       animate={{ opacity: 1, width: "auto" }}
                       exit={{ opacity: 0, width: 0 }}
-                      className="text-[10px] font-semibold uppercase text-emerald-600 tracking-widest whitespace-nowrap"
+                      className="text-[10px] font-black uppercase text-emerald-600 tracking-widest whitespace-nowrap"
                     >
                       {lang === "tr" ? "Kopyalandı" : "Copied"}
                     </motion.span>
@@ -1154,32 +1202,33 @@ const ProductDetailModal: React.FC<{
                 </AnimatePresence>
               </div>
             </button>
-            {/* View Mode Switcher Overlay */}
-            {store?.store_type === "portfolio" &&
-              (product.type === "vehicle" ||
-                product.type === "real_estate") && (
-                <div className="absolute bottom-6 left-6 right-6 flex justify-center z-30 pointer-events-auto">
-                  <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
-                    <button
-                      type="button"
-                      onClick={() => setActiveViewMode("gallery")}
-                      className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "gallery" ? "bg-indigo-600 text-white shadow-md" : "text-slate-400 hover:text-white"}`}
-                    >
-                      <Package className="w-3.5 h-3.5" />
-                      {lang === "tr" ? "Galeri" : "Gallery"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveViewMode("tour360")}
-                      className={`px-4 py-2 rounded-xl text-xss font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-indigo-600 text-white shadow-md" : "text-slate-400 hover:text-white"}`}
-                    >
-                      <Globe className="w-3.5 h-3.5" />
-                      {lang === "tr" ? "360° Akıllı Tur" : "360° AI Tour"}
-                    </button>
-                  </div>
-                </div>
-              )}
           </div>
+
+          {/* View Mode Switcher Moved and Refined */}
+          {store?.store_type === "portfolio" &&
+            (product.type === "vehicle" ||
+              product.type === "real_estate") && (
+              <div className="absolute top-6 right-6 z-30">
+                <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode("gallery")}
+                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "gallery" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
+                  >
+                    <Package className="w-3 h-3" />
+                    {lang === "tr" ? "Galeri" : "Gallery"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode("tour360")}
+                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
+                  >
+                    <Globe className="w-3 h-3" />
+                    {lang === "tr" ? "360°" : "360°"}
+                  </button>
+                </div>
+              </div>
+            )}
           {store?.store_type === "portfolio" &&
           activeViewMode === "tour360" &&
           (product.type === "vehicle" || product.type === "real_estate") ? (
@@ -1707,15 +1756,7 @@ const ProductDetailModal: React.FC<{
             data={product.sector_data}
           />
 
-          {(product?.type === "vehicle" || product?.type === "real_estate") && (
-            <ListingFinancingCalculator
-              price={product.price}
-              currency={store?.currency || product.currency || "TRY"}
-              lang={lang}
-            />
-          )}
-
-          <DigitalSignature storeName={store?.name || ""} lang={lang} />
+          <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'portfolio'} />
 
           {branchStocks.length > 0 && (
             <div className="mt-10 mb-10">
