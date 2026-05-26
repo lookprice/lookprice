@@ -224,11 +224,11 @@ router.get("/marketplace/listings", async (req, res) => {
     let productsList: any[] = [];
     try {
       const productsRes = await pool.query(`
-        SELECT p.id, p.store_id, p.name, p.description, p.price, p.currency, p.image_url, p.category, p.brand, p.created_at, s.name as store_name, s.slug as store_slug
+        SELECT p.id, p.store_id, p.name, p.description, p.price, p.currency, p.image_url, p.category, p.brand, COALESCE(p.created_at, p.updated_at, CURRENT_TIMESTAMP) AS created_at, s.name as store_name, s.slug as store_slug
         FROM products p 
         JOIN stores s ON p.store_id = s.id
         WHERE (p.is_web_sale = true OR p.is_web_sale IS NULL)
-        ORDER BY p.created_at DESC
+        ORDER BY COALESCE(p.created_at, p.updated_at, CURRENT_TIMESTAMP) DESC
         LIMIT 100
       `);
       productsList = productsRes.rows || [];

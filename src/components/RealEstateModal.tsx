@@ -187,6 +187,11 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         country: property.country || 'KKTC',
         kktc_region: property.kktc_region || 'Girne',
         kktc_title_type: property.kktc_title_type || 'Eşdeğer Koçan',
+        branch_name: property.branch_name || 'Merkez Ofis',
+        responsible_agent: property.responsible_agent || '',
+        sharing_scope: property.sharing_scope || 'shared_pool',
+        reserved_by_branch: property.reserved_by_branch || '',
+        reservation_notes: property.reservation_notes || '',
         documents: property.documents || []
       });
     } else {
@@ -214,6 +219,11 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         country: 'KKTC',
         kktc_region: 'Girne',
         kktc_title_type: 'Eşdeğer Koçan',
+        branch_name: 'Merkez Ofis',
+        responsible_agent: '',
+        sharing_scope: 'shared_pool',
+        reserved_by_branch: '',
+        reservation_notes: '',
         images: [],
         virtual_tour_url: '',
         ai_tour_enabled: false,
@@ -423,6 +433,87 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   <option value="optioned">Opsiyonlu (Kapora Alındı)</option>
                   <option value="sold">Satıldı (Sold)</option>
                 </select>
+              </div>
+            </div>
+
+            {/* ŞUBELER ARASI PAYLAŞIM VE CRM REZERVASYON MODÜLÜ */}
+            <div className="bg-gradient-to-br from-indigo-950/45 to-slate-900 border border-slate-800 p-4 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-indigo-400 tracking-wider">🏢 Çok Şubeli CRM & Havuz Yönetimi</span>
+                <span className="text-[9px] bg-indigo-600/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full">LOOKPRICE HUB</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Şube / Ofis</label>
+                  <select
+                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    value={formData.branch_name || 'Merkez Ofis'}
+                    onChange={(e) => setFormData({...formData, branch_name: e.target.value})}
+                  >
+                    <option value="Merkez Ofis">Lefkoşa Merkez Ofis</option>
+                    <option value="Girne Harbour Ofisi">Girne Harbour Ofisi</option>
+                    <option value="İskele LongBeach Şubesi">İskele LongBeach Ofisi</option>
+                    <option value="Gazi Mağusa Ofisi">Gazi Mağusa Ofisi</option>
+                    <option value="İstanbul High-End Ofisi">İstanbul High-End Ofisi</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Gayrimenkul Danışmanı</label>
+                  <input
+                    type="text"
+                    placeholder="Örn: Ahmet Kara"
+                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    value={formData.responsible_agent || ''}
+                    onChange={(e) => setFormData({...formData, responsible_agent: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Paylaşım Durumu (Havuz Kapsamı)</label>
+                  <select
+                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    value={formData.sharing_scope || 'shared_pool'}
+                    onChange={(e) => setFormData({...formData, sharing_scope: e.target.value as any})}
+                  >
+                    <option value="shared_pool">🌐 Ortak Havuz (Tüm Şubeler Satabilir)</option>
+                    <option value="branch_private">🔒 Şube İçi Özel (Sadece Bu Ofis)</option>
+                    <option value="private">🔑 Danışmana Özel (Gizli Portföy)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Çift Satış Engelleme / Rezervasyon Kilidi */}
+              <div className="border-t border-slate-800/80 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="space-y-0.5 max-w-sm">
+                  <span className="text-[11px] font-bold text-slate-300 block">Çapraz Şube Rezervasyon Kilidi</span>
+                  <span className="text-[9px] text-slate-400 block">Eğer başka şubeden bir danışman bu mülke müşteri getirdiyse mülkü kilitleyin.</span>
+                </div>
+
+                <div className="flex gap-2">
+                  <select
+                    className="p-1.5 bg-slate-950 text-xs font-bold border border-slate-800 rounded-lg text-slate-300"
+                    value={formData.reserved_by_branch || ''}
+                    onChange={(e) => setFormData({...formData, reserved_by_branch: e.target.value})}
+                  >
+                    <option value="">Kilidi Açık (Rezervasyon Yok)</option>
+                    <option value="Girne Harbour Ofisi">Girne Harbour Şube Kilitli</option>
+                    <option value="İskele LongBeach Şubesi">İskele LongBeach Şube Kilitli</option>
+                    <option value="Gazi Mağusa Ofisi">Gazi Mağusa Şube Kilitli</option>
+                    <option value="İstanbul High-End Ofisi">İstanbul High-End Şube Kilitli</option>
+                  </select>
+
+                  {formData.reserved_by_branch && (
+                    <input
+                      type="text"
+                      placeholder="Not: Kapora alındı..."
+                      className="p-1.5 bg-slate-950 text-xs font-medium border border-slate-800 rounded-lg text-white"
+                      value={formData.reservation_notes || ''}
+                      onChange={(e) => setFormData({...formData, reservation_notes: e.target.value})}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>

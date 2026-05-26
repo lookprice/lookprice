@@ -243,6 +243,13 @@ export interface RealEstateProperty {
   is_verified?: boolean;
   verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
   status: 'active' | 'rented' | 'sold' | 'optioned'; // Satılık, Kiralık, Opsiyonlu (Kapora Alındı), Satıldı
+  branch_id?: number | string;
+  branch_name?: string;
+  responsible_agent?: string;
+  sharing_scope?: 'shared_pool' | 'branch_private' | 'private';
+  reserved_by_branch?: string;
+  reservation_notes?: string;
+  reservation_expiry?: string;
   documents?: {
     id: string;
     name: string;
@@ -289,6 +296,13 @@ export interface Vehicle {
   seller_type?: 'professional' | 'individual';
   is_verified?: boolean;
   verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
+  branch_id?: number | string;
+  branch_name?: string;
+  responsible_agent?: string;
+  sharing_scope?: 'shared_pool' | 'branch_private' | 'private';
+  reserved_by_branch?: string;
+  reservation_notes?: string;
+  reservation_expiry?: string;
   created_at: string;
   updated_at: string;
   expiring_docs?: number;

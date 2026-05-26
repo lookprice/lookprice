@@ -162,7 +162,7 @@ const SettingsTab = ({
   const [logs, setLogs] = React.useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = React.useState(false);
 
-  const isPortfolio = branding?.store_type === 'portfolio';
+  const isPortfolio = branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
 
   React.useEffect(() => {
     if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
@@ -666,7 +666,7 @@ const SettingsTab = ({
             className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
           >
             <Wrench className="h-4 w-4" />
-            <span>Store Settings</span>
+            <span>{lang === 'tr' ? 'Mağaza Ayarları' : 'Store Settings'}</span>
           </button>
           {!isPortfolio && (
             <button 
@@ -961,42 +961,44 @@ const SettingsTab = ({
           </div>
 
           {/* Shipping Profiles */}
-          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-                  <Truck className="h-6 w-6" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kargo Ayarları</h3>
-              </div>
-              <button 
-                onClick={() => {
-                  const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
-                  onBrandingChange('shipping_profiles', newProfiles);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800"
-              >
-                <Plus className="h-4 w-4" /> Yeni Profil
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              {(branding.shipping_profiles || []).map((profile: any, index: number) => (
-                <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
-                  <div className="flex-1 w-full">
-                    <input value={profile.name} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].name = e.target.value; onBrandingChange('shipping_profiles', p); }} placeholder="Profil Adı" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold mb-2" />
-                    <div className="flex gap-2">
-                       <input type="number" value={profile.cost} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].cost = parseFloat(e.target.value); onBrandingChange('shipping_profiles', p); }} placeholder="Ücret" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
-                       <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold" />
-                    </div>
+          {!isPortfolio && (
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+                    <Truck className="h-6 w-6" />
                   </div>
-                  <button onClick={() => { const p = [...branding.shipping_profiles]; p.splice(index, 1); onBrandingChange('shipping_profiles', p); }} className="text-red-500 hover:text-red-700">
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                  <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kargo Ayarları</h3>
                 </div>
-              ))}
+                <button 
+                  onClick={() => {
+                    const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
+                    onBrandingChange('shipping_profiles', newProfiles);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800"
+                >
+                  <Plus className="h-4 w-4" /> Yeni Profil
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {(branding.shipping_profiles || []).map((profile: any, index: number) => (
+                  <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                    <div className="flex-1 w-full">
+                      <input value={profile.name} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].name = e.target.value; onBrandingChange('shipping_profiles', p); }} placeholder="Profil Adı" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold mb-2" />
+                      <div className="flex gap-2">
+                         <input type="number" value={profile.cost} onChange={(e) => { const p = [...branding.shipping_profiles]; p[index].cost = parseFloat(e.target.value); onBrandingChange('shipping_profiles', p); }} placeholder="Ücret" className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold" />
+                         <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold" />
+                      </div>
+                    </div>
+                    <button onClick={() => { const p = [...branding.shipping_profiles]; p.splice(index, 1); onBrandingChange('shipping_profiles', p); }} className="text-red-500 hover:text-red-700">
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Store Locator & Reservations */}
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
@@ -2799,8 +2801,8 @@ const SettingsTab = ({
 
               <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 mt-4">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{lang === 'tr' ? 'SEKTÖR MODU' : 'SECTOR MODE'}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {['general', 'fashion', 'automotive', 'tech'].map((sect) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {['general', 'fashion', 'automotive', 'tech', 'real_estate'].map((sect) => (
                     <button
                       key={sect}
                       onClick={() => onBrandingChange('page_layout_settings', { ...(branding.page_layout_settings || {}), sector: sect })}
@@ -2809,7 +2811,8 @@ const SettingsTab = ({
                       {sect === 'general' ? (lang === 'tr' ? 'Genel' : 'General') :
                        sect === 'fashion' ? (lang === 'tr' ? 'Moda / Lüks' : 'Fashion / Luxury') :
                        sect === 'automotive' ? (lang === 'tr' ? 'Otomotiv' : 'Automotive') :
-                       (lang === 'tr' ? 'Teknoloji' : 'Tech')}
+                       sect === 'tech' ? (lang === 'tr' ? 'Teknoloji' : 'Tech') :
+                       (lang === 'tr' ? 'Gayrimenkul' : 'Real Estate')}
                     </button>
                   ))}
                 </div>
@@ -3122,70 +3125,72 @@ const SettingsTab = ({
             </div>
 
             {/* Label Customization */}
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-               <div className="flex items-center justify-between mb-6">
-                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{lang === 'tr' ? 'ÖZEL ETİKETLER' : 'CUSTOM LABELS'}</h3>
-                 <div className="flex gap-2">
-                   <button 
-                    onClick={() => {
-                      onBrandingChange('brand_label', lang === 'tr' ? 'Yazarlar' : 'Authors');
-                      onBrandingChange('category_label', lang === 'tr' ? 'Kitap Türleri' : 'Book Types');
-                      onBrandingChange('product_label', lang === 'tr' ? 'Kitap' : 'Book');
-                      onBrandingChange('stock_label', lang === 'tr' ? 'Stoktaki Kitap Sayısı' : 'Books in Stock');
-                      onBrandingChange('hero_title', lang === 'tr' ? 'Okumayı Seviyoruz' : 'We Love Reading');
-                    }}
-                    className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-indigo-100 transition-colors"
-                   >
-                     {lang === 'tr' ? 'Kitapçı Konsepti Uygula' : 'Apply Bookstore Concept'}
-                   </button>
-                 </div>
-               </div>
-               <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'MARKA ETİKETİ' : 'BRAND LABEL'}</label>
-                      <input 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
-                        placeholder={lang === 'tr' ? 'Örn: Yazarlar' : 'e.g. Authors'}
-                        value={branding.brand_label || ''} 
-                        onChange={(e) => onBrandingChange('brand_label', e.target.value)} 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'KATEGORİ ETİKETİ' : 'CATEGORY LABEL'}</label>
-                      <input 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
-                        placeholder={lang === 'tr' ? 'Örn: Koleksiyon' : 'e.g. Collections'}
-                        value={branding.category_label || ''} 
-                        onChange={(e) => onBrandingChange('category_label', e.target.value)} 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜRÜN ADLANDIRMA' : 'PRODUCT LABEL'}</label>
-                       <input 
-                         className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
-                         placeholder={lang === 'tr' ? 'Örn: Kitap' : 'e.g. Book'}
-                         value={branding.product_label || ''} 
-                         onChange={(e) => onBrandingChange('product_label', e.target.value)} 
-                       />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'STOK ETİKETİ' : 'STOCK LABEL'}</label>
-                       <input 
-                         className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
-                         placeholder={lang === 'tr' ? 'Örn: Kalan Adet' : 'e.g. Remaining'}
-                         value={branding.stock_label || ''} 
-                         onChange={(e) => onBrandingChange('stock_label', e.target.value)} 
-                       />
+            {!isPortfolio && (
+               <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{lang === 'tr' ? 'ÖZEL ETİKETLER' : 'CUSTOM LABELS'}</h3>
+                    <div className="flex gap-2">
+                      <button 
+                       onClick={() => {
+                         onBrandingChange('brand_label', lang === 'tr' ? 'Yazarlar' : 'Authors');
+                         onBrandingChange('category_label', lang === 'tr' ? 'Kitap Türleri' : 'Book Types');
+                         onBrandingChange('product_label', lang === 'tr' ? 'Kitap' : 'Book');
+                         onBrandingChange('stock_label', lang === 'tr' ? 'Stoktaki Kitap Sayısı' : 'Books in Stock');
+                         onBrandingChange('hero_title', lang === 'tr' ? 'Okumayı Seviyoruz' : 'We Love Reading');
+                       }}
+                       className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-indigo-100 transition-colors"
+                      >
+                        {lang === 'tr' ? 'Kitapçı Konsepti Uygula' : 'Apply Bookstore Concept'}
+                      </button>
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
-                    {lang === 'tr' 
-                      ? '* Bu ayarlar web sitenizdeki filtreleme ve ürün detaylarındaki başlıkları değiştirir.' 
-                      : '* These settings change the titles in filtering and product details on your website.'}
-                  </p>
+                  <div className="space-y-4">
+                     <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'MARKA ETİKETİ' : 'BRAND LABEL'}</label>
+                         <input 
+                           className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                           placeholder={lang === 'tr' ? 'Örn: Yazarlar' : 'e.g. Authors'}
+                           value={branding.brand_label || ''} 
+                           onChange={(e) => onBrandingChange('brand_label', e.target.value)} 
+                         />
+                       </div>
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'KATEGORİ ETİKETİ' : 'CATEGORY LABEL'}</label>
+                         <input 
+                           className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                           placeholder={lang === 'tr' ? 'Örn: Koleksiyon' : 'e.g. Collections'}
+                           value={branding.category_label || ''} 
+                           onChange={(e) => onBrandingChange('category_label', e.target.value)} 
+                         />
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'ÜRÜN ADLANDIRMA' : 'PRODUCT LABEL'}</label>
+                          <input 
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                            placeholder={lang === 'tr' ? 'Örn: Kitap' : 'e.g. Book'}
+                            value={branding.product_label || ''} 
+                            onChange={(e) => onBrandingChange('product_label', e.target.value)} 
+                          />
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'STOK ETİKETİ' : 'STOCK LABEL'}</label>
+                          <input 
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold" 
+                            placeholder={lang === 'tr' ? 'Örn: Kalan Adet' : 'e.g. Remaining'}
+                            value={branding.stock_label || ''} 
+                            onChange={(e) => onBrandingChange('stock_label', e.target.value)} 
+                          />
+                       </div>
+                     </div>
+                     <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
+                       {lang === 'tr' 
+                         ? '* Bu ayarlar web sitenizdeki filtreleme ve ürün detaylarındaki başlıkları değiştirir.' 
+                         : '* These settings change the titles in filtering and product details on your website.'}
+                     </p>
+                  </div>
                </div>
-            </div>
+            )}
 
             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">{lang === 'tr' ? 'HAKKIMIZDA METNİ' : 'ABOUT TEXT'}</h3>
@@ -3205,41 +3210,43 @@ const SettingsTab = ({
           </div>
 
           {/* Legal Policies Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">{lang === 'tr' ? 'İADE POLİTİKASI' : 'RETURN POLICY'}</h3>
-               <p className="text-[10px] text-slate-400 font-medium mb-4">{lang === 'tr' ? 'Google Merchant Center için zorunludur.' : 'Required for Google Merchant Center.'}</p>
-               <textarea 
-                  className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
-                  value={branding.legal_pages?.return_policy || ''}
-                  onChange={(e) => onBrandingChange('legal_pages', { ...branding.legal_pages, return_policy: e.target.value })}
-                  placeholder={lang === 'tr' ? 'İade şartlarınızı yazın...' : 'Write your return conditions...'}
-               />
-               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'SAYFA LİNKİ' : 'PAGE LINK'}</p>
-                  <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
-                    {window.location.origin}/store/{branding.slug}/return-policy
-                  </code>
-               </div>
-            </div>
+          {!isPortfolio && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">{lang === 'tr' ? 'İADE POLİTİKASI' : 'RETURN POLICY'}</h3>
+                 <p className="text-[10px] text-slate-400 font-medium mb-4">{lang === 'tr' ? 'Google Merchant Center için zorunludur.' : 'Required for Google Merchant Center.'}</p>
+                 <textarea 
+                    className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+                    value={branding.legal_pages?.return_policy || ''}
+                    onChange={(e) => onBrandingChange('legal_pages', { ...branding.legal_pages, return_policy: e.target.value })}
+                    placeholder={lang === 'tr' ? 'İade şartlarınızı yazın...' : 'Write your return conditions...'}
+                 />
+                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'SAYFA LİNKİ' : 'PAGE LINK'}</p>
+                    <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                      {window.location.origin}/store/{branding.slug}/return-policy
+                    </code>
+                 </div>
+              </div>
 
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">{lang === 'tr' ? 'KARGO POLİTİKASI' : 'SHIPPING POLICY'}</h3>
-               <p className="text-[10px] text-slate-400 font-medium mb-4">{lang === 'tr' ? 'Google Merchant Center için zorunludur.' : 'Required for Google Merchant Center.'}</p>
-               <textarea 
-                  className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
-                  value={branding.legal_pages?.shipping_policy || ''}
-                  onChange={(e) => onBrandingChange('legal_pages', { ...branding.legal_pages, shipping_policy: e.target.value })}
-                  placeholder={lang === 'tr' ? 'Kargo ve teslimat şartlarınızı yazın...' : 'Write your shipping and delivery conditions...'}
-               />
-               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'SAYFA LİNKİ' : 'PAGE LINK'}</p>
-                  <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
-                    {window.location.origin}/store/{branding.slug}/shipping-policy
-                  </code>
-               </div>
+              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">{lang === 'tr' ? 'KARGO POLİTİKASI' : 'SHIPPING POLICY'}</h3>
+                 <p className="text-[10px] text-slate-400 font-medium mb-4">{lang === 'tr' ? 'Google Merchant Center için zorunludur.' : 'Required for Google Merchant Center.'}</p>
+                 <textarea 
+                    className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+                    value={branding.legal_pages?.shipping_policy || ''}
+                    onChange={(e) => onBrandingChange('legal_pages', { ...branding.legal_pages, shipping_policy: e.target.value })}
+                    placeholder={lang === 'tr' ? 'Kargo ve teslimat şartlarınızı yazın...' : 'Write your shipping and delivery conditions...'}
+                 />
+                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{lang === 'tr' ? 'SAYFA LİNKİ' : 'PAGE LINK'}</p>
+                    <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                      {window.location.origin}/store/{branding.slug}/shipping-policy
+                    </code>
+                 </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Contact & Social Compact */}
           <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-xl shadow-slate-100/50">

@@ -961,7 +961,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     settings: false
   });
 
-  const isPortfolio = branding?.store_type === 'portfolio';
+  const isPortfolio = branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
 
   useEffect(() => {
     if (isPortfolio && (activeTab === 'products' || activeTab === 'pos' || activeTab === 'fast-pos' || activeTab === 'sales_invoices' || activeTab === 'procurements' || activeTab === 'purchase_invoices' || activeTab === 'stock_transfer' || activeTab === 'service')) {
@@ -1149,15 +1149,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <Globe className="h-4.5 w-4.5 text-slate-500" />
                 <span className="tracking-tight">{t.storeWebsite}</span>
               </a>
-              <a
-                href={scanUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-              >
-                <Scan className="h-4.5 w-4.5 text-slate-500" />
-                <span className="tracking-tight">{t.barcodeScanner}</span>
-              </a>
+              {!isPortfolio && (
+                <a
+                  href={scanUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
+                >
+                  <Scan className="h-4.5 w-4.5 text-slate-500" />
+                  <span className="tracking-tight">{t.barcodeScanner}</span>
+                </a>
+              )}
             </div>
           </nav>
           
@@ -1604,30 +1606,32 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     </div>
                   </div>
 
-                  <div className="text-left">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.barcodeScanner?.toUpperCase()}</p>
-                    <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
-                      <Scan className="h-5 w-5 text-slate-500 shrink-0" />
-                      <a 
-                        href={scanUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm font-bold text-slate-600 hover:underline truncate flex-1 text-left"
-                      >
-                        {scanUrl}
-                      </a>
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(scanUrl);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }}
-                        className="p-2 hover:bg-white rounded-xl transition-all shadow-sm"
-                      >
-                        {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-gray-400" />}
-                      </button>
+                  {!isPortfolio && (
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.barcodeScanner?.toUpperCase()}</p>
+                      <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                        <Scan className="h-5 w-5 text-slate-500 shrink-0" />
+                        <a 
+                          href={scanUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm font-bold text-slate-600 hover:underline truncate flex-1 text-left"
+                        >
+                          {scanUrl}
+                        </a>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(scanUrl);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          className="p-2 hover:bg-white rounded-xl transition-all shadow-sm"
+                        >
+                          {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-gray-400" />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <button 

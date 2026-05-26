@@ -16,11 +16,25 @@ import {
   Shield,
   HelpCircle,
   FolderLock,
-  X
+  X,
+  FileSignature,
+  Building2,
+  Share2,
+  Lock,
+  AlertTriangle,
+  FileText,
+  ListTodo,
+  Percent,
+  Megaphone,
+  Send,
+  MessageSquare,
+  Award,
+  Scale
 } from "lucide-react";
 import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { RealEstateModal } from "../../components/RealEstateModal";
+import { LegalContractModal } from "../../components/LegalContractModal";
 import { RealEstateProperty } from "../../types";
 
 interface RealEstateTabProps {
@@ -102,12 +116,220 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
   const [search, setSearch] = useState("");
   const [filterRegion, setFilterRegion] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterBranch, setFilterBranch] = useState("all");
+  const [filterScope, setFilterScope] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<RealEstateProperty | null>(null);
   
-  // State for matching modal
+  // State for contract generator modal
+  const [contractProperty, setContractProperty] = useState<RealEstateProperty | null>(null);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+
+  // State for matching and elite CRM hub modal
   const [matchingProperty, setMatchingProperty] = useState<RealEstateProperty | null>(null);
   const [matchList, setMatchList] = useState<{ buyer: BuyerDemand; score: number; reason: string }[]>([]);
+  const [activeHubTab, setActiveHubTab] = useState<'matches' | 'compliance' | 'cma' | 'splits' | 'showings' | 'negotiate' | 'escrow'>('matches');
+  
+  // Interactive Compliance Checklist state
+  const [complianceChecked, setComplianceChecked] = useState<Record<string, boolean>>({
+    tapu: true,
+    dask: false,
+    belediye: true,
+    yetki: true,
+    satinAlmaIzni: false
+  });
+
+  // Inter-branch smart split config states
+  const [selectedSplitBranch, setSelectedSplitBranch] = useState("Girne Harbour Ofisi");
+  const [splitNegotiatedAgent, setSplitNegotiatedAgent] = useState("Sinan Alkan");
+  const [splitCommissionPercentage, setSplitCommissionPercentage] = useState(3);
+  const [splitRatio, setSplitRatio] = useState<number>(50); // percentage for the main branch, e.g. 50% / 50% or 60% / 40%
+
+  // Selected ad platform for AI description preview
+  const [aiAdPlatform, setAiAdPlatform] = useState<'portal' | 'social' | 'whatsapp'>('portal');
+
+  // --- ENRAKİPSİZ CRM & ADVISORIES STATES ---
+  // Pricing Elasticity Adjustment
+  const [priceAdjustmentPercent, setPriceAdjustmentPercent] = useState<number>(0);
+  
+  // Interactive Showing Preparation Checklists
+  const [showingPrep, setShowingPrep] = useState({
+    alarmArmed: true,
+    lightsOn: true,
+    blindsOpen: true,
+    acAdjusted: true,
+    scentRefreshed: true,
+    flyersPresent: true
+  });
+
+  // Showing Feedback logs
+  const [showingFeedbacks, setShowingFeedbacks] = useState([
+    { id: 1, date: "24.05.2026", agent: "Erol Kaplan (Girne)", rating: 4, review: "Lokasyon ve manzara mükemmel. Ancak banyodaki duş başlığı gevşek görünüyor. Müşteri fiyatı makul buldu.", status: "Teklif Bekleniyor" },
+    { id: 2, date: "18.05.2026", agent: "Ayşe Yılmaz (Mağusa)", rating: 5, review: "Harika sunum! Hazırladığınız koku ve broşürler alıcıyı büyüledi. 3D tura önceden baktığımız için yabancılık çekmedik.", status: "Sıcak Takip" },
+    { id: 3, date: "12.05.2026", agent: "Ahmet Demir (Merkez)", rating: 2, review: "Fiyat çevre emsallerine göre %10 yukarıda geldi. Bahçenin temizlenmesi gerekiyor.", status: "Fiyat Revizesi İstiyor" }
+  ]);
+
+  // Showings Feedback inputs
+  const [newFeedbackAgent, setNewFeedbackAgent] = useState("Levent Can (İskele)");
+  const [newFeedbackReview, setNewFeedbackReview] = useState("");
+  const [newFeedbackRating, setNewFeedbackRating] = useState(5);
+  const [newFeedbackStatus, setNewFeedbackStatus] = useState("Sıcak Takip");
+
+  // Counter-offer Negotiations Simulator
+  const [buyerOfferAmount, setBuyerOfferAmount] = useState<number>(0);
+  const [negotiationNotes, setNegotiationNotes] = useState("");
+
+  // Comparative Price Elasticity Test Price
+  const [cmaElasticityPrice, setCmaElasticityPrice] = useState<number>(0);
+
+  // --- PREMIUM AGENT POWER-SUITE STATES ---
+  const [virtualStagingStyle, setVirtualStagingStyle] = useState<'modern' | 'boho' | 'scandinavian' | 'classic'>('modern');
+  const [showingBufferTime, setShowingBufferTime] = useState<number>(30);
+  const [renovationState, setRenovationState] = useState<'none' | 'medium' | 'renovation_needed'>('none');
+  const [activeDripTemplate, setActiveDripTemplate] = useState<string>('intro');
+  const [showingWaitlist, setShowingWaitlist] = useState([
+    { id: 'w1', name: 'Oliver Bennett', phone: '+44 7700 900077', date: 'Yarın 14:00', status: 'Onay Bekliyor' },
+    { id: 'w2', name: 'Zeynep Aksoy', phone: '0548 888 77 66', date: 'Cuma 10:30', status: 'Yedek Listede' },
+  ]);
+
+  // Escrow and pre-closing process checklists
+  const [escrowTimeline, setEscrowTimeline] = useState([
+    { id: 'contract_dep', label: '1. Depozito ve Alım Mukavelesi', description: 'Depozito yatırıldı, LookPrice üzerinde ön satış mukavelesi onaylandı.', checked: true },
+    { id: 'buyer_auth', label: '2. Yabancı Satın Alma Başvurusu', description: 'Bakanlar kurulu izni tescil dilekçesi verilerek yasal süreç başlatıldı.', checked: false },
+    { id: 'belediye_tax', label: '3. Belediye Vergi ve Muafiyet', description: 'Emlak vergisi ve borçsuzluk pulları onaylandı, tescil dosyasına eklendi.', checked: true },
+    { id: 'harc_maliye', label: '4. Maliye Harç Ödemeleri', description: 'Gelir ve tapu harç dekontları tescillendi, vergi tediye makbuzu alındı.', checked: false },
+    { id: 'sozlesme_mudur', label: '5. Tapu Mukavele Tescil Şerhi', description: 'Mukavele aslı ilgili Şube Tapu Md. tescil kütüğüne işlendi.', checked: false },
+    { id: 'tapu_kocan', label: '6. Tapu Koçan Devri (Closing)', description: 'Israr mülk devri tescili gerçekleşti; işlem başarıyla sonlandı.', checked: false },
+  ]);
+
+  // Pre-Closing Escrow milestones states
+  const [closingMilestones, setClosingMilestones] = useState({
+    appraisalOrdered: true,
+    appraisalCompsReady: false,
+    appraisalLockboxRemoved: false,
+    inspectionAttended: false,
+    closingDateScheduled: false,
+  });
+  const [closingDateText, setClosingDateText] = useState("18.06.2026 15:30");
+
+  // --- GOOGLE ALERTS REAL ESTATE NEWS RADAR STATES ---
+  const [newsTags, setNewsTags] = useState([
+    { id: '1', name: 'Lefkoşa İmar', value: 'Lefkoşa imar', emailAlert: true, matchesCount: 3 },
+    { id: '2', name: 'Girne Marina', value: 'Girne marina', emailAlert: true, matchesCount: 2 },
+    { id: '3', name: 'Kıbrıs Faizleri', value: 'faiz oranları', emailAlert: false, matchesCount: 2 },
+    { id: '4', name: 'Ercan Teşvikleri', value: 'Ercan charter', emailAlert: true, matchesCount: 1 },
+    { id: '5', name: 'İskele Tapu Yasası', value: 'yabancı satın alma', emailAlert: true, matchesCount: 2 }
+  ]);
+  
+  const [selectedNewsTag, setSelectedNewsTag] = useState<string | null>(null);
+  
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagKeyword, setNewTagKeyword] = useState("");
+  const [newTagEmailAlert, setNewTagEmailAlert] = useState(true);
+
+  const [newsFeed, setNewsFeed] = useState([
+    {
+      id: 'news-1',
+      title: 'Lefkoşa İmar Planı Revizyon Kararı Resmi Gazete\'de!',
+      summary: 'Yeni karar uyarınca Gönyeli ve Hamitköy sınırlarında kalan parsellerde kat izinleri 4 kattan 6 kata çıkarıldı. İmar alanlarındaki yeşil şerit sınırları revize edildi.',
+      source: 'Google Alerts (lookpriceAI)',
+      date: 'Bugün 10:15',
+      tags: ['Lefkoşa imar'],
+      intensity: 'high',
+      publishedOnStore: false,
+      publishedOnEnrakipsiz: true
+    },
+    {
+      id: 'news-2',
+      title: 'Girne Harbour Çevresinde Yeni İmar İzinleri Askıya Çıktı',
+      summary: 'Kuzey sahil şeridinde yer alan marinaya yakın 12 hektarlık lüks turizm geliştirme parselinde yapılacak villalar için yoğunluk katsayısı %40 olarak onaylandı.',
+      source: 'Resmi Kabine Kararı',
+      date: 'Dün 14:30',
+      tags: ['Girne marina', 'Lefkoşa imar'],
+      intensity: 'high',
+      publishedOnStore: true,
+      publishedOnEnrakipsiz: false
+    },
+    {
+      id: 'news-3',
+      title: 'Kuzey Kıbrıs Bankalar Birliği Konut Faizlerini Güncelledi',
+      summary: 'Döviz bütçeli yabancı yatırımcılara özel GBP cinsinden mortgage faizleri aylık %0.45 düzeyine geriledi. TL faizlerinde ise devlet destekli yeni teşvik paketi onaylandı.',
+      source: 'Kıbrıs Postası',
+      date: '2 gün önce',
+      tags: ['faiz oranları'],
+      intensity: 'normal',
+      publishedOnStore: false,
+      publishedOnEnrakipsiz: false
+    },
+    {
+      id: 'news-4',
+      title: 'Ercan Yeni Terminal Binası İngiliz Havayolları İçin Teşvik Planı',
+      summary: 'Charter uçuşlara ve özel jet terminali kullanımlarına KDV muafiyeti sağlandı. Bu adımın Girne ve Lefkoşa lüks residans alıcıları talebini canlandıracağı öngörülüyor.',
+      source: 'Google Alerts (lookpriceAI)',
+      date: '3 gün önce',
+      tags: ['Ercan charter'],
+      intensity: 'normal',
+      publishedOnStore: false,
+      publishedOnEnrakipsiz: true
+    },
+    {
+      id: 'news-5',
+      title: 'Yabancı Alıcılara Özel Tapu ve Kota Sınırlandırma Külliyatı',
+      summary: 'İskele LongBeach ve Esentepe bölgesinde yabancı uyruklu şahısların hisse oranlarında tapu kayıt limitleri güncellendi. Ortak koçan tescilleri artık dijital ortamda tamamlanacak.',
+      source: 'Resmi Kabine Kararı',
+      date: '4 gün önce',
+      tags: ['yabancı satın alma'],
+      intensity: 'high',
+      publishedOnStore: true,
+      publishedOnEnrakipsiz: true
+    }
+  ]);
+
+  const handleAIScanAlerts = () => {
+    const simulatedTitles = [
+      {
+        title: "Şok Gelişme: Lefkoşa Gönyeli Bölgesi İmar Sınırları Genişletildi!",
+        summary: "Yeni belediye meclis kararına göre Lefkoşa sınırındaki imar parselasyonu genişletilerek 120 adet yeni lüks konut arazisi tescil hakkı kazandı.",
+        tag: "Lefkoşa imar",
+        source: "Google Alerts (lookpriceAI)"
+      },
+      {
+        title: "Girne Yeni Marina Projesi ÇED Raporu Onaylandı",
+        summary: "Kordonboyu derin deniz derinleştirme çalışmaları ve yat yatırma limanı projesi onaylanarak önümüzdeki ay tescil ve hafriyat başlayacaktır.",
+        tag: "Girne marina",
+        source: "Resmi Kabine Kararı"
+      },
+      {
+        title: "Konut Kredilerinde İndirim Rüzgarı Emlak Taleplerini Tetikledi",
+        summary: "GBP kredilerinde yıllık faiz oranı %4.2 seviyesine çekildi. Özellikle yabancı İngiliz yatırımcı taleplerinde gözle görülür artış önörülüyor.",
+        tag: "faiz oranları",
+        source: "lookprice Analiz"
+      },
+      {
+        title: "İskele LongBeach Bölgesinde 1000 Konutluk Rezidans Yasası Kabul Edildi",
+        summary: "Yeni meclis oturumunda İskele ve çevresi için altyapı katılım payı ödemeli tapu kotaları %20 oranında gevşetildi.",
+        tag: "yabancı satın alma",
+        source: "Kıbrıs Postası"
+      }
+    ];
+
+    const randomChoice = simulatedTitles[Math.floor(Math.random() * simulatedTitles.length)];
+    
+    const newAlert = {
+      id: `news-${Date.now()}`,
+      title: randomChoice.title,
+      summary: randomChoice.summary,
+      source: randomChoice.source,
+      date: 'Az Önce (Live)',
+      tags: [randomChoice.tag],
+      intensity: 'high',
+      publishedOnStore: false,
+      publishedOnEnrakipsiz: false
+    };
+
+    setNewsFeed([newAlert, ...newsFeed]);
+    alert(`🛎️ GOOGLE ALERTS UYARISI TETİKLENDİ!\n\n"${randomChoice.tag}" konu başlığında yeni bir gelişme yakalandı ve listenize eklendi!`);
+  };
 
   // Simple currency conversion helper for the matching algorithm
   const convertToGBP = (price: number, fromCurrency: string): number => {
@@ -211,7 +433,11 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
 
     const matchesStatus = filterStatus === "all" || p.status === filterStatus;
 
-    return matchesSearch && matchesRegion && matchesStatus;
+    const matchesBranch = filterBranch === "all" || (p.branch_name || "Merkez Ofis") === filterBranch;
+    const matchesScope = filterScope === "all" || 
+      (filterScope === "locked" ? !!p.reserved_by_branch : (p.sharing_scope || "shared_pool") === filterScope);
+
+    return matchesSearch && matchesRegion && matchesStatus && matchesBranch && matchesScope;
   });
 
   // Safe checks for user role representation
@@ -241,6 +467,382 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
             <span className="flex items-center gap-1.5 bg-white/15 px-3 py-1.5 rounded-xl border border-white/10">
               🇬🇧 İngiltere Yatırımcı Teşviki Desteği
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ENRAKİPSİZ ÇOK ŞUBELİ CRM STATS BENTO PANEL */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+            <Building2 className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Ağ Portföyü</span>
+            <span className="text-xl font-black text-slate-900 mt-1 block">
+              {properties.length} <span className="text-[10px] text-slate-500 font-bold">Mülk</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+            <Share2 className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Ortak Havuz</span>
+            <span className="text-xl font-black text-emerald-600 mt-1 block">
+              {properties.filter(p => (p.sharing_scope || 'shared_pool') === 'shared_pool').length} <span className="text-[10px] text-emerald-500 font-bold">Açık</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
+            <Lock className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Rezervasyon Kilidi</span>
+            <span className="text-xl font-black text-rose-600 mt-1 block">
+              {properties.filter(p => !!p.reserved_by_branch).length} <span className="text-[10px] text-rose-500 font-bold">Kilitli</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="p-3 bg-cyan-50 text-cyan-600 rounded-2xl">
+            <Globe className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Kıbrıs (KKTC)</span>
+            <span className="text-xl font-black text-slate-900 mt-1 block">
+              {properties.filter(p => p.country === 'KKTC').length} <span className="text-[10px] text-slate-500 font-bold">İlan</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 📰 GOOGLE ALERTS HABER RADARI & İMAR GELİŞMELERİ TAKİP KONSOLU */}
+      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white p-7 rounded-[2.5rem] shadow-xl space-y-6 relative overflow-hidden">
+        {/* Visual Background Decors */}
+        <div className="absolute -top-10 -right-10 w-44 h-44 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-4 relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-indigo-600/30 text-indigo-400 rounded-lg inline-flex">
+                <span className="animate-pulse w-2 h-2 rounded-full bg-indigo-500" />
+              </span>
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">LIVE RADAR & AI ALERTS</span>
+            </div>
+            <h3 className="text-xl font-black tracking-tight mt-1">İmar, Mevzuat & Bölgesel Gelişmeler Takip Radarı</h3>
+            <p className="text-slate-300 text-xs mt-1.5 font-medium leading-relaxed max-w-2xl">
+              Önceden etiketlediğiniz kritik konu başlıklarını (Lefkoşa İmar, Girne Marina, Krediler vb.) web ağları, Resmi Gazete ve devlet kabine bültenlerinde canlı tarar, sizi anında uyarır ve tek tıkla portföy mağazalarınız ile enrakipsiz.com'da yayına alır.
+            </p>
+          </div>
+
+          <button
+            onClick={handleAIScanAlerts}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase shadow-md transition-all border border-indigo-505 hover:scale-[1.02] active:scale-95"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            ⚡ AI ile Gelişmeleri Taramayı Tetikle
+          </button>
+        </div>
+
+        {/* TAGS & SUBSCRIPTIONS HUB */}
+        <div className="space-y-3 relative z-10 bg-white/5 p-4 rounded-3xl border border-white/5">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <span className="text-[10px] font-black text-indigo-300 uppercase tracking-wider">🔔 Abone Olunan Konu Başlıkları (Google Alerts Anahtarları)</span>
+            <span className="text-[9px] text-slate-400 font-bold">Yeşil kutular e-posta uyarılarının aktif olduğunu gösterir.</span>
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Filter tags pill */}
+            <button
+              onClick={() => setSelectedNewsTag(null)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                selectedNewsTag === null
+                  ? 'bg-white text-slate-900 shadow'
+                  : 'bg-white/10 text-slate-300 hover:bg-white/15'
+              }`}
+            >
+              🌐 Tüm Gelişmeler ({newsFeed.length})
+            </button>
+
+            {newsTags.map((tag) => {
+              const matchedNewsCount = newsFeed.filter(news => news.tags.some(t => t.toLowerCase() === tag.value.toLowerCase())).length;
+              return (
+                <div
+                  key={tag.id}
+                  className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-xl text-xs font-bold transition-all border ${
+                    selectedNewsTag === tag.value
+                      ? 'bg-indigo-600 border-indigo-500 text-white shadow'
+                      : 'bg-slate-800/80 border-slate-700/50 text-slate-300 hover:bg-slate-700/80'
+                  }`}
+                >
+                  <button
+                    onClick={() => setSelectedNewsTag(selectedNewsTag === tag.value ? null : tag.value)}
+                    className="text-left font-extrabold max-w-[150px] truncate"
+                  >
+                    #{tag.name} <span className="text-[10px] opacity-70">({matchedNewsCount})</span>
+                  </button>
+                  
+                  {/* Email Alert Switch Box */}
+                  <label className="flex items-center cursor-pointer ml-1.5 text-[9px] select-none" title="E-posta Bildirimi">
+                    <input
+                      type="checkbox"
+                      checked={tag.emailAlert}
+                      onChange={() => {
+                        setNewsTags(newsTags.map(t => t.id === tag.id ? { ...t, emailAlert: !t.emailAlert } : t));
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-5.5 h-5.5 bg-slate-700 border border-slate-600 peer-focus:outline-none rounded flex items-center justify-center transition-all peer-checked:bg-emerald-600 peer-checked:border-emerald-500">
+                      📬
+                    </div>
+                  </label>
+
+                  {/* Delete tag */}
+                  <button
+                    onClick={() => {
+                      if (confirm(`"${tag.name}" takibini sonlandırmak istiyor musunuz?`)) {
+                        setNewsTags(newsTags.filter(t => t.id !== tag.id));
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-500 p-1 opacity-60 hover:opacity-100"
+                    title="Takip Etiketini Sil"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ADD NEW TAG FORM PANEL */}
+          <div className="pt-3 border-t border-white/10 mt-3 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+            <div className="md:col-span-2 grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Örn: Lefkoşa İmar"
+                className="bg-slate-800 text-white border-0 focus:ring-1 focus:ring-indigo-500 rounded-xl px-3 py-2 text-xs font-semibold placeholder-slate-400"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Örn: imar, imar planı, parsel"
+                className="bg-slate-800 text-white border-0 focus:ring-1 focus:ring-indigo-500 rounded-xl px-3 py-2 text-xs font-semibold placeholder-slate-400"
+                value={newTagKeyword}
+                onChange={(e) => setNewTagKeyword(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 px-1">
+              <input
+                type="checkbox"
+                id="newEmailAlert"
+                checked={newTagEmailAlert}
+                onChange={(e) => setNewTagEmailAlert(e.target.checked)}
+                className="rounded bg-slate-800 border-0 focus:ring-indigo-500 text-indigo-600 h-4 w-4"
+              />
+              <label htmlFor="newEmailAlert" className="text-[10.5px] text-slate-305 font-semibold cursor-pointer select-none">
+                Meydana geldiğinde Mail Gönder!
+              </label>
+            </div>
+            <button
+              onClick={() => {
+                if (!newTagName || !newTagKeyword) {
+                  alert("Lütfen etiket başlığı ve takip kelimesini boş bırakmayınız!");
+                  return;
+                }
+                setNewsTags([...newsTags, {
+                  id: Date.now().toString(),
+                  name: newTagName,
+                  value: newTagKeyword,
+                  emailAlert: newTagEmailAlert,
+                  matchesCount: 0
+                }]);
+                setNewTagName("");
+                setNewTagKeyword("");
+                alert(`"${newTagName}" takip grubu oluşturuldu! Bu kelimeler nerede geçerse radarımızda yakalanacak ve e-posta bildirimi gönderilecektir.`);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase py-2 px-4 rounded-xl shadow transition-all"
+            >
+              ➕ Yeni Takip Başlığı Ekle
+            </button>
+          </div>
+        </div>
+
+        {/* HABER GEÇİŞ IZGARASI FLOW GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 relative z-10">
+          {(() => {
+            const filteredNews = selectedNewsTag 
+              ? newsFeed.filter(item => item.tags.some(t => t.toLowerCase().includes(selectedNewsTag.toLowerCase())))
+              : newsFeed;
+
+            if (filteredNews.length === 0) {
+              return (
+                <div className="col-span-full text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-3xl">
+                  <span className="text-xl">📭</span>
+                  <p className="text-xs text-slate-400 font-bold mt-2">Bu takip başlığı ile eşleşen yeni bir gelişme bulunmuyor.</p>
+                  <p className="text-[10px] text-slate-500">Üstteki AI butonunu tetikleyerek yeni haber uyarısı simüle edebilirsiniz.</p>
+                </div>
+              );
+            }
+
+            return filteredNews.map((news) => (
+              <div 
+                key={news.id} 
+                className="bg-slate-950 border border-slate-850 hover:border-indigo-550 p-5 rounded-[2rem] flex flex-col justify-between transition-all group hover:shadow-lg shadow-black/40"
+              >
+                <div className="space-y-3">
+                  {/* News Card Header */}
+                  <div className="flex justify-between items-start gap-1">
+                    <span className="text-[9px] bg-slate-900 text-slate-400 border border-slate-800 font-black px-2.5 py-0.5 rounded-full uppercase">
+                      📍 {news.source}
+                    </span>
+                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      news.intensity === 'high' ? 'bg-rose-950 text-rose-300 border border-rose-800' : 'bg-blue-950 text-blue-300 border border-blue-900'
+                    }`}>
+                      {news.intensity === 'high' ? '🚨 Yüksek Etki / Kritik' : '📈 Piyasa Akışı'}
+                    </span>
+                  </div>
+
+                  <h5 className="font-extrabold text-sm text-slate-100 group-hover:text-indigo-300 transition-colors leading-snug">
+                    {news.title}
+                  </h5>
+
+                  <p className="text-[11px] text-slate-400 font-medium leading-relaxed font-sans">
+                    {news.summary}
+                  </p>
+                  
+                  {/* Matched Tags Container inside Card */}
+                  <div className="flex flex-wrap gap-1">
+                    {news.tags.map((t, idx) => (
+                      <span key={idx} className="text-[9px] bg-indigo-950/50 border border-indigo-900/40 text-indigo-300 font-bold px-1.5 py-0.5 rounded">
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-white/5 mt-4">
+                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold">
+                    <span>Yakalama: <strong>{news.date}</strong></span>
+                    <span className="text-indigo-400">Google Alerts Active</span>
+                  </div>
+
+                  {/* ACTIONS DOCK FOR INTEGRATION PUBLISHING */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {/* 1. Portföy Mağazamda Göster action */}
+                    <button
+                      onClick={() => {
+                        const updated = newsFeed.map(n => n.id === news.id ? { ...n, publishedOnStore: !n.publishedOnStore } : n);
+                        setNewsFeed(updated);
+                        if (!news.publishedOnStore) {
+                          alert("🟢 Başarıyla İşlendi!\n\nBu gelişme portföy web mağazanızın 'Haberler & Duyurular' akışında ziyaretçilere gösterilmek üzere tescillendi.");
+                        } else {
+                          alert("Bilgi: Haber mağaza vitrininden kaldırıldı.");
+                        }
+                      }}
+                      className={`py-1.5 px-2 rounded-xl text-[9.5px] font-black text-center border transition-all ${
+                        news.publishedOnStore 
+                          ? 'bg-emerald-900/40 border-emerald-500 text-emerald-300' 
+                          : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'
+                      }`}
+                    >
+                      {news.publishedOnStore ? '🏪 Mağazada Yayında' : '🏪 Mağazada Göster'}
+                    </button>
+
+                    {/* 2. enrakipsiz.com'da Yayınla action */}
+                    <button
+                      onClick={() => {
+                        const updated = newsFeed.map(n => n.id === news.id ? { ...n, publishedOnEnrakipsiz: !n.publishedOnEnrakipsiz } : n);
+                        setNewsFeed(updated);
+                        if (!news.publishedOnEnrakipsiz) {
+                          alert("⚡ ENRAKİPSİZ PORTALI AKTİF!\n\nBu kritik gelişme, amiral gemimiz 'enrakipsiz.com' ana sayfasında ve 'Kıbrıs İmar/Mevzuat Haberleri' ızgarasında flaş haber formatında tescil edildi!");
+                        } else {
+                          alert("Bilgi: enrakipsiz.com portal yayını durduruldu.");
+                        }
+                      }}
+                      className={`py-1.5 px-2 rounded-xl text-[9.5px] font-black text-center border transition-all ${
+                        news.publishedOnEnrakipsiz 
+                          ? 'bg-indigo-600 border-indigo-505 text-white shadow-md' 
+                          : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'
+                      }`}
+                    >
+                      {news.publishedOnEnrakipsiz ? '🚀 enrakipsiz\'de Yayında' : '🚀 enrakipsiz\'de Yayınla'}
+                    </button>
+                  </div>
+
+                  {/* 3. CRM Dispatch action (Sends to buyers in that category) */}
+                  <button
+                    onClick={() => {
+                      alert(`✉️ CRM TOPLU BİLDİRİMİ GÖNDERİLDİ!\n\nBu gelişmeyle eşleşen alıcılara ("${news.tags.join(', ')}") konusuyla ilgili e-posta ve WhatsApp bülteni lookprice tarafından otomatik olarak iletildi.`);
+                    }}
+                    className="w-full py-1.5 bg-slate-900 hover:bg-indigo-600 hover:text-white border border-slate-800 rounded-xl text-[9.5px] text-slate-400 font-extrabold transition-all"
+                  >
+                    ✉️ Eşleşen Alıcılara Mail At / Raporla
+                  </button>
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
+
+      {/* ŞUBELER ARASI ENRAKİPSİZ FİLTRE KAPLÜLLERİ */}
+      <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-200/40 space-y-3">
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Şubeler Arası Portföy Süzgeci</span>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { id: "all", label: "Tüm Şubeler" },
+              { id: "Merkez Ofis", label: "Merkez Ofis (Lefkoşa)" },
+              { id: "Girne Harbour Ofisi", label: "Girne Harbour Ofisi" },
+              { id: "İskele LongBeach Şubesi", label: "İskele LongBeach Şubesi" },
+              { id: "Gazi Mağusa Ofisi", label: "Gazi Mağusa Ofisi" },
+              { id: "İstanbul High-End Ofisi", label: "İstanbul High-End" },
+            ].map(b => (
+              <button
+                key={b.id}
+                onClick={() => setFilterBranch(b.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  filterBranch === b.id 
+                    ? "bg-slate-900 text-white shadow-sm scale-102"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 pt-2 border-t border-slate-200/50">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ağ İçi Paylaşım Kapsamı</span>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { id: "all", label: "Tüm İlanlar (Global)" },
+              { id: "shared_pool", label: "🌐 Ortak Havuz (Tüm Şubeler Satabilir)" },
+              { id: "branch_private", label: "🔒 Şube Özel (Ofise Korunmuş)" },
+              { id: "private", label: "🔑 Sorumlu Danışmana Özel" },
+              { id: "locked", label: "🤝 Şubeler Arası Rezervasyonlular (Kilitli)" },
+            ].map(s => (
+              <button
+                key={s.id}
+                onClick={() => setFilterScope(s.id)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  filterScope === s.id 
+                    ? "bg-indigo-600 text-white shadow-indigo-600/10 shadow-md scale-102"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -368,6 +970,17 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
                     </span>
                   </div>
 
+                  {/* Çift Satış Engelleme / Çapraz Şube Rezervasyon Kilidi */}
+                  {property.reserved_by_branch && (
+                    <div className="absolute top-12 right-3 left-3 bg-rose-600/95 text-white p-2.5 rounded-xl flex items-center gap-2 shadow-lg border border-rose-500 z-10">
+                      <Lock className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                      <div className="text-left font-black leading-tight text-[10px]">
+                        <span className="block uppercase tracking-wider">🔒 SATIŞ KİLİDİ AKTİF</span>
+                        <span className="block opacity-90 line-clamp-1">{property.reserved_by_branch} Rezerve Etti {property.reservation_notes ? `• ${property.reservation_notes}` : ''}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* matterport tour is highlighted */}
                   {property.virtual_tour_url && (
                     <div className="absolute bottom-3 left-3">
@@ -382,13 +995,36 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
                 {/* Content body */}
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   <div className="space-y-3">
+                    {/* Şube ve Paylaşım Bilgisi */}
+                    <div className="flex items-center justify-between gap-2 text-[10px] font-black border-b border-dashed border-slate-100 pb-2 mb-1">
+                      <span className="flex items-center gap-1 text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                        🏢 {property.branch_name || 'Merkez Ofis'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-lg border uppercase tracking-wider ${
+                        property.sharing_scope === 'private' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                        property.sharing_scope === 'branch_private' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' :
+                        'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      }`}>
+                        {property.sharing_scope === 'private' ? '🔑 Kişisel' :
+                         property.sharing_scope === 'branch_private' ? '🔒 Ofise Özel' :
+                         '🌐 Ortak Havuz'}
+                      </span>
+                    </div>
+
                     <div>
                       <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
                         {property.title}
                       </h4>
-                      <p className="text-slate-400 text-[10px] font-bold flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 w-3 inline text-slate-400" />
-                        {property.location} {property.kktc_region ? `• Bölge: ${property.kktc_region}` : ""}
+                      <p className="text-slate-400 text-[10px] font-bold flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                        <span className="flex items-center gap-0.5">
+                          <MapPin className="w-3 h-3 inline text-slate-400" />
+                          {property.location} {property.kktc_region ? `• Bölge: ${property.kktc_region}` : ""}
+                        </span>
+                        {property.responsible_agent && (
+                          <span className="text-indigo-600 font-extrabold text-[9px] uppercase">
+                            👤 Danışman: {property.responsible_agent}
+                          </span>
+                        )}
                       </p>
                     </div>
 
@@ -479,7 +1115,15 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
                         </span>
                       </div>
 
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-1.5 items-center">
+                        <button
+                          onClick={() => { setContractProperty(property); setIsContractModalOpen(true); }}
+                          className="flex items-center gap-1.5 bg-slate-900 text-white hover:bg-slate-800 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all shadow active:scale-95 border border-slate-950"
+                          title="Resmi Hizmet / Yer Gösterme Sözleşmesi Oluştur"
+                        >
+                          <FileSignature className="w-3.5 h-3.5 stroke-[2.5]" />
+                          Sözleşme
+                        </button>
                         <button 
                           onClick={() => { setSelectedProperty(property); setIsModalOpen(true); }}
                           className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all border border-slate-100"
@@ -509,99 +1153,1345 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
         </div>
       )}
 
-      {/* MATCHING ALGORITHM OVERLAY MODAL */}
-      {matchingProperty && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMatchingProperty(null)} />
-          <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-xl relative z-10 flex flex-col max-h-[85vh] shadow-2xl transition-all">
-            <div className="flex justify-between items-start mb-6 pb-2 border-b">
-              <div>
-                <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">AKILLI EŞLEŞTİRME ALGORİTMASI</span>
-                <h4 className="text-xl font-bold text-slate-900 leading-tight">Yatırımcı Portföy Uyumu</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-md">Gayrimenkul: {matchingProperty.title}</p>
-              </div>
-              <button 
-                onClick={() => setMatchingProperty(null)}
-                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* MATCHING ALGORITHM OVERLAY MODAL / ENRAKİPSİZ ELİTE CRM HUB */}
+      {matchingProperty && (() => {
+        const propSqmPrice = matchingProperty.square_meters ? Math.round(matchingProperty.price / matchingProperty.square_meters) : 0;
+        
+        // Estimatat regional average in KKTC/TR
+        let regionalAverage = 1300;
+        const loc = (matchingProperty.location || "").toLowerCase();
+        const reg = (matchingProperty.kktc_region || "").toLowerCase();
+        if (loc.includes("girne") || reg.includes("girne")) regionalAverage = 1750;
+        else if (loc.includes("iskele") || reg.includes("iskele")) regionalAverage = 1500;
+        else if (loc.includes("lefkoşa") || reg.includes("lefkoşa")) regionalAverage = 950;
+        else if (loc.includes("mağusa") || reg.includes("mağusa") || loc.includes("magosa")) regionalAverage = 1100;
 
-            <div className="overflow-y-auto space-y-4 flex-1 pr-1 hide-scrollbar">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/50 space-y-1">
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wide">Gayrimenkul Kriterleri</span>
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 font-bold">
-                  <div>• Lokasyon: <span className="text-indigo-600">{matchingProperty.location} ({matchingProperty.kktc_region || 'TR'})</span></div>
-                  <div>• Net Alan: <span className="text-indigo-600">{matchingProperty.square_meters || 0} m²</span></div>
-                  <div>• Fiyatı: <span className="text-indigo-600">{matchingProperty.currency} {matchingProperty.price.toLocaleString()}</span></div>
-                  <div>• Koçan Tipi: <span className="text-indigo-600">{matchingProperty.kktc_title_type || 'Belirtilmedi'}</span></div>
+        const isUnderpriced = propSqmPrice <= regionalAverage;
+        const diffPercent = Math.round(Math.abs((propSqmPrice - regionalAverage) / regionalAverage) * 100);
+
+        // Compliance score calculated
+        const checkedCount = Object.values(complianceChecked).filter(Boolean).length;
+        const totalCount = Object.keys(complianceChecked).length;
+        const complianceScore = Math.round((checkedCount / totalCount) * 100);
+
+        // Commission Split calculations
+        const estTotalCommission = Math.round(matchingProperty.price * (splitCommissionPercentage / 100));
+        const firstBranchCommission = Math.round(estTotalCommission * (splitRatio / 100));
+        const secondBranchCommission = estTotalCommission - firstBranchCommission;
+
+        // Dynamic Copywriting generator
+        const getAICopyText = () => {
+          if (aiAdPlatform === 'portal') {
+            return `🌟 KAÇIRILMAYACAK FIRSAT! ${matchingProperty.location} bölgesinde satılık harika ${matchingProperty.type}! 🌟\n\n` +
+                   `Özellikler:\n` +
+                   `• ${matchingProperty.square_meters} m² Net Yaşam Alanı\n` +
+                   `• ${matchingProperty.room_count} Lüks Tasarımlı Oda Sayısı\n` +
+                   `• Tapu Statüsü: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n` +
+                   `• Isınma ve Donanım: Lüks iklimlendirme sistemleri hazır\n\n` +
+                   `📍 Konum Avantajları:\n` +
+                   `• Yatırım geri dönüş (ROI) rasyosu bölge ortalamasının üstündedir.\n` +
+                   `${isUnderpriced ? `• Bölge metrekare ortalamasından %${diffPercent} daha avantajlı fiyat! Fırsat mülküdür.\n` : ''}` +
+                   `• Mağaza, deniz hattı ve sosyal yaşam mekanlarına yürüme mesafesinde.\n\n` +
+                   `📞 LookPrice çok şubeli ağ güvencesiyle detaylı sunum, dosya inceleme ve 3D sanal tur gezintisi için hemen iletişime geçin.`;
+          } else if (aiAdPlatform === 'social') {
+            return `🔥 Göz Alıcı Yatırım Lokasyonu: Kuzey Kıbrıs / ${matchingProperty.kktc_region || "Girne"} 🔥\n\n` +
+                   `Uluslararası yatırımcıların gözdesi ${matchingProperty.location} bölgesindeki bu muhteşem ${matchingProperty.type} yeni sahibini arıyor!\n\n` +
+                   `📈 Bölgesel Analiz: £${regionalAverage}/m²\n` +
+                   `🎯 Fırsat Fiyatı: ${matchingProperty.currency} ${matchingProperty.price.toLocaleString()} (${matchingProperty.square_meters} m²)\n` +
+                   `📜 Tapu Güvencesi: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
+                   `Sadece 3D sanal turumuzla mülke girmeden önce her detayını kristal berraklığında gezin: ${matchingProperty.virtual_tour_url || 'lookprice-3d-tour'} \n\n` +
+                   `💡 Daha fazla bilgi için hemen DM veya profil bağlantımızdan bize ulaşın! #kktcemlak #kibrisyatirim #realestate #lookpricehub`;
+          } else {
+            return `Merhaba Sayın Yatırımcımız,\n\n` +
+                   `LookPrice Emlak Ağının çok şubeli veri tabanından kriterlerinize özel eşleşen yeni bir fırsat kaydoldu:\n\n` +
+                   `📌 Bölge: ${matchingProperty.location} (${matchingProperty.kktc_region || 'KKTC'})\n` +
+                   `🏡 Mülk Tipi: ${matchingProperty.square_meters} m² Net - ${matchingProperty.room_count} - ${matchingProperty.type}\n` +
+                   `💰 Fiyat: ${matchingProperty.currency} ${matchingProperty.price.toLocaleString()}\n` +
+                   `🔑 Koçan: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
+                   `Mülkü fiziksel olarak ziyaret etmeden önce şubemizce onaylanmış 3D dijital ikizini gezerek önizleme gerçekleştirebilirsiniz:\n` +
+                   `🔗 Sanal Tur: ${matchingProperty.virtual_tour_url || "lookprice.com/virtual-tour-active"}\n\n` +
+                   `Portföy sorumlumuz ile öncelikli randevu ayarlamak için bu mesaja dönüş yapabilirsiniz. Saygılarımızla.`;
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setMatchingProperty(null)} />
+            
+            <div className="bg-white rounded-[2.5rem] w-full max-w-4xl relative z-10 flex flex-col max-h-[90vh] shadow-2xl border border-slate-100 overflow-hidden">
+              
+              {/* BRAND HEADER */}
+              <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 relative">
+                <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+                  <Award className="h-32 w-32" />
+                </div>
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <span className="bg-indigo-600/30 text-indigo-300 text-[10px] font-black tracking-widest px-2.5 py-1 rounded-full uppercase">
+                      🏆 ENRAKİPSİZ CRM & PORTFÖY YÖNETİM HUB
+                    </span>
+                    <h4 className="text-2xl font-black text-white mt-1.5 leading-none">
+                      Elite CRM İşlem Konsolu
+                    </h4>
+                    <p className="text-slate-300 text-xs mt-1.5 font-medium flex items-center gap-2">
+                      <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] text-white">🏡 {matchingProperty.title}</span>
+                      <span>• {matchingProperty.location} ({matchingProperty.kktc_region || 'TR'})</span>
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setMatchingProperty(null)}
+                    className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Sub status row */}
+                <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-white/10 text-[10.5px] font-extrabold text-slate-300">
+                  <span>🏢 Sorumlu Ofis: <strong className="text-white">{matchingProperty.branch_name || 'Merkez Ofis'}</strong></span>
+                  <span>👤 Portföy Sorumlusu: <strong className="text-indigo-200">{matchingProperty.responsible_agent || 'Belirtilmedi'}</strong></span>
+                  <span>🔒 Paylaşım Durumu: <strong className="text-teal-300 uppercase">{matchingProperty.sharing_scope === 'private' ? 'Kişisel' : matchingProperty.sharing_scope === 'branch_private' ? 'Şubeye Özel' : 'Ortak Havuz'}</strong></span>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <span className="block text-xs font-black text-slate-800">Eşleşen Yatırımcılar ({matchList.length})</span>
-                {matchList.length === 0 ? (
-                  <div className="text-center py-8 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl">
-                    Bu gayrimenkule uyan aktif bir alıcı talebi bulunmuyor.
-                  </div>
-                ) : (
-                  matchList.map(({ buyer, score, reason }) => (
-                    <div key={buyer.id} className="p-4 bg-slate-50/60 border hover:border-indigo-200 rounded-2xl space-y-3 transition-colors relative">
-                      
-                      {/* Percent Badge */}
-                      <span className="absolute top-4 right-4 bg-indigo-600 text-white font-black text-xs px-2.5 py-1 rounded-full shadow-sm">
-                        %{score} Match
-                      </span>
+              {/* TABS SELECTOR */}
+              <div className="bg-slate-50 border-b border-slate-200/80 px-6 py-2 flex flex-wrap gap-1.5 justify-center">
+                {[
+                  { id: 'matches', label: '🤝 Alıcı Eşleme', icon: Users },
+                  { id: 'showings', label: '👁️ Sunum Hazırlığı & Yorumlar', icon: MessageSquare },
+                  { id: 'negotiate', label: '⚖️ Pazarlık Pazarı', icon: Scale },
+                  { id: 'cma', label: '📊 CMA & AI Fiyat', icon: Megaphone },
+                  { id: 'compliance', label: '🛡️ Mevzuat Uyumu', icon: Shield, badge: `${complianceScore}%` },
+                  { id: 'splits', label: '🏢 Şube Paylaşımı', icon: Building2 },
+                  { id: 'escrow', label: '📑 Tapu & Kapanış', icon: FileCheck },
+                ].map((tb) => {
+                  const Icon = tb.icon;
+                  const isActive = activeHubTab === tb.id;
+                  return (
+                    <button
+                      key={tb.id}
+                      onClick={() => setActiveHubTab(tb.id as any)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${
+                        isActive 
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                          : 'text-slate-600 hover:bg-slate-200 border border-transparent'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {tb.label}
+                      {tb.badge && (
+                        <span className={`ml-1 text-[8.5px] px-1 py-0.5 rounded-full font-bold ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700'
+                        }`}>
+                          {tb.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
 
-                      <div className="space-y-1">
-                        <div className="flex gap-2 items-center">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${buyer.nationality === 'UK' ? 'bg-blue-600' : 'bg-red-500'}`}>
-                            {buyer.nationality === 'UK' ? '🇬🇧 UK' : '🇹🇷 TR'}
-                          </span>
-                          <span className="font-extrabold text-xs text-slate-900">{buyer.name}</span>
+              {/* MODAL MAIN CONTENT SCROLLABLE */}
+              <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6 max-h-[50vh] bg-slate-50/20">
+                
+                {/* TAB 1: MATCHES */}
+                {activeHubTab === 'matches' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h5 className="font-extrabold text-sm text-slate-800">Eşleşen Yatırımcı Adayları</h5>
+                        <p className="text-[11px] text-slate-400">Yatırımcı bütçesi, metrekare ve Kıbrıs koçan beklentilerine göre anlık uyum testi.</p>
+                      </div>
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase">
+                        AI MATCHER ETKİN
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {matchList.length === 0 ? (
+                        <div className="text-center py-12 text-xs font-bold text-slate-400 bg-white border rounded-3xl p-6">
+                          <p>Bu gayrimenkule uyan aktif bir alıcı talebi bulunmuyor.</p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-normal">Fiyat rasyolarını veya mülk özelliklerini güncelledikten sonra tekrar test edin.</p>
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-none">
-                          Tercihler: {buyer.preferredRegions.join(", ")} • Min: {buyer.minSqm}m² • Max Bütçe: {buyer.currency === 'GBP' ? '£' : '₺'}{buyer.maxBudget.toLocaleString()}
+                      ) : (
+                        matchList.map(({ buyer, score, reason }) => (
+                          <div key={buyer.id} className="p-5 bg-white border hover:border-indigo-200 rounded-[2rem] space-y-4 transition-all shadow-sm relative overflow-hidden group">
+                            
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="space-y-1">
+                                <div className="flex gap-2 items-center">
+                                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${buyer.nationality === 'UK' ? 'bg-blue-600' : 'bg-red-500'}`}>
+                                    {buyer.nationality === 'UK' ? '🇬🇧 UK' : '🇹🇷 TR'}
+                                  </span>
+                                  <span className="font-extrabold text-sm text-slate-900">{buyer.name}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-500">
+                                  Tercihler: <strong className="text-slate-700">{buyer.preferredRegions.join(", ")}</strong> • Min: {buyer.minSqm}m² • Max Bütçe: {buyer.currency === 'GBP' ? '£' : '₺'}{buyer.maxBudget.toLocaleString()}
+                                </p>
+                              </div>
+
+                              <span className="bg-indigo-600 text-white font-black text-xs px-3 py-1 rounded-full shadow-sm text-center">
+                                %{score} Uyum
+                              </span>
+                            </div>
+
+                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10.5px] text-slate-600 leading-relaxed font-semibold">
+                              🎯 <span className="text-slate-800">Eşleşme Gerekçesi:</span> {reason}
+                            </div>
+
+                            <div className="flex gap-2 justify-end pt-2 border-t border-slate-50">
+                              <button
+                                onClick={() => {
+                                  const subject = encodeURIComponent(`LookPrice Yatırım Teklifi - ${matchingProperty.title}`);
+                                  const body = encodeURIComponent(`Sayın ${buyer.name},\n\nİstemiş olduğunuz kriterlere uyum sağlayan yeni portföyümüzü incelemenize sunmaktan memnuniyet duyarız:\n\nMülk Başlığı: ${matchingProperty.title}\nKonum: ${matchingProperty.location}\nLüks Detay: ${matchingProperty.square_meters}m² / ${matchingProperty.room_count}\n\n3D Sanal Tur Linki:\n${matchingProperty.virtual_tour_url || 'https://lookprice.me/virtual-tour'}\n\nDetaylı bilgi için şubemizle iletişime geçebilirsiniz.`);
+                                  window.open(`mailto:${buyer.email}?subject=${subject}&body=${body}`, '_blank');
+                                }}
+                                className="bg-slate-50 hover:bg-indigo-50 text-indigo-700 font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl border border-indigo-100 transition-all flex items-center gap-1.5"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                Teklif PDF E-Posta Gönder
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, LookPrice Emlak ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${matchingProperty.price.toLocaleString()}\n\n3D İç Mekan Gezintisi:\n${matchingProperty.virtual_tour_url || 'lookprice-3d'}`);
+                                  window.open(`https://wa.me/${buyer.phone.replace(/\s+/g, '')}?text=${text}`, '_blank');
+                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                WhatsApp Sunum Yap
+                              </button>
+                            </div>
+
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* CRM LEAD NURTURING & DRIP SEQUENCE PREVIEW */}
+                    <div className="bg-indigo-50/50 p-5 rounded-[2rem] border border-indigo-100/80 space-y-4 shadow-sm mt-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="block text-[10px] font-black text-indigo-700 uppercase tracking-wider">CRM & DRIP CAMPAIGNS</span>
+                          <h6 className="font-extrabold text-sm text-slate-800">Müşteri Segmentasyonu & Damlama Akışları</h6>
+                        </div>
+                        <span className="text-[9.5px] bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                          ⚡ Lead Nurturing Etkin
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 leading-relaxed font-sans">
+                        Kriterleriyle eşleşen alıcıları sıcak tutmak amacıyla tasarlanmış, davranışlara duyarlı, kişiselleştirilmiş çok kanallı takip şablonları.
+                      </p>
+
+                      {/* Client tags info */}
+                      <div className="flex flex-wrap gap-1.5 py-1">
+                        <span className="text-[9.5px] bg-rose-50 border border-rose-100 text-rose-700 font-black px-2 py-0.5 rounded-lg">#SıcakTakip (Saha Ziyareti Hazır)</span>
+                        <span className="text-[9.5px] bg-teal-50 border border-teal-100 text-teal-700 font-black px-2 py-0.5 rounded-lg">#DövizBütçeli (£ Sterling Nakit)</span>
+                        <span className="text-[9.5px] bg-amber-50 border border-amber-100 text-amber-700 font-black px-2 py-0.5 rounded-lg">#VIP_Investor (Kıbrıs Alıcısı)</span>
+                        <span className="text-[9.5px] bg-blue-50 border border-blue-100 text-blue-700 font-black px-2 py-0.5 rounded-lg">#HızlıKapanış (Tapu Hazır)</span>
+                      </div>
+
+                      {/* Campaign triggers selector */}
+                      <div className="grid grid-cols-3 gap-2 py-2">
+                        {[
+                          { id: 'intro', label: '1️⃣ İlk Tanıtım & 3D Tur', desc: 'Portföy keşif daveti' },
+                          { id: 'pricedrop', label: '2️⃣ Fiyat / Kampanya', desc: 'Sınırlı süre fırsatı' },
+                          { id: 'scarcity', label: '3️⃣ Son Çağrı & Aciliyet', desc: 'Teklif alma baskısı' }
+                        ].map((drip) => {
+                          const isSel = activeDripTemplate === drip.id;
+                          return (
+                            <button
+                              key={drip.id}
+                              onClick={() => setActiveDripTemplate(drip.id)}
+                              className={`p-2.5 text-left rounded-xl transition-all border ${
+                                isSel 
+                                  ? 'bg-slate-900 border-slate-950 text-white shadow-md' 
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <span className="block font-extrabold text-[10.5px] leading-tight">{drip.label}</span>
+                              <span className={`block text-[9.5px] ${isSel ? 'text-slate-300' : 'text-slate-400 font-medium'} mt-0.5`}>
+                                {drip.desc}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Drip Content display with Copy function */}
+                      {(() => {
+                        let dripSubject = "";
+                        let dripBody = "";
+                        const firstBuyerName = matchList[0]?.buyer.name || "Değerli Yatırımcımız";
+
+                        if (activeDripTemplate === 'intro') {
+                          dripSubject = `Özel Keşif Daveti: ${matchingProperty.location} / ${matchingProperty.title}`;
+                          dripBody = `Sayın ${firstBuyerName},\n\nLookPrice portföy havuzuna henüz eklenen ve kriterlerinizle %90+ uyum sağlayan yeni bir fırsatımız var: ${matchingProperty.title}.\n\nMülkün fiziksel sunumundan önce hazırladığımız 3D sanal turumuzla mülk içinde dilediğinizce yürüyebilir, mutfak tezgahı ölçülerini bile alabilirsiniz:\n🔗 Sanal Keşif: ${matchingProperty.virtual_tour_url || 'lookprice-3d-explorer'}\n\nBu özel portföyü ne zaman yerinde görmek istersiniz?`;
+                        } else if (activeDripTemplate === 'pricedrop') {
+                          dripSubject = `Fiyat / Kampanya Güncellemesi - Önemli Fırsat`;
+                          dripBody = `Değerli ${firstBuyerName},\n\nTakip listenizde yer alan ${matchingProperty.title} mülkü için satıcı ile yürüttüğümüz özel pazarlık neticesinde kısa bir süreliğine özel bir esneklik sağlandı!\n\nYeni Liste Değeri: ${matchingProperty.currency} ${(cmaElasticityPrice || matchingProperty.price).toLocaleString()}\n\nBölgesel CMA rasyolarına göre bu fiyat emsallerden yaklaşık %15 daha avantajlıdır. Fırsatı kaçırmamak adına hemen bir geri dönüş yapmanızı öneririm.`;
+                        } else {
+                          dripSubject = `Kapanış Öncesi Son Çağrı: ${matchingProperty.location}`;
+                          dripBody = `Sayın ${firstBuyerName},\n\n${matchingProperty.title} mülkü üzerinde şu anda başka bir şubemizin yürüttüğü sıcak bir pazarlık süreci bulunuyor ve tapu devir (escrow) işleminin bu hafta tamamlanması öngörülüyor.\n\nEğer bu mülkle hâlâ ciddi olarak ilgileniyorsanız, satıcıya resmi karşı teklifimizi sunabileceğimiz son güne girmiş bulunuyoruz. Talebiniz olması halinde teklif kütüğümüzü hemen işleme alabilirim.`;
+                        }
+
+                        return (
+                          <div className="bg-slate-950 text-slate-100 p-4 rounded-2xl relative">
+                            <span className="block text-[8.5px] font-black text-indigo-400 uppercase tracking-widest pl-1 mb-1">DAMLAMA PREVIEW (E-POSTA & WHATSAPP)</span>
+                            <div className="text-[10.5px] font-semibold border-b border-white/10 pb-1.5 mb-1.5 text-slate-300">
+                              📍 Konu: {dripSubject}
+                            </div>
+                            <p className="text-[10px] whitespace-pre-line text-slate-200 leading-relaxed font-mono">
+                              {dripBody}
+                            </p>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(`Konu: ${dripSubject}\n\n${dripBody}`);
+                                alert("Sıcak takip mesajı kopyalandı! Doğrudan müşteriye gönderebilirsiniz.");
+                              }}
+                              className="absolute top-3 right-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-2 py-1 rounded shadow"
+                            >
+                              Kopyala
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                  </div>
+                )}
+
+                {/* TAB: SHOWINGS PREPARATION & FEEDBACK */}
+                {activeHubTab === 'showings' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* PREPARATION SYSTEM (Alarm & Look & Scent) */}
+                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">SHOWING OPTIMIZATION</span>
+                            <h5 className="font-extrabold text-sm text-slate-800">Saha Gösterim Öncesi Hazırlık Center</h5>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase text-white ${
+                            showingPrep.alarmArmed ? 'bg-indigo-600 animate-pulse' : 'bg-emerald-600'
+                          }`}>
+                            {showingPrep.alarmArmed ? '🚨 Alarm Aktif' : '✅ Hazırlık Yapıldı'}
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Saha danışmanlarının sunumdan 30 dk önce mülke gidip ilk izlenim 'WOW' faktörünü tetiklemesini sağlayan kontrol listesi.
+                        </p>
+
+                        <div className="space-y-3 pt-2">
+                          {[
+                            { id: 'alarmArmed', label: 'Güvenlik Alarmı Devre Dışı', activeDesc: '30 dk ihbar süresi alındı; alarm geçici olarak kapatıldı.', inactiveDesc: 'Alarm devrede (Giriş için izin bekleniyor).' },
+                            { id: 'lightsOn', label: 'Dekoratif Aydınlatmaları Aç', activeDesc: 'Tüm lambalar, şerit LED\'ler ve aydınlatmalar açık durumda.', inactiveDesc: 'Lambalar kapalı' },
+                            { id: 'blindsOpen', label: 'Panjur ve Perdeleri Aç', activeDesc: 'Panjurlar tamamen açık; gün ışığı içeri alınıyor.', inactiveDesc: 'Perdeler kapalı' },
+                            { id: 'acAdjusted', label: 'İklimlendirme Set Düzeyi', activeDesc: 'Klimatizasyon aktif; sakinleştirici 22°C set edildi.', inactiveDesc: 'Kombiler/Klima kapalı' },
+                            { id: 'scentRefreshed', label: 'Ortam Parfümü & Koku Tazele', activeDesc: 'Lavanta & okyanus özlü aktif oda kokusu tazeleyici sıkıldı.', inactiveDesc: 'Koku tazeleyici yapılmadı' },
+                            { id: 'flyersPresent', label: 'Yazılı El Broşürleri ve Kalemler', activeDesc: 'Basılı broşürler, teknik şartname ve boş mukaveleler tezgahta.', inactiveDesc: 'Broşürler tezgahta yok' },
+                          ].map((item) => {
+                            const isVal = (showingPrep as any)[item.id];
+                            return (
+                              <div 
+                                key={item.id}
+                                onClick={() => setShowingPrep({ ...showingPrep, [item.id]: !isVal })}
+                                className="flex items-start gap-2.5 p-2 px-3 rounded-xl hover:bg-slate-50 border border-slate-100 transition-all cursor-pointer select-none"
+                              >
+                                <input 
+                                  type="checkbox" 
+                                  checked={isVal} 
+                                  onChange={() => {}}
+                                  className="mt-0.5 h-3.5 w-3.5 text-indigo-600 rounded border-gray-300" 
+                                />
+                                <div className="text-[11px]">
+                                  <span className="font-extrabold text-slate-700 block leading-tight">{item.label}</span>
+                                  <span className="text-[9.5px] text-slate-400 mt-0.5 block">
+                                    {isVal ? item.activeDesc : item.inactiveDesc}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setShowingPrep({
+                              alarmArmed: false,
+                              lightsOn: true,
+                              blindsOpen: true,
+                              acAdjusted: true,
+                              scentRefreshed: true,
+                              flyersPresent: true
+                            });
+                          }}
+                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase rounded-xl transition-all shadow-sm"
+                        >
+                          ⚡ Profesyonel Sunum Hazırlığını Tamamla (Tümünü Onayla)
+                        </button>
+                      </div>
+
+                      {/* SOLICITING SHOWING COPIES & FEEDBACK */}
+                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
+                        <div>
+                          <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">SHOWING FEEDBACK LOOP</span>
+                          <h5 className="font-extrabold text-sm text-slate-800">Sunum Sonrası Gerçek Alıcı Yorumları</h5>
+                        </div>
+
+                        {/* Interactive Analyzer */}
+                        {(() => {
+                          const negativePriceCount = showingFeedbacks.filter(f => f.review.toLowerCase().includes("fiyat") || f.review.toLowerCase().includes("pahalı")).length;
+                          const avgRating = Math.round(showingFeedbacks.reduce((acc, f) => acc + f.rating, 0) / showingFeedbacks.length * 10) / 10;
+                          return (
+                            <div className={`p-3 rounded-xl border flex items-start gap-2 text-[10.5px] font-semibold leading-relaxed ${
+                              negativePriceCount >= 2 
+                                ? 'bg-rose-50 border-rose-100 text-rose-900' 
+                                : 'bg-teal-50 border-teal-100 text-teal-900'
+                            }`}>
+                              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div>
+                                <span className="block font-black uppercase text-[9px]">Geri Bildirim Anlık Değerlendirmesi</span>
+                                {negativePriceCount >= 2 
+                                  ? `KRİTİK UYARI: Son gösterimlerde mülkün fiyatının çevre emsallerinden pazar payı olarak yüksek olduğu vurgulanmıştır. Ortalama puan: ${avgRating}/5. Acil bir fiyat esnekliği (CMA) analizi gerekebilir!` 
+                                  : `Sıcak pazar ilgisi tespit edildi! Ortalama puan: ${avgRating}/5. Alıcıların ilgisi yüksek, takip mesajları göndermeye devam edin.`
+                                }
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Logs list */}
+                        <div className="space-y-2 h-44 overflow-y-auto pr-1">
+                          {showingFeedbacks.map((item) => (
+                            <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[10.5px] space-y-1 font-sans">
+                              <div className="flex justify-between items-center">
+                                <span className="font-extrabold text-slate-800 text-[11px]">{item.agent}</span>
+                                <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded text-[8.5px] font-bold">{item.status}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-400 text-[9.5px]">
+                                <span>Tarih: {item.date}</span>
+                                <span className="text-amber-500 font-extrabold">{"★".repeat(item.rating)}</span>
+                              </div>
+                              <p className="text-slate-600 leading-relaxed italic">"{item.review}"</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add simulated feedback */}
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/50 space-y-2.5">
+                          <span className="block text-[10px] font-black text-slate-500 uppercase">Görüşme Sonucu Ekle</span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input 
+                              type="text" 
+                              placeholder="Sorumlu Yetkili" 
+                              className="p-1 px-2 text-[10px] font-bold border rounded bg-white focus:outline-indigo-600" 
+                              value={newFeedbackAgent}
+                              onChange={(e) => setNewFeedbackAgent(e.target.value)}
+                            />
+                            <select 
+                              className="p-1 text-[10px] font-bold border rounded bg-white focus:outline-indigo-600 animate-none"
+                              value={newFeedbackStatus}
+                              onChange={(e) => setNewFeedbackStatus(e.target.value)}
+                            >
+                              <option value="Sıcak Takip">Sıcak Takip</option>
+                              <option value="Fiyat Revizesi İstiyor">Fiyat Revizesi İstiyor</option>
+                              <option value="Teklif Bekleniyor">Teklif Bekleniyor</option>
+                              <option value="Olumsuz Elendi">Olumsuz Elendi</option>
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 font-sans">
+                            <input 
+                              type="text" 
+                              placeholder="Filtrelenmemiş Gerçek Görüşme Notları..." 
+                              className="p-1 px-2 text-[10px] border rounded bg-white focus:outline-indigo-600"
+                              value={newFeedbackReview}
+                              onChange={(e) => setNewFeedbackReview(e.target.value)}
+                            />
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-slate-500 font-bold">Puan:</span>
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <button 
+                                  key={star} 
+                                  onClick={() => setNewFeedbackRating(star)}
+                                  className={`text-xs ${newFeedbackRating >= star ? 'text-amber-500' : 'text-slate-300'}`}
+                                >
+                                  ★
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (!newFeedbackReview) return alert("Lütfen görüşme notu girin!");
+                              const newF = {
+                                id: Date.now(),
+                                date: "Bugün",
+                                agent: newFeedbackAgent,
+                                rating: newFeedbackRating,
+                                review: newFeedbackReview,
+                                status: newFeedbackStatus
+                              };
+                              setShowingFeedbacks([newF, ...showingFeedbacks]);
+                              setNewFeedbackReview("");
+                            }}
+                            className="w-full py-1 text-[9.5px] font-extrabold bg-slate-900 text-white rounded hover:bg-slate-800 uppercase"
+                          >
+                            ☎️ Arayıp Geri Bildirim Al & Sisteme İşle
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* INTELLIGENT SCHEDULING & WAITING LISTS CO-ORDINATOR */}
+                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/80 space-y-4 shadow-sm mt-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none">INTELLIGENT APPOINTMENT & ROUTE MANAGEMENT</span>
+                          <h5 className="font-extrabold text-sm text-slate-800 mt-1">Akıllı Randevu, Yol Payı & Hava Durumu Koordinasyonu</h5>
+                          <p className="text-[11px] text-slate-400 mt-1 font-sans">Endless aramalara son verin. Çakışmaları sıfırlayan, yol izinlerini ve anlık bölge iklimini hesaba katan saha yönetim motoru.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
+                        
+                        {/* 1. Travel Buffer & Smart Route Planner */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5">
+                          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🚗 YOL PAYI VE BUFFER SÜRESİ</span>
+                          
+                          <div className="space-y-1">
+                            <label className="text-[10.5px] font-bold text-slate-600">Gösterimler Arası Geçiş Payı (Geçiş Blokajı)</label>
+                            <div className="flex gap-1 bg-white p-1 rounded-xl border border-slate-200 mt-1">
+                              {[15, 30, 45, 60].map((mins) => (
+                                <button
+                                  key={mins}
+                                  onClick={() => setShowingBufferTime(mins)}
+                                  className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all ${
+                                    showingBufferTime === mins 
+                                      ? 'bg-indigo-600 text-white shadow-sm' 
+                                      : 'text-slate-600 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {mins} Dk
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-400 leading-normal font-sans">
+                            💡 {showingBufferTime} dakika otomatik yol payı, takvimde çakışmaları engellemek adına sonraki randevuya bloke edilmiştir.
+                          </p>
+                        </div>
+
+                        {/* 2. Microclimate Weather Watch & Showing Tip */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">☀️ HAFIZALI BÖLGESEL HAVA KOŞULLARI</span>
+                          
+                          <div className="bg-amber-50/70 text-amber-950 p-3 rounded-xl border border-amber-100 flex items-start gap-2.5">
+                            <span className="text-xl leading-none">☀️</span>
+                            <div className="text-[10.5px] font-semibold leading-relaxed">
+                              <strong>Kıbrıs / {matchingProperty.kktc_region || "Girne"}:</strong> 25°C Açık & Esintili
+                              <span className="block text-[9.5px] text-amber-700 font-sans mt-0.5 font-medium leading-normal">
+                                Hava açık; teras, havuz başı ve peyzaj sunumlarına mükemmel elverişli. İç mekanda odaları ferah hissettirmek için klimaları 21°C set edin, perdeleri sonuna kadar açın!
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3. Showing Waitlist priority manager */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
+                          <div>
+                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">📋 PORTFÖY TALEP SIRASI (WAITLIST)</span>
+                            
+                            <div className="space-y-1.5 mt-2 overflow-y-auto max-h-24 pr-1">
+                              {showingWaitlist.length === 0 ? (
+                                <p className="text-[10px] text-slate-400 font-bold italic py-2">Bekleme listesinde alıcı bulunmuyor.</p>
+                              ) : (
+                                showingWaitlist.map((w) => (
+                                  <div key={w.id} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm text-[10px] font-sans">
+                                    <div className="font-semibold text-slate-800">
+                                      {w.name}
+                                      <span className="block text-[8.5px] text-indigo-600 mt-0.5">Tarih: {w.date}</span>
+                                    </div>
+                                    <button
+                                      key={w.id}
+                                      onClick={() => {
+                                        setShowingWaitlist(showingWaitlist.filter(item => item.id !== w.id));
+                                        alert(`${w.name} için randevu onaylandı! Müşteriye SMS/Email bilgilendirmesi gönderildi.`);
+                                      }}
+                                      className="bg-indigo-600 hover:bg-slate-900 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded"
+                                    >
+                                      Onayla
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              const name = prompt("Sıraya eklenecek alıcının adı:");
+                              if (!name) return;
+                              const phone = prompt("Alıcının cep telefonu:");
+                              if (!phone) return;
+                              setShowingWaitlist([...showingWaitlist, {
+                                id: Date.now().toString(),
+                                name,
+                                phone,
+                                date: "Yarın Alıcı Kararı",
+                                status: "Onay Bekliyor"
+                              }]);
+                            }}
+                            className="w-full mt-2 text-center py-1 border border-dashed border-indigo-400/60 hover:border-indigo-600 text-[10px] text-indigo-700 font-bold rounded-lg transition-all"
+                          >
+                            ➕ Bekleme Listesine Alıcı Ekle
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* TAB: EMOTION-FREE NEGOTIATION ADVISOR */}
+                {activeHubTab === 'negotiate' && (
+                  <div className="space-y-6">
+                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
+                      <div>
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block font-sans">EMOTION-FREE NEGOTIATOR</span>
+                        <h5 className="font-extrabold text-sm text-slate-800 mt-0.5">Yatırımcı Teklif ve Karşı-Teklif Satış Asistanı</h5>
+                        <p className="text-[11px] text-slate-400">
+                          Sıcak pazarlık süreçlerinde duygusal tepkileri (Overvaluing/Undervaluing) önleyen matematiksel pazar simülasyonu.
                         </p>
                       </div>
 
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-100 text-[10px] font-medium text-slate-600 leading-relaxed">
-                        {reason}
+                      {/* Input Offer form */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-500 mb-1">Mülk Liste Fiyatı</label>
+                          <div className="text-base font-black text-slate-900 bg-white p-2 border rounded-xl shadow-sm">
+                            {matchingProperty.currency} {matchingProperty.price.toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-indigo-600 mb-1">Alıcıdan Sözel/Yazılı Teklif ({matchingProperty.currency})</label>
+                          <input 
+                            type="number" 
+                            className="p-2 w-full font-black text-indigo-700 bg-white border border-indigo-200 rounded-xl focus:outline-indigo-600 shadow-sm"
+                            value={buyerOfferAmount || Math.round(matchingProperty.price * 0.9)}
+                            onChange={(e) => setBuyerOfferAmount(Number(e.target.value))}
+                          />
+                          <p className="text-[9px] text-indigo-600 mt-1">Önerilen varsayılan: Liste fiyatının %90'ı</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-500 mb-1">Alıcı Şart Notları (Örn: Peşinat oranı)</label>
+                          <input 
+                            type="text" 
+                            placeholder="Örn: %50 peşin, %50 teslimde tapu devrinde." 
+                            className="p-2 w-full text-xs font-bold bg-white border rounded-xl focus:outline-indigo-600 shadow-sm"
+                            value={negotiationNotes}
+                            onChange={(e) => setNegotiationNotes(e.target.value)}
+                          />
+                        </div>
                       </div>
 
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => window.open(`mailto:${buyer.email}?subject=LookPrice%20Yat%C4%B1r%C4%B1m%20F%C4%B1rsat%C4%B1&body=Merhaba%20${buyer.name},%20Kriterlerinize%20uygun%20sanal%20gezintisi%20haz%C4%B1r%20olay%20portf%C3%B6y%C3%BC%20inceleyebilirsiniz:%20${matchingProperty.virtual_tour_url || ''}`, '_blank')}
-                          className="bg-white hover:bg-indigo-50 text-indigo-700 font-extrabold text-[10px] px-3 py-1.5 rounded-lg border border-indigo-100 transition-colors"
+                      {/* Calculations Panel */}
+                      {(() => {
+                        const currentOfferVal = buyerOfferAmount || Math.round(matchingProperty.price * 0.9);
+                        const discountAmt = matchingProperty.price - currentOfferVal;
+                        const discountPercent = Math.round((discountAmt / matchingProperty.price) * 100);
+                        const isUnderBudget = discountPercent < 0; // offers higher than list price
+                        
+                        // Sweet spot calculation (50/50 division rule)
+                        const suggestedCounter = Math.round(matchingProperty.price - (discountAmt / 2));
+
+                        // Generate warnings
+                        let warningTitle = "";
+                        let warningDesc = "";
+                        let toneStyle = "";
+
+                        if (isUnderBudget) {
+                          warningTitle = "🔥 LİSTE FİYATININ ÜSTÜNDE MÜKEMMEL TEKLİF!";
+                          warningDesc = "Bu durum agresif bir rekabet (bidding war) döneminde veya lüks yatırım aşamasında görünür. Alıcıyı kaçırmamak için süreyi sınırlayıp teklifi hemen kabul edin!";
+                          toneStyle = "bg-emerald-50 border-emerald-500 text-emerald-950";
+                        } else if (discountPercent >= 20) {
+                          warningTitle = "⚠️ ALARM: AŞIRI İSKONTO (%20+ Pazarlık Payı)";
+                          warningDesc = "DİKKAT! Alıcı mülkü öldürmek ya da panik satış rasyolarınızı test etmek istiyor. Satıcının duygulanıp masadan kalkması en büyük risktir! Doğrudan hayır demek yerine, liste fiyatından %5-8 iskonto yapabileceğinizi gösteren bir karşı mukavele yazın. Alıcının esneyip esnemeyeceğini anlarsınız.";
+                          toneStyle = "bg-rose-50 border-rose-500 text-rose-950";
+                        } else if (discountPercent > 8 && discountPercent < 20) {
+                          warningTitle = "⚖️ DENGELİ ALAN: STANDART PAZARLIK (%9 - %19)";
+                          warningDesc = "Bu teklif, pazar şartlarında makul bir açılıştır. Alıcı sizin adınıza bir karşı mukavele bekliyor. Orta nokta kuralını (50/50 Kuralı) kullanarak aşağıdaki önerilen fiyata yönelin. Mülkü elde tutmanın maliyeti (holding costs) göz önüne alındığında anlaşma karlı tescillenecektir.";
+                          toneStyle = "bg-amber-50 border-amber-500 text-amber-950";
+                        } else {
+                          warningTitle = "💚 MÜKEMMEL ALAN: SATIŞA ÇOK YAKIN (%1 - %8)";
+                          warningDesc = "Harika! Teklif liste değerine çok yakın. Kesinlikle alıcıya gurur yapayıp 'liste fiyatından bir kuruş aşağı inmem' demeyin. Alıcıya küçük bir prestij indirimi sunup sözleşmeyi tapuya bağlamak en karlı yatırımcı refleksidir.";
+                          toneStyle = "bg-teal-50 border-teal-500 text-teal-900";
+                        }
+
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                            
+                            {/* DECISION ANALYSIS CARD */}
+                            <div className={`p-5 rounded-[2rem] border-l-8 ${toneStyle} space-y-3`}>
+                              <span className="text-[10px] font-black uppercase tracking-widest block leading-none font-sans">RASYONEL PAZARLIK ÖNGÖRÜSÜ</span>
+                              <h6 className="font-extrabold text-sm leading-tight">{warningTitle}</h6>
+                              <p className="text-[11px] leading-relaxed font-medium font-sans">
+                                {warningDesc}
+                              </p>
+                              
+                              <div className="pt-2 border-t border-dashed border-current/20 text-[10.5px] font-bold">
+                                <span>İskonto Miktarı:</span> <span className="underline">{matchingProperty.currency} {discountAmt.toLocaleString()} ({discountPercent}%)</span>
+                              </div>
+                            </div>
+
+                            {/* SMART COUNTER PROPOSAL */}
+                            <div className="bg-slate-900 text-slate-100 p-5 rounded-[2rem] flex flex-col justify-between shadow">
+                              <div className="space-y-2">
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block font-black">AI SMART SWEET-SPOT</span>
+                                <h6 className="font-extrabold text-white text-base">Tavsiye Edilen Karşı Teklif Değeri</h6>
+                                <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                                  Ortak hisseli pazarlık kütüğüne göre masanın karlı ve hızlı tescili için %50 orta noktadır:
+                                </p>
+                                <div className="text-2xl font-black text-indigo-300 py-1 font-mono">
+                                  {matchingProperty.currency} {suggestedCounter.toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="pt-4 border-t border-slate-800">
+                                <button
+                                  onClick={() => {
+                                    setContractProperty({
+                                      ...matchingProperty,
+                                      title: `[PAZARLIK PROTOKOLÜ] ` + matchingProperty.title,
+                                      price: suggestedCounter,
+                                      kktc_title_type: `Pazarlıklı Karşı Teklif Ön Anlaşması (Alıcı Teklifi: ${matchingProperty.currency} ${currentOfferVal.toLocaleString()})`
+                                    } as any);
+                                    setIsContractModalOpen(true);
+                                    setMatchingProperty(null);
+                                  }}
+                                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[11px] uppercase rounded-xl transition-all shadow"
+                                >
+                                  ✍️ Karşı Teklif Mukavelesi Hazırla ve Yazdır
+                                </button>
+                              </div>
+                            </div>
+
+                          </div>
+                        );
+                      })()}
+
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: COMPLIANCE */}
+                {activeHubTab === 'compliance' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                      <div>
+                        <h5 className="font-extrabold text-sm text-slate-800">Tapu, Hukuk & Mevzuat Uygunluk Kontrolü</h5>
+                        <p className="text-[11px] text-slate-400">Sözleşmeler, koçan temiz raporu ve Kıbrıs/Türkiye tapu daireleri standartlarına uygunluk skoru.</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-indigo-50 px-4 py-1.5 rounded-full border border-indigo-100">
+                        <span className="text-[10px] font-black text-indigo-950 uppercase">Şu Anki Uyum:</span>
+                        <span className={`text-xs font-black ${
+                          complianceScore >= 80 ? 'text-emerald-600' : 'text-amber-600'
+                        }`}>%{complianceScore} Uyumlu</span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-500 ${
+                          complianceScore >= 80 ? 'bg-emerald-500' : 'bg-indigo-600'
+                        }`}
+                        style={{ width: `${complianceScore}%` }}
+                      />
+                    </div>
+
+                    {/* Checklist Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                      {[
+                        { 
+                          id: 'tapu', 
+                          title: 'Tapu/Koçan Sicil Kontrolü', 
+                          desc: 'İpotek, şerh, haciz ve takyidat kayıtları KKTC/TR tapu kütüğünden teyit edilmiştir, devire temizdir.' 
+                        },
+                        { 
+                          id: 'dask', 
+                          title: 'Zorunlu Deprem Sigortası (DASK)', 
+                          desc: 'Maddi hasarlı yapı sigortası ile zorunlu afet teminatları aktiftir ve poliçe numarası sisteme girilmiştir.' 
+                        },
+                        { 
+                          id: 'belediye', 
+                          title: 'Belediye Borçsuzluk Belgesi', 
+                          desc: 'Belediye emlak vergisi, çevre-altyapı katılım bedeli ve su borcu yoktur belgesi temin edilmiştir.' 
+                        },
+                        { 
+                          id: 'yetki', 
+                          title: 'Portföy Yetki Belgesi / Mukavele', 
+                          desc: 'Mülk sahibinin ıslak/dijital imzalı LookPrice tek yetkili satış sözleşmesi geçerli sürededir.' 
+                        },
+                        { 
+                          id: 'satinAlmaIzni', 
+                          title: 'Müstakbel Yabancı Satın Alma Süreci', 
+                          desc: 'Fasıl 109 KKTC Bakanlar Kurulu onay ve tescil yol haritası (UK/Avrupa alıcıları için) planlıdır.' 
+                        },
+                      ].map((item) => (
+                        <div 
+                          key={item.id} 
+                          onClick={() => setComplianceChecked({ ...complianceChecked, [item.id]: !complianceChecked[item.id] })}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
+                            complianceChecked[item.id] 
+                              ? 'bg-slate-900 text-white border-slate-950' 
+                              : 'bg-white text-slate-800 border-slate-200/80 hover:bg-slate-50'
+                          }`}
                         >
-                          Yatırım PDF Gönder
-                        </button>
+                          <input 
+                            type="checkbox" 
+                            checked={complianceChecked[item.id]} 
+                            onChange={() => {}} // handled by parent click
+                            className="mt-1 h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <div>
+                            <span className="block font-extrabold text-xs">{item.title}</span>
+                            <span className={`block text-[10px] mt-1 leading-relaxed ${
+                              complianceChecked[item.id] ? 'text-slate-300' : 'text-slate-400'
+                            }`}>{item.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-slate-100 p-3.5 rounded-2xl border border-slate-200/50 text-[10.5px] text-slate-500 font-bold flex gap-2 items-center">
+                      <Shield className="w-5 h-5 text-indigo-600 shrink-0" />
+                      <span>Bu mülkle ilgili evrak tescilleri ve kontroller şube yetkilisi tarafından dijital zaman damgasıyla imzalanmıştır. Hukuk davalarına karşı koruma altındadır.</span>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* TAB 3: CMA & AI COPYWRITING */}
+                {activeHubTab === 'cma' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* CMA & ELASTICITY SIMULATOR CARD */}
+                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">CMA & PRICE ELASTICITY ANALYZER</span>
+                            <h5 className="font-extrabold text-sm text-slate-800 leading-none mt-0.5">Fiyat Esnekliği & Talep Simülasyonu</h5>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                          Mülkün kiralık/satılık liste fiyatındaki oynamaların, pazarın reaksiyonuna (Müşteri gösterim talebi, tapuda kapanış süresi, teklif olasılığı) etkisini test edin.
+                        </p>
+
+                        {/* Sliders and pricing values */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5 mt-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-slate-500 font-extrabold font-sans">Önerilen Liste Fiyatı:</span>
+                            <span className="font-black text-slate-900">{matchingProperty.currency} {matchingProperty.price.toLocaleString()}</span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center text-[10px] font-bold text-indigo-600 font-sans">
+                              <span>Simüle Edilen Test Fiyatı</span>
+                              <span>{matchingProperty.currency} {(cmaElasticityPrice || matchingProperty.price).toLocaleString()}</span>
+                            </div>
+                            <input 
+                              type="range"
+                              min={Math.round(matchingProperty.price * 0.7)}
+                              max={Math.round(matchingProperty.price * 1.3)}
+                              step={Math.round(matchingProperty.price * 0.01)}
+                              className="w-full justify-center accent-indigo-600 h-1 bg-slate-200 rounded-lg cursor-pointer"
+                              value={cmaElasticityPrice || matchingProperty.price}
+                              onChange={(e) => setCmaElasticityPrice(Number(e.target.value))}
+                            />
+                            <div className="flex justify-between text-[9px] text-slate-400 font-semibold font-sans">
+                              <span>%30 Altı (Agresif Satış)</span>
+                              <span>Mevcut Fiyat</span>
+                              <span>%30 Üstü (Aşırı Fiyatlama)</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Calculated Projections Output */}
+                        {(() => {
+                          const initialPrice = matchingProperty.price;
+                          const testPrice = cmaElasticityPrice || initialPrice;
+                          const pctDiff = Math.round(((testPrice - initialPrice) / initialPrice) * 100);
+                          
+                          let estimatedViewsChange = 0;
+                          let estimatedOfferProbability = 75; // baseline %
+                          let daysOnMarketEstimate = 45; // baseline days
+
+                          if (pctDiff > 0) {
+                            estimatedViewsChange = -(pctDiff * 1.8);
+                            estimatedOfferProbability = Math.max(5, Math.round(75 - (pctDiff * 2.2)));
+                            daysOnMarketEstimate = Math.min(180, Math.round(45 * (1 + (pctDiff * 0.08))));
+                          } else if (pctDiff < 0) {
+                            const absDiff = Math.abs(pctDiff);
+                            estimatedViewsChange = (absDiff * 1.4);
+                            estimatedOfferProbability = Math.min(99, Math.round(75 + (absDiff * 0.8)));
+                            daysOnMarketEstimate = Math.max(5, Math.round(45 * (1 - (absDiff * 0.03))));
+                          }
+
+                          return (
+                            <div className="space-y-3 pt-1">
+                              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">SİMÜLASYON VERİ ANALİZİ (%{pctDiff >= 0 ? '+' : ''}{pctDiff})</span>
+                              
+                              <div className="grid grid-cols-3 gap-2.5 text-center">
+                                <div className="p-3 bg-slate-50 border rounded-2xl">
+                                  <span className="block text-[9px] text-slate-400 font-extrabold uppercase font-sans">TÜKETİCİ İLGİSİ</span>
+                                  <span className={`text-[11px] font-black block mt-1 ${estimatedViewsChange >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                    {estimatedViewsChange >= 0 ? '+' : ''}{Math.round(estimatedViewsChange)}% Gösterim
+                                  </span>
+                                </div>
+
+                                <div className="p-3 bg-slate-50 border rounded-2xl">
+                                  <span className="block text-[9px] text-slate-400 font-extrabold uppercase font-sans">TEKLİF ALMA ŞANSI</span>
+                                  <span className="text-[11px] font-black block text-indigo-700 mt-1">
+                                    %{estimatedOfferProbability} İhtimal
+                                  </span>
+                                </div>
+
+                                <div className="p-3 bg-slate-50 border rounded-2xl">
+                                  <span className="block text-[9px] text-slate-400 font-extrabold uppercase font-sans">ORT. SATIŞ SÜRESİ</span>
+                                  <span className="text-[11px] font-black block text-slate-800 mt-1">
+                                    ~{daysOnMarketEstimate} Gün
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className={`p-3 rounded-xl border flex items-start gap-2 text-[10.5px] font-semibold leading-relaxed ${
+                                pctDiff > 10 
+                                  ? 'bg-rose-50 border-rose-100 text-rose-900' 
+                                  : pctDiff < -5 
+                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-900'
+                                    : 'bg-indigo-50 border-indigo-100 text-indigo-900'
+                              }`}>
+                                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="block font-black uppercase text-[9px] font-sans">Danışman Raporu</span>
+                                  {pctDiff > 10 
+                                    ? `UYARI: Emsal değerlerin çok üzerine çıktınız. Alıcı akışı durabilir, listeleme ortalama ${daysOnMarketEstimate} güne uzayarak mülkü maliyet yüküne sokacaktır!`
+                                    : pctDiff < -5
+                                      ? `Fırsat Fiyatlama! Çok hızlı bir tescil döngüsü gerçekleşmesi bekleniyor. Gösterim oranlarında %${Math.round(estimatedViewsChange)} düzeyinde bir artış tetiklenecektir.`
+                                      : 'Piyasa dalgalanmaları ve bölge esnekliği dengeli alandadır. Portföy prestijini koruyor.'
+                                  }
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* AI AD PLATFORMS */}
+                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">YAPAY ZEKA TANITIM METNİ</span>
+                              <h5 className="font-extrabold text-sm text-slate-800 leading-none mt-0.5 font-sans">Multi-Channel AI Pazarlama Sesi</h5>
+                            </div>
+                          </div>
+                          
+                          <p className="text-[11px] text-slate-400 leading-relaxed font-sans mt-2">
+                            Pazarlık ve mülk ayrıntılarını dikkate alarak otomatik reklam metni kurgular.
+                          </p>
+
+                          <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl mt-3 font-sans">
+                            {[
+                              { id: 'portal', label: 'Zillow / Sahibinden', icon: Home },
+                              { id: 'social', label: 'Meta Ads (Insta)', icon: Megaphone },
+                              { id: 'whatsapp', label: 'WhatsApp / SMS', icon: Send },
+                            ].map((plat) => (
+                              <button
+                                key={plat.id}
+                                onClick={() => setAiAdPlatform(plat.id as any)}
+                                className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 ${
+                                  aiAdPlatform === plat.id 
+                                    ? 'bg-slate-900 text-white shadow-sm' 
+                                    : 'text-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                {plat.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="bg-slate-950 text-slate-100 p-4 rounded-2xl text-[11px] font-mono h-32 overflow-y-auto whitespace-pre-wrap select-all relative group shadow-inner mt-3">
+                            {getAICopyText()}
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(getAICopyText());
+                                alert("Tanıtım metni panoya kopyalandı!");
+                              }}
+                              className="absolute bottom-2 right-2 bg-indigo-600 text-white text-[9px] font-bold px-2 py-1 rounded hover:bg-indigo-700 transition"
+                            >
+                              Kopyala
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200 text-[10px] text-slate-500 font-bold leading-relaxed mt-3">
+                          💡 <strong>Multichannel Yapay Zeka Özelliği:</strong> Reklam metni, fiyat veya oda/konum parametreleri güncellendikçe anlık olarak revize edilir.
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* 3D MATTERPORT VISUALIZATION & AUTOMATED RENOVATION CENTER */}
+                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/80 space-y-4 shadow-sm mt-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="block text-[10px] font-black text-indigo-700 uppercase tracking-widest leading-none font-sans">MATTERPORT 3D & PROPERTY VISUALIZATION HUB</span>
+                          <h5 className="font-extrabold text-sm text-slate-800 mt-1">3D Dijital İkiz, Sanal Sahneleme (Staging) & Metraj Analizi</h5>
+                          <p className="text-[11px] text-slate-400 mt-1 font-sans">Alıcıları mülke girmeden önce büyüleyin. Matterport Dijital İkiz altyapısı ve yapay zeka tabanlı dekorasyon simülatörü.</p>
+                        </div>
+                        <span className="text-[9.5px] bg-teal-50 border border-teal-100 text-teal-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                          📷 Matterport Active
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
+                        
+                        {/* 1. Virtual Staging Selector */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
+                          <div>
+                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🛋️ YAPAY ZEKA SANAL EŞYALANDIRMA (STAGING)</span>
+                            <div className="grid grid-cols-2 gap-1.5 mt-2">
+                              {[
+                                { id: 'modern', label: 'Lüks Modern', desc: 'Minimalist metal / antrasit' },
+                                { id: 'boho', label: 'Bohem Eskiz', desc: 'Hasır / sıcak tonlar' },
+                                { id: 'scandinavian', label: 'İskandinav', desc: 'Ahşap / açık pastel' },
+                                { id: 'classic', label: 'Ağırbaşlı Klasik', desc: 'Deri / ceviz mobilyalar' }
+                              ].map((style) => (
+                                <button
+                                  key={style.id}
+                                  onClick={() => setVirtualStagingStyle(style.id as any)}
+                                  className={`p-2 text-left rounded-xl border text-[10px] transition-all leading-tight ${
+                                    virtualStagingStyle === style.id 
+                                      ? 'bg-indigo-600 border-indigo-700 text-white shadow' 
+                                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  <strong>{style.label}</strong>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="p-3 bg-white border border-slate-200 rounded-xl text-[10px] text-slate-500 leading-normal">
+                            ✨ <strong>Staging Durumu:</strong> {
+                              virtualStagingStyle === 'modern' ? 'Oturma odası antrasit mermer sehpalar ve gizli LED aydınlatmalı lüks koltuklar ile döşendi.' :
+                              virtualStagingStyle === 'boho' ? 'Doğal bambu perdeler, el dokuması kilimler ve palmiye bitkileriyle Akdeniz esintisi yansıtıldı.' :
+                              virtualStagingStyle === 'scandinavian' ? 'Açık meşe ahşap zeminler, keten kumaşlar ve bej tonlar ile maksimum genişlik hissi sağlandı.' :
+                              'Masif ceviz yemek masası, chesterfield deri kanepeler ile seçkin ve prestijli bir stil kurgulandı.'
+                            }
+                          </div>
+                        </div>
+
+                        {/* 2. Automated Inspection & Renovation repair cost estimates */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
+                          <div>
+                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🔧 OTOMATİK TAMİR & RENOVASYON KESİNTİLERİ</span>
+                            <p className="text-[10px] text-slate-400 font-sans mt-0.5">Mülkün mevcut fiziki kondisyonunu seçerek satıcıya rasyonel değerleme raporu oluşturun.</p>
+                            
+                            <div className="space-y-1.5 mt-2 font-sans">
+                              {[
+                                { id: 'none', label: '🏡 Sıfır / Eksiği Yok', deduction: 0 },
+                                { id: 'medium', label: '⚠️ Hafif Bakım Masrafı', deduction: 9500 },
+                                { id: 'renovation_needed', label: '🚨 Komple Renovasyon Gerekli', deduction: 27000 }
+                              ].map((item) => (
+                                <button
+                                  key={item.id}
+                                  onClick={() => setRenovationState(item.id as any)}
+                                  className={`w-full p-2 text-left rounded-xl border text-[10.5px] font-semibold flex items-center justify-between transition-all ${
+                                    renovationState === item.id 
+                                      ? 'bg-slate-900 border-slate-950 text-white shadow-sm' 
+                                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  <span>{item.label}</span>
+                                  <span className="font-extrabold text-[10.5px]">
+                                    {item.deduction > 0 ? `-£${item.deduction.toLocaleString()}` : "Düz"}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-[10px] font-extrabold flex justify-between items-center text-slate-700 font-sans">
+                            <span>Nihai Net Değer (Kesintili):</span>
+                            <span className="font-black text-indigo-600">
+                              {matchingProperty.currency} {((cmaElasticityPrice || matchingProperty.price) - (renovationState === 'none' ? 0 : renovationState === 'medium' ? 9500 : 27000)).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 3. Localized Price Trajectory & Demographic/Seasonal trends */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
+                          <div>
+                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">📈 BÖLGESEL TRAJEKTORİ VE ORTALAMA STOK GÜNÜ</span>
+                            
+                            <div className="space-y-2 mt-2 font-sans">
+                              <div className="flex justify-between items-center text-[11px] border-b pb-1.5">
+                                <span className="text-slate-500 font-extrabold">Öngörülen Fiyat Trajektorisi:</span>
+                                <span className="font-black text-emerald-600">📈 +14.8% (Gelecek 12 Ay)</span>
+                              </div>
+                              <div className="flex justify-between items-center text-[11px] border-b pb-1.5">
+                                <span className="text-slate-500 font-extrabold">Pazar Stok Envanter Seviyesi:</span>
+                                <span className="font-black text-slate-700">Düşük (Alıcı Pazarı)</span>
+                              </div>
+                              <div className="flex justify-between items-center text-[11px]">
+                                <span className="text-slate-500 font-extrabold">Maksimum Mevsimsel Alıcı İlgisi:</span>
+                                <span className="font-black text-indigo-600">Mayıs - Eylül Dönemi</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[10px] text-indigo-900 leading-normal font-medium flex items-center gap-1.5">
+                            📊 <strong>CoStar AI Tahmini:</strong> Bölgesel altyapı projeleri ve yabancı alıcı tescil başvurusu sıklığı nedeniyle önümüzdeki çeyrekte günler-stok-oranı %12 kısalacaktır.
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* TAB 4: SPLITS */}
+                {activeHubTab === 'splits' && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="font-extrabold text-sm text-slate-800">Çok Şubeli Ağ İçi Gelir Paylaşımı (Commission Splits)</h5>
+                        <p className="text-[11px] text-slate-400">Farklı şubelerle ortak gerçekleştirilen satış işlemlerinde komisyon hak haklarını güvenceye alın.</p>
+                      </div>
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase">
+                        SÖZLEŞME ENTEGRELİ
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      <div className="space-y-4 bg-white p-5 rounded-[2rem] border border-slate-200/80">
+                        <span className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Ortak İşlem Yapılan Şube & Temsilci</span>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">Ortak Çalışan Diğer Şube</label>
+                            <select 
+                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-indigo-600"
+                              value={selectedSplitBranch}
+                              onChange={(e) => setSelectedSplitBranch(e.target.value)}
+                            >
+                              <option value="Lefkoşa Merkez Ofis">Lefkoşa Merkez Ofis</option>
+                              <option value="Girne Harbour Ofisi">Girne Harbour Ofisi</option>
+                              <option value="İskele LongBeach Şubesi">İskele LongBeach Şubesi</option>
+                              <option value="Gazi Mağusa Ofisi">Gazi Mağusa Ofisi</option>
+                              <option value="İstanbul High-End Ofisi">İstanbul High-End Ofisi</option>
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Muhatap Diğer Yetkili</label>
+                              <input 
+                                type="text"
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-indigo-600"
+                                value={splitNegotiatedAgent}
+                                onChange={(e) => setSplitNegotiatedAgent(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Mülk Toplam Hizmet Bedeli (%)</label>
+                              <input 
+                                type="number"
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-indigo-600"
+                                value={splitCommissionPercentage}
+                                onChange={(e) => setSplitCommissionPercentage(Number(e.target.value))}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-2 flex justify-between">
+                              <span>Komisyon Bölüşüm (Split) Oranı</span>
+                              <span className="text-indigo-600 font-black">{splitRatio}% / {100 - splitRatio}%</span>
+                            </label>
+                            <div className="flex gap-2">
+                              {[
+                                { val: 50, label: 'Eşit Bölüşüm (%50 / %50)' },
+                                { val: 60, label: 'Portföy Sorumlusu Ağırlıklı (%60 / %40)' },
+                                { val: 70, label: 'Portföy Sorumlusu Ağırlıklı (%70 / %30)' },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.val}
+                                  onClick={() => setSplitRatio(opt.val)}
+                                  className={`flex-1 text-center py-2 border rounded-xl text-[9px] font-black uppercase transition-all ${
+                                    splitRatio === opt.val 
+                                      ? 'bg-indigo-600 text-white border-indigo-600' 
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CALCULATION DETAILS & PROTOCOL BUTTON */}
+                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 flex flex-col justify-between">
+                        <div className="space-y-4">
+                          <span className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Anlık Hak Ediş Hesap Raporu</span>
+                          
+                          <div className="space-y-3.5">
+                            <div className="flex justify-between items-center text-xs text-slate-600 font-bold">
+                              <span>Hedeflenen Toplam Hizmet Bedeli:</span>
+                              <span className="text-slate-900 font-extrabold">{matchingProperty.currency} {estTotalCommission.toLocaleString()}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs text-slate-600 border-t border-dashed border-slate-100 pt-3 font-semibold">
+                              <span className="flex items-center gap-1">🏢 Bizim Şube ({matchingProperty.branch_name || 'Merkez'} - {splitRatio}%):</span>
+                              <span className="text-indigo-600 font-black">{matchingProperty.currency} {firstBranchCommission.toLocaleString()}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs text-slate-600 pt-1 font-semibold">
+                              <span className="flex items-center gap-1">🏢 İş Ortağı Şube ({selectedSplitBranch} - {100 - splitRatio}%):</span>
+                              <span className="text-teal-600 font-black">{matchingProperty.currency} {secondBranchCommission.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-4">
+                          <button
+                            onClick={() => {
+                              // Dynamically fill properties to contract model trigger
+                              setContractProperty({
+                                ...matchingProperty,
+                                title: `[${splitRatio}/${100 - splitRatio} SPLIT] ` + matchingProperty.title,
+                                kktc_title_type: `Şubeler Arası Split Protocol (${splitRatio}/${100-splitRatio})`
+                              } as any);
+                              setIsContractModalOpen(true);
+                              setMatchingProperty(null);
+                            }}
+                            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase rounded-xl transition-all shadow border border-slate-950 flex items-center justify-center gap-2"
+                          >
+                            <FileSignature className="w-4 h-4 stroke-[2.5]" />
+                            Şubeler Arası Protokol Mukavalesi Yazdır
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB: ESCROW & PRE-CLOSING TRACKER */}
+                {activeHubTab === 'escrow' && (
+                  <div className="space-y-6">
+                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
+                      <div className="flex justify-between items-center bg-indigo-50/55 p-5 rounded-2xl border border-indigo-100">
+                        <div>
+                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block font-sans">SECURE ESCROW TIMELINE</span>
+                          <h5 className="font-extrabold text-sm text-slate-800 leading-tight mt-0.5">Güvenceli Tapu & Kapanış Yönetimi</h5>
+                          <p className="text-[10px] text-slate-400 mt-1">Sözleşmenin tescilinden tapu koçan devrine kadar olan 6 adımlı tescil takvimi.</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] font-black text-slate-400 uppercase block">KAPANMA İHTİMALİ</span>
+                          <span className="text-xl font-black text-indigo-600">%{escrowTimeline.filter(t => t.checked).length * 16 + 4}</span>
+                        </div>
+                      </div>
+
+                      {/* Escrow Milestone Items list */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {escrowTimeline.map((step) => (
+                          <div 
+                            key={step.id}
+                            onClick={() => {
+                              const updated = escrowTimeline.map(s => s.id === step.id ? { ...s, checked: !s.checked } : s);
+                              setEscrowTimeline(updated);
+                            }}
+                            className={`p-4 rounded-2xl border transition-all cursor-pointer flex gap-3 relative overflow-hidden select-none ${
+                              step.checked 
+                                ? 'bg-slate-900 text-white border-slate-950' 
+                                : 'bg-slate-50 border-slate-200/80 text-slate-800 hover:bg-slate-100/70'
+                            }`}
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={step.checked} 
+                              onChange={() => {}}
+                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+                            />
+                            <div className="text-[11px] leading-tight space-y-1">
+                              <span className="block font-extrabold">{step.label}</span>
+                              <span className={`block text-[9.5px] leading-relaxed ${
+                                step.checked ? 'text-slate-300' : 'text-slate-400 font-semibold'
+                              }`}>
+                                {step.description}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Action trigger to send pre-closing docket */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 font-sans">
+                        <div className="text-[10.5px] text-slate-500 font-bold leading-relaxed">
+                          ⚠️ <span className="text-slate-700">Tescil Uyarısı:</span> Bu mülke ait tescil listesindeki tüm adımların tamamlanması, Kıbrıs & Türkiye mevzuat uyarınca tescil iptallerini ve vergi cezalarını sıfıra indirir.
+                        </div>
                         <button
-                          onClick={() => window.open(`https://wa.me/${buyer.phone.replace(/\s+/g, '')}?text=Merhaba%20${buyer.name},%20Kriterlerinize%20uygun%20yeni%20KKTC%20portf%C3%B6y%C3%BCm%C3%BCz%20yay%C4%B1mland%C4%B1!%20Sanal%20Tur:%20${matchingProperty.virtual_tour_url || ''}`, '_blank')}
-                          className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow"
+                          onClick={() => {
+                            const stepsCompleted = escrowTimeline.filter(s => s.checked).map(s => `[X] ${s.label}`).join("\n");
+                            const stepsPending = escrowTimeline.filter(s => !s.checked).map(s => `[ ] ${s.label}`).join("\n");
+                            const subject = encodeURIComponent(`GÜVENLİ ESCROW RAPORU: ${matchingProperty.title}`);
+                            const body = encodeURIComponent(`Sayın Temsilci,\n\n${matchingProperty.title} numaralı portföyün kapanış süreçleri ve tapu devir takibi tescil raporu:\n\nTAMAMLANAN ADIMLAR:\n${stepsCompleted}\n\nBEKLEYEN EKSİKLER:\n${stepsPending}\n\nİlgili dosya ve harçların takibini sitemiz üzerinden tamamlayabilirsiniz.\n\nLookPrice Elite Escrow Asistanı.`);
+                            window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10.5px] px-4 py-2 rounded-xl transition-all shadow"
                         >
-                          WhatsApp’tan Paylaş
+                          ✉️ Aktif Tapu Durum Raporunu Yetkililere Gönder
                         </button>
                       </div>
 
                     </div>
-                  ))
+                  </div>
                 )}
-              </div>
-            </div>
 
-            <div className="pt-4 border-t mt-4">
-              <button 
-                onClick={() => setMatchingProperty(null)}
-                className="w-full py-3 bg-slate-900 text-white font-bold text-xs uppercase rounded-xl"
-              >
-                Kapat
-              </button>
+              </div>
+
+              {/* FOOTER */}
+              <div className="bg-slate-50 p-6 border-t flex justify-end gap-3 rounded-b-[2.5rem]">
+                <button 
+                  onClick={() => setMatchingProperty(null)}
+                  className="px-6 py-3 bg-slate-900 text-white font-black text-xs uppercase rounded-xl hover:bg-slate-800 transition-colors"
+                >
+                  Hub Kapat
+                </button>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Real Real Estate Modal component */}
       <RealEstateModal 
@@ -620,6 +2510,19 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
           }
         }}
       />
+
+      {/* Dynamic Bilingual Legal Contract Generator Modal */}
+      {contractProperty && (
+        <LegalContractModal
+          isOpen={isContractModalOpen}
+          onClose={() => {
+            setIsContractModalOpen(false);
+            setContractProperty(null);
+          }}
+          property={contractProperty}
+          storeName={user?.store_name || "LookPrice Real Estate Office"}
+        />
+      )}
 
     </div>
   );

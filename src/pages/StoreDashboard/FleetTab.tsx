@@ -36,10 +36,12 @@ import {
   Compass,
   Cpu,
   Image as ImageIcon,
-  Shield
+  Shield,
+  FileSignature
 } from 'lucide-react';
 import { ImageGallery } from '../../components/ImageGallery';
 import { MultiImageUploader } from '../../components/MultiImageUploader';
+import { AutoContractModal } from '../../components/AutoContractModal';
 
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
@@ -192,6 +194,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [loanAmount, setLoanAmount] = useState<number>(0);
   const [loanTerm, setLoanTerm] = useState<number>(36);
   const [loanRate, setLoanRate] = useState<number>(2.49);
+
+  // Auto Contract Generator States
+  const [autoContractVehicle, setAutoContractVehicle] = useState<Vehicle | null>(null);
+  const [isAutoContractOpen, setIsAutoContractOpen] = useState(false);
 
   useEffect(() => {
     if (selectedVehicle?.selling_price) {
@@ -1092,6 +1098,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
+                          setAutoContractVehicle(vehicle);
+                          setIsAutoContractOpen(true);
+                        }}
+                        className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center"
+                        title="Resmi Sözleşme"
+                      >
+                        <FileSignature className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => {
                           setSelectedVehicle(vehicle);
                           setFormData({
                             plate: vehicle.plate,
@@ -1228,7 +1244,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 items-center">
                           {vehicle.status === 'for_sale' && (
                             <button
                               onClick={() => window.open(`https://enrakipsiz.com/arac/${vehicle.id}`, '_blank')}
@@ -1238,6 +1254,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                             </button>
                           )}
+                          <button
+                            onClick={() => {
+                              setAutoContractVehicle(vehicle);
+                              setIsAutoContractOpen(true);
+                            }}
+                            className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Resmi Konsinye / Alım-Satım Sözleşmesi Oluştur"
+                          >
+                            <FileSignature className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => {
                               setSelectedVehicle(vehicle);
@@ -3053,6 +3079,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   })();
 
                   const totalExpenses = expensesListData.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
+                  const totalExpensesByCurrency = expensesListData.reduce((acc: Record<string, number>, item: any) => {
+                    const cur = item.currency || 'TRY';
+                    acc[cur] = (acc[cur] || 0) + (Number(item.amount) || 0);
+                    return acc;
+                  }, {});
                   const baseBuyingPrice = Number(selectedVehicle.buying_price) || 0;
                   const calculatedTotalCost = baseBuyingPrice + totalExpenses;
 
@@ -3334,20 +3365,32 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           </h4>
 
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
+                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center flex flex-col justify-center min-h-[96px]">
                               <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Alış Alım Geliş Tutarı</p>
                               <p className="text-lg font-black text-indigo-950">{(selectedVehicle.buying_price || 0).toLocaleString()} {selectedVehicle.buying_currency || 'GBP'}</p>
                             </div>
-                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
+                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center flex flex-col justify-center min-h-[96px]">
                               <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Harcama ve Ekstra Masraflar</p>
-                              <p className="text-lg font-black text-indigo-950">{totalExpenses.toLocaleString()} {selectedVehicle.buying_currency || 'GBP'}</p>
+                              <p className="text-sm font-black text-indigo-950 leading-tight">
+                                {Object.keys(totalExpensesByCurrency).length > 0 
+                                  ? Object.entries(totalExpensesByCurrency).map(([cur, amt]) => `${amt.toLocaleString()} ${cur}`).join(' + ')
+                                  : `0 ${selectedVehicle.buying_currency || 'GBP'}`
+                                }
+                              </p>
                             </div>
-                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center">
+                            <div className="bg-white p-4 rounded-2xl border border-indigo-100/50 shadow-sm text-center flex flex-col justify-center min-h-[96px]">
                               <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Toplam İşletme Maliyeti</p>
-                              <p className="text-lg font-black text-indigo-950">{calculatedTotalCost.toLocaleString()} {selectedVehicle.buying_currency || 'GBP'}</p>
+                              <p className="text-sm font-black text-indigo-950 leading-tight">
+                                {(selectedVehicle.buying_price || 0).toLocaleString()} {selectedVehicle.buying_currency || 'GBP'}
+                                {Object.keys(totalExpensesByCurrency).length > 0 && (
+                                  <span className="block text-[10px] text-indigo-600 font-bold mt-1">
+                                    + {Object.entries(totalExpensesByCurrency).map(([cur, amt]) => `${amt.toLocaleString()} ${cur}`).join(' + ')}
+                                  </span>
+                                )}
+                              </p>
                             </div>
-                            <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 p-4 rounded-2xl shadow text-center text-white">
-                              <p className="text-[10px] text-indigo-200 font-bold uppercase mb-0.5">Hedef Liste Fiyatı (%{selectedVehicle.target_profit_margin || 0} Marj)</p>
+                            <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 p-4 rounded-2xl shadow text-center text-white flex flex-col justify-center min-h-[96px]">
+                              <p className="text-[10px] text-indigo-200 font-bold uppercase mb-0.5 font-sans leading-none">Hedef Liste Fiyatı (%{selectedVehicle.target_profit_margin || 0} Marj)</p>
                               <p className="text-lg font-black text-amber-300">
                                 {(calculatedTotalCost * (1 + (selectedVehicle.target_profit_margin || 0) / 100)).toLocaleString()} {selectedVehicle.currency || 'GBP'}
                               </p>
@@ -3362,7 +3405,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                                 {expensesListData.map((item: any) => (
                                   <div key={item.id} className="flex justify-between items-center p-2 bg-indigo-50/15 rounded-lg border border-gray-100">
                                     <span className="font-semibold text-gray-600">{item.name}</span>
-                                    <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {selectedVehicle.currency || 'TRY'}</span>
+                                    <span className="font-extrabold text-indigo-900">{(item.amount || 0).toLocaleString()} {item.currency || 'TRY'}</span>
                                   </div>
                                 ))}
                               </div>
@@ -4709,6 +4752,16 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           </div>
         )}
       </AnimatePresence>
+
+      <AutoContractModal
+        isOpen={isAutoContractOpen}
+        onClose={() => {
+          setIsAutoContractOpen(false);
+          setAutoContractVehicle(null);
+        }}
+        vehicle={autoContractVehicle}
+        storeName="LookPrice Premium Gallery"
+      />
     </div>
   );
 };
