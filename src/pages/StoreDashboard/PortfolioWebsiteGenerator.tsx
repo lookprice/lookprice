@@ -26,6 +26,7 @@ interface WebContent {
 export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => {
   const { lang } = useLanguage();
   const [blogs, setBlogs] = useState<any[]>([]);
+  const [radarNews, setRadarNews] = useState<any[]>([]);
 
   useEffect(() => {
     if (storeId) {
@@ -56,7 +57,14 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
               }));
             }
           }
-          if (res.slug) setStoreSlug(res.slug);
+          if (res.slug) {
+            setStoreSlug(res.slug);
+            api.getPublicRadarNews(res.slug).then((newsRes) => {
+              if (Array.isArray(newsRes)) {
+                setRadarNews(newsRes);
+              }
+            }).catch(console.error);
+          }
           if (res.custom_domain) {
             setCustomDomain(res.custom_domain);
             setUseCustomDomain(true);
@@ -701,26 +709,31 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
                          </div>
                          
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                            {[
-                              { 
-                                title: lang === 'tr' ? 'Girne Yeni İmar Planı Açıklandı, Yatırımcılar Odaklanıyor' : 'Kyrenia New Zoning Plan Announced', 
-                                category: 'İmar Durumu', 
-                                date: '2 Saat Önce', 
-                                img: 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?q=80&w=800' 
-                              },
-                              { 
-                                title: lang === 'tr' ? 'Lefkoşa Kredi Faizlerinde Son Durum: Alım Fırsatı Mı?' : 'Nicosia Credit Rates Update: Is it a Buying Opportunity?', 
-                                category: 'Krediler & Finans', 
-                                date: '5 Saat Önce', 
-                                img: 'https://images.unsplash.com/photo-1554469384-e58fac16e23a?q=80&w=800' 
-                              },
-                              { 
-                                title: lang === 'tr' ? 'Yeni Marina Projesi Çevresinde Emlak Değerleri Artıyor' : 'Real Estate Values Rising Around New Marina Project', 
-                                category: 'Bölgesel Gelişme', 
-                                date: '1 Gün Önce', 
-                                img: 'https://images.unsplash.com/photo-1563842145396-85750036ee7f?q=80&w=800' 
-                              },
-                            ].map((newsItem, i) => (
+                            {(radarNews && radarNews.length > 0 ? radarNews.slice(0, 3).map(newsItem => ({
+                               title: newsItem.title,
+                               category: newsItem.tags && newsItem.tags.length > 0 ? newsItem.tags[0] : (lang === 'tr' ? 'Bölgesel Gelişme' : 'Zoning Update'),
+                               date: newsItem.date || (lang === 'tr' ? 'Yeni' : 'Recent'),
+                               img: newsItem.image_url || 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?q=80&w=800'
+                             })) : [
+                               { 
+                                 title: lang === 'tr' ? 'Girne Yeni İmar Planı Açıklandı, Yatırımcılar Odaklanıyor' : 'Kyrenia New Zoning Plan Announced', 
+                                 category: 'İmar Durumu', 
+                                 date: '2 Saat Önce', 
+                                 img: 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?q=80&w=800' 
+                               },
+                               { 
+                                 title: lang === 'tr' ? 'Lefkoşa Kredi Faizlerinde Son Durum: Alım Fırsatı Mı?' : 'Nicosia Credit Rates Update: Is it a Buying Opportunity?', 
+                                 category: 'Krediler & Finans', 
+                                 date: '5 Saat Önce', 
+                                 img: 'https://images.unsplash.com/photo-1554469384-e58fac16e23a?q=80&w=800' 
+                               },
+                               { 
+                                 title: lang === 'tr' ? 'Yeni Marina Projesi Çevresinde Emlak Değerleri Artıyor' : 'Real Estate Values Rising Around New Marina Project', 
+                                 category: 'Bölgesel Gelişme', 
+                                 date: '1 Gün Önce', 
+                                 img: 'https://images.unsplash.com/photo-1563842145396-85750036ee7f?q=80&w=800' 
+                               },
+                             ]).map((newsItem, i) => (
                                <div key={i} className="group cursor-pointer flex flex-col bg-slate-800/50 border border-slate-700/50 rounded-3xl overflow-hidden hover:bg-slate-800 hover:border-indigo-500/50 transition-all">
                                   <div className="h-48 relative overflow-hidden">
                                      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url(${newsItem.img})` }}></div>

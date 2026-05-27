@@ -60,6 +60,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const [docName, setDocName] = useState('');
   const [docCategory, setDocCategory] = useState<'title_deed'|'dask'|'contract'|'auth_doc'>('title_deed');
   const [docUrl, setDocUrl] = useState('');
+  const [selectedDocFile, setSelectedDocFile] = useState<File | null>(null);
 
   // AI & Luxury Feature states
   const [generatingDesc, setGeneratingDesc] = useState(false);
@@ -71,6 +72,30 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const [generatingTour, setGeneratingTour] = useState(false);
   const [activeTourNode, setActiveTourNode] = useState<any>(null);
   const [tourBlueprint, setTourBlueprint] = useState<any>(null);
+  const [selectedAiImageIndex, setSelectedAiImageIndex] = useState<number>(0);
+  const [stagingStyle, setStagingStyle] = useState<string>('luxury');
+  const [docSize, setDocSize] = useState<string>('1.5 MB');
+
+  // 360 Panorama Drag states
+  const [panOffset, setPanOffset] = useState<number>(0);
+  const [isDraggingPan, setIsDraggingPan] = useState<boolean>(false);
+  const [startPanX, setStartPanX] = useState<number>(0);
+
+  const handlePanMouseDown = (e: React.MouseEvent) => {
+    setIsDraggingPan(true);
+    setStartPanX(e.clientX - panOffset);
+  };
+
+  const handlePanMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingPan) return;
+    const x = e.clientX;
+    const walk = x - startPanX;
+    setPanOffset(walk);
+  };
+
+  const handlePanMouseUpOrLeave = () => {
+    setIsDraggingPan(false);
+  };
 
   // CRM Data states
   const [branches, setBranches] = useState<any[]>([]);
@@ -137,11 +162,21 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const handleAIVirtualStaging = async (style: string) => {
     setProcessingMedia('staging');
     try {
-      const coverUrl = formData.images?.[0] || '';
-      const res = await api.post("/api/store/ai-virtual-staging", { imageUrl: coverUrl, style });
+      const targetIndex = selectedAiImageIndex;
+      const targetUrl = formData.images?.[targetIndex] || '';
+      if (!targetUrl) {
+        alert("Lütfen önce işlem yapılacak bir görsel yükleyin veya seçin.");
+        return;
+      }
+      const res = await api.post("/api/store/ai-virtual-staging", { imageUrl: targetUrl, style });
       if (res.stagedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.stagedUrl] }));
-        setAiNotice(`✅ ${style.toUpperCase()} tarzında lüks mobilyalar yapay zeka tarafından yerleştirildi!`);
+        setFormData(prev => {
+          const updatedImages = [...(prev.images || [])];
+          updatedImages[targetIndex] = res.stagedUrl;
+          return { ...prev, images: updatedImages };
+        });
+        const styleFriendlyName = style === 'luxury' ? 'Lüks Avangard Salon' : style === 'nordic' ? 'İskandinav Yatak Odası' : style === 'modern' ? 'Şık Mutfak' : 'Akdeniz Terası';
+        setAiNotice(`✅ #${targetIndex + 1}. Görsel için ${styleFriendlyName} tarzı mobilyalar yapay zeka tarafından yerleştirildi!`);
         setTimeout(() => setAiNotice(null), 6000);
       }
     } catch (err) {
@@ -154,11 +189,20 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const handleAIImageEnhancement = async () => {
     setProcessingMedia('enhance');
     try {
-      const coverUrl = formData.images?.[0] || '';
-      const res = await api.post("/api/store/ai-image-enhance", { imageUrl: coverUrl });
+      const targetIndex = selectedAiImageIndex;
+      const targetUrl = formData.images?.[targetIndex] || '';
+      if (!targetUrl) {
+        alert("Lütfen önce işlem yapılacak bir görsel yükleyin veya seçin.");
+        return;
+      }
+      const res = await api.post("/api/store/ai-image-enhance", { imageUrl: targetUrl });
       if (res.enhancedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.enhancedUrl] }));
-        setAiNotice("✅ Fotoğraf kalitesi, ışığı ve renk dengesi yapay zeka tarafından optimize edildi!");
+        setFormData(prev => {
+          const updatedImages = [...(prev.images || [])];
+          updatedImages[targetIndex] = res.enhancedUrl;
+          return { ...prev, images: updatedImages };
+        });
+        setAiNotice(`✅ #${targetIndex + 1}. Görsel kalitesi, ışığı ve renk dengesi yapay zeka tarafından optimize edildi!`);
         setTimeout(() => setAiNotice(null), 6000);
       }
     } catch (err) {
@@ -171,11 +215,20 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const handleAIAnonymizePrivate = async () => {
     setProcessingMedia('blur');
     try {
-      const coverUrl = formData.images?.[0] || '';
-      const res = await api.post("/api/store/ai-blur-privacy", { imageUrl: coverUrl, type: 'real_estate' });
+      const targetIndex = selectedAiImageIndex;
+      const targetUrl = formData.images?.[targetIndex] || '';
+      if (!targetUrl) {
+        alert("Lütfen önce işlem yapılacak bir görsel yükleyin veya seçin.");
+        return;
+      }
+      const res = await api.post("/api/store/ai-blur-privacy", { imageUrl: targetUrl, type: 'real_estate' });
       if (res.anonymizedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.anonymizedUrl] }));
-        setAiNotice("✅ Odadaki insan yüzleri ve hassas alanlar yapay zeka tarafından güvenle blurlanarak gizlendi!");
+        setFormData(prev => {
+          const updatedImages = [...(prev.images || [])];
+          updatedImages[targetIndex] = res.anonymizedUrl;
+          return { ...prev, images: updatedImages };
+        });
+        setAiNotice(`✅ #${targetIndex + 1}. Görseldeki insan yüzleri, plakalar ve hassas alanlar yapay zeka tarafından blurlanarak gizlendi!`);
         setTimeout(() => setAiNotice(null), 6000);
       }
     } catch (err) {
@@ -269,27 +322,39 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     // reset mock upload state
     setDocName('');
     setDocUrl('');
+    setSelectedDocFile(null);
   }, [property, isOpen]);
 
   if (!isOpen) return null;
 
   const handleAddDocument = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!docName) return;
+    if (!docName && !selectedDocFile) return;
     
+    const sizeStr = selectedDocFile
+      ? (selectedDocFile.size / (1024 * 1024)).toFixed(2) + ' MB'
+      : (Math.random() * 2 + 1).toFixed(1) + ' MB';
+
+    const fileUrlStr = selectedDocFile
+      ? URL.createObjectURL(selectedDocFile)
+      : docUrl || 'https://lookprice.me/docs/preview_deed.pdf';
+
+    const finalDocName = docName || (selectedDocFile ? selectedDocFile.name.split('.')[0] : 'Evrak Örneği');
+
     const newDoc = {
       id: 'doc_' + Date.now(),
-      name: docName,
+      name: finalDocName,
       category: docCategory,
-      file_url: docUrl || 'https://lookprice.me/docs/preview_deed.pdf',
+      file_url: fileUrlStr,
       upload_date: new Date().toISOString().split('T')[0],
-      size: (Math.random() * 2 + 1).toFixed(1) + ' MB'
+      size: sizeStr
     };
 
     const updatedDocs = [...(formData.documents || []), newDoc];
     setFormData({ ...formData, documents: updatedDocs });
     setDocName('');
     setDocUrl('');
+    setSelectedDocFile(null);
   };
 
   const handleRemoveDocument = (id: string) => {
@@ -853,50 +918,103 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 />
 
                 {formData.images && formData.images.length > 0 && (
-                  <div className="mt-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-black text-indigo-900 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-indigo-600 shrink-0" />
-                      LOOKPRICE AI RESİM GEREÇLERİ:
-                    </span>
-                    <button
-                      type="button"
-                      disabled={processingMedia !== null}
-                      onClick={handleAIImageEnhancement}
-                      className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0"
-                    >
-                      {processingMedia === 'enhance' ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                      ) : (
-                        <Sparkles className="w-3 h-3 text-yellow-500" />
-                      )}
-                      Fotoğrafı İyileştir (Enhance)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={processingMedia !== null}
-                      onClick={() => handleAIVirtualStaging('luxury')}
-                      className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0"
-                    >
-                      {processingMedia === 'staging' ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                      ) : (
-                        <ImageIcon className="w-3 h-3 text-indigo-600" />
-                      )}
-                      Sanal Mobilyala (Virtual Staging)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={processingMedia !== null}
-                      onClick={handleAIAnonymizePrivate}
-                      className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0"
-                    >
-                      {processingMedia === 'blur' ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                      ) : (
-                        <Shield className="w-3 h-3 text-red-500" />
-                      )}
-                      Yüz / Plaka Gizle (Blur)
-                    </button>
+                  <div className="mt-4 space-y-3 text-left">
+                    {/* Visual Image Selector Grid for AI Tools */}
+                    <div className="p-3 bg-slate-100 rounded-xl border border-slate-200/60">
+                      <span className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">
+                        🎯 Yapay Zeka İşlem Hedefi Seçimi:
+                      </span>
+                      <div className="flex gap-2 overflow-x-auto pb-1.5">
+                        {formData.images.map((img, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={() => setSelectedAiImageIndex(idx)}
+                            className={`relative h-14 w-14 rounded-xl overflow-hidden cursor-pointer shrink-0 border-2 transition-all ${
+                              selectedAiImageIndex === idx 
+                                ? 'border-indigo-600 ring-2 ring-indigo-400/40 scale-95 shadow-md' 
+                                : 'border-transparent hover:border-slate-300'
+                            }`}
+                          >
+                            <img src={img} className="h-full w-full object-cover" alt="" referrerPolicy="no-referrer" />
+                            <div className="absolute inset-0 bg-black/5 hover:bg-transparent transition-all" />
+                            <span className="absolute bottom-1 right-1 bg-black/60 text-[8px] text-white font-mono font-bold px-1 rounded">
+                              #{idx + 1}
+                            </span>
+                            {selectedAiImageIndex === idx && (
+                              <div className="absolute top-1 left-1 bg-indigo-600 text-[6px] text-white font-bold p-0.5 rounded uppercase tracking-widest scale-90">
+                                Hedef
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-slate-500 mt-1.5 font-bold leading-relaxed">
+                        Seçilen: <strong>#{selectedAiImageIndex + 1}. Görsel</strong>. Uygulayacağınız AI aracı (İyileştirme, Mobilyalama, Blur) sadece bu görsele etki edecek ve diğer tüm fotoğraflarınız korunacaktır.
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-black text-indigo-900 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-indigo-600 shrink-0" />
+                        AI GEREÇLERİ:
+                      </span>
+                      
+                      <button
+                        type="button"
+                        disabled={processingMedia !== null}
+                        onClick={handleAIImageEnhancement}
+                        className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        {processingMedia === 'enhance' ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                        ) : (
+                          <Sparkles className="w-3 h-3 text-yellow-500" />
+                        )}
+                        Fotoğrafı İyileştir (Enhance)
+                      </button>
+
+                      {/* Staging with custom style choice */}
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={stagingStyle}
+                          onChange={(e) => setStagingStyle(e.target.value)}
+                          className="py-1 px-1.5 bg-white border border-slate-250 text-slate-700 font-extrabold text-[10px] rounded-lg cursor-pointer outline-none focus:border-indigo-500"
+                        >
+                          <option value="luxury">🛋️ Salon (Lüks Avangard)</option>
+                          <option value="nordic">🛏️ Yatak Odası (İskandinav Modern)</option>
+                          <option value="modern">🍽️ Mutfak (Şık & Fonksiyonel)</option>
+                          <option value="traditional">🪴 Teras & Akdeniz Esintisi</option>
+                        </select>
+                        
+                        <button
+                          type="button"
+                          disabled={processingMedia !== null}
+                          onClick={() => handleAIVirtualStaging(stagingStyle)}
+                          className="px-2.5 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer"
+                        >
+                          {processingMedia === 'staging' ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+                          ) : (
+                            <ImageIcon className="w-3 h-3 text-white" />
+                          )}
+                          Sanal Mobilyala (Staging)
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={processingMedia !== null}
+                        onClick={handleAIAnonymizePrivate}
+                        className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        {processingMedia === 'blur' ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                        ) : (
+                          <Shield className="w-3 h-3 text-red-500" />
+                        )}
+                        Yüz / Plaka Gizle (Blur)
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -952,112 +1070,223 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
               {/* Collapsible Immersive 3D Tour Interactive Viewer */}
               {formData.virtual_tour_url && (
-                <div className="mt-3 bg-slate-900 text-white rounded-2xl overflow-hidden p-4 border border-slate-800 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                      </span>
-                      <span className="text-xs font-black uppercase tracking-wider text-emerald-400">
-                        3D Sanal Tur Canlı HUD Önizleme
-                      </span>
-                    </div>
-                    <span className="text-[10px] bg-indigo-600 font-black px-2 py-0.5 rounded uppercase">
-                      Matterport AI Stitched
-                    </span>
-                  </div>
+                (() => {
+                  const nodeImageUrl = (() => {
+                    const name = (activeTourNode?.name || "Living Room (Salon)").toLowerCase();
+                    
+                    // Retrieve index of current active node to provide different beautiful backup views
+                    const nodeIndex = (tourBlueprint?.nodes || []).findIndex((n: any) => n.name === activeTourNode?.name) !== -1
+                      ? (tourBlueprint?.nodes || []).findIndex((n: any) => n.name === activeTourNode?.name)
+                      : [
+                          "Living Room (Salon)",
+                          "Master Suite",
+                          "Infinity Terrace"
+                        ].findIndex(n => n.toLowerCase() === name || name.includes(n.toLowerCase()));
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* Immersive interactive side views panel */}
-                    <div className="md:col-span-1 bg-black/40 rounded-xl p-2 border border-slate-800/60 flex flex-col gap-1.5 max-h-[140px] overflow-y-auto">
-                      <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase px-1">
-                        GEZİLENEBİLİR NOKTALAR
-                      </span>
-                      {tourBlueprint?.nodes ? (
-                        tourBlueprint.nodes.map((node: any, idx: number) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setActiveTourNode(node)}
-                            className={`w-full text-left p-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center justify-between ${
-                              activeTourNode?.name === node.name 
-                                ? 'bg-indigo-600 text-white shadow' 
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            }`}
-                          >
-                            <span>🚪 {node.name}</span>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="space-y-1">
-                          <button
-                            type="button"
-                            onClick={() => setActiveTourNode({
-                              name: "Living Room (Salon)",
-                              description: "Kuzey Kıbrıs’ın büyüleyici gün batımı ve deniz manzarasını sunan geniş pencereler, İtalyan mermer zemin kaplama.",
-                              stagingSuggestions: "Lüks kadife oturma grubu."
-                            })}
-                            className={`w-full text-left p-1.5 rounded-md text-[10px] font-bold ${activeTourNode?.name === "Living Room (Salon)" || !activeTourNode ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400"}`}
-                          >
-                            🚪 Living Room (Salon)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTourNode({
-                              name: "Master Suite",
-                              description: "Gizli dolap detayları, özel banyo ve ebeveyn balkona direkt açılan stereoskopik taranmış yatak odası alanı.",
-                              stagingSuggestions: "Boho-şık ahşap karyola ve lamine kaplama."
-                            })}
-                            className={`w-full text-left p-1.5 rounded-md text-[10px] font-bold ${activeTourNode?.name === "Master Suite" ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400"}`}
-                          >
-                            🚪 Master Suite
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTourNode({
-                              name: "Infinity Terrace",
-                              description: "Sonsuzluk havuzuna komşu, cam korkuluklar ile çevrili güneşlenme güvertesi.",
-                              stagingSuggestions: "Ahşap tik dinlenme yatakları."
-                            })}
-                            className={`w-full text-left p-1.5 rounded-md text-[10px] font-bold ${activeTourNode?.name === "Infinity Terrace" ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400"}`}
-                          >
-                            🚪 Infinity Terrace
-                          </button>
+                    // Custom images from user if they have multiple images uploaded
+                    if (nodeIndex !== -1 && formData.images && formData.images.length > nodeIndex) {
+                      return formData.images[nodeIndex];
+                    }
+
+                    // Strict matching for categories:
+                    if (name.includes("salon") || name.includes("living") || name.includes("lounge") || name.includes("oturma")) {
+                      return "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200";
+                    }
+                    if (name.includes("bedroom") || name.includes("suite") || name.includes("yatak") || name.includes("oda") || name.includes("bed")) {
+                      return "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200";
+                    }
+                    if (name.includes("terrace") || name.includes("balcony") || name.includes("havuz") || name.includes("pool") || name.includes("balkon") || name.includes("teras") || name.includes("bahçe") || name.includes("bahce")) {
+                      return "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200";
+                    }
+                    if (name.includes("kitchen") || name.includes("mutfak") || name.includes("yemek")) {
+                      return "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=1200";
+                    }
+
+                    // Fallbacks according to position index to guarantee varied backgrounds
+                    if (nodeIndex === 1) {
+                      return "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200"; // Bedroom
+                    }
+                    if (nodeIndex === 2) {
+                      return "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200"; // Terrace
+                    }
+                    if (nodeIndex === 3) {
+                      return "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=1200"; // Kitchen
+                    }
+                    if (nodeIndex > 3) {
+                      return "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&q=80&w=1200"; // Bathroom
+                    }
+
+                    return formData.images?.[0] || "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200";
+                  })();
+
+                  return (
+                    <div className="mt-3 bg-slate-900 text-white rounded-2xl overflow-hidden p-4 border border-slate-800 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          <span className="text-xs font-black uppercase tracking-wider text-emerald-400">
+                            3D Sanal Tur Canlı HUD Önizleme
+                          </span>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Immersive View details description HUD */}
-                    <div className="md:col-span-2 bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex flex-col justify-between min-h-[140px] text-left">
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-black text-indigo-400">
-                          AKTİF 3D KAMERA KONUMU
+                        <span className="text-[10px] bg-indigo-600 font-black px-2 py-0.5 rounded uppercase">
+                          LOOKPRICE VR ENGINE v2.5
                         </span>
-                        <h5 className="text-xs font-extrabold text-white">
-                          {activeTourNode?.name || "Living Room (Salon)"}
-                        </h5>
-                        <p className="text-[10px] text-slate-300 leading-relaxed max-h-[60px] overflow-y-auto">
-                          {activeTourNode?.description || "Kuzey Kıbrıs’ın büyüleyici gün batımı ve deniz manzarasını sunan geniş pencereler, İtalyan mermer zemin kaplama."}
-                        </p>
                       </div>
 
-                      {activeTourNode?.stagingSuggestions && (
-                        <div className="mt-1 pb-1 text-[9px] text-amber-400 font-extrabold bg-amber-500/5 p-1 rounded-lg border border-amber-500/10 flex items-center gap-1.5 shrink-0 select-none">
-                          <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
-                          <span>AI Sanal Mobilya: {activeTourNode.stagingSuggestions}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Immersive interactive side views panel */}
+                        <div className="md:col-span-1 bg-black/40 rounded-xl p-3 border border-slate-800/60 flex flex-col gap-2 max-h-[220px] overflow-y-auto text-left">
+                          <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase px-1">
+                            GEZİLENEBİLİR NOKTALAR
+                          </span>
+                          {tourBlueprint?.nodes ? (
+                            tourBlueprint.nodes.map((node: any, idx: number) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  setActiveTourNode(node);
+                                  setPanOffset(0); // Reset pan when switching rooms
+                                }}
+                                className={`w-full text-left p-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 ${
+                                  (activeTourNode?.name === node.name || (!activeTourNode && idx === 0))
+                                    ? 'bg-indigo-600 text-white shadow shadow-indigo-600/30' 
+                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                }`}
+                              >
+                                <span>🚪 {node.name}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="space-y-1.5">
+                              {[
+                                {
+                                  name: "Living Room (Salon)",
+                                  description: "Kuzey Kıbrıs’ın büyüleyici gün batımı ve deniz manzarasını sunan geniş pencereler, İtalyan mermer zemin kaplama.",
+                                  stagingSuggestions: "Lüks kadife oturma grubu."
+                                },
+                                {
+                                  name: "Master Suite",
+                                  description: "Gizli dolap detayları, özel banyo ve ebeveyn balkona direkt açılan stereoskopik taranmış yatak odası alanı.",
+                                  stagingSuggestions: "Boho-şık ahşap karyola ve lamine kaplama."
+                                },
+                                {
+                                  name: "Infinity Terrace",
+                                  description: "Sonsuzluk havuzuna komşu, cam korkuluklar ile çevrili güneşlenme güvertesi.",
+                                  stagingSuggestions: "Ahşap tik dinlenme yatakları."
+                                }
+                              ].map((room, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveTourNode(room);
+                                    setPanOffset(0);
+                                  }}
+                                  className={`w-full text-left p-2 rounded-lg text-[10px] font-bold transition-all ${
+                                    (activeTourNode?.name === room.name || (!activeTourNode && idx === 0))
+                                      ? 'bg-indigo-600 text-white shadow shadow-indigo-600/30' 
+                                      : 'bg-slate-850 text-slate-400 hover:bg-slate-850'
+                                  }`}
+                                >
+                                  🚪 {room.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="text-[9px] text-slate-500 flex justify-between items-center pt-1 border-t border-slate-800">
-                    <span>Sanal Tur: {formData.virtual_tour_url}</span>
-                    <span className="text-indigo-400 font-extrabold text-[10px] cursor-pointer hover:underline" onClick={() => window.open(formData.virtual_tour_url, '_blank')}>
-                      Yeni Sekmede Aç ↗
-                    </span>
-                  </div>
-                </div>
+                        {/* Interactive 3D Panoramic Simulator Screen */}
+                        <div className="md:col-span-2 relative">
+                          <div 
+                            onMouseDown={handlePanMouseDown}
+                            onMouseMove={handlePanMouseMove}
+                            onMouseUp={handlePanMouseUpOrLeave}
+                            onMouseLeave={handlePanMouseUpOrLeave}
+                            className="w-full h-[220px] bg-slate-950 rounded-2xl relative overflow-hidden select-none cursor-grab active:cursor-grabbing border flex flex-col justify-between border-slate-800 shadow-2xl group"
+                          >
+                            {/* 360 Background image with pan offset */}
+                            <div 
+                              className="absolute inset-0 transition-transform duration-100 ease-linear"
+                              style={{
+                                backgroundImage: `url('${nodeImageUrl}')`,
+                                backgroundSize: '240% 100%',
+                                backgroundPosition: `${panOffset * 0.4}px center`,
+                                backgroundRepeat: 'repeat-x',
+                              }}
+                            />
+
+                            {/* Tint vignettes overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/40 pointer-events-none" />
+
+                            {/* Top HUD Area */}
+                            <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-center pointer-events-none z-10">
+                              <div className="bg-slate-950/80 backdrop-blur-xs py-1 px-2 rounded-lg border border-slate-800 flex items-center gap-1.5 shadow">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-[7.5px] font-mono tracking-widest text-emerald-400 uppercase">360° AKTİF TARAMA</span>
+                              </div>
+
+                              <div className="bg-slate-950/80 backdrop-blur-xs py-1 px-2 rounded-lg border border-slate-800 flex items-center gap-1 shadow">
+                                <span className="text-[7px] text-slate-400 font-mono">PUSULA:</span>
+                                <svg 
+                                  style={{ transform: `rotate(${panOffset * 0.3}deg)` }}
+                                  className="w-3 h-3 text-white transition-transform duration-150" 
+                                  xmlns="http://www.w3.org/2000/svg" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  strokeWidth="3"
+                                >
+                                  <line x1="12" y1="19" x2="12" y2="5" />
+                                  <polyline points="5 12 12 5 19 12" />
+                                </svg>
+                              </div>
+                            </div>
+
+                            {/* Bottom Drag Guide */}
+                            <div className="absolute bottom-2.5 left-1/2 transform -translate-x-1/2 pointer-events-none bg-slate-950/70 py-1 px-3 rounded-full border border-slate-800/85 backdrop-blur-xs transition-opacity opacity-80 group-hover:opacity-100 z-10">
+                              <span className="text-[7.5px] font-bold text-slate-300 tracking-wider">
+                                ↔ SÜRÜKLEYEREK 360° GEZİNİN
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Immersive View details description HUD */}
+                        <div className="md:col-span-1 bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex flex-col justify-between min-h-[220px] text-left">
+                          <div className="space-y-1.5">
+                            <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">
+                              AKTİF 3D KAMERA KONUMU
+                            </span>
+                            <h5 className="text-xs font-black text-white flex items-center gap-1">
+                              🟢 {activeTourNode?.name || "Living Room (Salon)"}
+                            </h5>
+                            <p className="text-[10px] text-slate-350 leading-relaxed max-h-[85px] overflow-y-auto">
+                              {activeTourNode?.description || "Kuzey Kıbrıs’ın büyüleyici gün batımı ve deniz manzarasını sunan geniş pencereler, İtalyan mermer zemin kaplama."}
+                            </p>
+                          </div>
+
+                          {(activeTourNode?.stagingSuggestions || activeTourNode?.stagingSuggestions === undefined) && (
+                            <div className="mt-2 text-[9px] text-amber-400 font-extrabold bg-amber-500/5 p-2 rounded-xl border border-amber-500/10 flex flex-col gap-0.5 select-none text-left">
+                              <span className="text-[7.5px] text-amber-500 uppercase font-black tracking-widest">AI Sanal Mobilyalama:</span>
+                              <span>{activeTourNode?.stagingSuggestions || "Lüks kadife oturma grubu."}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-[9px] text-slate-500 flex justify-between items-center pt-1 border-t border-slate-800">
+                        <span>Sanal Tur Referansı: {formData.virtual_tour_url}</span>
+                        <span className="text-indigo-400 font-extrabold text-[10px] cursor-pointer hover:underline" onClick={() => window.open(formData.virtual_tour_url, '_blank')}>
+                          Yeni Sekmede Aç ↗
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()
               )}
             </div>
           </div>
@@ -1176,51 +1405,117 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </div>
 
                 {/* Yeni Doküman Ekleme Formu */}
-                <form onSubmit={handleAddDocument} className="bg-white p-4 rounded-xl border border-slate-200/80 space-y-3">
-                  <span className="block text-xs font-bold text-slate-700">Yeni Evrak Ekle (Güvenli Yükleme)</span>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <form onSubmit={handleAddDocument} className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-left">
+                  <div className="flex justify-between items-center pb-2 border-b border-indigo-50/50">
+                    <span className="block text-xs font-black text-indigo-950 uppercase tracking-tight flex items-center gap-1">
+                      🔒 Yeni Evrak Ekle (Güvenli Yerel Yükleme)
+                    </span>
+                    <span className="text-[9px] bg-emerald-500/10 text-emerald-700 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                      Askerî Düzey Şifreleme (AES-256)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Evrak Adı</label>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Kategori / Belge Türü</label>
+                      <select
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer"
+                        value={docCategory}
+                        onChange={(e) => setDocCategory(e.target.value as any)}
+                      >
+                        <option value="title_deed">📋 Tapu Örneği / Title Deed</option>
+                        <option value="dask">🛡️ DASK / Zorunlu Deprem Sigortası</option>
+                        <option value="contract">✍️ Yetki & Aracılık Sözleşmesi</option>
+                        <option value="auth_doc">🔑 Diğer Resmî İmar/Devir Evrağı</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Açıklayıcı Evrak Adı (Opsiyonel)</label>
                       <input
                         type="text"
-                        placeholder="Örn: Alsancak Tapu Örneği"
-                        className="w-full p-2 border rounded-lg text-xs font-bold"
+                        placeholder="Örn: Alsancak Blok A-3 Tapu Örneği"
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
                         value={docName}
                         onChange={(e) => setDocName(e.target.value)}
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Kategori</label>
-                      <select
-                        className="w-full p-2 border rounded-lg text-xs font-bold text-slate-600"
-                        value={docCategory}
-                        onChange={(e) => setDocCategory(e.target.value as any)}
-                      >
-                        <option value="title_deed">Tapu Örneği / Title Deed</option>
-                        <option value="dask">DASK / Resmî Sigorta</option>
-                        <option value="contract">Gayrimenkul Alım/Satım Sözleşmesi</option>
-                        <option value="auth_doc">Yetki Belgesi (Ofis Satış Yetkisi)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Döküman Bağlantı (URL)</label>
-                      <div className="flex gap-1.5">
-                        <input
-                          type="text"
-                          placeholder="Mock Dosya Seç / Link"
-                          className="w-full p-2 border rounded-lg text-xs"
-                          value={docUrl}
-                          onChange={(e) => setDocUrl(e.target.value)}
-                        />
-                        <button
-                          type="submit"
-                          className="px-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 text-xs shrink-0 flex items-center justify-center gap-1 shadow"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Yükle
-                        </button>
+                  </div>
+
+                  {/* Native File Drag-and-Drop Uploader Component */}
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Resmî Belge Dosyası (Güvenli Yükleme)</label>
+                    
+                    <div className="relative">
+                      <input
+                        type="file"
+                        id="document-secure-file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSelectedDocFile(file);
+                            if (!docName) {
+                              setDocName(file.name.split('.')[0]); // Prefill filename as docName!
+                            }
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      
+                      <div className={`p-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center transition-all ${
+                        selectedDocFile 
+                          ? 'border-emerald-500 bg-emerald-50/10' 
+                          : 'border-slate-300 hover:border-indigo-400 bg-slate-50/30'
+                      }`}>
+                        {selectedDocFile ? (
+                          <div className="flex flex-col items-center gap-1 animate-fade-in">
+                            <span className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-1">
+                              <Check className="w-6 h-6 stroke-[3]" />
+                            </span>
+                            <span className="text-xs font-black text-slate-800">{selectedDocFile.name}</span>
+                            <span className="text-[10px] text-slate-400 font-extrabold font-mono">
+                              {(selectedDocFile.size / (1024 * 1024)).toFixed(2)} MB • Hazır
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1.5">
+                            <span className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-1 border border-slate-200">
+                              <Upload className="w-5 h-5" />
+                            </span>
+                            <span className="text-xs font-black text-slate-700">
+                              Dosyayı sürükleyin veya <span className="text-indigo-600 underline">göz atın</span>
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-bold leading-none">
+                              Desteklenen formatlar: PDF, PNG, JPG, DOCX (Maksimum 25 MB)
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    {selectedDocFile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDocFile(null);
+                          setDocName('');
+                        }}
+                        className="px-3.5 py-2 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Vazgeç
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={!selectedDocFile && !docName}
+                      className="px-5 py-2.5 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 text-xs flex items-center justify-center gap-1 transition-all shadow-md shadow-indigo-600/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                      Güvenli Sistemine Evrakı Kaydet
+                    </button>
                   </div>
                 </form>
               </div>

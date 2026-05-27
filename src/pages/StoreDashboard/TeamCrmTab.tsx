@@ -3,6 +3,8 @@ import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, 
 import { motion } from 'motion/react';
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
+import { RealEstateModal } from '../../components/RealEstateModal';
+import { toast } from 'sonner';
 
 interface TeamCrmTabProps {
   storeId?: number;
@@ -37,6 +39,69 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
 
   const [properties, setProperties] = useState<any[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+
+  const [deals, setDeals] = useState<any[]>(() => {
+    const stored = localStorage.getItem('lookprice_crm_deals');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch(err) {
+        console.error(err);
+      }
+    }
+    return [
+      {
+        id: 'd1',
+        title: 'Müstakil Villa Arayışı',
+        description: 'Etiler veya Sarıyer bölgesi, minimum 4 oda deniz manzaralı. Müşteri nakit alım yapacak, 1 ay içinde dönüş bekliyor.',
+        agent_name: 'Mehmet B.',
+        budget: '$1.5M Bütçe',
+        stage: 'Yeni Talep / Aday'
+      },
+      {
+        id: 'd2',
+        title: 'Dükkan / Mağaza',
+        description: 'Kadıköy merkez, yüksek yaya trafiği olan mağaza arayışı franchise için.',
+        agent_name: 'Ayşe Y.',
+        budget: 'Kiralık',
+        stage: 'Yeni Talep / Aday'
+      },
+      {
+        id: 'd3',
+        title: 'Yatırımlık Daire',
+        description: 'Şişli civarı, kısa dönem kiralamaya (Airbnb vb.) uygun veya ofis olabilecek yatırım.',
+        agent_name: 'Can K.',
+        budget: '4M TL Bütçe',
+        stage: 'Yeni Talep / Aday'
+      },
+      {
+        id: 'd4',
+        title: 'Lüks Rezidans Toplantısı',
+        description: 'Maslak, 3+1 residence için ofiste toplantı gerçekleştirilecek.',
+        agent_name: 'Merkez Şube',
+        budget: 'Bugün 14:00',
+        stage: 'Görüşme / Analiz'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_crm_deals', JSON.stringify(deals));
+  }, [deals]);
+
+  const [showDealModal, setShowDealModal] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<any>(null);
+  const [dealFormData, setDealFormData] = useState({
+    title: '',
+    description: '',
+    agent_name: '',
+    budget: '',
+    stage: 'Yeni Talep / Aday'
+  });
+
+  // State to manage editing properties via RealEstateModal
+  const [editingProperty, setEditingProperty] = useState<any>(null);
+  const [isRealEstateModalOpen, setIsRealEstateModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -182,7 +247,9 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                 setBranchFormData({ name: '', address: '', phone: '', slug: '' });
                 setShowBranchModal(true);
               } else {
-                alert(lang === 'tr' ? 'Yeni fırsat/talep ekleme ekranı' : 'New deal screen');
+                setEditingDeal(null);
+                setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: 'Yeni Talep / Aday' });
+                setShowDealModal(true);
               }
             }}
             className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 group"
@@ -276,7 +343,14 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                     </h4>
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                       {properties.filter((p: any) => p.responsible_consultant_id === agent.id).map((prop: any) => (
-                        <div key={prop.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-200 transition-colors group">
+                        <div 
+                          key={prop.id} 
+                          onClick={() => {
+                            setEditingProperty(prop);
+                            setIsRealEstateModalOpen(true);
+                          }}
+                          className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-400 hover:bg-indigo-50/20 transition-all group cursor-pointer active:scale-[0.98]"
+                        >
                           {prop.image_url ? (
                             <img src={prop.image_url} alt={prop.title} className="w-10 h-10 rounded-lg object-cover" />
                           ) : (
@@ -285,7 +359,12 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors">{prop.title}</p>
+                            <p className="text-sm font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors flex items-center gap-1.5 justify-between">
+                              <span className="truncate">{prop.title}</span>
+                              <span className="text-[10px] text-indigo-600 font-extrabold flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                ✍️ Düzenle
+                              </span>
+                            </p>
                             <p className="text-[10px] font-black text-slate-400 truncate uppercase mt-0.5">
                               {prop.currency} {Number(prop.price).toLocaleString()} • {prop.location}
                             </p>
@@ -361,62 +440,89 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
         </div>
       ) : (
          <div className="flex gap-6 overflow-x-auto pb-8 snap-x custom-scrollbar">
-           {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map((stage, idx) => (
-             <div key={idx} className="min-w-[320px] max-w-[320px] bg-slate-50/80 rounded-[2rem] border border-slate-200 p-6 shadow-sm snap-center flex flex-col gap-4">
-               <div className="flex items-center justify-between pointer-events-none">
-                 <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{stage}</h4>
-                 <div className="w-6 h-6 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">
-                   {idx === 0 ? 3 : idx === 1 ? 1 : 0}
-                 </div>
-               </div>
-               
-               {idx === 0 && (
-                 <>
-                   <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
-                     <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Müstakil Villa Arayışı</p>
-                     <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Etiler veya Sarıyer bölgesi, minimum 4 oda deniz manzaralı. Müşteri nakit alım yapacak, 1 ay içinde dönüş bekliyor.</p>
-                     <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
-                       <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300"/> Mehmet B.</span>
-                       <span className="text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg">$1.5M Bütçe</span>
-                     </div>
-                   </div>
-                   <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
-                     <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Dükkan / Mağaza</p>
-                     <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Kadıköy merkez, yüksek yaya trafiği olan mağaza arayışı franchise için.</p>
-                     <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
-                       <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300"/> Ayşe Y.</span>
-                       <span className="text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg">Kiralık</span>
-                     </div>
-                   </div>
-                   <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
-                     <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Yatırımlık Daire</p>
-                     <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Şişli civarı, kısa dönem kiralamaya (Airbnb vb.) uygun veya ofis olabilecek yatırım.</p>
-                     <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
-                       <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300"/> Can K.</span>
-                       <span className="text-amber-600 bg-amber-50 px-2.5 py-1.5 rounded-lg">4M TL Bütçe</span>
-                     </div>
-                   </div>
-                 </>
-               )}
+           {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map((stage, idx) => {
+              const stageDeals = deals.filter(d => d.stage === stage);
+              return (
+                <div key={idx} className="min-w-[320px] max-w-[320px] bg-slate-50/80 rounded-[2rem] border border-slate-200 p-6 shadow-sm snap-center flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{stage}</h4>
+                    <div className="w-6 h-6 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-600 font-mono">
+                      {stageDeals.length}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
+                    {stageDeals.map((deal) => (
+                      <div key={deal.id} className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group relative">
+                        {/* Edit and Delete Buttons (hover) */}
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/95 backdrop-blur-xs rounded-lg p-1 border border-slate-100 shadow-sm z-10">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setEditingDeal(deal);
+                              setDealFormData({
+                                title: deal.title,
+                                description: deal.description || '',
+                                agent_name: deal.agent_name || '',
+                                budget: deal.budget || '',
+                                stage: deal.stage
+                              });
+                              setShowDealModal(true);
+                            }}
+                            className="p-1 hover:bg-slate-100 rounded-md text-indigo-605 transition-colors"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (confirm(lang === 'tr' ? 'Bu kartı silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this deal?')) {
+                                setDeals(prev => prev.filter(d => d.id !== deal.id));
+                              }
+                            }}
+                            className="p-1 hover:bg-rose-50 rounded-md text-rose-500 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
 
-               {idx === 1 && (
-                 <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
-                   <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Lüks Rezidans Toplantısı</p>
-                   <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Maslak, 3+1 residence için ofiste toplantı gerçekleştirilecek.</p>
-                   <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
-                     <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-300"/> Merkez Şube</span>
-                     <span className="text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-lg animate-pulse">Bugün 14:00</span>
-                   </div>
-                 </div>
-               )}
+                        <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-605 transition-colors pr-12 text-xs">{deal.title}</p>
+                        <p className="text-[11px] text-slate-500 mb-4 line-clamp-3 leading-relaxed">{deal.description}</p>
+                        
+                        <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
+                          <span className="flex items-center gap-1.5 truncate max-w-[130px]" title={deal.agent_name}>
+                            <Users className="w-3.5 h-3.5 text-slate-300 shrink-0"/> {deal.agent_name || 'Atanmamış'}
+                          </span>
+                          <span className="text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded text-[9px] font-black shrink-0">
+                            {deal.budget || '---'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
 
-               <button className="mt-auto w-full py-4 rounded-xl border border-slate-200 border-dashed text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 hover:border-slate-300 transition-colors flex items-center justify-center group">
-                 <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
-               </button>
-             </div>
-           ))}
-         </div>
-      )}
+                    {stageDeals.length === 0 && (
+                      <div className="py-8 text-center text-[10px] text-slate-400 border border-dashed border-slate-205 rounded-2xl bg-white/45">
+                        {lang === 'tr' ? 'Bu aşamada talep yok' : 'No deal in this stage'}
+                      </div>
+                    )}
+                  </div>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setEditingDeal(null);
+                      setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: stage });
+                      setShowDealModal(true);
+                    }}
+                    className="mt-auto w-full py-4 rounded-xl border border-slate-200 border-dashed text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 hover:border-slate-305 transition-colors flex items-center justify-center group"
+                  >
+                    <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+       )}
 
       {/* Modals */}
       {showModal && (
@@ -579,7 +685,28 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
            </motion.div>
         </div>
       )}
-    </div>
+    
+      {isRealEstateModalOpen && (
+        <RealEstateModal
+          isOpen={isRealEstateModalOpen}
+          onClose={() => {
+            setIsRealEstateModalOpen(false);
+            setEditingProperty(null);
+          }}
+          property={editingProperty}
+          userRole="admin"
+          onSave={async (updatedProp) => {
+            try {
+              setProperties(prev => prev.map(p => p.id === updatedProp.id ? updatedProp : p));
+              setIsRealEstateModalOpen(false);
+              setEditingProperty(null);
+            } catch (err) {
+              console.error("Error saving property in CRM:", err);
+            }
+          }}
+        />
+      )}
+</div>
   );
 };
 
