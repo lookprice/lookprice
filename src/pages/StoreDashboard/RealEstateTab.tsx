@@ -369,7 +369,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
         title: newsItem.title,
         summary: newsItem.summary,
         source: newsItem.source,
-        image_url: newsItem.image_url || '',
+        image_url: newsItem.image || newsItem.image_url || '',
         date: newsItem.date,
         tags: newsItem.tags,
         published_on_store: newPublishedOnStore,
@@ -420,19 +420,45 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
       if (Array.isArray(data) && data.length > 0) {
         // Map backend keys to frontend keys
         const incomingNews = data.map((item: any) => ({
-          id: `live-${item.id || Date.now()}-${Math.random()}`,
           title: item.title,
-          summary: item.category || 'Canlı AI Gelişmesi',
-          image: item.img, // Capture the image too
-          source: 'Live Radar & AI Search',
+          summary: item.summary || item.category || 'Canlı AI Gelişmesi',
+          image: item.img || item.image_url || '',
+          source: item.source || 'Live Radar & AI Search',
           date: item.date || 'Az Önce',
           tags: item.tags || [activeTags[0]],
           intensity: item.priority === 'high' ? 'high' : 'normal',
           publishedOnStore: false, 
           publishedOnEnrakipsiz: false
         }));
-        setNewsFeed(prev => [...incomingNews, ...prev]);
-        alert(`🛎️ ${data.length} YENİ CANLI HABER BULUNDU!\n\nAI Radarı etiketlerinize uygun en güncel gerçek haberleri getirdi.`);
+
+        // Dynamically save all scanned news to the database to PIN them ("Sabitleme")
+        for (const item of incomingNews) {
+          // Check if already in newsFeed (by title) to avoid resetting its user-configured publish states!
+          const existingNews = newsFeed.find(n => n.title === item.title);
+          if (existingNews) {
+            continue; // Skip saving to database since it already exists and has client-specified toggles!
+          }
+          try {
+            await api.publishRadarNews({
+              title: item.title,
+              summary: item.summary,
+              source: item.source,
+              image_url: item.image,
+              date: item.date,
+              tags: item.tags,
+              intensity: item.intensity,
+              published_on_store: false,
+              published_on_enrakipsiz: false
+            });
+          } catch (dbErr) {
+            console.error("Failed to pin scanned development:", dbErr);
+          }
+        }
+
+        // Fetch official state from the database
+        await fetchRadarNews();
+
+        alert(`🛎️ ${data.length} YENİ CANLI HABER BULUNDU!\n\nAI Radarı etiketlerinize uygun en güncel gerçek haberleri getirdi ve takip paneline sabitledi.`);
       } else {
         alert(`🛎️ Şu anda belirlediğiniz etiketlerle eşleşen yeni bir kritik rapor bulunamadı.`);
       }

@@ -2434,9 +2434,46 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         if (storeRes.error) throw new Error(storeRes.error);
         if (productsRes.error) throw new Error(productsRes.error);
 
-        if (typeof storeRes.page_layout === "string") {
+        if (typeof storeRes.page_layout === "string" && storeRes.page_layout) {
           try {
-            storeRes.page_layout = JSON.parse(storeRes.page_layout);
+            const parsed = JSON.parse(storeRes.page_layout);
+            const defaultSectionIds = ['hero', 'search', 'stats', 'portfolio', 'news', 'blog', 'team', 'map'];
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+              if (Array.isArray(parsed.sections)) {
+                const parsedSectionsList = parsed.sections;
+                const finalSections = [];
+                for (const defId of defaultSectionIds) {
+                  const saved = parsedSectionsList.find((s: any) => (s.id || s.type) === defId);
+                  const isEnabled = saved ? saved.enabled !== false : true;
+                  if (isEnabled) {
+                    finalSections.push({
+                      id: defId,
+                      type: defId,
+                      enabled: true
+                    });
+                  }
+                }
+                storeRes.page_layout = finalSections;
+              } else {
+                storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
+              }
+            } else if (Array.isArray(parsed)) {
+              const finalSections = [];
+              for (const defId of defaultSectionIds) {
+                const saved = parsed.find((s: any) => (s.id || s.type) === defId);
+                const isEnabled = saved ? saved.enabled !== false : true;
+                if (isEnabled) {
+                  finalSections.push({
+                    id: defId,
+                    type: defId,
+                    enabled: true
+                  });
+                }
+              }
+              storeRes.page_layout = finalSections;
+            } else {
+              storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
+            }
           } catch (e) {
             storeRes.page_layout = [];
           }
@@ -4313,6 +4350,76 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                         </p>
                                       </div>
                                     </motion.div>
+                                  ))}
+                                </div>
+                              </section>
+                            );
+                          case "news":
+                            if (!radarNews || radarNews.length === 0) return null;
+                            return (
+                              <section key={section.id} className="py-12 border-t border-slate-100 bg-slate-50/50 rounded-3xl px-6 md:px-10">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                                  <div>
+                                    <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-xs mb-1 uppercase tracking-widest">
+                                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{width: '8px', height: '8px'}} />
+                                      📡 {lang === "tr" ? "AI İNCELEME & BÖLGESEL İMAR GELİŞMELERİ" : "AI ANALYSIS & LAND REGULATION UPDATES"}
+                                    </div>
+                                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                                      {lang === "tr" ? "Canlı Haber & İmar Gelişmeleri" : "Local News & Radar Alerts"}
+                                    </h2>
+                                  </div>
+                                  <span className="text-xs text-slate-500 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-xs inline-flex items-center gap-1.5 font-semibold">
+                                    📡 Google Alerts & lookprice AI Grounding
+                                  </span>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                  {radarNews.map((newsItem) => (
+                                    <div 
+                                      key={newsItem.id} 
+                                      className="flex flex-col bg-white rounded-2xl border border-slate-150/60 p-5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                                    >
+                                      {newsItem.image_url && (
+                                        <div className="h-44 w-full rounded-xl overflow-hidden mb-4 relative bg-slate-100">
+                                          <img 
+                                            src={newsItem.image_url} 
+                                            alt={newsItem.title} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            referrerPolicy="no-referrer"
+                                          />
+                                          {newsItem.intensity === 'high' && (
+                                            <span className="absolute top-3 left-3 bg-rose-500 text-[9px] font-black text-white px-2 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
+                                              Flaş Rapor
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                      
+                                      <div className="flex-1 flex flex-col justify-between">
+                                        <div>
+                                          <div className="flex items-center justify-between gap-2 mb-2 text-[10px] text-slate-400 font-bold">
+                                            <span>{newsItem.source}</span>
+                                            <span>{newsItem.date}</span>
+                                          </div>
+                                          <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2 line-clamp-2 leading-snug">
+                                            {newsItem.title}
+                                          </h3>
+                                          <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed mb-4">
+                                            {newsItem.summary}
+                                          </p>
+                                        </div>
+
+                                        {newsItem.tags && newsItem.tags.length > 0 && (
+                                          <div className="flex flex-wrap gap-1 mt-auto pt-2 border-t border-slate-50">
+                                            {(Array.isArray(newsItem.tags) ? newsItem.tags : JSON.parse(newsItem.tags || '[]')).map((tag: string, idx: number) => (
+                                              <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-lg">
+                                                #{tag}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   ))}
                                 </div>
                               </section>

@@ -185,6 +185,23 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
     }
   };
 
+  const handleSaveDeal = () => {
+    if (!dealFormData.title) return;
+    
+    if (editingDeal) {
+      setDeals(prev => prev.map(d => d.id === editingDeal.id ? { ...editingDeal, ...dealFormData } : d));
+    } else {
+      const newDeal = {
+        ...dealFormData,
+        id: 'd' + Date.now()
+      };
+      setDeals(prev => [...prev, newDeal]);
+    }
+    setShowDealModal(false);
+    setEditingDeal(null);
+    setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: 'Yeni Talep / Aday' });
+  };
+
   const openEdit = (agent: any) => {
     setEditingAgent(agent);
     setFormData({
@@ -686,6 +703,81 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
         </div>
       )}
     
+      {showDealModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+           <motion.div 
+             initial={{ opacity:0, scale: 0.9 }}
+             animate={{ opacity:1, scale: 1 }}
+             className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-2xl p-10 relative overflow-hidden"
+           >
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8 leading-none">
+                {editingDeal ? (lang === 'tr' ? 'Talebi Düzenle' : 'Edit Deal') : (lang === 'tr' ? 'Yeni Talep / Fırsat' : 'New Lead')}
+              </h3>
+              <div className="space-y-5">
+                 <div>
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Başlık / Müşteri' : 'Title / Client'}</label>
+                   <input 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
+                    placeholder="Örn: 3+1 Daire Arayışı"
+                    value={dealFormData.title}
+                    onChange={(e) => setDealFormData({...dealFormData, title: e.target.value})}
+                   />
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Açıklama' : 'Description'}</label>
+                   <textarea 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all min-h-[100px]" 
+                    placeholder="Detaylar..."
+                    value={dealFormData.description}
+                    onChange={(e) => setDealFormData({...dealFormData, description: e.target.value})}
+                   />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Sorumlu' : 'Agent'}</label>
+                     <select 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 appearance-none"
+                      value={dealFormData.agent_name}
+                      onChange={(e) => setDealFormData({...dealFormData, agent_name: e.target.value})}
+                     >
+                        <option value="">{lang === 'tr' ? 'Seçiniz' : 'Select'}</option>
+                        {agents.map(a => (
+                          <option key={a.id} value={a.name}>{a.name}</option>
+                        ))}
+                        <option value="Merkez">Merkez</option>
+                     </select>
+                   </div>
+                   <div>
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Bütçe / Durum' : 'Budget / Status'}</label>
+                     <input 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
+                      placeholder="Örn: 500k €"
+                      value={dealFormData.budget}
+                      onChange={(e) => setDealFormData({...dealFormData, budget: e.target.value})}
+                     />
+                   </div>
+                 </div>
+                 <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Aşama' : 'Stage'}</label>
+                    <select 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 appearance-none"
+                      value={dealFormData.stage}
+                      onChange={(e) => setDealFormData({...dealFormData, stage: e.target.value})}
+                     >
+                        {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                     </select>
+                 </div>
+                 <div className="pt-6 flex gap-4">
+                   <button onClick={() => { setShowDealModal(false); setEditingDeal(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">İptal</button>
+                   <button onClick={handleSaveDeal} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">Kaydet</button>
+                 </div>
+              </div>
+           </motion.div>
+        </div>
+      )}
+
       {isRealEstateModalOpen && (
         <RealEstateModal
           isOpen={isRealEstateModalOpen}

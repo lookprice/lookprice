@@ -711,25 +711,25 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                             {(radarNews && radarNews.length > 0 ? radarNews.slice(0, 3).map(newsItem => ({
                                title: newsItem.title,
-                               category: newsItem.tags && newsItem.tags.length > 0 ? newsItem.tags[0] : (lang === 'tr' ? 'Bölgesel Gelişme' : 'Zoning Update'),
+                               categories: newsItem.tags && newsItem.tags.length > 0 ? newsItem.tags.slice(0, 2) : [lang === 'tr' ? 'Bölgesel Gelişme' : 'Haber'],
                                date: newsItem.date || (lang === 'tr' ? 'Yeni' : 'Recent'),
                                img: newsItem.image_url || 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?q=80&w=800'
                              })) : [
                                { 
                                  title: lang === 'tr' ? 'Girne Yeni İmar Planı Açıklandı, Yatırımcılar Odaklanıyor' : 'Kyrenia New Zoning Plan Announced', 
-                                 category: 'İmar Durumu', 
+                                 categories: ['İmar Durumu', 'Sıcak'], 
                                  date: '2 Saat Önce', 
                                  img: 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?q=80&w=800' 
                                },
                                { 
                                  title: lang === 'tr' ? 'Lefkoşa Kredi Faizlerinde Son Durum: Alım Fırsatı Mı?' : 'Nicosia Credit Rates Update: Is it a Buying Opportunity?', 
-                                 category: 'Krediler & Finans', 
+                                 categories: ['Finans', 'Fırsat'], 
                                  date: '5 Saat Önce', 
                                  img: 'https://images.unsplash.com/photo-1554469384-e58fac16e23a?q=80&w=800' 
                                },
                                { 
                                  title: lang === 'tr' ? 'Yeni Marina Projesi Çevresinde Emlak Değerleri Artıyor' : 'Real Estate Values Rising Around New Marina Project', 
-                                 category: 'Bölgesel Gelişme', 
+                                 categories: ['Bölgesel Gelişme', 'Vizyon'], 
                                  date: '1 Gün Önce', 
                                  img: 'https://images.unsplash.com/photo-1563842145396-85750036ee7f?q=80&w=800' 
                                },
@@ -737,11 +737,13 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
                                <div key={i} className="group cursor-pointer flex flex-col bg-slate-800/50 border border-slate-700/50 rounded-3xl overflow-hidden hover:bg-slate-800 hover:border-indigo-500/50 transition-all">
                                   <div className="h-48 relative overflow-hidden">
                                      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url(${newsItem.img})` }}></div>
-                                     <div className="absolute top-4 left-4">
-                                        <div className="bg-indigo-600 px-3 py-1.5 rounded-lg text-[9px] font-black text-white uppercase tracking-widest shadow-lg">
-                                           {newsItem.category}
-                                        </div>
-                                     </div>
+                                     <div className="absolute top-4 left-4 flex flex-wrap gap-1">
+                                         {(newsItem.categories || []).map((cat: any, ci: number) => (
+                                            <div key={ci} className="bg-indigo-600/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-[8px] font-black text-white uppercase tracking-widest shadow-lg border border-indigo-400/30">
+                                               {cat}
+                                            </div>
+                                         ))}
+                                      </div>
                                   </div>
                                   <div className="p-6 space-y-4 flex-1 flex flex-col">
                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{newsItem.date}</p>

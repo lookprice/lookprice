@@ -1072,51 +1072,46 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               {formData.virtual_tour_url && (
                 (() => {
                   const nodeImageUrl = (() => {
-                    const name = (activeTourNode?.name || "Living Room (Salon)").toLowerCase();
+                    const activeNodeName = activeTourNode?.name || "Living Room (Salon)";
+                    const name = activeNodeName.toLowerCase();
                     
                     // Retrieve index of current active node to provide different beautiful backup views
-                    const nodeIndex = (tourBlueprint?.nodes || []).findIndex((n: any) => n.name === activeTourNode?.name) !== -1
-                      ? (tourBlueprint?.nodes || []).findIndex((n: any) => n.name === activeTourNode?.name)
+                    const nodeIndex = (tourBlueprint?.nodes || []).findIndex((n: any) => n.name === activeNodeName) !== -1
+                      ? (tourBlueprint?.nodes || []).findIndex((n: any) => n.name === activeNodeName)
                       : [
                           "Living Room (Salon)",
                           "Master Suite",
-                          "Infinity Terrace"
+                          "Infinity Terrace",
+                          "Kitchen / Dining"
                         ].findIndex(n => n.toLowerCase() === name || name.includes(n.toLowerCase()));
 
-                    // Custom images from user if they have multiple images uploaded
+                    // If user has enough images, prioritize using them sequentially
                     if (nodeIndex !== -1 && formData.images && formData.images.length > nodeIndex) {
                       return formData.images[nodeIndex];
                     }
 
-                    // Strict matching for categories:
+                    // Strict matching for categories with varied Unsplash placeholders to ensure "different images"
                     if (name.includes("salon") || name.includes("living") || name.includes("lounge") || name.includes("oturma")) {
-                      return "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200";
+                      return "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200"; // Living room
                     }
                     if (name.includes("bedroom") || name.includes("suite") || name.includes("yatak") || name.includes("oda") || name.includes("bed")) {
-                      return "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200";
+                      return "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200"; // Master Bedroom
                     }
                     if (name.includes("terrace") || name.includes("balcony") || name.includes("havuz") || name.includes("pool") || name.includes("balkon") || name.includes("teras") || name.includes("bahçe") || name.includes("bahce")) {
-                      return "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200";
+                      return "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200"; // Luxury Terrace
                     }
                     if (name.includes("kitchen") || name.includes("mutfak") || name.includes("yemek")) {
-                      return "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=1200";
+                      return "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=1200"; // Modern Kitchen
                     }
 
-                    // Fallbacks according to position index to guarantee varied backgrounds
-                    if (nodeIndex === 1) {
-                      return "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200"; // Bedroom
-                    }
-                    if (nodeIndex === 2) {
-                      return "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200"; // Terrace
-                    }
-                    if (nodeIndex === 3) {
-                      return "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=1200"; // Kitchen
-                    }
-                    if (nodeIndex > 3) {
-                      return "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&q=80&w=1200"; // Bathroom
-                    }
-
-                    return formData.images?.[0] || "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200";
+                    // Final fallback logic with rotation to prevent same image
+                    const backups = [
+                      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200", // Living
+                      "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200", // Bedroom
+                      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200", // Terrace
+                      "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=1200", // Kitchen
+                    ];
+                    return backups[nodeIndex % backups.length] || backups[0];
                   })();
 
                   return (

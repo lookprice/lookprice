@@ -431,6 +431,7 @@ router.post('/news', authenticate, async (req: any, res) => {
     - id: random unique string
     - title: real news title (in Turkish)
     - category: appropriate category (e.g., 'İmar Durumu', 'Finans', 'Bölgesel Gelişme')
+    - summary: a highly informative, detailed 2-3 sentence explanation/update about this development in Turkish, explaining its impact on Northern Cyprus property investors.
     - priority: 'high' or 'normal'
     - date: approximate relative time (e.g., '2 Saat Önce', 'Bugün', 'Dün')
     - img: a highly relevant Unsplash image URL (e.g., https://images.unsplash.com/photo-1563842145396-85750036ee7f?q=80&w=800)
@@ -465,7 +466,7 @@ router.post('/news', authenticate, async (req: any, res) => {
 // Update or publish a radar news item with upsert on store_id + title
 router.post('/radar-news/publish', authenticate, async (req: any, res) => {
   const storeId = req.user.store_id;
-  const { title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz } = req.body;
+  const { title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity } = req.body;
 
   try {
     const existing = await pool.query(
@@ -477,15 +478,15 @@ router.post('/radar-news/publish', authenticate, async (req: any, res) => {
     if (existing.rows.length > 0) {
       result = await pool.query(
         `UPDATE radar_news 
-         SET summary = $1, source = $2, image_url = $3, date = $4, tags = $5, published_on_store = $6, published_on_enrakipsiz = $7
-         WHERE id = $8 RETURNING *`,
-        [summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, existing.rows[0].id]
+         SET summary = $1, source = $2, image_url = $3, date = $4, tags = $5, published_on_store = $6, published_on_enrakipsiz = $7, intensity = $8
+         WHERE id = $9 RETURNING *`,
+        [summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', existing.rows[0].id]
       );
     } else {
       result = await pool.query(
-        `INSERT INTO radar_news (store_id, title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [storeId, title, summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz]
+        `INSERT INTO radar_news (store_id, title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [storeId, title, summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal']
       );
     }
     res.json(result.rows[0]);
