@@ -131,9 +131,10 @@ function generateIyzicoSignature(apiKey: string, secretKey: string, randomString
 router.get("/stores/:slug/radar-news", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, store_type FROM stores WHERE slug = $1", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
     const storeId = storeRes.rows[0].id;
+    const storeType = storeRes.rows[0].store_type;
 
     // Self-heal table check
     await pool.query(`
@@ -153,10 +154,16 @@ router.get("/stores/:slug/radar-news", async (req, res) => {
       );
     `);
 
-    const result = await pool.query(
-      "SELECT * FROM radar_news WHERE store_id = $1 AND published_on_store = TRUE ORDER BY created_at DESC",
-      [storeId]
-    );
+    // Logic: Return store specific and globally published radar news
+    const query = `
+      SELECT DISTINCT * FROM radar_news 
+      WHERE (store_id = $1 AND published_on_store = TRUE)
+      OR (published_on_enrakipsiz = TRUE)
+      ORDER BY created_at DESC
+    `;
+    const params = [storeId];
+
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error: any) {
     console.error("Public fetch news error:", error);

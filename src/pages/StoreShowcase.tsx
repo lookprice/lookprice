@@ -325,11 +325,7 @@ const ProductCard: React.FC<{
               {t.dashboard.price}
             </span>
             <span className="text-xsl font-bold text-gray-900">
-              {convertedPrice.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{" "}
-              {store?.currency || product.currency}
+              {formatPrice(convertedPrice, store?.currency || product.currency)}
             </span>
           </div>
           <button
@@ -1890,11 +1886,7 @@ const ProductDetailModal: React.FC<{
             <span
               className={`text-4xl text-slate-900 ${isLuxury ? "!font-sans !font-medium" : "font-semibold font-display"}`}
             >
-              {convertedPrice.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{" "}
-              {store?.currency || product.currency}
+              {formatPrice(convertedPrice, store?.currency || product.currency)}
             </span>
             {product.unit && (
               <span className="text-xsl text-slate-400 font-medium">
@@ -2374,7 +2366,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   }, []);
 
   const formatPrice = (price: number, currency?: string) => {
-    return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency || store?.currency || "TRY"}`;
+    const isPortfolio = store?.store_type === "portfolio" || store?.sector === "real_estate" || store?.sector === "automotive" || layoutSettings?.sector === "real_estate" || layoutSettings?.sector === "automotive";
+    const decimals = isPortfolio ? 0 : 2;
+    return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || store?.currency || "TRY"}`;
   };
 
   const layoutSettings = store?.page_layout_settings || {
@@ -3166,6 +3160,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           <ModernPortfolioLayout
             store={store}
             products={products}
+            radarNews={radarNews}
             onViewProduct={(p) => setSelectedProduct(p)}
           />
 

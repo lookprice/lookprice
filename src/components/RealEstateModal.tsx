@@ -4,6 +4,7 @@ import { ImageGallery } from './ImageGallery';
 import { MultiImageUploader } from './MultiImageUploader';
 import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
+import { contractTemplates } from '../utils/contractTemplates';
 
 interface RealEstateModalProps {
   isOpen: boolean;
@@ -1385,14 +1386,68 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                               <span>{doc.upload_date}</span>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveDocument(doc.id)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Evrak Sil"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex gap-1 items-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (doc.file_url === "is_virtual_contract") {
+                                  const tDef = contractTemplates.find(t => t.id === (doc.details?.templateId || 'showing_agreement')) || contractTemplates[0];
+                                  const formattedPriceNum = Number(formData.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                                  const symbol = formData.currency === 'GBP' ? '£' : formData.currency === 'USD' ? '$' : formData.currency === 'EUR' ? '€' : '₺';
+                                  
+                                  const { html } = tDef.getTemplate({
+                                    storeName: "LookPrice Real Estate",
+                                    storePhone: "+90 533 800 00 00",
+                                    storeEmail: "realestate@lookprice.me",
+                                    clientName: doc.details?.clientName || "[Alıcı / Mülk Sahibi Adı]",
+                                    clientIdentity: doc.details?.clientIdentity || "[T.C. No]",
+                                    clientPhone: doc.details?.clientPhone || "[Telefon]",
+                                    propertyTitle: `[İlan Kodu: LP-${formData.id}] ${formData.title}`,
+                                    propertyLocation: formData.location || "Kıbrıs",
+                                    propertyPrice: `${formattedPriceNum} ${symbol}`,
+                                    propertyBlockPlot: formData.block_plot,
+                                    commissionRate: doc.details?.commissionRate || "3",
+                                    contractDate: doc.upload_date
+                                  });
+                                  
+                                  const printWin = window.open('', '_blank');
+                                  if (printWin) {
+                                    printWin.document.write(`
+                                      <html>
+                                        <head>
+                                          <title>${doc.name}</title>
+                                          <style>
+                                            body { font-family: sans-serif; background: white; margin: 40px; color: #1e293b; }
+                                          </style>
+                                        </head>
+                                        <body>
+                                          ${html}
+                                          <script>
+                                            window.onload = function() { window.print(); }
+                                          </script>
+                                        </body>
+                                      </html>
+                                    `);
+                                    printWin.document.close();
+                                  }
+                                } else {
+                                  window.open(doc.file_url, '_blank');
+                                }
+                              }}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+                              title="Evrak Görüntüle"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDocument(doc.id)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Evrak Sil"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

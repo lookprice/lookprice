@@ -1340,6 +1340,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onSave={saveProperty}
                           onDelete={deleteProperty}
                           user={user}
+                          branding={branding}
                         />
                       </Suspense>
                     )}

@@ -14,7 +14,8 @@ import {
   Phone,
   FileCheck,
   Languages,
-  Printer
+  Printer,
+  Save
 } from "lucide-react";
 import { contractTemplates, ContractTemplate, ContractPlaceholderValues } from "../utils/contractTemplates";
 import { RealEstateProperty } from "../types";
@@ -23,14 +24,82 @@ interface LegalContractModalProps {
   isOpen: boolean;
   onClose: () => void;
   property: RealEstateProperty;
-  storeName: string;
+  branding?: any;
+  onSaveContract?: (contractDoc: any) => Promise<void>;
 }
+
+function numberToTrWords(num: number, currencyCode: string): string {
+  const currencyNames: { [key: string]: { singular: string } } = {
+    TRY: { singular: "Türk Lirası" },
+    TL: { singular: "Türk Lirası" },
+    USD: { singular: "Amerikan Doları" },
+    EUR: { singular: "Euro" },
+    GBP: { singular: "İngiliz Sterlini" }
+  };
+  
+  const ones = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
+  const tens = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
+  const thousands = ["", "Bin", "Milyon", "Milyar", "Trilyon"];
+
+  if (num === 0) return "Sıfır";
+
+  let words = "";
+  let temp = Math.abs(Math.floor(num));
+  let step = 0;
+
+  while (temp > 0) {
+    const part = temp % 1000;
+    if (part > 0) {
+      let partWords = "";
+      const hundred = Math.floor(part / 100);
+      const ten = Math.floor((part % 100) / 10);
+      const one = part % 10;
+
+      if (hundred > 0) {
+        if (hundred === 1) {
+          partWords += "Yüz ";
+        } else {
+          partWords += ones[hundred] + " Yüz ";
+        }
+      }
+
+      if (ten > 0) {
+        partWords += tens[ten] + " ";
+      }
+
+      if (one > 0) {
+        if (!(step === 1 && one === 1 && hundred === 0 && ten === 0)) {
+          partWords += ones[one] + " ";
+        }
+      }
+
+      partWords += thousands[step] + " ";
+      words = partWords + words;
+    }
+    temp = Math.floor(temp / 1000);
+    step++;
+  }
+
+  words = words.replace(/\s+/g, ' ').trim();
+  const curr = currencyNames[currencyCode.toUpperCase()] || { singular: currencyCode };
+  return `${words} ${curr.singular}`;
+}
+
+const formatTrDate = (isoDateStr: string) => {
+  if (!isoDateStr) return "";
+  const parts = isoDateStr.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`; // GG/AA/YYYY
+  }
+  return isoDateStr;
+};
 
 export const LegalContractModal: React.FC<LegalContractModalProps> = ({ 
   isOpen, 
   onClose, 
   property,
-  storeName 
+  branding,
+  onSaveContract
 }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("showing_agreement");
   const [clientName, setClientName] = useState<string>("");
@@ -38,68 +107,118 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const [clientPhone, setClientPhone] = useState<string>("");
   const [commissionRate, setCommissionRate] = useState<string>("3");
   const [contractDate, setContractDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [previewMode, setPreviewMode] = useState<'editor' | 'preview'>('editor');
   const [signed, setSigned] = useState<boolean>(false);
   const [signingName, setSigningName] = useState<string>("");
+  const [saving, setSaving] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
   const currentTemplate = contractTemplates.find(t => t.id === selectedTemplateId) || contractTemplates[0];
 
+  // Dynamic values pulled from store settings / branding
+  const storeNameVal = branding?.store_name || branding?.name || "LookPrice Real Estate";
+  const storePhoneVal = branding?.phone || "+90 533 800 00 00";
+  const storeEmailVal = branding?.email || "realestate@lookprice.me";
+
+  // Standardized prices: thousands separator with 0 decimal places inside real estate contracts
+  const formattedPriceNum = Number(property.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const symbol = property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺';
+  const priceWords = numberToTrWords(property.price, property.currency || 'GBP');
+  const propertyPriceFormatted = `${formattedPriceNum} ${symbol} (${priceWords})`;
+
   const placeholderValues: ContractPlaceholderValues = {
-    storeName: storeName || "LookPrice Real Estate",
-    storePhone: "+90 533 800 00 00",
-    storeEmail: "realestate@lookprice.me",
+    storeName: storeNameVal,
+    storePhone: storePhoneVal,
+    storeEmail: storeEmailVal,
     clientName: clientName || "[Alıcı / Mülk Sahibi Adı]",
     clientIdentity: clientIdentity || "[T.C. No / Pasapor No]",
     clientPhone: clientPhone || "[Telefon Numarası]",
-    propertyTitle: property.title,
+    propertyTitle: `[İlan Kodu: LP-${property.id}] ${property.title}`,
     propertyLocation: property.location || "Kıbrıs",
-    propertyPrice: `${(property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺')}${property.price.toLocaleString()}`,
+    propertyPrice: propertyPriceFormatted,
     propertyBlockPlot: property.block_plot,
     commissionRate: commissionRate,
-    contractDate: contractDate
+    contractDate: formatTrDate(contractDate)
   };
 
   const { html, markdown } = currentTemplate.getTemplate(placeholderValues);
 
+  // Use a beautifully hidden, sandbox-compatible iframe-based print flow
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.write(`
         <html>
           <head>
             <title>${currentTemplate.titleTr}</title>
             <style>
-              body { font-family: sans-serif; background: white; margin: 0; }
+              body { font-family: sans-serif; background: white; margin: 40px; color: #1e293b; }
               @media print {
-                body { padding: 0; }
-                button { display: none; }
+                body { margin: 0; padding: 20px; }
               }
             </style>
           </head>
           <body>
             ${html}
-            <script>
-              window.onload = function() {
-                window.print();
-                window.close();
-              }
-            </script>
           </body>
         </html>
       `);
-      printWindow.document.close();
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
     }
   };
 
   const handleShareWhatsApp = () => {
-    const message = `Merhaba, ${property.title} için düzenlenen ${currentTemplate.titleTr} belgesi hazırdır. İncelemek için bizimle iletişime geçebilirsiniz. Sözleşme Tarihi: ${placeholderValues.contractDate}`;
+    const message = `Merhaba, [LP-${property.id}] ${property.title} için düzenlenen ${currentTemplate.titleTr} belgesi hazırdır. İncelemek için bizimle iletişime geçebilirsiniz. Sözleşme Tarihi: ${placeholderValues.contractDate}`;
     window.open(`https://wa.me/${clientPhone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const handleEmailPDF = () => {
     alert("Yatırımcı hukuk sözleşmesi dijital damgalı olarak PDF e-posta adresine gönderildi!");
+  };
+
+  const handleSaveContract = async () => {
+    if (!onSaveContract) return;
+    setSaving(true);
+    const docId = `virtual-contract-${Date.now()}`;
+    const newDoc = {
+      id: docId,
+      name: `${currentTemplate.titleTr} - ${clientName || 'Taslak'} (${formatTrDate(contractDate)})`,
+      category: "contract",
+      file_url: "is_virtual_contract",
+      upload_date: formatTrDate(contractDate),
+      details: {
+        templateId: selectedTemplateId,
+        clientName,
+        clientIdentity,
+        clientPhone,
+        commissionRate,
+        contractDate,
+        signed,
+        signingName
+      }
+    };
+    try {
+      await onSaveContract(newDoc);
+    } catch (err: any) {
+      alert("Sözleşme kaydedilemedi: " + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -111,7 +230,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
           <div className="space-y-6">
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-[10px] bg-indigo-600/20 text-indigo-400 font-black tracking-widest px-2 py-0.5 rounded-md uppercase">CRM Legal Integration</span>
+                <span className="text-[10px] bg-indigo-600/20 text-indigo-400 font-black tracking-widest px-2 py-0.5 rounded-md uppercase font-mono">CRM Legal Integration</span>
                 <h3 className="text-xl font-black text-white mt-1">Sözleşme Jeneratörü</h3>
                 <p className="text-slate-400 text-xs">FTSO ve Kıbrıs mevzuatına uygun tanzim şablonları</p>
               </div>
@@ -178,7 +297,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none"
+                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
                         placeholder="Örn: 99123456"
                         value={clientIdentity}
                         onChange={(e) => setClientIdentity(e.target.value)}
@@ -192,7 +311,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none"
+                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
                         placeholder="Örn: 0533..."
                         value={clientPhone}
                         onChange={(e) => setClientPhone(e.target.value)}
@@ -208,7 +327,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">%</span>
                       <input 
                         type="number"
-                        className="w-full bg-slate-900 border border-slate-800 pl-7 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none"
+                        className="w-full bg-slate-900 border border-slate-800 pl-7 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
                         placeholder="3"
                         min="1"
                         max="10"
@@ -224,7 +343,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                       <input 
                         type="date"
-                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
+                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500 [&::-webkit-calendar-picker-indicator]:invert"
                         value={contractDate}
                         onChange={(e) => setContractDate(e.target.value)}
                       />
@@ -248,11 +367,11 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                   <CheckCircle className="w-4 h-4" /> Dijital Damga İmzalandı: {signingName}
                 </div>
               ) : (
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 font-sans">
                   <input 
                     type="text" 
                     placeholder="Müşteri onay adı..." 
-                    className="flex-1 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold text-white outline-none"
+                    className="flex-1 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold text-white outline-none focus:border-indigo-500"
                     value={signingName}
                     onChange={(e) => setSigningName(e.target.value)}
                   />
@@ -281,26 +400,23 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
           
           {/* Top action bar */}
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center gap-2 shrink-0">
-            <div className="flex gap-1 bg-slate-200/80 p-0.5 rounded-xl">
-              <button 
-                onClick={() => setPreviewMode('editor')}
-                className={`px-3 py-1 text-[10px] font-black uppercase tracking-tight rounded-lg flex items-center gap-1 transition-all ${
-                  previewMode === 'editor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
-                }`}
-              >
-                <Eye className="w-3.5 h-3.5" /> Canlı İzle
-              </button>
-              <button 
-                onClick={() => setPreviewMode('preview')}
-                className={`px-3 py-1 text-[10px] font-black uppercase tracking-tight rounded-lg flex items-center gap-1 transition-all ${
-                  previewMode === 'preview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
-                }`}
-              >
-                <Languages className="w-3.5 h-3.5" /> HTML Kod
-              </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl border border-indigo-150/60 text-[10px] font-black uppercase tracking-tight">
+                <Eye className="w-3.5 h-3.5" /> Canlı Sözleşme Taslağı
+              </div>
             </div>
 
             <div className="flex gap-2">
+              {onSaveContract && (
+                <button 
+                  onClick={handleSaveContract}
+                  disabled={saving}
+                  className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 rounded-xl border border-emerald-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
+                  title="Sözleşmeyi CRM'ye Kaydet"
+                >
+                  <Save className="w-3.5 h-3.5" /> {saving ? "Kaydediliyor..." : "Sözleşmeyi Kaydet"}
+                </button>
+              )}
               <button 
                 onClick={handlePrint}
                 className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl border border-indigo-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
@@ -333,15 +449,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
           {/* RENDERED CONTENT */}
           <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100/50">
-            {previewMode === 'editor' ? (
-              <div className="bg-white shadow-lg rounded-3xl border border-slate-200/80 overflow-hidden mx-auto max-w-3xl">
-                <div dangerouslySetInnerHTML={{ __html: html }} />
-              </div>
-            ) : (
-              <div className="max-w-2xl mx-auto p-4 bg-slate-950 text-cyan-400 font-mono text-[10px] leading-relaxed rounded-2xl border border-slate-900 overflow-x-auto">
-                <pre>{html}</pre>
-              </div>
-            )}
+            <div className="bg-white shadow-lg rounded-3xl border border-slate-200/80 overflow-hidden mx-auto max-w-3xl">
+              <div dangerouslySetInnerHTML={{ __html: html }} />
+            </div>
           </div>
 
         </div>

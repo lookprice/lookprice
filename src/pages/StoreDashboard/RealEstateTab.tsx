@@ -50,6 +50,7 @@ interface RealEstateTabProps {
   onSave?: (p: Partial<RealEstateProperty>) => void;
   onDelete?: (id: number) => void;
   user?: any; // Contains store_id and role
+  branding?: any;
 }
 
 // Fixed mock buyers list for the automated customer matching algorithm
@@ -117,7 +118,7 @@ const mockBuyers: BuyerDemand[] = [
   }
 ];
 
-const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEstateTabProps) => {
+const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding }: RealEstateTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
@@ -2983,7 +2984,17 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
             setContractProperty(null);
           }}
           property={contractProperty}
-          storeName={user?.store_name || "LookPrice Real Estate Office"}
+          branding={branding}
+          onSaveContract={async (contractDoc) => {
+            if (!onSave || !contractProperty) return;
+            const existingDocs = contractProperty.documents || [];
+            const updatedDocs = [...existingDocs.filter((d: any) => d.id !== contractDoc.id), contractDoc];
+            await onSave({
+              id: contractProperty.id,
+              documents: updatedDocs
+            });
+            setContractProperty(prev => prev ? { ...prev, documents: updatedDocs } : null);
+          }}
         />
       )}
 

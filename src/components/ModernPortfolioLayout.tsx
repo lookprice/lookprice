@@ -14,12 +14,14 @@ import { api } from "../services/api";
 interface ModernPortfolioLayoutProps {
   store: Store;
   products: Product[];
+  radarNews?: any[];
   onViewProduct: (product: Product) => void;
 }
 
 export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
   store,
   products,
+  radarNews = [],
   onViewProduct,
 }) => {
   const { lang } = useLanguage();
@@ -267,6 +269,72 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Regional Radar Section */}
+          {isSectionEnabled("news") && radarNews && radarNews.length > 0 && (
+            <div className="space-y-12">
+              <div className="flex flex-col md:flex-row md:items-end justify-between border-b-2 border-slate-100 pb-8 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <h3 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">
+                      {lang === "tr" ? "BÖLGESEL RADAR" : "REGIONAL RADAR"}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
+                      {lang === "tr" ? "İmar & Mevzuat Takibi" : "Zoning & Legal Tracking"}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-slate-100 px-4 py-2 rounded-2xl flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Powered by lookprice AI</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {radarNews.map((news) => (
+                  <div 
+                    key={news.id} 
+                    className="flex flex-col bg-white rounded-[2.5rem] border border-slate-150 p-6 shadow-sm hover:shadow-2xl transition-all duration-500 group relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full translate-x-10 -translate-y-10 group-hover:scale-150 transition-transform duration-700" />
+                    
+                    <div className="relative space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md">
+                          {news.source || 'AI Radar'}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">
+                          {news.date}
+                        </span>
+                      </div>
+                      
+                      <h4 className="text-xl font-black text-slate-900 leading-tight group-hover:text-indigo-600 transition-colors">
+                        {news.title}
+                      </h4>
+                      
+                      <p className="text-sm text-slate-500 leading-relaxed font-medium line-clamp-3">
+                        {news.summary}
+                      </p>
+
+                      {news.tags && (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {(Array.isArray(news.tags) ? news.tags : JSON.parse(news.tags || '[]')).slice(0, 3).map((tag: any, i: number) => (
+                            <span key={i} className="text-[9px] font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                              #{tag.toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
