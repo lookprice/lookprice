@@ -32,7 +32,9 @@ import {
   Scale,
   Filter,
   SlidersHorizontal,
-  Loader2
+  Loader2,
+  Check,
+  RefreshCw
 } from "lucide-react";
 import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -144,7 +146,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
   // State for matching and elite CRM hub modal
   const [matchingProperty, setMatchingProperty] = useState<RealEstateProperty | null>(null);
   const [matchList, setMatchList] = useState<{ buyer: BuyerDemand; score: number; reason: string }[]>([]);
-  const [activeHubTab, setActiveHubTab] = useState<'matches' | 'compliance' | 'cma' | 'splits' | 'showings' | 'negotiate' | 'escrow'>('matches');
+  const [activeHubTab, setActiveHubTab] = useState<'matches' | 'compliance' | 'cma' | 'splits' | 'showings' | 'negotiate' | 'escrow' | 'integration'>('matches');
   
   // Interactive Compliance Checklist state
   const [complianceChecked, setComplianceChecked] = useState<Record<string, boolean>>({

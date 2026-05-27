@@ -625,11 +625,11 @@ router.get("/store/:slug", async (req, res) => {
   store.blog_posts = blogRes.rows;
 
   // Fetch consultants 
-  const consultantsRes = await pool.query(
-    "SELECT name, email, phone, role, image_url FROM consultants WHERE store_id = $1", 
+  const consultantsRes2 = await pool.query(
+    "SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND status != 'inactive' ORDER BY name ASC", 
     [store.id]
   );
-  store.consultants = consultantsRes.rows;
+  store.consultants = consultantsRes2.rows;
 
   res.json(store);
 });

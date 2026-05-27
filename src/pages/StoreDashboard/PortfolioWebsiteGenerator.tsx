@@ -70,6 +70,17 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
           setBlogs(res.filter(b => b.is_published).slice(0, 3));
         }
       }).catch(console.error);
+
+      api.getConsultants(storeId).then((res) => {
+        if (Array.isArray(res)) {
+          setTeam(res.map(c => ({
+            id: c.id.toString(),
+            name: c.name,
+            role: c.role || 'Danışman',
+            image: c.image_url || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400'
+          })));
+        }
+      }).catch(console.error);
     }
   }, [storeId]);
 

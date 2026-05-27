@@ -44,7 +44,21 @@ import {
   Link2,
   MessageSquare,
   BookOpen,
+  Navigation,
+  Compass,
+  Map as MapIcon,
+  Maximize2
 } from "lucide-react";
+import {
+  APIProvider,
+  Map as GoogleMap,
+  AdvancedMarker,
+  Pin,
+  InfoWindow,
+  useMap,
+  Map3D,
+  MapMode
+} from "@vis.gl/react-google-maps";
 import {
   CreditCard,
   User,
@@ -784,119 +798,255 @@ const ListingFinancingCalculator: React.FC<{
   }, [loanAmount, interestRate, termMonths]);
 
   const totalPayment = monthlyPayment * termMonths + downpayment;
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="bg-slate-50 border border-slate-100/80 rounded-3xl p-6 mt-8 mb-8 animate-in fade-in duration-500">
-      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-        <svg
-          className="w-4 h-4 text-indigo-600"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-          />
-        </svg>
-        {lang === "tr"
-          ? "Finansman ve Kredi Hesaplama"
-          : "Financing & Loan Estimator"}
-      </h4>
-      <p className="text-xss text-slate-400 font-semibold mb-6 uppercase tracking-wider">
-        {lang === "tr"
-          ? "Bütçenize en uygun ödeme planını öngörün"
-          : "Simulate your personalized repayment plan"}
-      </p>
-
-      <div className="space-y-5">
-        <div>
-          <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
-            <span>
-              {lang === "tr" ? "Peşinat" : "Downpayment"} ({downpaymentPercent}
-              %)
-            </span>
-            <span>
-              {downpayment.toLocaleString()} {currency}
-            </span>
+    <div className="bg-slate-50 border border-slate-100/80 rounded-3xl mt-8 mb-8 overflow-hidden transition-all duration-500">
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-6 flex items-center justify-between hover:bg-slate-100/50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 flex items-center justify-center">
+            <svg
+              className="w-5 h-5 text-indigo-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
           </div>
-          <input
-            type="range"
-            min="10"
-            max="80"
-            step="5"
-            value={downpaymentPercent}
-            onChange={(e) => setDownpaymentPercent(Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-          />
-        </div>
-
-        <div>
-          <div className="flex justify-between text-xs font-bold text-slate-600 mb-2.5">
-            <span>{lang === "tr" ? "Vade" : "Term"}</span>
-            <span>
-              {termMonths} {lang === "tr" ? "Ay" : "Months"}
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {[12, 24, 36, 48].map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setTermMonths(m)}
-                className={`py-2 rounded-xl text-xs font-bold border transition-all ${termMonths === m ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}
-              >
-                {m} {lang === "tr" ? "Ay" : "M"}
-              </button>
-            ))}
+          <div className="text-left">
+            <h4 className="text-sm font-bold text-slate-800 tracking-tight">
+              {lang === "tr"
+                ? "Finansman ve Kredi Hesaplama"
+                : "Financing & Loan Estimator"}
+            </h4>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+              {lang === "tr"
+                ? "Banka Kredisi Simülasyonu"
+                : "Bank Loan Simulation"}
+            </p>
           </div>
         </div>
+        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
 
-        <div>
-          <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
-            <span>
-              {lang === "tr" ? "Aylık Faiz Oranı" : "Monthly Interest Rate"}
-            </span>
-            <span>% {interestRate}</span>
+      {isOpen && (
+        <div className="px-6 pb-6 pt-2 animate-in slide-in-from-top-4 duration-500">
+          <div className="space-y-5">
+            <div>
+              <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+                <span>
+                  {lang === "tr" ? "Peşinat" : "Downpayment"} ({downpaymentPercent}
+                  %)
+                </span>
+                <span>
+                  {downpayment.toLocaleString()} {currency}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="80"
+                step="5"
+                value={downpaymentPercent}
+                onChange={(e) => setDownpaymentPercent(Number(e.target.value))}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs font-bold text-slate-600 mb-2.5">
+                <span>{lang === "tr" ? "Vade" : "Term"}</span>
+                <span>
+                  {termMonths} {lang === "tr" ? "Ay" : "Months"}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[12, 24, 36, 48].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setTermMonths(m)}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${termMonths === m ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}
+                  >
+                    {m} {lang === "tr" ? "Ay" : "M"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+                <span>
+                  {lang === "tr" ? "Aylık Faiz Oranı" : "Monthly Interest Rate"}
+                </span>
+                <span>% {interestRate}</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="5"
+                step="0.05"
+                value={interestRate}
+                onChange={(e) => setInterestRate(Number(e.target.value))}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-4 mt-6 grid grid-cols-2 gap-4 shadow-sm">
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  {lang === "tr" ? "AYLIK TAKSİT" : "MONTHLY PAYMENT"}
+                </p>
+                <p className="text-base font-black text-indigo-600 tracking-tight">
+                  {monthlyPayment.toLocaleString()} {currency}
+                </p>
+              </div>
+              <div className="border-l border-slate-100 pl-4">
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  {lang === "tr" ? "KREDİ TUTARI" : "LOAN AMOUNT"}
+                </p>
+                <p className="text-base font-black text-slate-800 tracking-tight">
+                  {loanAmount.toLocaleString()} {currency}
+                </p>
+              </div>
+              <div className="col-span-2 border-t border-slate-100 pt-3 flex justify-between items-center text-xs font-bold text-slate-500">
+                <span>
+                  {lang === "tr" ? "Toplam Geri Ödeme" : "Total Repayment"}:
+                </span>
+                <span className="text-slate-950">
+                  {totalPayment.toLocaleString()} {currency}
+                </span>
+              </div>
+            </div>
           </div>
-          <input
-            type="range"
-            min="0.5"
-            max="5"
-            step="0.05"
-            value={interestRate}
-            onChange={(e) => setInterestRate(Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-          />
         </div>
+      )}
+    </div>
+  );
+};
 
-        <div className="bg-white border border-slate-100 rounded-2xl p-4 mt-6 grid grid-cols-2 gap-4">
+const MAP_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || "";
+
+const PropertyMapTour: React.FC<{
+  location?: string;
+  property: Product;
+  lang: string;
+}> = ({ location: locStr, property, lang }) => {
+  const [activePoi, setActivePoi] = useState<any>(null);
+  const map3dRef = React.useRef<any>(null);
+
+  const pois = useMemo(() => {
+    return [
+      { id: 1, type: "school", name: lang === "tr" ? "Eğitim" : "Education", latDelta: 0.005, lngDelta: -0.003, color: "#4f46e5" },
+      { id: 2, type: "hospital", name: lang === "tr" ? "Sağlık" : "Health", latDelta: -0.002, lngDelta: 0.008, color: "#e11d48" },
+      { id: 3, type: "beach", name: lang === "tr" ? "Plaj" : "Beach", latDelta: 0.012, lngDelta: 0.015, color: "#0ea5e9" },
+      { id: 4, type: "retail", name: lang === "tr" ? "Alışveriş" : "Shopping", latDelta: -0.006, lngDelta: -0.005, color: "#f59e0b" },
+    ];
+  }, [lang]);
+
+  useEffect(() => {
+    let poiIdx = 0;
+    const baseLat = 35.334; 
+    const baseLng = 33.315;
+    
+    // Initial entrance animation
+    setTimeout(() => {
+      map3dRef.current?.flyCameraTo({
+        endCamera: {
+          center: { lat: baseLat, lng: baseLng, altitude: 150 },
+          range: 800,
+          heading: 45,
+          tilt: 65,
+          roll: 0
+        },
+        durationMillis: 4000
+      });
+    }, 500);
+
+    const interval = setInterval(() => {
+      const poi = pois[poiIdx];
+      setActivePoi(poi);
+      
+      map3dRef.current?.flyCameraTo({
+        endCamera: {
+          center: { lat: baseLat + poi.latDelta * 0.5, lng: baseLng + poi.lngDelta * 0.5, altitude: 75 },
+          range: 600,
+          heading: (45 + poiIdx * 90) % 360,
+          tilt: 70,
+          roll: 0
+        },
+        durationMillis: 5000
+      });
+
+      poiIdx = (poiIdx + 1) % pois.length;
+    }, 8000);
+    
+    return () => clearInterval(interval);
+  }, [pois]);
+
+  if (!MAP_KEY) {
+    return (
+      <div className="w-full h-full bg-slate-100 flex items-center justify-center p-8 text-center">
+        <div className="max-w-xs">
+          <MapIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+          <p className="text-slate-500 text-sm font-semibold">
+            {lang === "tr" 
+              ? "Harita verisi için GOOGLE_MAPS_PLATFORM_KEY gereklidir." 
+              : "GOOGLE_MAPS_PLATFORM_KEY is required for map data."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 w-full relative group flex flex-col min-h-0 bg-slate-900 overflow-hidden">
+      <Map3D
+        ref={map3dRef}
+        defaultCenter={{ lat: 35.334, lng: 33.315, altitude: 1000 }}
+        defaultRange={5000}
+        defaultHeading={0}
+        defaultTilt={45}
+        mode={MapMode.SATELLITE}
+      />
+
+      {/* HUD Info Panel */}
+      <div className="absolute bottom-6 left-6 right-6 z-10 pointer-events-none">
+        <div className="bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800 shadow-xl flex items-center justify-between">
           <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              {lang === "tr" ? "AYLIK TAKSİT" : "MONTHLY PAYMENT"}
+            <p className="text-[10px] text-indigo-400 font-extrabold tracking-widest uppercase mb-1">
+              {lang === "tr" ? "AI LOKASYON ANALİZİ" : "AI LOCATION ANALYSIS"}
             </p>
-            <p className="text-sm font-bold text-indigo-600">
-              {monthlyPayment.toLocaleString()} {currency}
-            </p>
-          </div>
-          <div className="border-l border-slate-100 pl-4">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              {lang === "tr" ? "KREDİ TUTARI" : "LOAN AMOUNT"}
-            </p>
-            <p className="text-sm font-bold text-slate-800">
-              {loanAmount.toLocaleString()} {currency}
+            <p className="text-sm font-semibold text-white">
+              {activePoi ? activePoi.name + (lang === "tr" ? " taranıyor..." : " scanning...") : (lang === "tr" ? "Çevresel Faktörler Taranıyor..." : "Scanning Environmental Factors...")}
             </p>
           </div>
-          <div className="col-span-2 border-t border-slate-100 pt-3 flex justify-between items-center text-xs font-bold text-slate-500">
-            <span>
-              {lang === "tr" ? "Toplam Geri Ödeme" : "Total Repayment"}:
-            </span>
-            <span className="text-slate-800">
-              {totalPayment.toLocaleString()} {currency}
-            </span>
+          <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center animate-pulse">
+            <Compass className="w-4 h-4 text-indigo-400" />
           </div>
+        </div>
+      </div>
+
+      {/* Control Overlays */}
+      <div className="absolute top-6 left-6 z-10">
+        <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 shadow-xl">
+           <div className="flex items-center gap-2 mb-1.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+             <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">{lang === "tr" ? "CANLI 3D AKIŞ" : "LIVE 3D FLOW"}</span>
+           </div>
+           <p className="text-[11px] font-black text-white tracking-tight uppercase">
+             {locStr || "GİRNE, KKTC"}
+           </p>
         </div>
       </div>
     </div>
@@ -937,7 +1087,7 @@ const ProductDetailModal: React.FC<{
   );
 
   // States for 360° virtual tour mode
-  const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tour360">(
+  const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tour360" | "tourMap">(
     "gallery",
   );
   const [selectedHotspotIdx, setSelectedHotspotIdx] = useState(0);
@@ -1128,7 +1278,8 @@ const ProductDetailModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <APIProvider apiKey={MAP_KEY} version="alpha">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <SEO
         title={`${product.name} | ${store?.name}`}
         description={product.description?.substring(0, 160)}
@@ -1155,7 +1306,7 @@ const ProductDetailModal: React.FC<{
           <X className="w-5 h-5" />
         </button>
 
-        <div className="md:w-1/2 bg-gray-50 relative overflow-hidden h-[400px] md:h-auto">
+        <div className="w-full md:w-1/2 min-h-[50vh] md:aspect-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100">
           {/* Share Buttons Overlay */}
           <div className="absolute top-6 left-6 flex items-center gap-2 z-20">
             <button
@@ -1226,13 +1377,44 @@ const ProductDetailModal: React.FC<{
                     <Globe className="w-3 h-3" />
                     {lang === "tr" ? "360°" : "360°"}
                   </button>
+                  {product.type === "real_estate" && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveViewMode("tourMap")}
+                      className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tourMap" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
+                    >
+                      <MapIcon className="w-3 h-3" />
+                      {lang === "tr" ? "HARİTA" : "MAP FLOW"}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
           {store?.store_type === "portfolio" &&
+          activeViewMode === "tourMap" &&
+          product.type === "real_estate" ? (
+             <PropertyMapTour 
+                location={(product as any).location} 
+                property={product} 
+                lang={lang} 
+              />
+          ) : store?.store_type === "portfolio" &&
           activeViewMode === "tour360" &&
           (product.type === "vehicle" || product.type === "real_estate") ? (
             (() => {
+              if ((product as any).virtual_tour_url) {
+                return (
+                  <div className="w-full h-full relative bg-slate-950 flex items-center justify-center">
+                    <iframe 
+                      src={(product as any).virtual_tour_url}
+                      className="w-full h-full border-0"
+                      allow="xr-spatial-tracking; vr; gyroscope; accelerometer; fullscreen; camera"
+                      allowFullScreen
+                    />
+                  </div>
+                );
+              }
+
               const orbitPins = [
                 {
                   id: "price",
@@ -1244,8 +1426,8 @@ const ProductDetailModal: React.FC<{
                   detail:
                     product.type === "real_estate"
                       ? lang === "tr"
-                        ? "Tahmini Kira Getirisi: %7.4 | Banka Kredisine Uygun"
-                        : "Estimated Rent Yield: 7.4% | Suitable for Bank Loan"
+                        ? "Tahmini Kira Getirisi: %7.4 | Amortisman: 12 Yıl"
+                        : "Estimated Rent Yield: 7.4% | Amortization: 12 Years"
                       : lang === "tr"
                         ? "Değer Koruma Endeksi: %94 (Çok Yüksek)"
                         : "Value Retention Index: 94% (Very High)",
@@ -1391,51 +1573,26 @@ const ProductDetailModal: React.FC<{
                     <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent rotate-12 blur-sm pointer-events-none" />
                     <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -rotate-12 blur-sm pointer-events-none" />
 
-                    {/* Interactive Rotating Listing Diorama Container */}
+                    {/* Panoramic 360 View */}
                     <div
-                      className="relative w-[75%] max-w-[270px] aspect-[4/3] rounded-[24px] overflow-hidden origin-center transition-shadow duration-500"
-                      style={{
-                        transform: `rotateY(${-currentAngle}deg) rotateX(15deg) scale(${dollyDistance / 100})`,
-                        transformStyle: "preserve-3d",
-                        boxShadow:
-                          lighting === "noon"
-                            ? "0 30px 60px -15px rgba(0,0,0,0.6)"
-                            : lighting === "golden"
-                              ? "0 40px 75px -12px rgba(217,119,6,0.25), 0 20px 40px -15px rgba(0,0,0,0.7)"
-                              : "0 40px 75px -12px rgba(99,102,241,0.25), 0 20px 40px -15px rgba(0,0,0,0.8)",
-                        filter:
-                          lighting === "noon"
-                            ? "brightness(1.05) contrast(1.05)"
-                            : lighting === "golden"
-                              ? "sepia(0.2) saturate(1.15) contrast(1.1) brightness(1.02)"
-                              : "hue-rotate(15deg) saturate(1.3) contrast(1.15) brightness(0.8)",
-                      }}
+                      className="absolute inset-0 overflow-hidden bg-slate-900"
                     >
-                      <img
-                        src={
-                          (product as any).images?.[0] ||
-                          product.image_url ||
-                          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"
-                        }
-                        alt={product.name}
-                        className="w-full h-full object-cover select-none pointer-events-none"
-                        referrerPolicy="no-referrer"
-                      />
-
-                      {/* Vignette lighting overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent pointer-events-none" />
-
-                      {/* Real-time Simulated Glow filter based on speed and angle */}
                       <div
-                        className="absolute inset-0 opacity-20 pointer-events-none mix-blend-color-dodge transition-opacity duration-300"
+                        className="w-full h-full cursor-grab active:cursor-grabbing transition-transform duration-100 ease-linear"
                         style={{
-                          background: `radial-gradient(circle at ${50 + Math.sin((currentAngle * Math.PI) / 180) * 50}% 50%, #818cf8, transparent 70%)`,
+                          backgroundImage: `url(${(product as any).images?.[0] || product.image_url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: `${-currentAngle * 2}px center`,
+                          backgroundRepeat: "repeat-x"
                         }}
                       />
+                      
+                      {/* Vignette lighting overlay */}
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent to-slate-900/60 pointer-events-none" />
                     </div>
 
                     {/* Spatial floating 3D markers */}
-                    <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute inset-0 pointer-events-none z-10">
                       {orbitPins.map((spot, idx) => {
                         const baseAngle = idx * 90; // space pins evenly around 360 circle
                         const pos = getPinPosition(baseAngle);
@@ -1460,7 +1617,7 @@ const ProductDetailModal: React.FC<{
                             }}
                           >
                             <span
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? "bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg shadow-indigo-600/40" : "bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-115"}`}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? "bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg shadow-indigo-600/40" : "bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-110"}`}
                             >
                               <span className="text-[11px] font-black leading-none">
                                 {idx + 1}
@@ -1597,7 +1754,7 @@ const ProductDetailModal: React.FC<{
                 <img
                   src={productImages[activeImageIdx]}
                   alt={product.name}
-                  className="max-w-full max-h-[280px] md:max-h-[380px] object-contain transition-all duration-300"
+                  className="w-full h-full object-cover md:object-contain transition-all duration-300 group-hover/gallery:scale-105"
                   referrerPolicy="no-referrer"
                 />
 
@@ -1766,13 +1923,7 @@ const ProductDetailModal: React.FC<{
             data={product.sector_data}
           />
 
-          {(product.type === 'real_estate' || store?.store_type === 'portfolio') && (
-            <ListingFinancingCalculator 
-              price={product.price} 
-              currency={product.currency || store?.currency || 'TRY'} 
-              lang={lang} 
-            />
-          )}
+
 
           <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'portfolio'} />
 
@@ -1988,7 +2139,8 @@ const ProductDetailModal: React.FC<{
         )}
       </AnimatePresence>
       {/* Removed About Modal functionality */}
-    </div>
+      </div>
+    </APIProvider>
   );
 };
 

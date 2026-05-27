@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
   return {
     define: {
       'process.env': 'globalThis.process.env',
+      'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(process.env.GOOGLE_MAPS_PLATFORM_KEY || '')
     },
     plugins: [react(), tailwindcss()],
     resolve: {

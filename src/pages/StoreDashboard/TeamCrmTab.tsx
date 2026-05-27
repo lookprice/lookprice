@@ -24,7 +24,8 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
     email: '',
     phone: '',
     role: 'Broker / Yöneticisi',
-    branch_id: ''
+    branch_id: '',
+    image_url: ''
   });
 
   const [branchFormData, setBranchFormData] = useState({
@@ -66,7 +67,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
       if (res && !res.error) {
         setShowModal(false);
         setEditingAgent(null);
-        setFormData({ name: '', email: '', phone: '', role: 'Broker / Yöneticisi', branch_id: '' });
+        setFormData({ name: '', email: '', phone: '', role: 'Broker / Yöneticisi', branch_id: '', image_url: '' });
         fetchData();
       }
     } catch (error) {
@@ -121,7 +122,8 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
       email: agent.email || '',
       phone: agent.phone || '',
       role: agent.role || 'Broker / Yöneticisi',
-      branch_id: agent.branch_id || ''
+      branch_id: agent.branch_id || '',
+      image_url: agent.image_url || ''
     });
     setShowModal(true);
   };
@@ -162,7 +164,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
             onClick={() => {
               if (activeSubTab === 'agents') {
                 setEditingAgent(null);
-                setFormData({ name: '', email: '', phone: '', role: 'Broker / Yöneticisi', branch_id: '' });
+                setFormData({ name: '', email: '', phone: '', role: 'Broker / Yöneticisi', branch_id: '', image_url: '' });
                 setShowModal(true);
               } else {
                 setEditingBranch(null);
@@ -350,6 +352,15 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                       onChange={(e) => setFormData({...formData, phone: e.target.value})}
                      />
                    </div>
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Profil Resmi (URL)' : 'Profile Image (URL)'}</label>
+                   <input 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
+                    placeholder="https://..."
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                   />
                  </div>
                  <div className="grid grid-cols-2 gap-4">
                    <div>
