@@ -160,6 +160,21 @@ export async function initDb() {
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS radar_news (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        source TEXT,
+        image_url TEXT,
+        date TEXT,
+        tags JSONB DEFAULT '[]',
+        intensity TEXT,
+        published_on_store BOOLEAN DEFAULT FALSE,
+        published_on_enrakipsiz BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS scan_logs (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,

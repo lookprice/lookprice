@@ -17,7 +17,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [editingBranch, setEditingBranch] = useState<any>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches'>('agents');
+  const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches' | 'pipeline'>('agents');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -35,6 +35,9 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
     slug: ''
   });
 
+  const [properties, setProperties] = useState<any[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+
   useEffect(() => {
     fetchData();
   }, [storeId]);
@@ -42,12 +45,14 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [agentsData, branchesData] = await Promise.all([
+      const [agentsData, branchesData, propertiesData] = await Promise.all([
         api.getConsultants(storeId),
-        api.getBranches(storeId)
+        api.getBranches(storeId),
+        api.getProperties(storeId)
       ]);
       setAgents(Array.isArray(agentsData) ? agentsData : []);
       setBranches(Array.isArray(branchesData) ? branchesData : []);
+      setProperties(Array.isArray(propertiesData) ? propertiesData : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -158,6 +163,12 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
              >
                 {lang === 'tr' ? 'ŞUBELER' : 'BRANCHES'}
              </button>
+             <button 
+              onClick={() => setActiveSubTab('pipeline')}
+              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'pipeline' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+             >
+                {lang === 'tr' ? 'CRM (Pipeline)' : 'PIPELINE'}
+             </button>
           </div>
 
           <button 
@@ -166,16 +177,20 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                 setEditingAgent(null);
                 setFormData({ name: '', email: '', phone: '', role: 'Broker / Yöneticisi', branch_id: '', image_url: '' });
                 setShowModal(true);
-              } else {
+              } else if (activeSubTab === 'branches') {
                 setEditingBranch(null);
                 setBranchFormData({ name: '', address: '', phone: '', slug: '' });
                 setShowBranchModal(true);
+              } else {
+                alert(lang === 'tr' ? 'Yeni fırsat/talep ekleme ekranı' : 'New deal screen');
               }
             }}
             className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 group"
           >
             <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
-            {activeSubTab === 'agents' ? (lang === 'tr' ? 'YENİ PERSONEL' : 'ADD AGENT') : (lang === 'tr' ? 'YENİ ŞUBE' : 'ADD BRANCH')}
+            {activeSubTab === 'agents' ? (lang === 'tr' ? 'YENİ PERSONEL' : 'ADD AGENT') : 
+             activeSubTab === 'branches' ? (lang === 'tr' ? 'YENİ ŞUBE' : 'ADD BRANCH') : 
+             (lang === 'tr' ? 'YENİ TALEP/FIRSAT' : 'ADD LEAD')}
           </button>
         </div>
       </div>
@@ -246,15 +261,49 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{lang==='tr'? 'Hacim':'Volume'}</p>
                       <p className="font-black text-emerald-700 text-lg">{agent.performance?.value || '0'}</p>
                    </div>
-                   <div className="text-center p-3 rounded-2xl bg-amber-50/30">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{lang==='tr'? 'Puan':'Score'}</p>
-                      <p className="font-black text-amber-700 text-lg">%{agent.performance?.target || 0}</p>
+                   <div className="text-center p-3 rounded-2xl bg-amber-50/30 cursor-pointer hover:bg-amber-100/50 transition-colors" onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id)}>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{lang==='tr'? 'Aktif İlan':'Listings'}</p>
+                      <p className="font-black text-amber-700 text-lg">
+                        {properties.filter((p: any) => p.responsible_consultant_id === agent.id).length}
+                      </p>
                    </div>
                 </div>
+
+                {selectedAgentId === agent.id && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 animate-in slide-in-from-top-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                      {lang === 'tr' ? 'Yetkili Olduğu Portföyler' : 'Assigned Portfolios'}
+                    </h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                      {properties.filter((p: any) => p.responsible_consultant_id === agent.id).map((prop: any) => (
+                        <div key={prop.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-200 transition-colors group">
+                          {prop.image_url ? (
+                            <img src={prop.image_url} alt={prop.title} className="w-10 h-10 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-300">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors">{prop.title}</p>
+                            <p className="text-[10px] font-black text-slate-400 truncate uppercase mt-0.5">
+                              {prop.currency} {Number(prop.price).toLocaleString()} • {prop.location}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {properties.filter((p: any) => p.responsible_consultant_id === agent.id).length === 0 && (
+                        <p className="text-xs text-slate-400 font-medium pb-2">
+                          {lang === 'tr' ? 'Henüz portföy atanmamış.' : 'No portfolio assigned yet.'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
              </div>
            ))}
         </div>
-      ) : (
+      ) : activeSubTab === 'branches' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {branches.map((branch) => (
              <div key={branch.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 flex flex-col gap-6 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
@@ -310,6 +359,63 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
              </div>
            ))}
         </div>
+      ) : (
+         <div className="flex gap-6 overflow-x-auto pb-8 snap-x custom-scrollbar">
+           {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map((stage, idx) => (
+             <div key={idx} className="min-w-[320px] max-w-[320px] bg-slate-50/80 rounded-[2rem] border border-slate-200 p-6 shadow-sm snap-center flex flex-col gap-4">
+               <div className="flex items-center justify-between pointer-events-none">
+                 <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{stage}</h4>
+                 <div className="w-6 h-6 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">
+                   {idx === 0 ? 3 : idx === 1 ? 1 : 0}
+                 </div>
+               </div>
+               
+               {idx === 0 && (
+                 <>
+                   <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
+                     <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Müstakil Villa Arayışı</p>
+                     <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Etiler veya Sarıyer bölgesi, minimum 4 oda deniz manzaralı. Müşteri nakit alım yapacak, 1 ay içinde dönüş bekliyor.</p>
+                     <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
+                       <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300"/> Mehmet B.</span>
+                       <span className="text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg">$1.5M Bütçe</span>
+                     </div>
+                   </div>
+                   <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
+                     <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Dükkan / Mağaza</p>
+                     <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Kadıköy merkez, yüksek yaya trafiği olan mağaza arayışı franchise için.</p>
+                     <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
+                       <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300"/> Ayşe Y.</span>
+                       <span className="text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg">Kiralık</span>
+                     </div>
+                   </div>
+                   <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
+                     <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Yatırımlık Daire</p>
+                     <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Şişli civarı, kısa dönem kiralamaya (Airbnb vb.) uygun veya ofis olabilecek yatırım.</p>
+                     <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
+                       <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300"/> Can K.</span>
+                       <span className="text-amber-600 bg-amber-50 px-2.5 py-1.5 rounded-lg">4M TL Bütçe</span>
+                     </div>
+                   </div>
+                 </>
+               )}
+
+               {idx === 1 && (
+                 <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group">
+                   <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">Lüks Rezidans Toplantısı</p>
+                   <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 leading-relaxed">Maslak, 3+1 residence için ofiste toplantı gerçekleştirilecek.</p>
+                   <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
+                     <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-300"/> Merkez Şube</span>
+                     <span className="text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-lg animate-pulse">Bugün 14:00</span>
+                   </div>
+                 </div>
+               )}
+
+               <button className="mt-auto w-full py-4 rounded-xl border border-slate-200 border-dashed text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 hover:border-slate-300 transition-colors flex items-center justify-center group">
+                 <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
+               </button>
+             </div>
+           ))}
+         </div>
       )}
 
       {/* Modals */}
@@ -354,13 +460,30 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                    </div>
                  </div>
                  <div>
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Profil Resmi (URL)' : 'Profile Image (URL)'}</label>
-                   <input 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                    placeholder="https://..."
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({...formData, image_url: e.target.value})}
-                   />
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Profil Resmi' : 'Profile Image'}</label>
+                   <div className="mt-2 flex items-center gap-4">
+                     {formData.image_url && (
+                       <img src={formData.image_url} alt="Profile" className="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
+                     )}
+                     <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-colors">
+                       <input 
+                        type="file" 
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setFormData({...formData, image_url: reader.result as string});
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                       />
+                       <span className="text-xs font-bold text-slate-500">{lang === 'tr' ? 'Resim Seç veya Sürükle' : 'Select or Drop Image'}</span>
+                     </label>
+                   </div>
                  </div>
                  <div className="grid grid-cols-2 gap-4">
                    <div>

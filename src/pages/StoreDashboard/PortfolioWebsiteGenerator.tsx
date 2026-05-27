@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Palette, Settings, Eye, Globe, Map, Search, SlidersHorizontal, ArrowRight, Check, Users, BarChart3, Image as ImageIcon, Plus, Newspaper, Save } from 'lucide-react';
+import { Layout, Palette, Settings, Eye, Globe, Map, Search, SlidersHorizontal, ArrowRight, Check, Users, BarChart3, Image as ImageIcon, Plus, Newspaper, Save, Upload } from 'lucide-react';
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
 
@@ -258,22 +258,91 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
                   <Users className="h-4 w-4 text-indigo-500" />
                   {lang === 'tr' ? 'EKİP KADROSU & DANIŞMANLAR' : 'TEAM & AGENTS'}
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {team.map((member) => (
-                    <div key={member.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
-                      <div className="h-10 w-10 bg-slate-200 rounded-full flex items-center justify-center overflow-hidden border border-white shadow-sm">
-                         <img src={member.image} className="h-full w-full object-cover" alt={member.name} />
+                    <div key={member.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-4">
+                      {/* Top Row: Preview & Delete Button */}
+                      <div className="flex items-center gap-3">
+                        <div className="relative group h-12 w-12 bg-slate-200 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
+                          <img src={member.image} className="h-full w-full object-cover" alt={member.name} />
+                          {/* Image Hover overlay */}
+                          <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-all">
+                            <Upload className="h-4 w-4 text-white" />
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (uploadEvent) => {
+                                    const base64 = uploadEvent.target?.result as string;
+                                    setTeam(prev => prev.map(m => m.id === member.id ? { ...m, image: base64 } : m));
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[10px] font-black text-slate-900 uppercase">{member.name || (lang === 'tr' ? "Yeni Üye" : "New Agent")}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{member.role || "Unvan"}</p>
+                        </div>
+                        <button 
+                          onClick={() => removeMember(member.id)}
+                          className="text-[10px] font-black text-red-500 hover:text-red-700 transition-colors uppercase tracking-widest bg-red-50 px-2 py-1 rounded-md"
+                        >
+                          {lang === 'tr' ? 'SİL' : 'DEL'}
+                        </button>
                       </div>
-                      <div className="flex-1">
-                         <p className="text-[10px] font-black text-slate-900 uppercase">{member.name}</p>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{member.role}</p>
+
+                      {/* Editing fields in panel */}
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-150-none">
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-400 uppercase mb-1">{lang === 'tr' ? 'AD SOYAD' : 'FULL NAME'}</label>
+                          <input 
+                            type="text" 
+                            value={member.name}
+                            onChange={(e) => setTeam(prev => prev.map(m => m.id === member.id ? { ...m, name: e.target.value } : m))}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-400 uppercase mb-1">{lang === 'tr' ? 'UNVAN / ROL' : 'POSITION / ROLE'}</label>
+                          <input 
+                            type="text" 
+                            value={member.role}
+                            onChange={(e) => setTeam(prev => prev.map(m => m.id === member.id ? { ...m, role: e.target.value } : m))}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                          />
+                        </div>
                       </div>
-                      <button 
-                        onClick={() => removeMember(member.id)}
-                        className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-widest"
-                      >
-                        {lang === 'tr' ? 'SİL' : 'DEL'}
-                      </button>
+
+                      {/* Choose File Button */}
+                      <div>
+                        <label className="flex py-1.5 px-3 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-slate-50/50 rounded-xl text-[9px] font-black text-slate-600 text-center cursor-pointer transition-all items-center justify-center gap-1">
+                          <Upload className="h-3 w-3 text-slate-400" />
+                          <span>{lang === 'tr' ? 'FOTOĞRAF YÜKLE' : 'UPLOAD PHOTO'}</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (uploadEvent) => {
+                                  const base64 = uploadEvent.target?.result as string;
+                                  setTeam(prev => prev.map(m => m.id === member.id ? { ...m, image: base64 } : m));
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                     </div>
                   ))}
                   <button 

@@ -245,7 +245,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
   const [newTagKeyword, setNewTagKeyword] = useState("");
   const [newTagEmailAlert, setNewTagEmailAlert] = useState(true);
 
-  const [newsFeed, setNewsFeed] = useState([
+  const [newsFeed, setNewsFeed] = useState<any[]>([
     {
       id: 'news-1',
       title: 'Lefkoşa İmar Planı Revizyon Kararı Resmi Gazete\'de!',
@@ -318,6 +318,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
 
   useEffect(() => {
     fetchBranches();
+    fetchRadarNews();
   }, []);
 
   const fetchBranches = async () => {
@@ -326,6 +327,77 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
       setBranches(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch branches:', error);
+    }
+  };
+
+  const fetchRadarNews = async () => {
+    try {
+      const data = await api.getRadarNews();
+      if (Array.isArray(data) && data.length > 0) {
+        const loadedNews = data.map((item: any) => ({
+          id: item.id.toString(),
+          title: item.title,
+          summary: item.summary,
+          source: item.source || 'Live Radar & AI Search',
+          image: item.image_url || '',
+          date: item.date || 'Az Önce',
+          tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === 'string' ? JSON.parse(item.tags) : []),
+          intensity: item.intensity || 'normal',
+          publishedOnStore: !!item.published_on_store,
+          publishedOnEnrakipsiz: !!item.published_on_enrakipsiz
+        }));
+
+        setNewsFeed(prev => {
+          const filteredPrev = prev.filter(p => !loadedNews.some((l: any) => l.title === p.title));
+          return [...loadedNews, ...filteredPrev];
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch radar news:', error);
+    }
+  };
+
+  const handleTogglePublish = async (newsId: string, type: 'store' | 'enrakipsiz') => {
+    const newsItem = newsFeed.find(n => n.id === newsId);
+    if (!newsItem) return;
+
+    const newPublishedOnStore = type === 'store' ? !newsItem.publishedOnStore : newsItem.publishedOnStore;
+    const newPublishedOnEnrakipsiz = type === 'enrakipsiz' ? !newsItem.publishedOnEnrakipsiz : newsItem.publishedOnEnrakipsiz;
+
+    try {
+      await api.publishRadarNews({
+        title: newsItem.title,
+        summary: newsItem.summary,
+        source: newsItem.source,
+        image_url: newsItem.image_url || '',
+        date: newsItem.date,
+        tags: newsItem.tags,
+        published_on_store: newPublishedOnStore,
+        published_on_enrakipsiz: newPublishedOnEnrakipsiz
+      });
+
+      setNewsFeed(prev => prev.map(n => n.id === newsId ? { 
+        ...n, 
+        publishedOnStore: newPublishedOnStore, 
+        publishedOnEnrakipsiz: newPublishedOnEnrakipsiz 
+      } : n));
+
+      if (type === 'store') {
+        if (newPublishedOnStore) {
+          alert(lang === 'tr' ? "🟢 Başarıyla İşlendi!\n\nBu gelişme portföy web mağazanızın 'Haberler' akışında ziyaretçilere gösterilmek üzere tescillendi." : "🟢 Successfully Published on Portfolios Store!");
+        } else {
+          alert(lang === 'tr' ? "Bilgi: Haber mağaza vitrininden kaldırıldı." : "Info: News removed from store showcase.");
+        }
+      } else {
+        if (newPublishedOnEnrakipsiz) {
+          alert(lang === 'tr' ? "⚡ ENRAKİPSİZ PORTALI AKTİF!\n\nBu kritik gelişme, amiral gemimiz 'enrakipsiz.com' ana sayfasında ve 'Kıbrıs İmar/Mevzuat Haberleri' ızgarasında flaş haber formatında tescil edildi!" : "⚡ EnRakipsiz Portal Activated!");
+        } else {
+          alert(lang === 'tr' ? "Bilgi: enrakipsiz.com portal yayını durduruldu." : "Info: Post removed from enrakipsiz.com portal.");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to publish radar news:", error);
+      alert(lang === 'tr' ? "Hata: Bulut veritabanına kaydedilemedi." : "Error saving to database.");
     }
   };
 
@@ -817,15 +889,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     {/* 1. Portföy Mağazamda Göster action */}
                     <button
-                      onClick={() => {
-                        const updated = newsFeed.map(n => n.id === news.id ? { ...n, publishedOnStore: !n.publishedOnStore } : n);
-                        setNewsFeed(updated);
-                        if (!news.publishedOnStore) {
-                          alert("🟢 Başarıyla İşlendi!\n\nBu gelişme portföy web mağazanızın 'Haberler & Duyurular' akışında ziyaretçilere gösterilmek üzere tescillendi.");
-                        } else {
-                          alert("Bilgi: Haber mağaza vitrininden kaldırıldı.");
-                        }
-                      }}
+                      onClick={() => handleTogglePublish(news.id, 'store')}
                       className={`py-1.5 px-2 rounded-xl text-[9.5px] font-black text-center border transition-all ${
                         news.publishedOnStore 
                           ? 'bg-emerald-900/40 border-emerald-500 text-emerald-300' 
@@ -837,15 +901,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user }: RealEsta
 
                     {/* 2. enrakipsiz.com'da Yayınla action */}
                     <button
-                      onClick={() => {
-                        const updated = newsFeed.map(n => n.id === news.id ? { ...n, publishedOnEnrakipsiz: !n.publishedOnEnrakipsiz } : n);
-                        setNewsFeed(updated);
-                        if (!news.publishedOnEnrakipsiz) {
-                          alert("⚡ ENRAKİPSİZ PORTALI AKTİF!\n\nBu kritik gelişme, amiral gemimiz 'enrakipsiz.com' ana sayfasında ve 'Kıbrıs İmar/Mevzuat Haberleri' ızgarasında flaş haber formatında tescil edildi!");
-                        } else {
-                          alert("Bilgi: enrakipsiz.com portal yayını durduruldu.");
-                        }
-                      }}
+                      onClick={() => handleTogglePublish(news.id, 'enrakipsiz')}
                       className={`py-1.5 px-2 rounded-xl text-[9.5px] font-black text-center border transition-all ${
                         news.publishedOnEnrakipsiz 
                           ? 'bg-indigo-600 border-indigo-505 text-white shadow-md' 

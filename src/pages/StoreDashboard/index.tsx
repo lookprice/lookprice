@@ -980,6 +980,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
       { id: "authority_transfer", label: isTr ? 'Yetki Transferleri' : 'Authority Transfers', icon: ArrowLeftRight },
       { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
+      { id: "team-crm", label: isTr ? 'Ekip & CRM (Performans)' : 'Team & CRM', icon: Users },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Teklifler & Cari" : "Quotations & Clients", items: [
       { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
@@ -989,7 +990,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
-      { id: "team-crm", label: isTr ? 'Ekip & CRM (Performans)' : 'Team & CRM', icon: Users },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
@@ -1010,7 +1010,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
       { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
       { id: "companies", label: t.companies, icon: Store },
-      { id: "team-crm", label: isTr ? 'Ekip & CRM (Performans)' : 'Team & CRM', icon: Users },
     ]},
     { type: 'category', key: "operations", title: isTr ? "Operasyon" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
@@ -1018,10 +1017,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
       { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
-      { id: "fleet", label: t.fleet, icon: Car, badge: notifications.fleet },
-    ]},
-    { type: 'category', key: "real_estate", title: isTr ? "Emlak" : "Real Estate", items: [
-      { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },

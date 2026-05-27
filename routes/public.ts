@@ -128,6 +128,76 @@ function generateIyzicoSignature(apiKey: string, secretKey: string, randomString
   return hash;
 }
 
+router.get("/stores/:slug/radar-news", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const storeId = storeRes.rows[0].id;
+
+    // Self-heal table check
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS radar_news (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        source TEXT,
+        image_url TEXT,
+        date TEXT,
+        tags JSONB DEFAULT '[]',
+        intensity TEXT,
+        published_on_store BOOLEAN DEFAULT FALSE,
+        published_on_enrakipsiz BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const result = await pool.query(
+      "SELECT * FROM radar_news WHERE store_id = $1 AND published_on_store = TRUE ORDER BY created_at DESC",
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Public fetch news error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/enrakipsiz/radar-news", async (req, res) => {
+  try {
+    // Self-heal table check
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS radar_news (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        source TEXT,
+        image_url TEXT,
+        date TEXT,
+        tags JSONB DEFAULT '[]',
+        intensity TEXT,
+        published_on_store BOOLEAN DEFAULT FALSE,
+        published_on_enrakipsiz BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const result = await pool.query(
+      `SELECT r.*, s.name as store_name, s.slug as store_slug
+       FROM radar_news r
+       JOIN stores s ON r.store_id = s.id
+       WHERE r.published_on_enrakipsiz = TRUE 
+       ORDER BY r.created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Public enrakipsiz news error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/enrakipsiz/portal", async (req, res) => {
   try {
     // Self-heal table structure if not yet initialized

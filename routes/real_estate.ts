@@ -462,4 +462,52 @@ router.post('/news', authenticate, async (req: any, res) => {
   }
 });
 
+// Update or publish a radar news item with upsert on store_id + title
+router.post('/radar-news/publish', authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz } = req.body;
+
+  try {
+    const existing = await pool.query(
+      "SELECT id FROM radar_news WHERE store_id = $1 AND title = $2",
+      [storeId, title]
+    );
+
+    let result;
+    if (existing.rows.length > 0) {
+      result = await pool.query(
+        `UPDATE radar_news 
+         SET summary = $1, source = $2, image_url = $3, date = $4, tags = $5, published_on_store = $6, published_on_enrakipsiz = $7
+         WHERE id = $8 RETURNING *`,
+        [summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, existing.rows[0].id]
+      );
+    } else {
+      result = await pool.query(
+        `INSERT INTO radar_news (store_id, title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [storeId, title, summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz]
+      );
+    }
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Radar news publish error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get published/managed radar news items for the active store
+router.get('/radar-news', authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM radar_news WHERE store_id = $1 ORDER BY created_at DESC",
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Fetch radar news error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

@@ -2170,6 +2170,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [radarNews, setRadarNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -2412,13 +2413,18 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       setLoading(true);
       console.log(`Fetching store data for slug: ${slug}`);
       try {
-        const [storeRes, productsRes] = await Promise.all([
+        const [storeRes, productsRes, radarNewsRes] = await Promise.all([
           api.getPublicStore(slug),
           api.getPublicStoreProducts(slug),
+          api.getPublicRadarNews(slug).catch((err: any) => {
+            console.error("Failed to load radar news:", err);
+            return [];
+          })
         ]);
 
         console.log("Store response:", storeRes);
         console.log("Products response:", productsRes);
+        console.log("Radar news response:", radarNewsRes);
 
         if (storeRes.redirect) {
           navigate(storeRes.redirect, { replace: true });
@@ -2462,6 +2468,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         setProducts(
           productsRes.filter((p: Product) => p.is_web_sale !== false),
         );
+        setRadarNews(Array.isArray(radarNewsRes) ? radarNewsRes : []);
 
         // If we have a barcode in the URL and haven't selected a product yet, try to find it
         if (urlBarcode) {
@@ -4443,6 +4450,76 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           : t.dashboard.noProductsDesc}
                       </p>
                     </div>
+                  )}
+
+                  {/* Imar/News Radar Section for the Store Showcase website */}
+                  {radarNews && radarNews.length > 0 && (
+                    <section className="mt-20 py-12 border-t border-slate-100 bg-slate-50/50 rounded-3xl px-6 md:px-10">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-xs mb-1 uppercase tracking-widest">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{width: '8px', height: '8px'}} />
+                            📡 AI İnceleme & Bölgesel İmar Gelişmeleri
+                          </div>
+                          <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                            {lang === "tr" ? "Haberler & İmar Gelişmeleri" : "Local News & Radar Alerts"}
+                          </h2>
+                        </div>
+                        <span className="text-xs text-slate-500 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-xs inline-flex items-center gap-1.5 font-semibold">
+                          📡 Google Alerts & lookprice AI Grounding
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {radarNews.map((newsItem) => (
+                          <div 
+                            key={newsItem.id} 
+                            className="flex flex-col bg-white rounded-2xl border border-slate-150/60 p-5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                          >
+                            {newsItem.image_url && (
+                              <div className="h-44 w-full rounded-xl overflow-hidden mb-4 relative bg-slate-100">
+                                <img 
+                                  src={newsItem.image_url} 
+                                  alt={newsItem.title} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  referrerPolicy="no-referrer"
+                                />
+                                {newsItem.intensity === 'high' && (
+                                  <span className="absolute top-3 left-3 bg-rose-500 text-[9px] font-black text-white px-2 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
+                                    Flaş Rapor
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            <div className="flex-1 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-2 text-[10px] text-slate-400 font-bold">
+                                  <span>{newsItem.source}</span>
+                                  <span>{newsItem.date}</span>
+                                </div>
+                                <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2 line-clamp-2 leading-snug">
+                                  {newsItem.title}
+                                </h3>
+                                <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed mb-4">
+                                  {newsItem.summary}
+                                </p>
+                              </div>
+
+                              {newsItem.tags && newsItem.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-auto pt-2 border-t border-slate-50">
+                                  {(Array.isArray(newsItem.tags) ? newsItem.tags : JSON.parse(newsItem.tags || '[]')).map((tag: string, idx: number) => (
+                                    <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-lg">
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                   )}
                 </div>
               </div>

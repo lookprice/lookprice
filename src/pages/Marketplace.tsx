@@ -34,6 +34,7 @@ type CategoryFilter = "all" | "vehicle" | "real_estate" | "product";
 export const Marketplace = () => {
   const navigate = useNavigate();
   const [listings, setListings] = useState<any[]>([]);
+  const [portalNews, setPortalNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
@@ -146,12 +147,17 @@ export const Marketplace = () => {
   };
 
   useEffect(() => {
-    api.getMarketplaceListings()
-      .then(res => {
-        setListings(res || []);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    setLoading(true);
+    Promise.all([
+      api.getMarketplaceListings().catch(() => []),
+      api.getPublicEnrakipsizRadarNews().catch(() => [])
+    ])
+    .then(([listingsRes, newsRes]) => {
+      setListings(listingsRes || []);
+      setPortalNews(newsRes || []);
+    })
+    .catch(console.error)
+    .finally(() => setLoading(false));
   }, []);
 
   // Filter & Sort Logic
@@ -365,6 +371,80 @@ export const Marketplace = () => {
 
       {/* Main Core Showcase Portal */}
       <main id="enrakipsiz-portal-head" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
+        
+        {/* Kıbrıs İmar, Mevzuat & Bölgesel Gelişmeler Radar Feed (enrakipsiz.com) */}
+        {portalNews && portalNews.length > 0 && (
+          <section className="mb-14">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider mb-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  📡 MERKEZİ İMAR & MEVZUAT RADARI
+                </div>
+                <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
+                  Kıbrıs İmar, Mevzuat & Bölgesel Gelişmeler
+                </h2>
+              </div>
+              <span className="text-[11px] text-slate-400 bg-slate-950 border border-slate-850 rounded-full px-3 py-1 font-semibold flex items-center gap-1.5 self-start">
+                📡 Canlı Veri Akışı
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {portalNews.map((newsItem) => (
+                <div 
+                  key={newsItem.id} 
+                  className="flex flex-col bg-slate-950/60 border border-slate-800 rounded-2xl p-4 hover:border-slate-700/60 transition-all duration-300 shadow-xl relative overflow-hidden group"
+                >
+                  {newsItem.image_url && (
+                    <div className="h-36 w-full rounded-xl overflow-hidden mb-3 relative bg-slate-900 border border-slate-800/60">
+                      <img 
+                        src={newsItem.image_url} 
+                        alt={newsItem.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        referrerPolicy="no-referrer"
+                      />
+                      {newsItem.intensity === 'high' && (
+                        <span className="absolute top-2 left-2 bg-rose-500 text-[8px] font-black text-white px-2 py-0.5 rounded uppercase tracking-widest animate-pulse">
+                          Flaş Rapor
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 text-[9px] text-slate-500 font-bold mb-2">
+                        <span>{newsItem.source}</span>
+                        <span>{newsItem.date}</span>
+                      </div>
+                      <h3 className="text-xs font-black text-white group-hover:text-rose-400 transition-colors mb-1.5 line-clamp-2 leading-relaxed">
+                        {newsItem.title}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 line-clamp-3 leading-relaxed mb-3">
+                        {newsItem.summary}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 pt-2 border-t border-slate-900 mt-auto">
+                      {newsItem.tags && (Array.isArray(newsItem.tags) ? newsItem.tags : JSON.parse(newsItem.tags || '[]')).map((tag: string, idx: number) => (
+                        <span key={idx} className="text-[9px] bg-slate-900 border border-slate-800 text-slate-400 font-bold px-1.5 py-0.5 rounded">
+                          #{tag}
+                        </span>
+                      ))}
+                      {newsItem.store_name && (
+                        <span className="text-[9px] bg-indigo-950/40 border border-indigo-900/40 text-indigo-300 font-black px-1.5 py-0.5 rounded ml-auto">
+                          🏢 {newsItem.store_name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Filtering and Search Bento Box */}
         <section className="bg-slate-900/60 backdrop-blur-md rounded-3xl p-6 border border-slate-800 mb-10 shadow-xl">
           <div className="flex flex-col gap-6">
