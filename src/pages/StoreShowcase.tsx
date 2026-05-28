@@ -72,6 +72,7 @@ import { api } from "../services/api";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "@/translations";
 import { ModernPortfolioLayout } from "../components/ModernPortfolioLayout";
+import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
 
 import ErrorBoundary from "../components/ErrorBoundary";
 import { PageBuilder } from "../components/PageBuilder";
@@ -101,6 +102,12 @@ const getLabels = (labels: any): string[] => {
     }
   }
   return [];
+};
+
+const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
+  const isPortfolio = storeType === "portfolio" || sector === "real_estate" || sector === "automotive";
+  const decimals = isPortfolio ? 0 : 2;
+  return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
 };
 
 const ProductCard: React.FC<{
@@ -325,7 +332,7 @@ const ProductCard: React.FC<{
               {t.dashboard.price}
             </span>
             <span className="text-xsl font-bold text-gray-900">
-              {formatPrice(convertedPrice, store?.currency || product.currency)}
+              {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
             </span>
           </div>
           <button
@@ -1886,7 +1893,7 @@ const ProductDetailModal: React.FC<{
             <span
               className={`text-4xl text-slate-900 ${isLuxury ? "!font-sans !font-medium" : "font-semibold font-display"}`}
             >
-              {formatPrice(convertedPrice, store?.currency || product.currency)}
+              {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
             </span>
             {product.unit && (
               <span className="text-xsl text-slate-400 font-medium">
@@ -3723,11 +3730,11 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           })()}
                           <div className="flex items-center justify-center gap-3">
                             <span className="text-xsl font-semibold text-slate-900 font-sans tracking-tight">
-                              {formatPrice(product.price)}
+                              {formatPrice(product.price, store?.currency || product.currency || '', store?.sector || 'general', store?.store_type)}
                             </span>
                             {product.old_price && (
                               <span className="text-sm font-medium text-slate-400 line-through decoration-red-500/50 font-sans tracking-tight">
-                                {formatPrice(product.old_price)}
+                                {formatPrice(product.old_price || 0, store?.currency || product.currency || '', store?.sector || 'general', store?.store_type)}
                               </span>
                             )}
                           </div>
@@ -4352,73 +4359,45 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           case "news":
                             if (!radarNews || radarNews.length === 0) return null;
                             return (
-                              <section key={section.id} className="py-12 border-t border-slate-100 bg-slate-50/50 rounded-3xl px-6 md:px-10">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                                  <div>
-                                    <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-xs mb-1 uppercase tracking-widest">
-                                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{width: '8px', height: '8px'}} />
-                                      📡 {lang === "tr" ? "AI İNCELEME & BÖLGESEL İMAR GELİŞMELERİ" : "AI ANALYSIS & LAND REGULATION UPDATES"}
-                                    </div>
-                                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                                      {lang === "tr" ? "Canlı Haber & İmar Gelişmeleri" : "Local News & Radar Alerts"}
-                                    </h2>
+                              <section key={section.id} className="py-6 border-t border-slate-150 bg-slate-50/50 px-4">
+                                <RadarShowcaseSlider radarNews={radarNews} lang={lang} theme="light" />
+                              </section>
+                            );
+                            /*
+                            return (
+                              <section key={section.id} className="py-4 border-t border-slate-100 bg-slate-50/50 px-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-[10px] uppercase tracking-widest whitespace-nowrap">
+                                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    {lang === "tr" ? "RADAR" : "RADAR"}
                                   </div>
-                                  <span className="text-xs text-slate-500 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-xs inline-flex items-center gap-1.5 font-semibold">
-                                    📡 Google Alerts & lookprice AI Grounding
-                                  </span>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                  {radarNews.map((newsItem) => (
-                                    <div 
-                                      key={newsItem.id} 
-                                      className="flex flex-col bg-white rounded-2xl border border-slate-150/60 p-5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                                  <div className="flex-1 relative overflow-hidden h-8 bg-white border border-slate-100 rounded-full my-4 flex items-center">
+                                    <motion.div 
+                                      className="flex items-center h-full cursor-grab"
+                                      animate={{ x: ["0%", "-50%"] }}
+                                      transition={{
+                                        repeat: Infinity,
+                                        duration: 60,
+                                        ease: "linear"
+                                      }}
+                                      whileHover={{ animationPlayState: "paused" }}
+                                      style={{ width: "200%", display: "flex", flexWrap: "nowrap" }}
                                     >
-                                      {newsItem.image_url && (
-                                        <div className="h-44 w-full rounded-xl overflow-hidden mb-4 relative bg-slate-100">
-                                          <img 
-                                            src={newsItem.image_url} 
-                                            alt={newsItem.title} 
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            referrerPolicy="no-referrer"
-                                          />
-                                          {newsItem.intensity === 'high' && (
-                                            <span className="absolute top-3 left-3 bg-rose-500 text-[9px] font-black text-white px-2 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
-                                              Flaş Rapor
-                                            </span>
-                                          )}
+                                      {[...radarNews, ...radarNews].map((newsItem, index) => (
+                                        <div 
+                                          key={`${newsItem.id}-${index}`} 
+                                          className="flex-none px-6 text-[11px] font-bold text-slate-600 hover:text-indigo-600 transition-colors whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
+                                          style={{ width: "33.333%" }}
+                                        >
+                                          {newsItem.title}
                                         </div>
-                                      )}
-                                      
-                                      <div className="flex-1 flex flex-col justify-between">
-                                        <div>
-                                          <div className="flex items-center justify-between gap-2 mb-2 text-[10px] text-slate-400 font-bold">
-                                            <span>{newsItem.source}</span>
-                                            <span>{newsItem.date}</span>
-                                          </div>
-                                          <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2 line-clamp-2 leading-snug">
-                                            {newsItem.title}
-                                          </h3>
-                                          <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed mb-4">
-                                            {newsItem.summary}
-                                          </p>
-                                        </div>
-
-                                        {newsItem.tags && newsItem.tags.length > 0 && (
-                                          <div className="flex flex-wrap gap-1 mt-auto pt-2 border-t border-slate-50">
-                                            {(Array.isArray(newsItem.tags) ? newsItem.tags : JSON.parse(newsItem.tags || '[]')).map((tag: string, idx: number) => (
-                                              <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-lg">
-                                                #{tag}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
+                                      ))}
+                                    </motion.div>
+                                  </div>
                                 </div>
                               </section>
                             );
+                            */
                           case "about":
                             return (
                               <section
@@ -4554,75 +4533,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                     </div>
                   )}
 
-                  {/* Imar/News Radar Section for the Store Showcase website */}
-                  {radarNews && radarNews.length > 0 && (
-                    <section className="mt-20 py-12 border-t border-slate-100 bg-slate-50/50 rounded-3xl px-6 md:px-10">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                        <div>
-                          <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-xs mb-1 uppercase tracking-widest">
-                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{width: '8px', height: '8px'}} />
-                            📡 AI İnceleme & Bölgesel İmar Gelişmeleri
-                          </div>
-                          <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                            {lang === "tr" ? "Haberler & İmar Gelişmeleri" : "Local News & Radar Alerts"}
-                          </h2>
-                        </div>
-                        <span className="text-xs text-slate-500 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-xs inline-flex items-center gap-1.5 font-semibold">
-                          📡 Google Alerts & lookprice AI Grounding
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {radarNews.map((newsItem) => (
-                          <div 
-                            key={newsItem.id} 
-                            className="flex flex-col bg-white rounded-2xl border border-slate-150/60 p-5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
-                          >
-                            {newsItem.image_url && (
-                              <div className="h-44 w-full rounded-xl overflow-hidden mb-4 relative bg-slate-100">
-                                <img 
-                                  src={newsItem.image_url} 
-                                  alt={newsItem.title} 
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                  referrerPolicy="no-referrer"
-                                />
-                                {newsItem.intensity === 'high' && (
-                                  <span className="absolute top-3 left-3 bg-rose-500 text-[9px] font-black text-white px-2 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
-                                    Flaş Rapor
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            
-                            <div className="flex-1 flex flex-col justify-between">
-                              <div>
-                                <div className="flex items-center justify-between gap-2 mb-2 text-[10px] text-slate-400 font-bold">
-                                  <span>{newsItem.source}</span>
-                                  <span>{newsItem.date}</span>
-                                </div>
-                                <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2 line-clamp-2 leading-snug">
-                                  {newsItem.title}
-                                </h3>
-                                <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed mb-4">
-                                  {newsItem.summary}
-                                </p>
-                              </div>
-
-                              {newsItem.tags && newsItem.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-auto pt-2 border-t border-slate-50">
-                                  {(Array.isArray(newsItem.tags) ? newsItem.tags : JSON.parse(newsItem.tags || '[]')).map((tag: string, idx: number) => (
-                                    <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-lg">
-                                      #{tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
                 </div>
               </div>
 
