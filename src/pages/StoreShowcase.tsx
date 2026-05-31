@@ -1363,7 +1363,7 @@ const ProductDetailModal: React.FC<{
   };
 
   return (
-    <APIProvider apiKey={MAP_KEY} version="alpha">
+    <APIProvider apiKey={MAP_KEY}>
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <SEO
         title={`${product.name} | ${store?.name}`}

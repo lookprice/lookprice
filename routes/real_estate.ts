@@ -133,7 +133,7 @@ router.post('/properties/analyze', authenticate, async (req: any, res) => {
     const prompt = `Aktif emlak portföyü için danışmanlara yönelik stratejik içgörüler üret. Portföy verileri: ${JSON.stringify(properties.rows.slice(0, 50))}. Sadece JSON formatında yanıt ver: { "insights": [ { "id": "property_id_or_null", "title": "...", "description": "...", "type": "warning" | "info" | "success" } ] }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: { responseMimeType: "application/json" }
     });

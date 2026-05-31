@@ -41,7 +41,8 @@ async function startServer() {
     allKeys: Object.keys(process.env),
     nodeEnv: process.env.NODE_ENV,
     hasCloudflareToken: !!process.env.CLOUDFLARE_API_TOKEN,
-    hasCloudflareAccount: !!process.env.CLOUDFLARE_ACCOUNT_ID
+    hasCloudflareAccount: !!process.env.CLOUDFLARE_ACCOUNT_ID,
+    hasGoogleMapsKey: !!process.env.GOOGLE_MAPS_PLATFORM_KEY
   });
   const app = express();
   const PORT = 3000;
