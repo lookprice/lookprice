@@ -26,9 +26,10 @@ interface PortfolioAnalyticsTabProps {
   branding: any;
   loading?: boolean;
   onDateChange?: (start: string, end: string) => void;
+  onNavigateTab?: (tab: string, status?: string) => void;
 }
 
-const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange }: PortfolioAnalyticsTabProps) => {
+const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onNavigateTab }: PortfolioAnalyticsTabProps) => {
   const { lang } = useLanguage();
   const [dateRange, setDateRange] = React.useState('this_month');
 
@@ -119,19 +120,28 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange }: P
 
       {/* Portfolio Stats (Example) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="os-panel p-6 bg-indigo-50 border border-indigo-100/50 shadow-sm">
+        <div 
+          onClick={() => onNavigateTab && onNavigateTab('real_estate', 'active')}
+          className="os-panel p-6 bg-indigo-50 border border-indigo-100/50 shadow-sm cursor-pointer hover:bg-indigo-100/60 hover:-translate-y-0.5 transition-all duration-150 active:scale-[0.99] hover:shadow"
+        >
            <p className="text-xs font-bold text-indigo-600 uppercase mb-1">{lang === 'tr' ? 'Aktif İlanlar' : 'Active Listings'}</p>
-           <p className="text-[10px] text-indigo-400 mb-3 font-medium">{lang === 'tr' ? 'Piyasadaki aktif portföyünüz.' : 'Current active properties in market.'}</p>
+           <p className="text-[10px] text-indigo-400 mb-3 font-medium">{lang === 'tr' ? 'Piyasadaki aktif portföyünüz. (Yönetmek için Tıklayın)' : 'Current active properties in market. (Click to Manage)'}</p>
            <p className="text-3xl font-black text-slate-900 mono-data">{analytics?.active_listings || 0}</p>
         </div>
-        <div className="os-panel p-6 bg-emerald-50 border border-emerald-100/50 shadow-sm">
+        <div 
+          onClick={() => onNavigateTab && onNavigateTab('portfolio_finances')} 
+          className="os-panel p-6 bg-emerald-50 border border-emerald-100/50 shadow-sm cursor-pointer hover:bg-emerald-100/60 hover:-translate-y-0.5 transition-all duration-150 active:scale-[0.99] hover:shadow"
+        >
            <p className="text-xs font-bold text-emerald-600 uppercase mb-1">{lang === 'tr' ? 'Tamamlanan İşlemler' : 'Completed Deals'}</p>
-           <p className="text-[10px] text-emerald-400 mb-3 font-medium">{lang === 'tr' ? 'Bu dönem başarıyla sonuçlananlar.' : 'Successfully closed deals this period.'}</p>
+           <p className="text-[10px] text-emerald-400 mb-3 font-medium">{lang === 'tr' ? 'Bu dönem başarıyla sonuçlanan kasaya giren mülkler. (Finans Kasa için Tıklayın)' : 'Successfully closed deals this period. (Click for Finances Ledger)'}</p>
            <p className="text-3xl font-black text-slate-900 mono-data">{analytics?.completed_deals || 0}</p>
         </div>
-        <div className="os-panel p-6 bg-amber-50 border border-amber-100/50 shadow-sm">
+        <div 
+          onClick={() => onNavigateTab && onNavigateTab('real_estate')} 
+          className="os-panel p-6 bg-amber-50 border border-amber-100/50 shadow-sm cursor-pointer hover:bg-amber-100/60 hover:-translate-y-0.5 transition-all duration-150 active:scale-[0.99] hover:shadow"
+        >
            <p className="text-xs font-bold text-amber-600 uppercase mb-1">{lang === 'tr' ? 'Bekleyen Görevler' : 'Pending Tasks'}</p>
-           <p className="text-[10px] text-amber-400 mb-3 font-medium">{lang === 'tr' ? 'İlginizi bekleyen aktif işler.' : 'Active tasks requiring attention.'}</p>
+           <p className="text-[10px] text-amber-400 mb-3 font-medium">{lang === 'tr' ? 'İlginizi bekleyen aktif işler ve danışmanlık içgörüleri. (Görevleri Gör)' : 'Active tasks requiring attention. (Click to View Tasks)'}</p>
            <p className="text-3xl font-black text-slate-900 mono-data">{analytics?.pending_tasks || 0}</p>
         </div>
       </div>
@@ -141,20 +151,32 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange }: P
       
       {/* Property Status Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button onClick={() => setSelectedStatus('active')} className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-left hover:bg-blue-100 transition-colors">
-              <p className="text-[10px] font-bold text-blue-600 uppercase">Aktif</p>
+          <button 
+            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'active')} 
+            className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-left hover:bg-blue-100 transition-all hover:-translate-y-0.5"
+          >
+              <p className="text-[10px] font-bold text-blue-600 uppercase">{lang === 'tr' ? 'Aktif' : 'Active'}</p>
               <p className="text-xl font-black text-slate-900">{analytics?.status_counts?.active || 0}</p>
           </button>
-          <button onClick={() => setSelectedStatus('optioned')} className="p-4 bg-orange-50 border border-orange-100 rounded-xl text-left hover:bg-orange-100 transition-colors">
-              <p className="text-[10px] font-bold text-orange-600 uppercase">Opsiyonlu</p>
+          <button 
+            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'optioned')} 
+            className="p-4 bg-orange-50 border border-orange-100 rounded-xl text-left hover:bg-orange-100 transition-all hover:-translate-y-0.5"
+          >
+              <p className="text-[10px] font-bold text-orange-600 uppercase">{lang === 'tr' ? 'Opsiyonlu' : 'Optioned'}</p>
               <p className="text-xl font-black text-slate-900">{analytics?.status_counts?.optioned || 0}</p>
           </button>
-          <button onClick={() => setSelectedStatus('sold_or_rented')} className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-left hover:bg-emerald-100 transition-colors">
-              <p className="text-[10px] font-bold text-emerald-600 uppercase">Satıldı/Kiralandı</p>
+          <button 
+            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'sold_or_rented')} 
+            className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-left hover:bg-emerald-100 transition-all hover:-translate-y-0.5"
+          >
+              <p className="text-[10px] font-bold text-emerald-600 uppercase">{lang === 'tr' ? 'Satıldı/Kiralandı' : 'Sold/Rented'}</p>
               <p className="text-xl font-black text-slate-900">{analytics?.status_counts?.sold_or_rented || 0}</p>
           </button>
-          <button className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-left cursor-default">
-              <p className="text-[10px] font-bold text-slate-600 uppercase">Toplam</p>
+          <button 
+            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'all')} 
+            className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-left hover:bg-slate-100 transition-all hover:-translate-y-0.5"
+          >
+              <p className="text-[10px] font-bold text-slate-600 uppercase">{lang === 'tr' ? 'Toplam' : 'Total'}</p>
               <p className="text-xl font-black text-slate-900">{analytics?.total_properties || 0}</p>
           </button>
       </div>

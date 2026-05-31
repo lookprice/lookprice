@@ -49,6 +49,92 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
 
   const isDark = theme === "dark";
 
+  // Dynamic fallback image selector based on keywords to prevent empty boxes and look ultra professional!
+  const getNewsImage = (item: RadarNewsItem): string => {
+    if (!item) return "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80";
+    if (item.image_url && item.image_url.trim().length > 10) return item.image_url;
+    if (item.imageUrl && item.imageUrl.trim().length > 10) return item.imageUrl;
+
+    const query = ((item.title || "") + " " + (item.summary || "")).toLowerCase();
+
+    // 1. Finance & Credit
+    if (
+      query.includes("kredi") ||
+      query.includes("faiz") ||
+      query.includes("finans") ||
+      query.includes("bank") ||
+      query.includes("para") ||
+      query.includes("sponsor") ||
+      query.includes("loan") ||
+      query.includes("finance") ||
+      query.includes("mortgage") ||
+      query.includes("vade")
+    ) {
+      return "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80";
+    }
+
+    // 2. Legal, Law & Zoning
+    if (
+      query.includes("imar") ||
+      query.includes("mevzuat") ||
+      query.includes("yasa") ||
+      query.includes("kanun") ||
+      query.includes("belediye") ||
+      query.includes("karar") ||
+      query.includes("tapu") ||
+      query.includes("legal") ||
+      query.includes("law") ||
+      query.includes("zoning") ||
+      query.includes("hukuk")
+    ) {
+      return "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80";
+    }
+
+    // 3. Real Estate, Villa, Property, Land
+    if (
+      query.includes("villa") ||
+      query.includes("konut") ||
+      query.includes("apartman") ||
+      query.includes("mülk") ||
+      query.includes("bina") ||
+      query.includes("daire") ||
+      query.includes("arsa") ||
+      query.includes("arazi") ||
+      query.includes("property") ||
+      query.includes("real estate") ||
+      query.includes("house") ||
+      query.includes("şantiye") ||
+      query.includes("proje")
+    ) {
+      return "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80";
+    }
+
+    // 4. Tech & AI Radar
+    if (
+      query.includes("radar") ||
+      query.includes("ai") ||
+      query.includes("akıllı") ||
+      query.includes("teknoloji") ||
+      query.includes("analiz") ||
+      query.includes("veri") ||
+      query.includes("cyber") ||
+      query.includes("smart")
+    ) {
+      return "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80";
+    }
+
+    // Rotative Fallback based on item index or title length
+    const idNum = typeof item.id === "number" ? item.id : (item.title?.length || 0);
+    const fallbacks = [
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
+    ];
+
+    return fallbacks[idNum % fallbacks.length];
+  };
+
   // Normalize tags helper
   const getTags = (item: RadarNewsItem): string[] => {
     if (!item.tags) return [];
@@ -166,19 +252,20 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[220px]">
             {/* Visual block */}
             <div className="lg:col-span-4 relative rounded-2xl overflow-hidden shadow-md group aspect-[16/10] lg:aspect-auto">
-              {currentNews?.image_url || currentNews?.imageUrl ? (
-                <img 
-                  src={currentNews.image_url || currentNews.imageUrl} 
-                  alt={currentNews.title} 
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-[4s]"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className={`absolute inset-0 flex flex-col items-center justify-center p-6 ${isDark ? "bg-slate-900 border border-slate-800" : "bg-slate-100 border border-slate-200"}`}>
-                  <BadgeAlert className={`w-10 h-10 ${isDark ? "text-indigo-400/40" : "text-indigo-600/30"} mb-2`} />
-                  <span className={`text-[10px] font-bold ${isDark ? "text-slate-500" : "text-slate-400"}`}>Visual Preview</span>
-                </div>
-              )}
+              <img 
+                src={getNewsImage(currentNews)} 
+                alt={currentNews?.title || "LookPrice News"} 
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-[4s]"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
+              
+              {/* Glassmorphic Brand Stamp Overlay */}
+              <div className="absolute bottom-3 right-3 z-10 bg-slate-950/75 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 shadow-lg">
+                <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[8px] font-black text-white tracking-[0.12em]">LOOKPRICE LIVE NEWS</span>
+              </div>
+
               {/* Overlay Glass Intensity Pill */}
               <div className="absolute top-4 left-4 flex gap-1.5 items-center">
                 {currentNews.intensity === "high" && (
@@ -377,37 +464,28 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
               }`}
             >
               {/* Header block with image or banner */}
-              {(selectedItem.image_url || selectedItem.imageUrl) ? (
-                <div className="h-52 w-full relative overflow-hidden bg-slate-100 flex-shrink-0 border-b border-slate-100/10">
-                  <img 
-                    src={selectedItem.image_url || selectedItem.imageUrl} 
-                    alt={selectedItem.title} 
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${isDark ? "from-slate-950 via-slate-950/40" : "from-white via-white/40"} to-transparent`} />
-                  
-                  <button 
-                    onClick={() => setSelectedItem(null)}
-                    className="absolute top-6 right-6 p-2 rounded-full backdrop-blur-md bg-black/40 text-white hover:bg-black/60 transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              <div className="h-52 w-full relative overflow-hidden bg-slate-100 flex-shrink-0 border-b border-slate-100/10">
+                <img 
+                  src={getNewsImage(selectedItem)} 
+                  alt={selectedItem.title} 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                <div className={`absolute inset-0 bg-gradient-to-t ${isDark ? "from-slate-950 via-slate-950/45" : "from-white via-white/45"} to-transparent`} />
+                
+                {/* Glassmorphic Brand Stamp Overlay */}
+                <div className="absolute bottom-4 right-4 z-10 bg-slate-950/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 shadow-lg">
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-[9px] font-black text-white tracking-[0.12em]">LOOKPRICE LIVE NEWS</span>
                 </div>
-              ) : (
-                <div className={`p-6 border-b flex items-center justify-between flex-shrink-0 ${isDark ? "border-slate-850" : "border-slate-150"}`}>
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-indigo-500" />
-                    <span className="text-[11px] font-black uppercase tracking-widest text-indigo-500">LOOKPRICE AI RADAR INSIGHT</span>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedItem(null)}
-                    className={`p-1.5 rounded-full transition-all ${isDark ? "hover:bg-slate-900 text-slate-400" : "hover:bg-slate-100 text-slate-500"} cursor-pointer`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              )}
+
+                <button 
+                  onClick={() => setSelectedItem(null)}
+                  className="absolute top-6 right-6 p-2 rounded-full backdrop-blur-md bg-black/40 text-white hover:bg-black/60 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
               {/* Scrollable description panel */}
               <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh]">

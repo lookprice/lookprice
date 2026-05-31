@@ -200,6 +200,9 @@ export const api = {
   getRadarNews: () => api.get(`/api/real-estate/radar-news`),
   getPublicRadarNews: (slug: string) => api.get(`/api/public/stores/${slug}/radar-news`),
   getPublicEnrakipsizRadarNews: () => api.get(`/api/public/enrakipsiz/radar-news`),
+  getPortfolioTransactions: () => api.get(`/api/real-estate/transactions`),
+  addPortfolioTransaction: (data: any) => api.post(`/api/real-estate/transactions`, data),
+  deletePortfolioTransaction: (id: number) => api.delete(`/api/real-estate/transactions/${id}`),
 
   getSalesInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html?type=sales`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),

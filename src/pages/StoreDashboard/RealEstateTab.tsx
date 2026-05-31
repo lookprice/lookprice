@@ -51,6 +51,8 @@ interface RealEstateTabProps {
   onDelete?: (id: number) => void;
   user?: any; // Contains store_id and role
   branding?: any;
+  initialStatusFilter?: string;
+  onResetStatusFilter?: () => void;
 }
 
 // Fixed mock buyers list for the automated customer matching algorithm
@@ -118,12 +120,21 @@ const mockBuyers: BuyerDemand[] = [
   }
 ];
 
-const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding }: RealEstateTabProps) => {
+const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, initialStatusFilter, onResetStatusFilter }: RealEstateTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
   const [filterRegion, setFilterRegion] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+
+  useEffect(() => {
+    if (initialStatusFilter) {
+      setFilterStatus(initialStatusFilter);
+      if (onResetStatusFilter) {
+        onResetStatusFilter();
+      }
+    }
+  }, [initialStatusFilter]);
   const [filterBranch, setFilterBranch] = useState("all");
   const [filterScope, setFilterScope] = useState("all");
 
@@ -686,272 +697,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding }
               {properties.filter(p => p.country === 'KKTC').length} <span className="text-[10px] text-slate-500 font-bold">İlan</span>
             </span>
           </div>
-        </div>
-      </div>
-
-      {/* 📰 GOOGLE ALERTS HABER RADARI & İMAR GELİŞMELERİ TAKİP KONSOLU */}
-      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white p-7 rounded-[2.5rem] shadow-xl space-y-6 relative overflow-hidden">
-        {/* Visual Background Decors */}
-        <div className="absolute -top-10 -right-10 w-44 h-44 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-4 relative z-10">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-indigo-600/30 text-indigo-400 rounded-lg inline-flex">
-                <span className="animate-pulse w-2 h-2 rounded-full bg-indigo-500" />
-              </span>
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">LIVE RADAR & AI ALERTS</span>
-            </div>
-            <h3 className="text-xl font-black tracking-tight mt-1">İmar, Mevzuat & Bölgesel Gelişmeler Takip Radarı</h3>
-            <p className="text-slate-300 text-xs mt-1.5 font-medium leading-relaxed max-w-2xl">
-              Önceden etiketlediğiniz kritik konu başlıklarını (Lefkoşa İmar, Girne Marina, Krediler vb.) web ağları, Resmi Gazete ve devlet kabine bültenlerinde canlı tarar, sizi anında uyarır ve tek tıkla portföy mağazalarınız ile enrakipsiz.com'da yayına alır.
-            </p>
-          </div>
-
-          <div className="flex flex-col items-end gap-2">
-            <button
-              onClick={handleAIScanAlerts}
-              disabled={isScanningNews}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase shadow-md transition-all border ${isScanningNews ? 'bg-slate-700 border-slate-600 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-505 hover:scale-[1.02] active:scale-95'}`}
-            >
-              {isScanningNews ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4 text-amber-300" />
-              )}
-              {isScanningNews ? 'AI Tarıyor...' : '⚡ AI ile Gelişmeleri Taramayı Tetikle'}
-            </button>
-            <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20 shadow-sm cursor-help" title="Sistem belirlediğiniz etiketleri günde 2 kez otomatik tarar.">
-               <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-               {lang === 'tr' ? '12 SAATLIK OTOMATİK CRON JOB AKTİF' : '12H AUTO CRON JOB ACTIVE'}
-            </div>
-          </div>
-        </div>
-
-        {/* TAGS & SUBSCRIPTIONS HUB */}
-        <div className="space-y-3 relative z-10 bg-white/5 p-4 rounded-3xl border border-white/5">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <span className="text-[10px] font-black text-indigo-300 uppercase tracking-wider">🔔 Abone Olunan Konu Başlıkları (Google Alerts Anahtarları)</span>
-            <span className="text-[9px] text-slate-400 font-bold">Yeşil kutular e-posta uyarılarının aktif olduğunu gösterir.</span>
-          </div>
-
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* Filter tags pill */}
-            <button
-              onClick={() => setSelectedNewsTag(null)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                selectedNewsTag === null
-                  ? 'bg-white text-slate-900 shadow'
-                  : 'bg-white/10 text-slate-300 hover:bg-white/15'
-              }`}
-            >
-              🌐 Tüm Gelişmeler ({newsFeed.length})
-            </button>
-
-            {newsTags.map((tag) => {
-              const matchedNewsCount = newsFeed.filter(news => news.tags.some(t => t.toLowerCase() === tag.value.toLowerCase())).length;
-              return (
-                <div
-                  key={tag.id}
-                  className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-xl text-xs font-bold transition-all border ${
-                    selectedNewsTag === tag.value
-                      ? 'bg-indigo-600 border-indigo-500 text-white shadow'
-                      : 'bg-slate-800/80 border-slate-700/50 text-slate-300 hover:bg-slate-700/80'
-                  }`}
-                >
-                  <button
-                    onClick={() => setSelectedNewsTag(selectedNewsTag === tag.value ? null : tag.value)}
-                    className="text-left font-extrabold max-w-[150px] truncate"
-                  >
-                    #{tag.name} <span className="text-[10px] opacity-70">({matchedNewsCount})</span>
-                  </button>
-                  
-                  {/* Email Alert Switch Box */}
-                  <label className="flex items-center cursor-pointer ml-1.5 text-[9px] select-none" title="E-posta Bildirimi">
-                    <input
-                      type="checkbox"
-                      checked={tag.emailAlert}
-                      onChange={() => {
-                        setNewsTags(newsTags.map(t => t.id === tag.id ? { ...t, emailAlert: !t.emailAlert } : t));
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="w-5.5 h-5.5 bg-slate-700 border border-slate-600 peer-focus:outline-none rounded flex items-center justify-center transition-all peer-checked:bg-emerald-600 peer-checked:border-emerald-500">
-                      📬
-                    </div>
-                  </label>
-
-                  {/* Delete tag */}
-                  <button
-                    onClick={() => {
-                      if (confirm(`"${tag.name}" takibini sonlandırmak istiyor musunuz?`)) {
-                        setNewsTags(newsTags.filter(t => t.id !== tag.id));
-                      }
-                    }}
-                    className="text-red-400 hover:text-red-500 p-1 opacity-60 hover:opacity-100"
-                    title="Takip Etiketini Sil"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ADD NEW TAG FORM PANEL */}
-          <div className="pt-3 border-t border-white/10 mt-3 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
-            <div className="md:col-span-2 grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                placeholder="Örn: Lefkoşa İmar"
-                className="bg-slate-800 text-white border-0 focus:ring-1 focus:ring-indigo-500 rounded-xl px-3 py-2 text-xs font-semibold placeholder-slate-400"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder="Örn: imar, imar planı, parsel"
-                className="bg-slate-800 text-white border-0 focus:ring-1 focus:ring-indigo-500 rounded-xl px-3 py-2 text-xs font-semibold placeholder-slate-400"
-                value={newTagKeyword}
-                onChange={(e) => setNewTagKeyword(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2 px-1">
-              <input
-                type="checkbox"
-                id="newEmailAlert"
-                checked={newTagEmailAlert}
-                onChange={(e) => setNewTagEmailAlert(e.target.checked)}
-                className="rounded bg-slate-800 border-0 focus:ring-indigo-500 text-indigo-600 h-4 w-4"
-              />
-              <label htmlFor="newEmailAlert" className="text-[10.5px] text-slate-305 font-semibold cursor-pointer select-none">
-                Meydana geldiğinde Mail Gönder!
-              </label>
-            </div>
-            <button
-              onClick={() => {
-                if (!newTagName || !newTagKeyword) {
-                  alert("Lütfen etiket başlığı ve takip kelimesini boş bırakmayınız!");
-                  return;
-                }
-                setNewsTags([...newsTags, {
-                  id: Date.now().toString(),
-                  name: newTagName,
-                  value: newTagKeyword,
-                  emailAlert: newTagEmailAlert,
-                  matchesCount: 0
-                }]);
-                setNewTagName("");
-                setNewTagKeyword("");
-                alert(`"${newTagName}" takip grubu oluşturuldu! Bu kelimeler nerede geçerse radarımızda yakalanacak ve e-posta bildirimi gönderilecektir.`);
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase py-2 px-4 rounded-xl shadow transition-all"
-            >
-              ➕ Yeni Takip Başlığı Ekle
-            </button>
-          </div>
-        </div>
-
-        {/* HABER GEÇİŞ IZGARASI FLOW GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 relative z-10">
-          {(() => {
-            const filteredNews = selectedNewsTag 
-              ? newsFeed.filter(item => item.tags.some(t => t.toLowerCase().includes(selectedNewsTag.toLowerCase())))
-              : newsFeed;
-
-            if (filteredNews.length === 0) {
-              return (
-                <div className="col-span-full text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-3xl">
-                  <span className="text-xl">📭</span>
-                  <p className="text-xs text-slate-400 font-bold mt-2">Bu takip başlığı ile eşleşen yeni bir gelişme bulunmuyor.</p>
-                  <p className="text-[10px] text-slate-500">Üstteki AI butonunu tetikleyerek yeni haber uyarısı simüle edebilirsiniz.</p>
-                </div>
-              );
-            }
-
-            return filteredNews.map((news) => (
-              <div 
-                key={news.id} 
-                className="bg-slate-950 border border-slate-850 hover:border-indigo-550 p-5 rounded-[2rem] flex flex-col justify-between transition-all group hover:shadow-lg shadow-black/40"
-              >
-                <div className="space-y-3">
-                  {/* News Card Header */}
-                  <div className="flex justify-between items-start gap-1">
-                    <span className="text-[9px] bg-slate-900 text-slate-400 border border-slate-800 font-black px-2.5 py-0.5 rounded-full uppercase">
-                      📍 {news.source}
-                    </span>
-                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      news.intensity === 'high' ? 'bg-rose-950 text-rose-300 border border-rose-800' : 'bg-blue-950 text-blue-300 border border-blue-900'
-                    }`}>
-                      {news.intensity === 'high' ? '🚨 Yüksek Etki / Kritik' : '📈 Piyasa Akışı'}
-                    </span>
-                  </div>
-
-                  <h5 className="font-extrabold text-sm text-slate-100 group-hover:text-indigo-300 transition-colors leading-snug">
-                    {news.title}
-                  </h5>
-
-                  <p className="text-[11px] text-slate-400 font-medium leading-relaxed font-sans">
-                    {news.summary}
-                  </p>
-                  
-                  {/* Matched Tags Container inside Card */}
-                  <div className="flex flex-wrap gap-1">
-                    {news.tags.map((t, idx) => (
-                      <span key={idx} className="text-[9px] bg-indigo-950/50 border border-indigo-900/40 text-indigo-300 font-bold px-1.5 py-0.5 rounded">
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3 pt-4 border-t border-white/5 mt-4">
-                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold">
-                    <span>Yakalama: <strong>{news.date}</strong></span>
-                    <span className="text-indigo-400">Google Alerts Active</span>
-                  </div>
-
-                  {/* ACTIONS DOCK FOR INTEGRATION PUBLISHING */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    {/* 1. Portföy Mağazamda Göster action */}
-                    <button
-                      onClick={() => handleTogglePublish(news.id, 'store')}
-                      className={`py-1.5 px-2 rounded-xl text-[9.5px] font-black text-center border transition-all ${
-                        news.publishedOnStore 
-                          ? 'bg-emerald-900/40 border-emerald-500 text-emerald-300' 
-                          : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'
-                      }`}
-                    >
-                      {news.publishedOnStore ? '🏪 Mağazada Yayında' : '🏪 Mağazada Göster'}
-                    </button>
-
-                    {/* 2. enrakipsiz.com'da Yayınla action */}
-                    <button
-                      onClick={() => handleTogglePublish(news.id, 'enrakipsiz')}
-                      className={`py-1.5 px-2 rounded-xl text-[9.5px] font-black text-center border transition-all ${
-                        news.publishedOnEnrakipsiz 
-                          ? 'bg-indigo-600 border-indigo-505 text-white shadow-md' 
-                          : 'bg-slate-900 border-slate-800 hover:bg-slate-850 text-slate-300'
-                      }`}
-                    >
-                      {news.publishedOnEnrakipsiz ? '🚀 enrakipsiz\'de Yayında' : '🚀 enrakipsiz\'de Yayınla'}
-                    </button>
-                  </div>
-
-                  {/* 3. CRM Dispatch action (Sends to buyers in that category) */}
-                  <button
-                    onClick={() => {
-                      alert(`✉️ CRM TOPLU BİLDİRİMİ GÖNDERİLDİ!\n\nBu gelişmeyle eşleşen alıcılara ("${news.tags.join(', ')}") konusuyla ilgili e-posta ve WhatsApp bülteni lookprice tarafından otomatik olarak iletildi.`);
-                    }}
-                    className="w-full py-1.5 bg-slate-900 hover:bg-indigo-600 hover:text-white border border-slate-800 rounded-xl text-[9.5px] text-slate-400 font-extrabold transition-all"
-                  >
-                    ✉️ Eşleşen Alıcılara Mail At / Raporla
-                  </button>
-                </div>
-              </div>
-            ));
-          })()}
         </div>
       </div>
 

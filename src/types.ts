@@ -84,6 +84,7 @@ export interface Store {
   phone: string;
   email: string;
   store_type?: 'product' | 'portfolio';
+  sector?: string;
   emails?: string[];
   phones?: string[];
   custom_domain?: string;
@@ -132,6 +133,7 @@ export interface Store {
   branches?: { id: number; name: string; slug: string; address: string; phone: string }[];
   consultants?: { id: number; branch_id: number; name: string; email: string; phone: string; role: string; image_url?: string }[];
   reservation_enabled?: boolean;
+  financing_settings?: any;
   // Payment configuration
   payment_settings?: {
     iyzico_enabled: boolean;
@@ -272,6 +274,7 @@ export interface RealEstateProperty {
     file_url: string;
     upload_date: string;
     size?: string;
+    details?: any;
   }[];
   created_at: string;
   updated_at: string;

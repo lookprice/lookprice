@@ -64,7 +64,8 @@ import {
   Facebook,
   BookOpen,
   Sparkles,
-  Users
+  Users,
+  Wallet
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -106,6 +107,8 @@ const FleetTab = React.lazy(() => import("./FleetTab"));
 const MetaIntegrationTab = React.lazy(() => import("./MetaIntegrationTab"));
 const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
 const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
+const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ default: m.RadarAlertsTab })));
+const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
 import ShippingSlip from "../../components/ShippingSlip";
 import { AutocompleteSelect } from "../../components/AutocompleteSelect";
 import { toast } from "sonner";
@@ -410,6 +413,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
   }, [activeTab, user.store_id]);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [realEstateStatusFilter, setRealEstateStatusFilter] = useState("all");
   const shippingSlipRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: shippingSlipRef });
   const [selectedPurchaseInvoice, setSelectedPurchaseInvoice] = useState<any>(null);
@@ -978,6 +982,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const navItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
       { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
+      { id: "radar_alerts", label: isTr ? 'Live Radar & AI' : 'Live Radar & AI', icon: Sparkles },
       { id: "authority_transfer", label: isTr ? 'Yetki Transferleri' : 'Authority Transfers', icon: ArrowLeftRight },
       { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
       { id: "team-crm", label: isTr ? 'Ekip & CRM (Performans)' : 'Team & CRM', icon: Users },
@@ -985,6 +990,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "sales", title: isTr ? "Teklifler & Cari" : "Quotations & Clients", items: [
       { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
       { id: "companies", label: t.companies, icon: Store },
+      { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
@@ -1001,7 +1007,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "dashboard", title: isTr ? "Dashboard" : "Dashboard", items: [
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
-      { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Satış & Müşteriler" : "Sales & Customers", items: [
@@ -1013,11 +1018,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "operations", title: isTr ? "Operasyon" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
+      { id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
       { id: "procurements", label: t.procurements, icon: Truck },
       { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
       { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
     ]},
+    { 
+      type: 'category', 
+      key: "real_estate_demo", 
+      title: isTr ? "Emlak Portföyü (Demo)" : "Property Portfolio (Demo)", 
+      items: [
+        { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
+        { id: "radar_alerts", label: isTr ? 'Live Radar & AI' : 'Live Radar & AI', icon: Sparkles }
+      ] 
+    },
     { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
       { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
@@ -1218,39 +1233,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           <div className="max-w-7xl mx-auto space-y-8">
             {/* Analytical Header Section */}
-            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 mb-12 pb-10 border-b border-slate-200">
-              <div className="space-y-6">
-                <nav className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                  <span className="hover:text-indigo-500 cursor-default transition-colors">ROOT</span>
-                  <ChevronRight className="h-3 w-3 text-slate-300" />
-                  <span className="hover:text-indigo-500 cursor-default transition-colors">CORE_OS</span>
-                  <ChevronRight className="h-3 w-3 text-slate-300" />
-                  <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{activeTab?.toUpperCase()}_MODULE</span>
-                </nav>
-                <div className="flex items-center justify-between w-full md:block">
-                  <div className="relative inline-block">
-                    <h3 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none mb-2">
-                      {t[activeTab as keyof typeof t] || activeTab}
-                    </h3>
-                    <div className="h-1.5 w-full bg-indigo-600/10 absolute -bottom-1 left-0 rounded-full" />
-                  </div>
-                  
-                  {/* Mobile Notification Center (Visible only on mobile) */}
-                  <div className="flex md:hidden items-center space-x-2">
-                    {(notifications.transfers + notifications.service + notifications.quotations + notifications.sales) > 0 && (
-                      <div className="relative p-2.5 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50">
-                        <Bell className="h-5 w-5 text-slate-400" />
-                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
+            {['products', 'quotations', 'companies'].includes(activeTab) && (
+              <div className="flex justify-end gap-3 mb-6">
                 {activeTab === 'products' && (
                   <>
                     {(user.role === 'superadmin' || ((branding.stores || branding.branches || branches.length > 0) && ((branding.stores?.length || 0) > 1 || (branding.branches?.length || 0) > 1 || branches.length > 1))) && (
@@ -1289,7 +1273,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </button>
                 )}
               </div>
-            </div>
+            )}
 
             <AnimatePresence mode="wait">
               <motion.div
@@ -1329,7 +1313,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           showStoreName={includeBranches}
                           currentStoreId={currentStoreId}
                           includeBranches={includeBranches}
+                          propertiesCount={properties ? properties.length : 0}
+                          onSwitchTab={(tab) => setActiveTab(tab)}
                         />
+                      </Suspense>
+                    )}
+                    {activeTab === "portfolio_finances" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <PortfolioFinancesTab storeId={currentStoreId!} />
                       </Suspense>
                     )}
                     {activeTab === "real_estate" && (
@@ -1341,13 +1332,31 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onDelete={deleteProperty}
                           user={user}
                           branding={branding}
+                          initialStatusFilter={realEstateStatusFilter}
+                          onResetStatusFilter={() => setRealEstateStatusFilter("all")}
                         />
+                      </Suspense>
+                    )}
+                    {activeTab === "radar_alerts" && (
+                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+                        <RadarAlertsTab />
                       </Suspense>
                     )}
                     {activeTab === "analytics" && (
                       <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
                       {isPortfolio ? (
-                        <PortfolioAnalyticsTab analytics={analytics} branding={branding} onDateChange={(s, e) => fetchAnalytics(s, e)} loading={loading} />
+                        <PortfolioAnalyticsTab 
+                          analytics={analytics} 
+                          branding={branding} 
+                          onDateChange={(s, e) => fetchAnalytics(s, e)} 
+                          loading={loading} 
+                          onNavigateTab={(tab, status) => {
+                            setActiveTab(tab);
+                            if (status) {
+                              setRealEstateStatusFilter(status);
+                            }
+                          }}
+                        />
                       ) : (
                         <AnalyticsTab analytics={analytics} branding={branding} onDateChange={(s, e) => fetchAnalytics(s, e)} loading={loading} />
                       )}

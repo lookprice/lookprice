@@ -58,6 +58,8 @@ interface ProductsTabProps {
   showStoreName?: boolean;
   currentStoreId?: number;
   includeBranches?: boolean;
+  propertiesCount?: number;
+  onSwitchTab?: (tab: string) => void;
 }
 
 const ProductsTab = ({ 
@@ -78,7 +80,9 @@ const ProductsTab = ({
   branding,
   showStoreName,
   currentStoreId,
-  includeBranches
+  includeBranches,
+  propertiesCount,
+  onSwitchTab
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -347,6 +351,32 @@ const ProductsTab = ({
 
   return (
     <div className="space-y-4">
+      {propertiesCount !== undefined && propertiesCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-[1.5rem] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2">
+          <div className="flex items-start gap-3">
+             <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+             <div>
+               <h4 className="text-sm font-black text-amber-800 uppercase tracking-wide">
+                 {lang === 'tr' ? "Emlak İlanları Tespit Edildi" : "Real Estate Listings Detected"}
+               </h4>
+               <p className="text-xs text-amber-700 font-medium leading-relaxed">
+                 {lang === 'tr' 
+                   ? `Bu mağazada ${propertiesCount} adet emlak portföy ilanı bulunmaktadır. Menü yapısı ürün/operasyon odaklı olduğundan emlak ilanlarını görüntülemek/silmek için sol menüdeki "Emlak Portföyü (Demo)" alanını kullanabilirsiniz.` 
+                   : `There are ${propertiesCount} real estate listings registered in this store. Since menus are product-focused, you can use the "Property Portfolio (Demo)" tab in the sidebar to view and manage/delete them.`}
+               </p>
+             </div>
+          </div>
+          {onSwitchTab && (
+            <button 
+              type="button"
+              onClick={() => onSwitchTab("real_estate")}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all self-start sm:self-center whitespace-nowrap active:scale-95 duration-100"
+            >
+              {lang === 'tr' ? "Emlak Yönetimine Git" : "Go to Real Estate Management"}
+            </button>
+          )}
+        </div>
+      )}
       {selectedProduct && (
         <ProductMovementModal 
           product={selectedProduct} 

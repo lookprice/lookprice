@@ -95,7 +95,24 @@ const upload = multer({ storage: multer.memoryStorage() });
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("Real estate table verification processed.");
+
+    // Create portfolio_transactions table for income and expenses
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS portfolio_transactions (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id),
+        type TEXT NOT NULL, -- 'income' or 'expense'
+        category TEXT NOT NULL, -- 'commission', 'rent', 'advertising', 'salary', 'utilities', 'other'
+        title TEXT NOT NULL,
+        amount NUMERIC NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'TRY',
+        date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        property_id INTEGER REFERENCES real_estate_properties(id) ON DELETE SET NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("Real estate table verification processed with portfolio_transactions.");
   } catch (error) {
     console.error("Real estate table error:", error);
   }
@@ -507,6 +524,109 @@ router.get('/radar-news', authenticate, async (req: any, res) => {
     res.json(result.rows);
   } catch (error: any) {
     console.error("Fetch radar news error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /transactions - Fetch portfolio financials
+router.get('/transactions', authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  try {
+    const result = await pool.query(
+      `SELECT t.*, p.title as property_title 
+       FROM portfolio_transactions t
+       LEFT JOIN real_estate_properties p ON t.property_id = p.id
+       WHERE t.store_id = $1
+       ORDER BY t.date DESC, t.id DESC`,
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Fetch portfolio transactions error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /transactions - Record financial transaction (income/expense)
+router.post('/transactions', authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { type, category, title, amount, currency, date, property_id, description } = req.body;
+
+  if (!type || !category || !title || !amount) {
+    return res.status(400).json({ error: "Type, category, title, and amount are required." });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO portfolio_transactions (store_id, type, category, title, amount, currency, date, property_id, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        storeId, 
+        type, 
+        category, 
+        title, 
+        amount, 
+        currency || 'TRY', 
+        date || new Date().toISOString(), 
+        property_id || null, 
+        description || ''
+      ]
+    );
+    
+    // Log the transaction in the audit log if property_id was provided
+    if (property_id) {
+      await pool.query(
+        `INSERT INTO property_audit_log (property_id, action, changed_by, details) 
+         VALUES ($1, $2, $3, $4)`,
+        [
+          property_id, 
+          'FINANCIAL_RECORD', 
+          req.user.id, 
+          `Created financial entry: ${type === 'income' ? 'Gelir' : 'Gider'} - ${title} (${amount} ${currency || 'TRY'})`
+        ]
+      );
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Create portfolio transaction error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /transactions/:id - Remove financial record
+router.delete('/transactions/:id', authenticate, async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM portfolio_transactions WHERE id = $1 AND store_id = $2 RETURNING *`,
+      [id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Transaction not found or unauthorized." });
+    }
+
+    const deleted = result.rows[0];
+    if (deleted.property_id) {
+      await pool.query(
+        `INSERT INTO property_audit_log (property_id, action, changed_by, details) 
+         VALUES ($1, $2, $3, $4)`,
+        [
+          deleted.property_id, 
+          'FINANCIAL_DELETE', 
+          req.user.id, 
+          `Deleted financial entry: ${deleted.title} (${deleted.amount} ${deleted.currency})`
+        ]
+      );
+    }
+
+    res.json({ success: true, deleted });
+  } catch (error: any) {
+    console.error("Delete portfolio transaction error:", error);
     res.status(500).json({ error: error.message });
   }
 });

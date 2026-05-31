@@ -11,6 +11,7 @@ import { Store, Product } from "../types";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
+import { BlogShowcaseModal } from "./BlogShowcaseModal";
 
 interface ModernPortfolioLayoutProps {
   store: Store;
@@ -27,6 +28,71 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
 }) => {
   const { lang } = useLanguage();
   const [blogs, setBlogs] = useState<any[]>([]);
+  const [selectedBlogPost, setSelectedBlogPost] = useState<any>(null);
+
+  // Financing Calculator States
+  const [finPropertyPrice, setFinPropertyPrice] = useState<number>(5000000);
+  const [finDownPaymentPercent, setFinDownPaymentPercent] = useState<number>(30);
+  const [finDurationMonths, setFinDurationMonths] = useState<number>(120);
+  const [finInterestRate, setFinInterestRate] = useState<number>(1.89);
+  const [finCurrency, setFinCurrency] = useState<string>("GBP");
+  const [selectedBank, setSelectedBank] = useState<string>("Creditwest Bank");
+  const [isFinancingApplied, setIsFinancingApplied] = useState<boolean>(false);
+  const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
+  const [applyName, setApplyName] = useState<string>("");
+  const [applyPhone, setApplyPhone] = useState<string>("");
+  const [applyEmail, setApplyEmail] = useState<string>("");
+  const [applySuccess, setApplySuccess] = useState<boolean>(false);
+
+  // Sync interest rate from store.financing_settings dynamically by active currency (e.g., TRY, GBP, EUR, USD)
+  useEffect(() => {
+    if (selectedBank === "📢 [REKLAM ALANI] - Kiralık Sponsor Alanı") return;
+    const currentFinSettings = store?.financing_settings || {};
+    const baseRatesObj = currentFinSettings.base_rates || {};
+    const partnerRatesObj = currentFinSettings.partner_rates || {};
+    const promoActive = currentFinSettings.partner_promo_active === true;
+
+    // Default rates fallback by currency
+    const DEFAULT_BASE_RATES: Record<string, Record<string, number>> = {
+      TRY: { "Creditwest Bank": 3.49, "Kıbrıs İktisat Bankası": 3.65, "Limasol Sosyal Kooperatif": 3.89, "Ziraat Bankası KKTC": 3.79 },
+      GBP: { "Creditwest Bank": 0.55, "Kıbrıs İktisat Bankası": 0.60, "Limasol Sosyal Kooperatif": 0.65, "Ziraat Bankası KKTC": 0.58 },
+      EUR: { "Creditwest Bank": 0.49, "Kıbrıs İktisat Bankası": 0.52, "Limasol Sosyal Kooperatif": 0.58, "Ziraat Bankası KKTC": 0.50 },
+      USD: { "Creditwest Bank": 0.52, "Kıbrıs İktisat Bankası": 0.55, "Limasol Sosyal Kooperatif": 0.60, "Ziraat Bankası KKTC": 0.54 }
+    };
+
+    // Get rates object for the active currency
+    let currencyBase: Record<string, number> = {};
+    if (baseRatesObj["Creditwest Bank"] !== undefined) {
+      // Legacy flat base rates, treat as TRY
+      currencyBase = finCurrency === "TRY" 
+        ? {
+            "Creditwest Bank": Number(baseRatesObj["Creditwest Bank"] || 1.89),
+            "Kıbrıs İktisat Bankası": Number(baseRatesObj["Kıbrıs İktisat Bankası"] || 2.05),
+            "Limasol Sosyal Kooperatif": Number(baseRatesObj["Limasol Sosyal Kooperatif"] || 2.19),
+            "Ziraat Bankası KKTC": Number(baseRatesObj["Ziraat Bankası KKTC"] || 1.99)
+          }
+        : DEFAULT_BASE_RATES[finCurrency] || DEFAULT_BASE_RATES.GBP;
+    } else {
+      currencyBase = baseRatesObj[finCurrency] || DEFAULT_BASE_RATES[finCurrency] || DEFAULT_BASE_RATES.GBP;
+    }
+
+    let currencyPartner: Record<string, any> = {};
+    if (partnerRatesObj["Creditwest Bank"] !== undefined) {
+      // Legacy flat partner rates, treat as TRY
+      currencyPartner = finCurrency === "TRY" ? { ...partnerRatesObj } : {};
+    } else {
+      currencyPartner = partnerRatesObj[finCurrency] || {};
+    }
+
+    const baseVal = currencyBase[selectedBank] !== undefined ? parseFloat(String(currencyBase[selectedBank])) : (DEFAULT_BASE_RATES[finCurrency]?.[selectedBank] || 0.55);
+    const partnerVal = currencyPartner[selectedBank] !== undefined && currencyPartner[selectedBank] !== "" ? parseFloat(String(currencyPartner[selectedBank])) : null;
+
+    const rate = (promoActive && partnerVal !== null && !isNaN(partnerVal)) ? partnerVal : baseVal;
+
+    if (!isNaN(rate)) {
+      setFinInterestRate(rate);
+    }
+  }, [store?.financing_settings, selectedBank, finCurrency]);
 
   // Active filters states (applied only on button click)
   const [activeLocation, setActiveLocation] = useState<string>("all");
@@ -508,6 +574,7 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                 {(blogs.length > 0 ? blogs : []).map((blog, i) => (
                   <div
                     key={i}
+                    onClick={() => setSelectedBlogPost(blog)}
                     className="group cursor-pointer flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden hover:shadow-2xl hover:shadow-rose-500/10 transition-all duration-300"
                   >
                     <div className="h-64 relative overflow-hidden">
@@ -546,71 +613,517 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
           )}
 
               {/* Standalone Financing Calculator for Portfolio */}
-              {isSectionEnabled("financing") && (
-                <div className="pt-24">
-                  <div className="bg-slate-900 rounded-[3.5rem] p-8 md:p-16 text-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full" />
-                    <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                      <div className="space-y-8">
-                        <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-2xl border border-white/5">
-                          <Check className="h-4 w-4 text-indigo-400" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Akıllı Finansal Asistan</span>
-                        </div>
-                        <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none">
-                          {lang === "tr" ? "Yatırımınızı\nPlanlayın" : "Plan Your\nInvestment"}
-                        </h2>
-                        <p className="text-slate-400 font-bold max-w-md">
-                          {lang === "tr" 
-                            ? "Hayalinizdeki mülk için size özel ödeme planlarını ve kredi seçeneklerini anında hesaplayın."
-                            : "Calculate your personalized payment plans and credit options for your dream property instantly."}
-                        </p>
-                        <div className="flex flex-wrap gap-4 pt-4">
-                           <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center flex-1 min-w-[120px]">
-                              <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Düşük Faiz</p>
-                              <p className="text-lg font-black text-emerald-400">%1.89</p>
-                           </div>
-                           <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center flex-1 min-w-[120px]">
-                              <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Vade</p>
-                              <p className="text-lg font-black text-indigo-400">120 Ay</p>
-                           </div>
-                        </div>
-                      </div>
+              {isSectionEnabled("financing") && (() => {
+                const currentFinSettings = store?.financing_settings || {};
+                const baseRatesObj = currentFinSettings.base_rates || {};
+                const partnerRatesObj = currentFinSettings.partner_rates || {};
+                const promoActive = currentFinSettings.partner_promo_active === true;
 
-                      <div className="bg-white text-slate-900 p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-6">
-                         <div className="space-y-6">
-                            <div className="space-y-2">
-                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mülk Tutarı</label>
-                               <div className="relative">
-                                  <input type="text" defaultValue="5.000.000" className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xl font-black focus:ring-2 focus:ring-indigo-600 outline-none transition-all" />
-                                  <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-400">TRY</span>
-                               </div>
+                const DEFAULT_BASE_RATES: Record<string, Record<string, number>> = {
+                  TRY: { "Creditwest Bank": 3.49, "Kıbrıs İktisat Bankası": 3.65, "Limasol Sosyal Kooperatif": 3.89, "Ziraat Bankası KKTC": 3.79 },
+                  GBP: { "Creditwest Bank": 0.55, "Kıbrıs İktisat Bankası": 0.60, "Limasol Sosyal Kooperatif": 0.65, "Ziraat Bankası KKTC": 0.58 },
+                  EUR: { "Creditwest Bank": 0.49, "Kıbrıs İktisat Bankası": 0.52, "Limasol Sosyal Kooperatif": 0.58, "Ziraat Bankası KKTC": 0.50 },
+                  USD: { "Creditwest Bank": 0.52, "Kıbrıs İktisat Bankası": 0.55, "Limasol Sosyal Kooperatif": 0.60, "Ziraat Bankası KKTC": 0.54 }
+                };
+
+                let currencyBase: Record<string, number> = {};
+                if (baseRatesObj["Creditwest Bank"] !== undefined) {
+                  currencyBase = finCurrency === "TRY" 
+                    ? {
+                        "Creditwest Bank": Number(baseRatesObj["Creditwest Bank"] || 1.89),
+                        "Kıbrıs İktisat Bankası": Number(baseRatesObj["Kıbrıs İktisat Bankası"] || 2.05),
+                        "Limasol Sosyal Kooperatif": Number(baseRatesObj["Limasol Sosyal Kooperatif"] || 2.19),
+                        "Ziraat Bankası KKTC": Number(baseRatesObj["Ziraat Bankası KKTC"] || 1.99)
+                      }
+                    : DEFAULT_BASE_RATES[finCurrency] || DEFAULT_BASE_RATES.GBP;
+                } else {
+                  currencyBase = baseRatesObj[finCurrency] || DEFAULT_BASE_RATES[finCurrency] || DEFAULT_BASE_RATES.GBP;
+                }
+
+                let currencyPartner: Record<string, any> = {};
+                if (partnerRatesObj["Creditwest Bank"] !== undefined) {
+                  currencyPartner = finCurrency === "TRY" ? { ...partnerRatesObj } : {};
+                } else {
+                  currencyPartner = partnerRatesObj[finCurrency] || {};
+                }
+
+                const getEffectiveRate = (bankName: string, defaultRate: number) => {
+                  if (promoActive && currencyPartner[bankName] !== undefined && currencyPartner[bankName] !== "") {
+                    return parseFloat(String(currencyPartner[bankName]));
+                  }
+                  return currencyBase[bankName] !== undefined ? parseFloat(String(currencyBase[bankName])) : defaultRate;
+                };
+
+                const isOverridden = (bankName: string) => {
+                  return promoActive && currencyPartner[bankName] !== undefined && currencyPartner[bankName] !== "";
+                };
+
+                const sponsorBanks = [
+                  { name: "Creditwest Bank", rate: getEffectiveRate("Creditwest Bank", DEFAULT_BASE_RATES[finCurrency]?.["Creditwest Bank"] || 0.55), isSponsor: true, isActual: true, logo: "🏛️", isOverridden: isOverridden("Creditwest Bank") },
+                  { name: "Kıbrıs İktisat Bankası", rate: getEffectiveRate("Kıbrıs İktisat Bankası", DEFAULT_BASE_RATES[finCurrency]?.["Kıbrıs İktisat Bankası"] || 0.60), isSponsor: true, isActual: true, logo: "🏦", isOverridden: isOverridden("Kıbrıs İktisat Bankası") },
+                  { name: "Limasol Sosyal Kooperatif", rate: getEffectiveRate("Limasol Sosyal Kooperatif", DEFAULT_BASE_RATES[finCurrency]?.["Limasol Sosyal Kooperatif"] || 0.65), isSponsor: true, isActual: true, logo: "🏢", isOverridden: isOverridden("Limasol Sosyal Kooperatif") },
+                  { name: "Ziraat Bankası KKTC", rate: getEffectiveRate("Ziraat Bankası KKTC", DEFAULT_BASE_RATES[finCurrency]?.["Ziraat Bankası KKTC"] || 0.58), isSponsor: true, isActual: true, logo: "🏙️", isOverridden: isOverridden("Ziraat Bankası KKTC") },
+                  { name: "📢 [REKLAM ALANI] - Kiralık Sponsor Alanı", rate: 1.75, isSponsor: false, isActual: false, logo: "✨", isOverridden: false }
+                ];
+
+                const activeBank = sponsorBanks.find(b => b.name === selectedBank) || sponsorBanks[0];
+                const activeRate = activeBank.isActual ? activeBank.rate : finInterestRate;
+                const loanRequired = Math.max(0, finPropertyPrice * (1 - finDownPaymentPercent / 100));
+                const downPaymentVal = finPropertyPrice * (finDownPaymentPercent / 100);
+
+                const monthlyRateVal = activeRate / 100;
+                let computedMonthlyInstallment = 0;
+                if (monthlyRateVal === 0) {
+                  computedMonthlyInstallment = loanRequired / finDurationMonths;
+                } else {
+                  computedMonthlyInstallment = (loanRequired * monthlyRateVal * Math.pow(1 + monthlyRateVal, finDurationMonths)) / 
+                                       (Math.pow(1 + monthlyRateVal, finDurationMonths) - 1);
+                }
+
+                const computedTotalPayment = computedMonthlyInstallment * finDurationMonths;
+                const computedTotalInterest = Math.max(0, computedTotalPayment - loanRequired);
+
+                const formatFinValue = (val: number) => {
+                  return new Intl.NumberFormat("en-US", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  }).format(val) + " " + finCurrency;
+                };
+
+                const handleApplySubmit = (e: React.FormEvent) => {
+                  e.preventDefault();
+                  if (!applyName || !applyPhone || !applyEmail) {
+                    alert(lang === "tr" ? "Lütfen tüm başvuru alanlarını doldurunuz!" : "Please fill out all fields!");
+                    return;
+                  }
+                  
+                  // Simulate pushing to backend log/sync
+                  try {
+                    api.publishRadarNews({
+                      title: `💳 Yeni Kredi Ön Başvurusu: ${applyName}`,
+                      summary: `Müşteri ${applyName} (${applyPhone}, ${applyEmail}), ${selectedBank} üzerinden ${formatFinValue(loanRequired)} kredi başvurusu gerçekleştirdi. Vade: ${finDurationMonths} Ay, Faiz Oranı: %${activeRate}.`,
+                      source: 'Finansal Asistan Başvuru Hattı',
+                      date: 'Az Önce',
+                      tags: ['Kredi', 'Ön Başvuru', selectedBank],
+                      published_on_store: false,
+                      published_on_enrakipsiz: false
+                    }).catch(err => console.log("Silent persist err: ", err));
+                  } catch(e) {}
+
+                  setApplySuccess(true);
+                };
+
+                return (
+                  <div className="pt-24" id="financing-section">
+                    <div className="bg-slate-900 rounded-[3.5rem] p-8 md:p-16 text-white relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[150px] rounded-full pointer-events-none" />
+                      <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-emerald-500/5 blur-[100px] rounded-full pointer-events-none" />
+                      
+                      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+                        
+                        {/* LEFT COLUMN: INTERACTIVE INFORMATION BANK SELECTOR */}
+                        <div className="space-y-8">
+                          <div className="inline-flex items-center gap-2 bg-indigo-500/20 text-indigo-300 px-4 py-2 rounded-2xl border border-indigo-500/20">
+                            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                              {lang === "tr" ? "AKILLI FİNANSAL ASİSTAN" : "AI FINANCIAL ASSISTANT"}
+                            </span>
+                          </div>
+                          
+                          <h2 className="text-4.5xl md:text-5xl font-black uppercase tracking-tighter leading-none">
+                            {lang === "tr" ? "Yatırımınızı\nPlanlayın" : "Plan Your\nInvestment"}
+                          </h2>
+                          
+                          <p className="text-slate-400 font-bold max-w-md leading-relaxed text-sm">
+                            {lang === "tr" 
+                              ? "Hayalinizdeki mülk için Kıbrıs'ın saygın bankalarından size özel ödeme planları ve güncel mevduat kredi oranlarını hesaplayın."
+                              : "Calculate tailored mortgage options and payment plans from top Cyprus partner banks for your dream property."}
+                          </p>
+
+                          {/* SPONSOR BANKS GRID CHOOSER */}
+                          <div className="space-y-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
+                              {lang === "tr" ? "🏦 Kredi Veren Anlaşmalı Bankalar" : "🏦 Partner Financing Banks"}
+                            </span>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {sponsorBanks.map((bank) => (
+                                <button
+                                  key={bank.name}
+                                  onClick={() => {
+                                    setSelectedBank(bank.name);
+                                    if (bank.isActual) {
+                                      setFinInterestRate(bank.rate);
+                                    }
+                                  }}
+                                  className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all ${
+                                    selectedBank === bank.name
+                                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-650'
+                                      : 'bg-white/5 border-white/5 hover:bg-white/10 text-slate-350'
+                                  }`}
+                                >
+                                  <span className="text-xl">{bank.logo}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-extrabold truncate">{bank.name}</p>
+                                    <p className={`text-[10px] font-semibold ${selectedBank === bank.name ? 'text-indigo-200' : 'text-slate-400'} flex items-center flex-wrap gap-1 mt-0.5`}>
+                                      {bank.isActual 
+                                        ? `${lang === "tr" ? "Faiz" : "Interest"}: %${bank.rate}`
+                                        : (lang === "tr" ? "Kiralık Sponsor Alanı" : "Lease Option")}
+                                      {bank.isActual && bank.isOverridden && (
+                                        <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-200 text-[8px] font-black uppercase rounded block tracking-wider leading-none">
+                                          {lang === 'tr' ? 'ÖZEL' : 'PARTNER'}
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peşinat (%)</label>
-                                  <input type="number" defaultValue="30" className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-black focus:ring-2 focus:ring-indigo-600 outline-none" />
-                               </div>
-                               <div className="space-y-2">
-                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vade (Ay)</label>
-                                  <select className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-black focus:ring-2 focus:ring-indigo-600 outline-none appearance-none">
-                                     <option>36</option>
-                                     <option>60</option>
-                                     <option>120</option>
+                          </div>
+
+                          {/* BIZ-DEV LEASING CALLOUT SIGNATURE */}
+                          {selectedBank.includes("[REKLAM ALANI]") ? (
+                            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-rose-500/10 border border-amber-500/30 p-5 rounded-[2rem] space-y-3.5 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[8px] font-black px-3.5 py-1 rounded-bl-2xl uppercase tracking-widest animate-bounce">
+                                FIRSAT / SALE
+                              </div>
+                              <p className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5 mt-1">
+                                📢 BU ALAN SPONSORLUK İÇİN KİRALIKTIR!
+                              </p>
+                              <p className="text-xs text-slate-300 font-bold leading-relaxed">
+                                Bu saygın akıllı asistan bölmesi günde binlerce nitelikli emlak alıcısı tarafından aktif kullanılmaktadır. Bankanızın özel başvuru butonları ve özel faiz avantajlarını buraya sabitleyerek binlerce hazır müşteriyi şubelerinize yönlendirebilirsiniz.
+                              </p>
+                              <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-amber-500/15">
+                                <span className="text-[10px] font-semibold text-slate-400 font-mono">lookprice Sponsorluk & Entegrasyon Ağı</span>
+                                <a href="mailto:lookprice.me@gmail.com" className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-4 py-2 rounded-xl text-[10.5px] uppercase tracking-wider transition-colors">
+                                  Teklif Al & Kirala
+                                </a>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-white/5 border border-white/5 p-5 rounded-[2rem] space-y-3">
+                              <p className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                                🚀 SPONSOR KAMPANYASINDAN YARARLANIN
+                              </p>
+                              <p className="text-xs text-slate-300 font-bold leading-relaxed">
+                                {selectedBank} mülk portföyümüze özel %{activeRate} ayrıcalıklı faiz oranı tanımlamıştır. Bu oran lookprice müşterileri için dosya masrafından ve ekspertiz ücretinden tamamen muaftır.
+                              </p>
+                              <div className="text-[10px] text-slate-500 font-bold italic flex items-center justify-between border-t border-white/5 pt-2">
+                                <span>* Koçan tescili ve ipotek onay süreçleri dijital ortamda tamamlanır.</span>
+                                <span className="text-emerald-400 font-black">Pre-approved</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* RIGHT COLUMN: THE DYNAMIC CALCULATOR & PRE-APPLICATION SHEET */}
+                        <div className="bg-white text-slate-900 p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative">
+                          <div className="absolute -top-3 -right-3 bg-indigo-600 text-white font-black text-[9px] uppercase tracking-wider px-3.5 py-1.5 rounded-full shadow-lg">
+                            ACTIVE AI CALC
+                          </div>
+                          
+                          {!showApplyModal ? (
+                            <div className="space-y-6">
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div>
+                                  <h4 className="font-black text-slate-800 text-sm tracking-tight">
+                                    {lang === "tr" ? "Kredi Hesaplama & Simülasyon" : "Mortgage Calculation"}
+                                  </h4>
+                                  <p className="text-[10px] text-slate-400 font-bold">
+                                    {lang === "tr" ? "Konut degeri, peşinat oranı ve vadeler serbestçe uyarlanır." : "Adjust property value, down payment, and term."}
+                                  </p>
+                                </div>
+                                
+                                {/* Currency Options dropdown */}
+                                <select 
+                                  value={finCurrency}
+                                  onChange={(e) => setFinCurrency(e.target.value)}
+                                  className="bg-slate-50 border border-slate-155 text-slate-700 font-black rounded-xl p-1.5 px-3 text-xs focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                                >
+                                  <option value="GBP">GBP (£)</option>
+                                  <option value="EUR">EUR (€)</option>
+                                  <option value="USD">USD ($)</option>
+                                  <option value="TRY">TRY (₺)</option>
+                                </select>
+                              </div>
+
+                              {/* Form Field 1: Property Price */}
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                  <span>{lang === "tr" ? "Mülk Değeri" : "Property Value"}</span>
+                                  <span className="text-slate-500 font-sans">{formatFinValue(finPropertyPrice)}</span>
+                                </div>
+                                <div className="relative">
+                                  <input 
+                                    type="number" 
+                                    value={finPropertyPrice || ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value === "" ? 0 : Number(e.target.value);
+                                      setFinPropertyPrice(val);
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xl font-black focus:ring-2 focus:ring-indigo-600 outline-none transition-all pr-12 text-slate-800"
+                                  />
+                                  <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-400 text-xs">
+                                    {finCurrency}
+                                  </span>
+                                </div>
+                                <div className="flex gap-1">
+                                  {[150000, 250000, 500000, 3000000, 7500000].map((preset) => (
+                                    <button
+                                      key={preset}
+                                      type="button"
+                                      onClick={() => setFinPropertyPrice(preset)}
+                                      className="text-[9px] font-black text-slate-500 bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded border border-slate-200"
+                                    >
+                                      {preset >= 1000000 ? `${preset/1000000}M` : preset.toLocaleString()}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* DUAL COLS FOR Downpayment and Term */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                
+                                {/* Peşinat Ratio Form */}
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between items-center">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                      {lang === "tr" ? "Peşinat (%)" : "Down Payment (%)"}
+                                    </label>
+                                    <span className="text-[10px] font-bold text-slate-600">
+                                      {finDownPaymentPercent}%
+                                    </span>
+                                  </div>
+                                  <input 
+                                    type="range"
+                                    min="10" 
+                                    max="90" 
+                                    step="5"
+                                    value={finDownPaymentPercent} 
+                                    onChange={(e) => setFinDownPaymentPercent(Number(e.target.value))}
+                                    className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600 my-3"
+                                  />
+                                  <span className="text-[9px] text-slate-405 block text-center font-bold">
+                                    {formatFinValue(downPaymentVal)} Peşin Ödenir
+                                  </span>
+                                </div>
+
+                                {/* Term Selector */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    {lang === "tr" ? "Vade (Ay)" : "Term (Months)"}
+                                  </label>
+                                  <select 
+                                    value={finDurationMonths}
+                                    onChange={(e) => setFinDurationMonths(Number(e.target.value))}
+                                    className="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-xl font-black text-sm text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none appearance-none cursor-pointer"
+                                  >
+                                    <option value="12">12 Ay (1 Yıl)</option>
+                                    <option value="24">24 Ay (2 Yıl)</option>
+                                    <option value="36">36 Ay (3 Yıl)</option>
+                                    <option value="60">60 Ay (5 Yıl)</option>
+                                    <option value="120">120 Ay (10 Yıl)</option>
+                                    <option value="180">180 Ay (15 Yıl)</option>
+                                    <option value="240">240 Ay (20 Yıl)</option>
                                   </select>
-                               </div>
+                                </div>
+
+                              </div>
+
+                              {/* Custom Rate Modifier if not actual sponsor */}
+                              {!activeBank.isActual && (
+                                <div className="space-y-1.5 bg-amber-500/5 border border-amber-500/10 p-3.5 rounded-xl">
+                                  <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest block">
+                                    {lang === "tr" ? "Özel Aylık Faiz Oranı %" : "Custom Monthly Rate %"}
+                                  </label>
+                                  <input 
+                                    type="number" 
+                                    step="0.05"
+                                    value={finInterestRate}
+                                    onChange={(e) => setFinInterestRate(Number(e.target.value))}
+                                    className="w-full bg-slate-50 border border-slate-105 p-2 rounded-lg text-xs font-black"
+                                  />
+                                </div>
+                              )}
+
+                              {/* CALCULATION RESULTS DISPLAY CONTAINER */}
+                              <div className="bg-indigo-950 text-white p-5 rounded-3xl space-y-3.5 shadow-xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-650/40 rounded-full blur-xl pointer-events-none" />
+                                
+                                <div className="border-b border-indigo-900 pb-2.5">
+                                  <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
+                                    {lang === "tr" ? "Tahmini Aylık Taksit" : "Estimated Monthly Installment"}
+                                  </p>
+                                  <p className="text-3xl font-black text-emerald-400 tracking-tight mt-1">
+                                    {formatFinValue(computedMonthlyInstallment)}
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 text-[10.5px]">
+                                  <div>
+                                    <span className="text-indigo-305 block">{lang === "tr" ? "Kredi Anaparası" : "Loan Amount"}</span>
+                                    <span className="font-extrabold text-white text-xs">{formatFinValue(loanRequired)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-indigo-305 block">{lang === "tr" ? "Uygulanan Faiz Oranı" : "Interest Rate Applied"}</span>
+                                    <span className="font-extrabold text-emerald-400 text-xs">%{activeRate} / {lang === "tr" ? "Aylık" : "Month"}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-indigo-305 block">{lang === "tr" ? "Toplam Geri Ödeme" : "Total Repayment"}</span>
+                                    <span className="font-extrabold text-white text-xs">{formatFinValue(computedTotalPayment)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-indigo-355 block">{lang === "tr" ? "Toplam Faiz Maliyeti" : "Total Interest Cost"}</span>
+                                    <span className="font-extrabold text-indigo-200 text-xs">{formatFinValue(computedTotalInterest)}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <button 
+                                onClick={() => setShowApplyModal(true)}
+                                className="w-full bg-slate-900 text-white hover:bg-emerald-600 hover:scale-[1.01] py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl leading-none flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                🏦 {lang === "tr" ? "HEMEN ÖN ONAYLI KREDİYE BAŞVUR" : "APPLY FOR PRE-APPROVED LOAN"}
+                              </button>
+
+                              <p className="text-[9px] text-slate-400 text-center font-bold">
+                                {lang === "tr" 
+                                  ? "* Faiz oranları ve peşinat yükümlülükleri seçilen bankanın KKTC Genel Müdürlüğü ve lookprice özel protokolüne tabidir."
+                                  : "* Mortgage rates and terms are subject to selected bank's criteria and special lookprice protocol."}
+                              </p>
                             </div>
-                            <button className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl">
-                               Şimdi Hesapla
-                            </button>
-                            <p className="text-[9px] text-slate-400 text-center font-bold italic">
-                               * Hesaplamalar genel bilgilendirme amaçlıdır. Güncel banka verilerine göre değişiklik gösterebilir.
-                            </p>
-                         </div>
+                          ) : (
+                            /* SUBMISSION FORM OR STATUS SCREEN */
+                            <div className="space-y-6">
+                              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                <div>
+                                  <h4 className="font-black text-slate-900 text-sm uppercase tracking-tight">
+                                    {lang === "tr" ? "Kredi Ön Başvuru Kartı" : "Loan Application Form"}
+                                  </h4>
+                                  <span className="p-1 px-2.5 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded uppercase">
+                                    {selectedBank}
+                                  </span>
+                                </div>
+                                <button 
+                                  onClick={() => {
+                                    setShowApplyModal(false);
+                                    setApplySuccess(false);
+                                  }}
+                                  className="text-slate-400 hover:text-slate-650 font-black text-xs bg-slate-100 p-2 rounded-lg"
+                                >
+                                  ✕ {lang === "tr" ? "Geri Dön" : "Cancel"}
+                                </button>
+                              </div>
+
+                              {!applySuccess ? (
+                                <form onSubmit={handleApplySubmit} className="space-y-4">
+                                  <div className="bg-slate-50 p-4 rounded-2xl space-y-1 border border-slate-100">
+                                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">ÖN HESAP ÖZETİ</span>
+                                    <p className="text-xs text-slate-700 font-bold">
+                                      {formatFinValue(loanRequired)} kredi talebi, {finDurationMonths} ay vade, %{activeRate} anlaşmalı faiz oranı ile {selectedBank} bankası üzerinden işlenecektir.
+                                    </p>
+                                    <p className="text-sm font-black text-emerald-600 mt-1">
+                                      Aylık Taksit: {formatFinValue(computedMonthlyInstallment)}
+                                    </p>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                      {lang === "tr" ? "Adınız ve Soyadınız" : "Full Name"}
+                                    </label>
+                                    <input 
+                                      type="text" 
+                                      required
+                                      placeholder="Örn: Hasan Yılmaz"
+                                      value={applyName}
+                                      onChange={(e) => setApplyName(e.target.value)}
+                                      className="w-full bg-slate-50 border border-slate-150 p-3.5 rounded-xl font-bold text-xs focus:ring-1 focus:ring-indigo-500 outline-none text-slate-800"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                      {lang === "tr" ? "İletişim Telefonu" : "Phone Number"}
+                                    </label>
+                                    <input 
+                                      type="tel" 
+                                      required
+                                      placeholder="Örn: +90 533 ..."
+                                      value={applyPhone}
+                                      onChange={(e) => setApplyPhone(e.target.value)}
+                                      className="w-full bg-slate-50 border border-slate-150 p-3.5 rounded-xl font-bold text-xs focus:ring-1 focus:ring-indigo-500 outline-none text-slate-800"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                      {lang === "tr" ? "E-Posta Adresi" : "Email Address"}
+                                    </label>
+                                    <input 
+                                      type="email" 
+                                      required
+                                      placeholder="Örn: hasan@example.com"
+                                      value={applyEmail}
+                                      onChange={(e) => setApplyEmail(e.target.value)}
+                                      className="w-full bg-slate-50 border border-slate-150 p-3.5 rounded-xl font-bold text-xs focus:ring-1 focus:ring-indigo-500 outline-none text-slate-800"
+                                    />
+                                  </div>
+
+                                  <button 
+                                    type="submit"
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-4.5 rounded-xl uppercase tracking-wider transition-colors shadow-lg cursor-pointer"
+                                  >
+                                    🚀 {lang === "tr" ? "BAŞVURUMU ANINDA GÖNDER VE ÖN-ONAY AL" : "SUBMIT PRE-APPROVAL DETAILS"}
+                                  </button>
+                                </form>
+                              ) : (
+                                <div className="text-center space-y-5 py-6">
+                                  <div className="inline-flex items-center justify-center p-4 bg-emerald-50 text-emerald-500 rounded-full text-3xl animate-bounce">
+                                    🎉
+                                  </div>
+                                  <div className="space-y-2">
+                                    <h5 className="font-black text-slate-900 text-lg uppercase tracking-tight">
+                                      {lang === "tr" ? "TEBRİKLER! BAŞVURUNUZ ALINDI" : "APPLICATION SUBMITTED!"}
+                                    </h5>
+                                    <p className="text-xs text-slate-500 font-bold max-w-sm mx-auto leading-relaxed">
+                                      {lang === "tr" 
+                                        ? `lookprice Akıllı Finansal Asistanı, konut kredisi simülasyon özetini ve bilgilerinizi ${selectedBank} Kıbrıs Genel Müdürlüğü Bireysel Bankacılık Koordinatörlüğü'ne başarıyla iletti.`
+                                        : `lookprice assistant successfully dispatched your calculations and contact details to ${selectedBank} Retail Loans Coordinator.`}
+                                    </p>
+                                  </div>
+
+                                  <div className="bg-slate-50 p-4 rounded-2xl text-[11px] text-slate-650 border border-slate-100 font-medium space-y-1 max-w-sm mx-auto">
+                                    <p className="font-extrabold text-slate-800 text-left border-b border-slate-200 pb-1.5 uppercase">Ön Tescil Slip No: LPR-{Math.floor(100000 + Math.random() * 900000)}</p>
+                                    <p className="text-left mt-1"><strong>{lang === "tr" ? "Kişi" : "Representative"}:</strong> {applyName}</p>
+                                    <p className="text-left"><strong>{lang === "tr" ? "Banka" : "Selected Bank"}:</strong> {selectedBank}</p>
+                                    <p className="text-left"><strong>{lang === "tr" ? "Kredi" : "Loan Required"}:</strong> {formatFinValue(loanRequired)}</p>
+                                    <p className="text-left"><strong>{lang === "tr" ? "Aylık Taksit" : "Monthly Payment"}:</strong> {formatFinValue(computedMonthlyInstallment)}</p>
+                                    <p className="text-[10px] text-indigo-600 font-black text-left pt-1.5">★ Kampanya Masraf Muafiyeti Tescillendi</p>
+                                  </div>
+
+                                  <button
+                                    onClick={() => {
+                                      setShowApplyModal(false);
+                                      setApplySuccess(false);
+                                      setApplyName("");
+                                      setApplyPhone("");
+                                      setApplyEmail("");
+                                    }}
+                                    className="px-6 py-2.5 bg-slate-900 text-white hover:bg-indigo-600 font-black text-xs uppercase rounded-xl tracking-wider transition-all cursor-pointer"
+                                  >
+                                    Yeni Hesap Yap
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
           {/* Trust Anchor Team Section */}
           {isSectionEnabled("team") && (
@@ -724,6 +1237,14 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* Blog Showcase Modal view */}
+      <BlogShowcaseModal
+        isOpen={!!selectedBlogPost}
+        onClose={() => setSelectedBlogPost(null)}
+        blog={selectedBlogPost}
+        lang={lang}
+      />
     </div>
   );
 };
