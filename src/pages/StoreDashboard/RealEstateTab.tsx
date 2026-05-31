@@ -577,13 +577,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   };
 
   const filteredProperties = properties.filter(p => {
+    if (!p) return false;
     // Search also parses description for deep metadata matching
-    const titleLower = (p.title || "").toLowerCase();
-    const searchLower = (search || "").toLowerCase();
+    const titleLower = (p.title || "").toString().toLowerCase();
+    const searchLower = (search || "").toString().toLowerCase();
     const matchesSearch = titleLower.includes(searchLower) || 
-      (p.location && p.location.toLowerCase().includes(searchLower)) ||
-      (p.description && p.description.toLowerCase().includes(searchLower)) ||
-      (p.kktc_title_type && p.kktc_title_type.toLowerCase().includes(searchLower));
+      (p.location && (p.location || "").toString().toLowerCase().includes(searchLower)) ||
+      (p.description && (p.description || "").toString().toLowerCase().includes(searchLower)) ||
+      (p.kktc_title_type && (p.kktc_title_type || "").toString().toLowerCase().includes(searchLower));
     
     const matchesRegion = filterRegion === "all" || 
       (filterRegion === "KKTC" && p.country === "KKTC") ||
@@ -621,8 +622,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   });
 
   // Safe checks for user role representation
-  const userRole = user?.role || 'admin';
-  const isOfficeManager = ["superadmin", "admin", "storeadmin", "manager", "owner", "portfolio_manager", "portföy yöneticisi", "consultant", "danışman", "danisman", "editor"].includes(userRole.toLowerCase());
+  const userRole = (user?.role || 'admin').toString();
+  const isOfficeManager = ["superadmin", "admin", "storeadmin", "manager", "owner", "portfolio_manager", "portföy yöneticisi", "consultant", "danışman", "danisman", "editor"].includes((userRole || "admin").toLowerCase());
 
   return (
     <div className="p-6 space-y-6">

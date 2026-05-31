@@ -12,7 +12,7 @@ import PublicQuotation from "./pages/PublicQuotation";
 import CheckoutStatus from "./pages/CheckoutStatus";
 import DirectCheckoutRedirect from "./pages/DirectCheckoutRedirect";
 import PaymentGatewayPage from "./pages/PaymentGatewayPage";
-import StoreShowcase from "./pages/storeshowcase";
+import StoreShowcase from "./pages/StoreShowcase";
 import Logo from "./components/Logo";
 import { LandingPage } from "./components/LandingPageNew";
 import { Marketplace } from "./pages/Marketplace";
