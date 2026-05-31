@@ -683,7 +683,7 @@ export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabPr
                     <option value="">{isTr ? "İlişkili İlan Yok" : "No Linked Listing"}</option>
                     {properties.map(p => (
                       <option key={p.id} value={p.id}>
-                        {p.title} ({p.price.toLocaleString()} {p.currency})
+                        {p.title} ({(p.price || 0).toLocaleString()} {p.currency})
                       </option>
                     ))}
                   </select>

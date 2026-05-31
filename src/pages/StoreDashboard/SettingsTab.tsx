@@ -41,7 +41,8 @@ import {
   Terminal,
   Activity,
   Sparkles,
-  HelpCircle
+  HelpCircle,
+  Database
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -50,6 +51,7 @@ import { useIntegrationSync } from "../../hooks/useIntegrationSync";
 import { DEVELOPED_COUNTRIES } from "../../constants";
 import { api } from "../../services/api";
 import { PageBuilder } from "../../components/PageBuilder";
+import { toast } from "sonner";
 
 interface SettingsTabProps {
   branding: any;
@@ -95,6 +97,64 @@ const SettingsTab = ({
   const hbSync = useIntegrationSync('Hepsiburada', t);
   const tySync = useIntegrationSync('Trendyol', t);
   const pzSync = useIntegrationSync('Pazarama', t);
+
+  const [isGoogleDriveConnected, setIsGoogleDriveConnected] = React.useState(false);
+  const [isGoogleDriveExporting, setIsGoogleDriveExporting] = React.useState(false);
+
+  React.useEffect(() => {
+    api.getGoogleDriveSettings().then(res => {
+      setIsGoogleDriveConnected(res.data.connected);
+    }).catch(console.error);
+  }, []);
+
+  const handleConnectGoogleDrive = async () => {
+    try {
+      const res = await api.getGoogleDriveAuthUrl();
+      const width = 600;
+      const height = 700;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      
+      const popup = window.open(
+        res.data.url,
+        "Google Drive Bağlantısı",
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+      
+      const checkPopup = setInterval(async () => {
+        if (!popup || popup.closed) {
+          clearInterval(checkPopup);
+          const verifyRes = await api.getGoogleDriveSettings();
+          setIsGoogleDriveConnected(verifyRes.data.connected);
+        }
+      }, 1000);
+    } catch (error) {
+      toast.error("Bağlantı URL'i alınamadı");
+    }
+  };
+
+  const handleDisconnectGoogleDrive = async () => {
+    if (!window.confirm("Google Drive bağlantısını kesmek istediğinize emin misiniz?")) return;
+    try {
+      await api.disconnectGoogleDrive();
+      setIsGoogleDriveConnected(false);
+      toast.success("Google Drive bağlantısı kesildi.");
+    } catch (error) {
+      toast.error("Çıkış başarısız oldu.");
+    }
+  };
+
+  const handleExportGoogleDrive = async (targetType: string, format: string) => {
+    setIsGoogleDriveExporting(true);
+    try {
+      const res = await api.exportToGoogleDrive({ targetType, format });
+      toast.success(res.data.message || 'Başarıyla eklendi!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Yedekleme sırasında hata oluştu.');
+    } finally {
+      setIsGoogleDriveExporting(false);
+    }
+  };
 
   const [amazonClientId, setAmazonClientId] = React.useState(branding.amazon_settings?.clientId || "");
   const [amazonClientSecret, setAmazonClientSecret] = React.useState(branding.amazon_settings?.clientSecret || "");
@@ -2262,6 +2322,132 @@ const SettingsTab = ({
               </div>
             </div>
             <div className="space-y-8">
+              {/* Google Drive Integration Section */}
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+                <div className="flex items-center justify-between mb-8 relative">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-50 rounded-xl text-blue-600 border border-blue-100">
+                      <Database className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 leading-tight">Google Drive Yedekleme Sistemi</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">Bulut sürücünüzü bağlayıp verilerinizi otomatik/manuel yedekleyin.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    {isGoogleDriveConnected ? (
+                      <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-widest rounded-lg border border-emerald-200">
+                        Drive Bağlı
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-widest rounded-lg border border-slate-200">
+                        Bağlı Değil
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {isGoogleDriveConnected ? (
+                  <div className="space-y-6 relative">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <button
+                        onClick={() => handleExportGoogleDrive('products', 'xls')}
+                        disabled={isGoogleDriveExporting}
+                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-emerald-300 transition-all cursor-pointer disabled:opacity-50 group"
+                      >
+                        <Download className="h-6 w-6 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-[11px] text-center font-bold text-slate-700">Ürünler<br/>(Excel)</span>
+                      </button>
+                      <button
+                        onClick={() => handleExportGoogleDrive('products', 'pdf')}
+                        disabled={isGoogleDriveExporting}
+                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-rose-300 transition-all cursor-pointer disabled:opacity-50 group"
+                      >
+                        <Download className="h-6 w-6 text-rose-500 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-[11px] text-center font-bold text-slate-700">Ürünler<br/>(PDF)</span>
+                      </button>
+                      <button
+                        onClick={() => handleExportGoogleDrive('real_estate', 'xls')}
+                        disabled={isGoogleDriveExporting}
+                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-emerald-300 transition-all cursor-pointer disabled:opacity-50 group"
+                      >
+                        <Download className="h-6 w-6 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-[11px] text-center font-bold text-slate-700">Emlak Portföy<br/>(Excel)</span>
+                      </button>
+                      <button
+                        onClick={() => handleExportGoogleDrive('real_estate', 'pdf')}
+                        disabled={isGoogleDriveExporting}
+                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-rose-300 transition-all cursor-pointer disabled:opacity-50 group"
+                      >
+                        <Download className="h-6 w-6 text-rose-500 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-[11px] text-center font-bold text-slate-700">Emlak Portföy<br/>(PDF)</span>
+                      </button>
+                    </div>
+                    
+                    <div className="flex justify-end pt-4 border-t border-slate-100 gap-3">
+                      <button
+                        onClick={handleDisconnectGoogleDrive}
+                        className="px-6 py-2.5 bg-white text-rose-600 border border-slate-200 rounded-xl hover:bg-rose-50 hover:border-rose-200 hover:shadow-sm font-bold text-xs uppercase tracking-wider"
+                      >
+                        Bağlantıyı Kes
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-center p-8 bg-slate-50 rounded-2xl border border-slate-100 relative">
+                    <button
+                      onClick={handleConnectGoogleDrive}
+                      className="px-8 py-3.5 bg-[#4285F4] text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2"
+                    >
+                      <Database className="h-4 w-4" />
+                      <span>Google Drive Hesabı Bağla</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Google Drive Integration Section */}
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-50 rounded-xl text-blue-600 border border-blue-100">
+                      <Database className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 leading-tight">Google Drive</h3>
+                      <p className="text-xs text-slate-400 font-medium mt-0.5">Mağaza verileriniz için güvenli depolama.</p>
+                    </div>
+                  </div>
+                  {isGoogleDriveConnected && (
+                    <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Bağlı</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-6">
+                  {!isGoogleDriveConnected ? (
+                   <button
+                      onClick={handleConnectGoogleDrive}
+                      className="px-8 py-3.5 bg-[#4285F4] text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2"
+                    >
+                      <Database className="h-4 w-4" />
+                      <span>Google Drive Hesabı Bağla</span>
+                   </button>
+                  ) : (
+                    <button
+                      onClick={handleDisconnectGoogleDrive}
+                      className="px-8 py-3.5 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-500/20 hover:shadow-rose-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Bağlantıyı Kes</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Amazon Integration Section */}
               <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-8">

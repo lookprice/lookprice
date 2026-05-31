@@ -222,6 +222,7 @@ export interface OwnerInfo {
 
 export interface RealEstateProperty {
   id: number;
+  reference_no?: string;
   store_id: number;
   title: string;
   description?: string;

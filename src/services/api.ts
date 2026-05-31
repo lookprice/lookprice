@@ -410,6 +410,12 @@ export const api = {
   getTrendyolBrands: (page?: number, size?: number) => api.get(`/api/integrations/trendyol/brands${(page !== undefined || size !== undefined) ? `?${page !== undefined ? `page=${page}` : ''}${size !== undefined ? `&size=${size}` : ''}` : ''}`),
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
   getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
+  
+  // Google Drive
+  getGoogleDriveAuthUrl: () => api.get("/api/google-drive/auth-url"),
+  getGoogleDriveSettings: () => api.get("/api/google-drive/settings"),
+  disconnectGoogleDrive: () => api.post("/api/google-drive/disconnect", {}),
+  exportToGoogleDrive: (data: { format: string, targetType: string }) => api.post("/api/google-drive/export", data),
 
   // Meta Integration
   getMetaSettings: (storeId?: number) => api.get(`/api/integrations/meta/settings${storeId ? `?storeId=${storeId}` : ""}`),

@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { initDb } from "./models/db";
 import { startCronJobs } from "./src/services/cronJobs";
+import { aiWorkerService } from "./src/services/ai_worker.js";
 import authRoutes from "./routes/auth";
 import publicRoutes from "./routes/public";
 import adminRoutes from "./routes/admin";
@@ -14,6 +15,8 @@ import paymentRoutes from "./routes/payment";
 import integrationRoutes from "./routes/integrations";
 import einvoiceRoutes from "./routes/einvoice";
 import realEstateRoutes from "./routes/real_estate";
+import aiJobsRoutes from "./routes/ai_jobs.js";
+import googleDriveRoutes from "./routes/googleDrive.js";
 import { authenticate } from "./middleware/auth";
 import { domainMiddleware } from "./middleware/domain";
 import { pool } from "./models/db";
@@ -73,6 +76,7 @@ async function startServer() {
   await initDb();
   console.log("initDb finished.");
   startCronJobs();
+  aiWorkerService.startWorker();
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -133,11 +137,11 @@ async function startServer() {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "img-src 'self' data: blob: https: https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://sanalpos.halkbank.com.tr https://*.insales-cdn.com; " +
+      "img-src 'self' data: blob: https: https://maps.googleapis.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://sanalpos.halkbank.com.tr https://*.insales-cdn.com; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' wss://*.run.app:* https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr; " +
+      "connect-src 'self' wss://*.run.app:* https://maps.googleapis.com https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr; " +
       "frame-src 'self' https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr;"
     );
     next();
@@ -181,6 +185,8 @@ async function startServer() {
   app.use("/api/store", authenticate, storeRoutes);
   app.use("/api/fleet", authenticate, fleetRoutes);
   app.use("/api/real-estate", authenticate, realEstateRoutes);
+  app.use("/api/ai-jobs", authenticate, aiJobsRoutes);
+  app.use("/api/google-drive", googleDriveRoutes);
   app.use("/api/payment", paymentRoutes);
   app.use("/api/integrations", integrationRoutes);
   app.use("/api", einvoiceRoutes);

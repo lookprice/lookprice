@@ -27,6 +27,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const [formData, setFormData] = useState<Partial<RealEstateProperty>>({
     title: '',
     price: 0,
+    reference_no: `REF-${Math.floor(Math.random() * 9000) + 1000}`,
     currency: 'GBP', // default to GBP for KKTC marketing style
     type: 'residence',
     status: 'active',
@@ -475,15 +476,28 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           <div className="space-y-4">
             <h4 className="text-sm font-black text-slate-800 border-l-4 border-slate-800 pl-2">Temel İlan Detayları</h4>
             
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">İlan Başlığı</label>
-              <input
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-1">
+                <label className="block text-xs font-bold text-slate-500 mb-1">Referans / Portföy No</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Örn: TR-1002"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none text-sm font-mono font-bold"
+                  value={formData.reference_no || ''}
+                  onChange={(e) => setFormData({ ...formData, reference_no: e.target.value })}
+                />
+              </div>
+              <div className="md:col-span-3">
+                <label className="block text-xs font-bold text-slate-500 mb-1">İlan Başlığı</label>
+                <input
                 type="text"
                 placeholder="Örn: Girne Alsancak'ta Dağ ve Deniz Manzaralı Lüks 2+1 Penthouse"
                 className="w-full p-3 border rounded-xl placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
               />
+            </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

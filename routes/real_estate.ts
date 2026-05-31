@@ -70,6 +70,7 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS sync_status TEXT DEFAULT 'pending';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMP;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS tour_blueprint JSONB;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS reference_no TEXT;`);
 
     // Create Audit Log table
     await pool.query(`
@@ -312,8 +313,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         virtual_tour_url, ai_tour_enabled, seller_type, status, is_on_enrakipsiz,
         branch_name, responsible_agent, sharing_scope, reserved_by_branch, reservation_notes,
         authorized_branch_id, responsible_consultant_id, is_verified, documents,
-        owner_name, owner_phone, owner_id_number, tour_blueprint
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42) RETURNING *`,
+        owner_name, owner_phone, owner_id_number, tour_blueprint, reference_no
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43) RETURNING *`,
       [
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -322,7 +323,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         property.branch_name || 'Merkez Ofis', property.responsible_agent || '', property.sharing_scope || 'shared_pool', property.reserved_by_branch || '', property.reservation_notes || '',
         property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified, JSON.stringify(property.documents || []),
         ownerInfo.fullName || '', ownerInfo.phone || '', ownerInfo.idNumber || '',
-        property.tour_blueprint ? JSON.stringify(property.tour_blueprint) : null
+        property.tour_blueprint ? JSON.stringify(property.tour_blueprint) : null,
+        property.reference_no || null
       ]
     );
     res.json(result.rows[0]);
@@ -348,7 +350,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         virtual_tour_url = $24, ai_tour_enabled = $25, seller_type = $26, status = $27, is_on_enrakipsiz = $28,
         branch_name = $29, responsible_agent = $30, sharing_scope = $31, reserved_by_branch = $32, reservation_notes = $33, 
         authorized_branch_id = $34, responsible_consultant_id = $35, is_verified = $36, documents = $37,
-        owner_name = $38, owner_phone = $39, owner_id_number = $40, tour_blueprint = $41, updated_at = CURRENT_TIMESTAMP
+        owner_name = $38, owner_phone = $39, owner_id_number = $40, tour_blueprint = $41, reference_no = $44, updated_at = CURRENT_TIMESTAMP
        WHERE id = $42 AND store_id = $43 RETURNING *`,
       [
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
@@ -359,7 +361,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         property.authorized_branch_id, property.responsible_consultant_id, !!property.is_verified, JSON.stringify(property.documents || []),
         ownerInfo.fullName || '', ownerInfo.phone || '', ownerInfo.idNumber || '',
         property.tour_blueprint ? JSON.stringify(property.tour_blueprint) : null,
-        id, storeId
+        id, storeId, property.reference_no || null
       ]
     );
     if (result.rowCount === 0) {

@@ -1,20 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   Compass, 
-  Sliders, 
   Volume2, 
   VolumeX, 
   Play, 
   Pause, 
-  Move, 
-  Home, 
-  Info, 
-  MapPin, 
-  Scissors, 
-  RotateCcw,
-  Sparkles,
-  HelpCircle,
-  Eye
+  Eye,
+  Sparkles
 } from "lucide-react";
 
 interface AIVirtualTourViewProps {
@@ -24,30 +16,32 @@ interface AIVirtualTourViewProps {
 }
 
 // Staging high-definition images map for realistic rendering
+// NOTE: Now we are using true equirectangular 360 images (2:1 ratio spherical maps) 
+// to provide a real 360 VR experience, avoiding the distortion of stretching standard 2D photos.
 const STAGING_GALLERY: Record<string, Record<string, string>> = {
   living: {
-    empty: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200",
-    luxury: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200",
-    boho: "https://images.unsplash.com/photo-1629079448391-e58af361685e?auto=format&fit=crop&q=80&w=1200",
-    nordic: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=1200"
+    empty: "https://pannellum.org/images/bma-1.jpg",
+    luxury: "https://pannellum.org/images/alma.jpg",
+    boho: "https://pannellum.org/images/jfk.jpg",
+    nordic: "https://pannellum.org/images/tocopilla.jpg"
   },
   bedroom: {
-    empty: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=1200",
-    luxury: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=1200",
-    boho: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=1200",
-    nordic: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=1200"
+    empty: "https://pannellum.org/images/bma-0.jpg",
+    luxury: "https://pannellum.org/images/alma.jpg",
+    boho: "https://pannellum.org/images/jfk.jpg",
+    nordic: "https://pannellum.org/images/cerro-toco-0.jpg"
   },
   kitchen: {
-    empty: "https://images.unsplash.com/photo-1565183997392-2f6f122e5912?auto=format&fit=crop&q=80&w=1200",
-    luxury: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=1200",
-    boho: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200",
-    nordic: "https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&q=80&w=1200"
+    empty: "https://pannellum.org/images/bma-1.jpg",
+    luxury: "https://pannellum.org/images/alma.jpg",
+    boho: "https://pannellum.org/images/jfk.jpg",
+    nordic: "https://pannellum.org/images/tocopilla.jpg"
   },
   terrace: {
-    empty: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=1200",
-    luxury: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200",
-    boho: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=1200",
-    nordic: "https://images.unsplash.com/photo-1470058869855-412f56c393be?auto=format&fit=crop&q=80&w=1200"
+    empty: "https://pannellum.org/images/cerro-toco-0.jpg",
+    luxury: "https://pannellum.org/images/alma.jpg",
+    boho: "https://pannellum.org/images/jfk.jpg",
+    nordic: "https://pannellum.org/images/bma-0.jpg"
   }
 };
 
@@ -68,15 +62,6 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
 
   // Staging choice
   const [stagingStyle, setStagingStyle] = useState<"empty" | "luxury" | "boho" | "nordic">("luxury");
-
-  // Interaction mode (pan vs ruler measurement)
-  const [interactiveMode, setInteractiveMode] = useState<"pan" | "ruler">("pan");
-  const [rulerPoints, setRulerPoints] = useState<{ x: number; y: number }[]>([]);
-
-  // Pan controls
-  const [panOffset, setPanOffset] = useState<number>(180);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<number>(0);
 
   // Active room configurations
   const rooms = useMemo(() => {
@@ -172,43 +157,32 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
     }
   };
 
-  // Autopilot loop to automatically rotate the panoramic screen
+  // Auto-pilot loop (Pannellum iframe handles rotation, this changes rooms every 20s if playing)
   useEffect(() => {
     if (isPlaying) {
       autoPilotTimer.current = setInterval(() => {
-        setPanOffset(prev => {
-          let next = prev + 1.2;
-          if (next >= 360) {
-            next = 0;
-            // Scan next room automatically!
-            const currentIndex = rooms.findIndex(r => r.id === activeRoomId);
-            const nextIndex = (currentIndex + 1) % rooms.length;
-            setActiveRoomId(rooms[nextIndex].id);
-          }
-          return next;
-        });
-      }, 50);
+        // Scan next room automatically every 20 seconds during autopilot
+        const currentIndex = rooms.findIndex(r => r.id === activeRoomId);
+        const nextIndex = (currentIndex + 1) % rooms.length;
+        setActiveRoomId(rooms[nextIndex].id);
+      }, 20000);
     } else {
-      if (autoPilotTimer.current) {
-        clearInterval(autoPilotTimer.current);
-      }
+      if (autoPilotTimer.current) clearInterval(autoPilotTimer.current);
     }
     return () => {
       if (autoPilotTimer.current) clearInterval(autoPilotTimer.current);
     };
   }, [isPlaying, activeRoomId, rooms]);
 
-  // Image resolution logic - custom priority or elegant fallbacks
+  // Image resolution logic
   const getRoomImage = (roomId: string, style: string) => {
-    // If the property has custom uploaded images, prioritize them to match user data!
     if (property?.images && property.images.length > 0) {
       const idx = rooms.findIndex(r => r.id === roomId);
       if (idx !== -1 && property.images[idx]) {
         return property.images[idx];
       }
     }
-    
-    // Otherwise return gorgeous styled Unsplash panoramics
+    // Fallback to static 360 placeholders
     return STAGING_GALLERY[roomId]?.[style] || STAGING_GALLERY[roomId]?.luxury;
   };
 
@@ -216,51 +190,20 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
     return getRoomImage(activeRoomId, stagingStyle);
   }, [activeRoomId, stagingStyle, property]);
 
-  // Drag interaction
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (interactiveMode === "ruler") {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      if (rulerPoints.length >= 2) {
-        setRulerPoints([{ x, y }]);
-      } else {
-        setRulerPoints(prev => [...prev, { x, y }]);
-      }
-      return;
+  // Handle staging style change to inform user about real AI integration
+  const handleStagingChange = (styleId: any) => {
+    setStagingStyle(styleId);
+    
+    // Check if we are using real property images rather than placeholders
+    if (property?.images && property.images.length > 0) {
+      const isTr = lang === "tr";
+      alert(
+        isTr 
+        ? "Gerçek Zamanlı Yapay Zeka (Image-to-Image) Giydirme Bildirimi:\n\nŞu anda sistemde yüklü olan orijinal mülk fotoğraflarınız görüntüleniyor. Ham fotoğraflarınızın yapısını bozmadan (odanın geometrisini koruyarak) sadece mobilyaları değiştirmek ve gerçek AI dekorasyonu yapmak için sisteme 'Stable Diffusion' veya 'ControlNet' gibi bir yapay zeka resim işleme API'si (örn. Replicate, Runpod) entegre edilmelidir.\n\nŞu anki altyapıda kendi fotoğraflarınız üzerinde stil değişikliği sadece simulasyon aşamasındadır." 
+        : "Real-time AI Staging Notice:\n\nYour actual property photos are currently displayed. To perform true AI staging without altering the room's core geometry (Image-to-Image inpainting), a Generative AI API (such as Stable Diffusion or ControlNet via Replicate/Runpod) must be integrated into the backend.\n\nStyle switching on custom photos is currently simulated."
+      );
     }
-    setIsDragging(true);
-    setDragStart(e.clientX);
   };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || interactiveMode === "ruler") return;
-    const deltaX = e.clientX - dragStart;
-    setPanOffset(prev => {
-      let val = prev + deltaX * 0.4;
-      if (val < 0) val = 360 + val;
-      if (val > 360) val = val % 360;
-      return val;
-    });
-    setDragStart(e.clientX);
-  };
-
-  const handleMouseUpOrLeave = () => {
-    setIsDragging(false);
-  };
-
-  const calculatedMeasurement = useMemo(() => {
-    if (rulerPoints.length < 2) return null;
-    const p1 = rulerPoints[0];
-    const p2 = rulerPoints[1];
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const pixelDistance = Math.sqrt(dx * dx + dy * dy);
-    // standard 3.8 cm per 10 pixel conversion ratio
-    const meters = (pixelDistance * 0.011) + 1.25;
-    return meters.toFixed(2);
-  }, [rulerPoints]);
 
   return (
     <div className="w-full bg-slate-900 text-white rounded-[2rem] overflow-hidden p-6 border border-slate-800 space-y-6 shadow-2xl relative font-sans">
@@ -311,47 +254,23 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
             {isPlaying ? <Pause className="w-3.5 h-3.5 text-white fill-white" /> : <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />}
             {isTr ? "OTO-PİLOT" : "AUTO WALK"}
           </button>
-
-          {/* Interactive Mode toggle */}
-          <button
-            onClick={() => {
-              setInteractiveMode(prev => prev === "pan" ? "ruler" : "pan");
-              setRulerPoints([]);
-            }}
-            className={`px-3.5 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
-              interactiveMode === "ruler" 
-                ? "bg-amber-600 border-amber-700 text-white shadow shadow-amber-600/20 animate-pulse" 
-                : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
-            }`}
-            title={isTr ? "Metraj / Uzunluk Ölçümü" : "Ruler / Dimension Scanner"}
-          >
-            <Scissors className="w-3.5 h-3.5 shrink-0" />
-            {isTr ? "METRAJ ÖLÇÜ" : "MEASUREMENT RULER"}
-          </button>
         </div>
       </div>
 
       {/* GIANT PURE SCREEN: The interactive 3D WebGL panoramic renderer */}
       <div 
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUpOrLeave}
-        onMouseLeave={handleMouseUpOrLeave}
-        className="w-full h-[480px] md:h-[555px] bg-slate-950 rounded-[2rem] relative overflow-hidden select-none border border-slate-850 shadow-inner group/viewport cursor-grab active:cursor-grabbing transition-all duration-300"
+        className="w-full h-[480px] md:h-[555px] bg-slate-950 rounded-[2rem] relative overflow-hidden select-none border border-slate-850 shadow-inner group/viewport transition-all duration-300"
       >
-        {/* PANORAMIC BACKGROUND */}
-        <div 
-          className="absolute inset-0 transition-transform duration-75 ease-linear"
-          style={{
-            backgroundImage: `url('${activeRoomImageUrl}')`,
-            backgroundSize: "260% 100%",
-            backgroundPosition: `${panOffset * 2.4}px center`,
-            backgroundRepeat: "repeat-x",
-          }}
+        {/* TRUE 360 RENDERER VIA PANNELLUM IFRAME */}
+        <iframe 
+          className="absolute inset-0 w-full h-full border-none z-0"
+          allowFullScreen
+          style={{ border: 'none' }}
+          src={`https://cdn.pannellum.org/2.5/pannellum.htm#panorama=${encodeURIComponent(activeRoomImageUrl)}&autoLoad=true&autoRotate=${isPlaying ? -2 : 0}`}
         />
 
-        {/* Tint Overlay vignettes to bring cinematic dark mood depth */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/40 pointer-events-none" />
+        {/* Tint Overlay vignettes to bring cinematic dark mood depth (Must be pointer-events-none) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/40 pointer-events-none z-10" />
 
         {/* HUD OVERLAY: Top Floating widgets */}
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-20">
@@ -360,60 +279,18 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
             <span className="text-[8px] font-mono tracking-widest text-emerald-400 uppercase font-bold">360° AI ACTIVE SCANNING</span>
           </div>
 
-          {/* Compass Widget */}
+          {/* Compass Widget - Note: True rotation data is inside the iframe, this is decorative */}
           <div className="bg-slate-950/90 backdrop-blur-xs px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 shadow">
             <span className="text-[8px] text-slate-400 font-mono">COMPASS:</span>
-            <span className="text-[10px] text-white font-mono font-bold">{Math.round(panOffset)}°</span>
-            <Compass 
-              style={{ transform: `rotate(${panOffset}deg)` }}
-              className="w-4 h-4 text-indigo-400 transition-transform duration-100 ease-out" 
-            />
+            <span className="text-[10px] text-white font-mono font-bold">3D</span>
+            <Compass className="w-4 h-4 text-indigo-400 animate-[spin_10s_linear_infinite]" />
           </div>
         </div>
 
-        {/* RULER DRAWN LINE */}
-        {interactiveMode === "ruler" && rulerPoints.length > 0 && (
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-            {rulerPoints.map((point, idx) => (
-              <circle
-                key={idx}
-                cx={point.x}
-                cy={point.y}
-                r="6"
-                className="fill-amber-400 stroke-white stroke-2 animate-ping"
-              />
-            ))}
-            {rulerPoints.length === 2 && (
-              <line
-                x1={rulerPoints[0].x}
-                y1={rulerPoints[0].y}
-                x2={rulerPoints[1].x}
-                y2={rulerPoints[1].y}
-                className="stroke-amber-400 stroke-2"
-                strokeDasharray="4 4"
-              />
-            )}
-          </svg>
-        )}
-
-        {/* MEASUREMENT METRICS PANEL OVERLAY */}
-        {interactiveMode === "ruler" && (
-          <div className="absolute bottom-14 left-1/2 transform -translate-x-1/2 bg-amber-950/95 backdrop-blur-sm px-5 py-3 rounded-xl border border-amber-600/40 font-mono text-[10px] text-amber-300 z-25 text-center shadow-lg">
-            <span className="block font-black uppercase text-[8.5px] tracking-widest text-amber-400 mb-0.5">📏 METRAJ LAZER TARAYICI (LAZER RULER)</span>
-            {rulerPoints.length === 0 && <span className="opacity-85">{isTr ? "İki nokta seçerek metraj ölçün" : "Place two dots in the room to measure"}</span>}
-            {rulerPoints.length === 1 && <span className="opacity-85">{isTr ? "Uç noktasını seçin..." : "Place the second end terminal point..."}</span>}
-            {rulerPoints.length === 2 && (
-              <span className="font-extrabold text-white text-sm">
-                📐 {isTr ? "Hesaplanan Uzunluk:" : "Calculated Distance:"} <span className="text-amber-400 underline font-black">{calculatedMeasurement} mt</span>
-              </span>
-            )}
-          </div>
-        )}
-
         {/* HUD OVERLAY: Bottom navigation hint */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none bg-slate-950/80 px-4 py-1.5 rounded-full border border-slate-800/80 backdrop-blur-xs transition-opacity opacity-90 group-hover/viewport:opacity-100 z-10">
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none bg-slate-950/80 px-4 py-1.5 rounded-full border border-slate-800/80 backdrop-blur-xs transition-opacity opacity-90 group-hover/viewport:opacity-100 z-20">
           <span className="text-[8px] font-black text-slate-200 uppercase tracking-widest select-none">
-            ↔️ {isTr ? "EKRAN ÜZERİNDE SÜRÜKLEYREK ODAYI GEZİNEBİLİRSİNİZ" : "DRAG ACROSS THE VIEWPORT TO omni-pan"}
+            ↔️ {isTr ? "EKRAN ÜZERİNDE SÜRÜKLEYEREK ODAYI 360° GEZİNEBİLİRSİNİZ" : "DRAG ACROSS THE VIEWPORT TO 360-PAN"}
           </span>
         </div>
       </div>
@@ -433,7 +310,6 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
                   key={room.id}
                   onClick={() => {
                     setActiveRoomId(room.id);
-                    setRulerPoints([]);
                   }}
                   className={`w-full text-left py-3 px-4 rounded-xl text-[11px] font-black transition-all flex items-center justify-between border cursor-pointer ${
                     activeRoomId === room.id 
@@ -469,7 +345,7 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
               ].map((style) => (
                 <button
                   key={style.id}
-                  onClick={() => setStagingStyle(style.id as any)}
+                  onClick={() => handleStagingChange(style.id)}
                   className={`py-3 px-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
                     stagingStyle === style.id 
                       ? "bg-indigo-600 border-indigo-700 text-white shadow-md shadow-indigo-600/20" 
