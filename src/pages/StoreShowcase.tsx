@@ -86,6 +86,7 @@ import {
 import SEO from "../components/SEO";
 import { StoreLocatorModal } from "../components/StoreLocatorModal";
 import { KktcAiDioramaModal } from "../components/KktcAiDioramaModal";
+import { AIVirtualTourView } from "../components/AIVirtualTourView";
 
 interface BasketItem extends Product {
   quantity: number;
@@ -1485,6 +1486,13 @@ const ProductDetailModal: React.FC<{
           activeViewMode === "tour360" &&
           (product.type === "vehicle" || product.type === "real_estate") ? (
             (() => {
+              if (product.type === "real_estate") {
+                return (
+                  <div className="w-full h-full relative bg-slate-950 p-1 overflow-y-auto">
+                    <AIVirtualTourView property={product} lang={lang} />
+                  </div>
+                );
+              }
               if ((product as any).virtual_tour_url) {
                 return (
                   <div className="w-full h-full relative bg-slate-950 flex items-center justify-center">
@@ -1507,7 +1515,7 @@ const ProductDetailModal: React.FC<{
                       : "💰 Financial Valuation",
                   value: `${product.price ? Number(product.price).toLocaleString() : "---"} ${product.currency || "GBP"}`,
                   detail:
-                    product.type === "real_estate"
+                    (product as any).type === "real_estate"
                       ? lang === "tr"
                         ? "Tahmini Kira Getirisi: %7.4 | Amortisman: 12 Yıl"
                         : "Estimated Rent Yield: 7.4% | Amortization: 12 Years"
@@ -1518,7 +1526,7 @@ const ProductDetailModal: React.FC<{
                 {
                   id: "specs",
                   title:
-                    product.type === "real_estate"
+                    (product as any).type === "real_estate"
                       ? lang === "tr"
                         ? "📏 Konstrüksiyon & Net Alan"
                         : "📏 Layout & Area"
@@ -1526,11 +1534,11 @@ const ProductDetailModal: React.FC<{
                         ? "⚙️ Motor ve Donanım"
                         : "⚙️ Performance & Spec",
                   value:
-                    product.type === "real_estate"
+                    (product as any).type === "real_estate"
                       ? `${product.sector_data?.square_meters || "120"} m² Net / ${product.sector_data?.sqm_gross || "145"} m² Brüt`
                       : `${product.sector_data?.year || "2023"} Model | ${product.sector_data?.engine_power || "180"} HP`,
                   detail:
-                    product.type === "real_estate"
+                    (product as any).type === "real_estate"
                       ? lang === "tr"
                         ? `Plan: ${product.sector_data?.rooms || "2+1"} | Isıtma: Kombi/Klima | Cephe: ${product.sector_data?.facade || "Kuzey"}`
                         : `Layout: ${product.sector_data?.rooms || "2+1"} | Heating: Heat Pump/AC | Facade: ${product.sector_data?.facade || "North"}`
@@ -1541,7 +1549,7 @@ const ProductDetailModal: React.FC<{
                 {
                   id: "legal",
                   title:
-                    product.type === "real_estate"
+                    (product as any).type === "real_estate"
                       ? lang === "tr"
                         ? "📜 Tapu ve İmar Durumu"
                         : "📜 Title Deed Type"
@@ -1549,7 +1557,7 @@ const ProductDetailModal: React.FC<{
                         ? "🛡️ Ruhsat & Tescil"
                         : "🛡️ Registry & Transfer",
                   value:
-                    product.type === "real_estate"
+                    (product as any).type === "real_estate"
                       ? `${product.sector_data?.kktc_title_type || "Eşdeğer Koçan"}`
                       : lang === "tr"
                         ? "Tescil: Hemen Kimlik Devri"
@@ -1567,7 +1575,7 @@ const ProductDetailModal: React.FC<{
                       : "📍 Location & Area Analysis",
                   value: `${product.sector_data?.kktc_region || (product as any).location || "Girne"} / KKTC`,
                   detail:
-                    product.type === "real_estate"
+                    (product as any).type === "real_estate"
                       ? lang === "tr"
                         ? "Denize 650m | Toplu taşımaya ve süpermarkete yürüme mesafesinde."
                         : "650m to beach | Steps away from major transport & luxury grocery stores."

@@ -42,6 +42,7 @@ import { RealEstateModal } from "../../components/RealEstateModal";
 import { LegalContractModal } from "../../components/LegalContractModal";
 import { RealEstateProperty } from "../../types";
 import { ConsultingInsights } from '../../components/ConsultingInsights';
+import { AIVirtualTourView } from "../../components/AIVirtualTourView";
 import { api } from "../../services/api";
 
 interface RealEstateTabProps {
@@ -2390,6 +2391,12 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         </div>
 
                       </div>
+
+                      {/* Interactive LookPrice VR Tour Walkthrough & Automated Staging Simulator Panel */}
+                      <div className="mt-6 border-t border-slate-150 pt-6">
+                        <AIVirtualTourView property={matchingProperty} lang={lang} />
+                      </div>
+
                     </div>
 
                   </div>
