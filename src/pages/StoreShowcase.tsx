@@ -348,9 +348,10 @@ const ProductCard: React.FC<{
   );
 };
 
-const SectorSpecs: React.FC<{ sector: string; data: any }> = ({
+const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => void }> = ({
   sector,
   data,
+  onStartTour,
 }) => {
   if (!data || typeof data !== "object") return null;
   const { lang } = useLanguage();
@@ -507,8 +508,8 @@ const SectorSpecs: React.FC<{ sector: string; data: any }> = ({
           </p>
         </div>
       )}
-      {data.virtual_tour_url && (
-        <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
+      {(data.virtual_tour_url || sector === "real_estate") && (
+        <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[8px] font-black text-indigo-500 tracking-widest mb-1 uppercase">
               {lang === "tr" ? "SANAL TUR" : "VIRTUAL TOUR"}
@@ -518,7 +519,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any }> = ({
             </p>
           </div>
           <button
-            onClick={() => window.open(data.virtual_tour_url, "_blank")}
+            onClick={() => onStartTour ? onStartTour() : data.virtual_tour_url ? window.open(data.virtual_tour_url, "_blank") : null}
             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
           >
             {lang === "tr" ? "TURU BAŞLAT" : "START TOUR"}
@@ -1390,7 +1391,7 @@ const ProductDetailModal: React.FC<{
           <X className="w-5 h-5" />
         </button>
 
-        <div className="w-full md:w-1/2 min-h-[50vh] md:aspect-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100">
+        <div className={`${activeViewMode === "tour360" ? "w-full min-h-[85vh] md:min-h-[750px]" : "w-full md:w-1/2 min-h-[50vh] md:aspect-auto md:min-h-[650px]"} bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500`}>
           {/* Share Buttons Overlay */}
           <div className="absolute top-6 left-6 flex items-center gap-2 z-20">
             <button
@@ -1443,7 +1444,7 @@ const ProductDetailModal: React.FC<{
           {store?.store_type === "portfolio" &&
             (product.type === "vehicle" ||
               product.type === "real_estate") && (
-              <div className="absolute top-6 right-6 z-30">
+              <div className={`absolute top-6 ${activeViewMode === "tour360" ? "right-16 md:right-20" : "right-6"} z-30 transition-all duration-500`}>
                 <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
                   <button
                     type="button"
@@ -1913,8 +1914,8 @@ const ProductDetailModal: React.FC<{
             </div>
           )}
         </div>
-
-        <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
+        {activeViewMode !== "tour360" && (
+          <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
           <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 items-center">
             {getLabels(product.labels).map((label, idx) => (
               <span
@@ -2008,6 +2009,7 @@ const ProductDetailModal: React.FC<{
                   : sector
             }
             data={product.sector_data}
+            onStartTour={() => setActiveViewMode("tour360")}
           />
 
           {((store?.store_type === "portfolio" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (
@@ -2139,6 +2141,7 @@ const ProductDetailModal: React.FC<{
             </button>
           )}
         </div>
+        )}
       </motion.div>
 
       {/* Lightbox / Fullscreen Image Viewer Modal Overlay */}

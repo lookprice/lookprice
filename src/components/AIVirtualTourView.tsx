@@ -263,9 +263,9 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
   }, [rulerPoints]);
 
   return (
-    <div className="w-full bg-slate-900 text-white rounded-[2rem] overflow-hidden p-6 border border-slate-800 space-y-4 shadow-2xl relative font-sans">
+    <div className="w-full bg-slate-900 text-white rounded-[2rem] overflow-hidden p-6 border border-slate-800 space-y-6 shadow-2xl relative font-sans">
       {/* Immersive HUD Header bar */}
-      <div className="flex flex-wrap justify-between items-center gap-3 bg-slate-950/80 p-4 rounded-2xl border border-slate-800/80 shadow-md">
+      <div className="flex flex-wrap justify-between items-center gap-3 bg-slate-950/80 p-5 rounded-2xl border border-slate-800/80 shadow-md">
         <div className="flex items-center gap-2.5">
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
@@ -278,7 +278,7 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
               </span>
               <span className="text-[10px] text-slate-400 font-bold font-mono">DIGITAL TWIN ENGINE v3.0</span>
             </div>
-            <h4 className="text-xs font-black text-slate-100 tracking-tight flex items-center gap-1 mt-0.5">
+            <h4 className="text-sm font-black text-slate-100 tracking-tight flex items-center gap-1 mt-0.5">
               🚀 {isTr ? "Mülk İçi Navigasyonel 3D Sanal Gezinti" : "Interactive Property Virtual Walkthrough"}
             </h4>
           </div>
@@ -289,7 +289,7 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
           {/* Audio toggle button */}
           <button
             onClick={handleToggleAudio}
-            className={`p-2 rounded-xl border text-xs font-medium transition-all flex items-center justify-center ${
+            className={`p-2.5 rounded-xl border text-xs font-medium transition-all flex items-center justify-center cursor-pointer ${
               !isAudioMuted 
                 ? "bg-emerald-600 border-emerald-700 text-white shadow shadow-emerald-600/20" 
                 : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
@@ -302,13 +302,13 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
           {/* Autopilot toggle button */}
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
               isPlaying 
                 ? "bg-indigo-600 border-indigo-700 text-white shadow shadow-indigo-600/20" 
                 : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
             }`}
           >
-            {isPlaying ? <Pause className="w-3 h-3 text-white fill-white" /> : <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />}
+            {isPlaying ? <Pause className="w-3.5 h-3.5 text-white fill-white" /> : <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />}
             {isTr ? "OTO-PİLOT" : "AUTO WALK"}
           </button>
 
@@ -318,7 +318,7 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
               setInteractiveMode(prev => prev === "pan" ? "ruler" : "pan");
               setRulerPoints([]);
             }}
-            className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
               interactiveMode === "ruler" 
                 ? "bg-amber-600 border-amber-700 text-white shadow shadow-amber-600/20 animate-pulse" 
                 : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
@@ -331,199 +331,149 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
         </div>
       </div>
 
-      {/* Main viewport canvas layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        
-        {/* LEFT COMPANION: Room lists & blueprint features */}
-        <div className="lg:col-span-1 bg-slate-950/40 rounded-2xl p-4 border border-slate-800 flex flex-col justify-between space-y-4 max-h-[380px] overflow-y-auto">
-          <div className="space-y-4">
-            <div>
-              <p className="text-[8px] font-extrabold text-slate-400 tracking-widest uppercase mb-1.5">
-                📍 {isTr ? "TÜM 3D TARAMA ALANLARI" : "SCANNED SPACES MAP"}
-              </p>
-              
-              <div className="space-y-1.5">
-                {rooms.map((room) => (
-                  <button
-                    key={room.id}
-                    onClick={() => {
-                      setActiveRoomId(room.id);
-                      setRulerPoints([]);
-                    }}
-                    className={`w-full text-left py-2.5 px-3 rounded-xl text-[10.5px] font-black transition-all flex items-center justify-between border ${
-                      activeRoomId === room.id 
-                        ? "bg-indigo-600/95 border-indigo-700 text-white shadow shadow-indigo-600/20" 
-                        : "bg-slate-800/60 border-slate-700/50 text-slate-300 hover:bg-slate-700/55"
-                    }`}
-                  >
-                    <span>🚪 {room.name}</span>
-                    <span className="text-[8.5px] font-mono opacity-80">{room.area}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+      {/* GIANT PURE SCREEN: The interactive 3D WebGL panoramic renderer */}
+      <div 
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUpOrLeave}
+        onMouseLeave={handleMouseUpOrLeave}
+        className="w-full h-[480px] md:h-[555px] bg-slate-950 rounded-[2rem] relative overflow-hidden select-none border border-slate-850 shadow-inner group/viewport cursor-grab active:cursor-grabbing transition-all duration-300"
+      >
+        {/* PANORAMIC BACKGROUND */}
+        <div 
+          className="absolute inset-0 transition-transform duration-75 ease-linear"
+          style={{
+            backgroundImage: `url('${activeRoomImageUrl}')`,
+            backgroundSize: "260% 100%",
+            backgroundPosition: `${panOffset * 2.4}px center`,
+            backgroundRepeat: "repeat-x",
+          }}
+        />
 
-            {/* Smart technical specifics tag */}
-            <div className="border-t border-slate-800 pt-3">
-              <span className="block text-[8px] font-extrabold text-indigo-400 tracking-widest uppercase mb-1">
-                ⚙️ {isTr ? "TEKNİK DETAY ÖLÇÜLERİ" : "TECHNICAL SPECS METRICS"}
-              </span>
-              <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-850 text-[10px] font-mono leading-relaxed space-y-1 text-slate-400">
-                <div className="flex justify-between border-b border-slate-850 pb-1">
-                  <span>Zemin:</span>
-                  <span className="text-white font-bold">{activeRoom.spec}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-850 pb-1">
-                  <span>Yükseklik:</span>
-                  <span className="text-white font-bold">2.82m (Tavan)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Işık Seviyesi:</span>
-                  <span className="text-emerald-400 font-extrabold font-mono">Max (Gün Işığı)</span>
-                </div>
-              </div>
-            </div>
+        {/* Tint Overlay vignettes to bring cinematic dark mood depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/40 pointer-events-none" />
+
+        {/* HUD OVERLAY: Top Floating widgets */}
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-20">
+          <div className="bg-slate-950/90 backdrop-blur-xs px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 shadow">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[8px] font-mono tracking-widest text-emerald-400 uppercase font-bold">360° AI ACTIVE SCANNING</span>
           </div>
 
-          <div className="bg-indigo-600/5 p-3 rounded-xl border border-indigo-500/10 text-[10px] leading-relaxed text-indigo-300/90 font-medium">
-            💡 <strong>{isTr ? "Gezinti İpucu:" : "Navigation Tip:"}</strong> {isTr ? "Mülk tabanındaki sıcak kapılara tıklayarak oda geçişi yapabilir veya mause ile sürükleyerek odayı 360° inceleyebilirsiniz." : "Click floor target portal hotspots to walk between rooms, or click-and-drag directly to scan the 3D space."}
+          {/* Compass Widget */}
+          <div className="bg-slate-950/90 backdrop-blur-xs px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 shadow">
+            <span className="text-[8px] text-slate-400 font-mono">COMPASS:</span>
+            <span className="text-[10px] text-white font-mono font-bold">{Math.round(panOffset)}°</span>
+            <Compass 
+              style={{ transform: `rotate(${panOffset}deg)` }}
+              className="w-4 h-4 text-indigo-400 transition-transform duration-100 ease-out" 
+            />
           </div>
         </div>
 
-        {/* MIDDLE VIEWPORT: The interactive 3D WebGL panoramic renderer */}
-        <div className="lg:col-span-2 relative flex flex-col justify-between">
-          <div 
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUpOrLeave}
-            onMouseLeave={handleMouseUpOrLeave}
-            className="w-full h-[380px] bg-slate-950 rounded-2xl relative overflow-hidden select-none border border-slate-850 shadow-inner group cursor-grab active:cursor-grabbing"
-          >
-            {/* PANORAMIC BACKGROUND */}
-            <div 
-              className="absolute inset-0 transition-transform duration-75 ease-linear"
-              style={{
-                backgroundImage: `url('${activeRoomImageUrl}')`,
-                backgroundSize: "260% 100%",
-                backgroundPosition: `${panOffset * 1.8}px center`,
-                backgroundRepeat: "repeat-x",
-              }}
-            />
+        {/* RULER DRAWN LINE */}
+        {interactiveMode === "ruler" && rulerPoints.length > 0 && (
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+            {rulerPoints.map((point, idx) => (
+              <circle
+                key={idx}
+                cx={point.x}
+                cy={point.y}
+                r="6"
+                className="fill-amber-400 stroke-white stroke-2 animate-ping"
+              />
+            ))}
+            {rulerPoints.length === 2 && (
+              <line
+                x1={rulerPoints[0].x}
+                y1={rulerPoints[0].y}
+                x2={rulerPoints[1].x}
+                y2={rulerPoints[1].y}
+                className="stroke-amber-400 stroke-2"
+                strokeDasharray="4 4"
+              />
+            )}
+          </svg>
+        )}
 
-            {/* Tint Overlay vignettes to bring cinematic dark mood depth */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/40 pointer-events-none" />
+        {/* MEASUREMENT METRICS PANEL OVERLAY */}
+        {interactiveMode === "ruler" && (
+          <div className="absolute bottom-14 left-1/2 transform -translate-x-1/2 bg-amber-950/95 backdrop-blur-sm px-5 py-3 rounded-xl border border-amber-600/40 font-mono text-[10px] text-amber-300 z-25 text-center shadow-lg">
+            <span className="block font-black uppercase text-[8.5px] tracking-widest text-amber-400 mb-0.5">📏 METRAJ LAZER TARAYICI (LAZER RULER)</span>
+            {rulerPoints.length === 0 && <span className="opacity-85">{isTr ? "İki nokta seçerek metraj ölçün" : "Place two dots in the room to measure"}</span>}
+            {rulerPoints.length === 1 && <span className="opacity-85">{isTr ? "Uç noktasını seçin..." : "Place the second end terminal point..."}</span>}
+            {rulerPoints.length === 2 && (
+              <span className="font-extrabold text-white text-sm">
+                📐 {isTr ? "Hesaplanan Uzunluk:" : "Calculated Distance:"} <span className="text-amber-400 underline font-black">{calculatedMeasurement} mt</span>
+              </span>
+            )}
+          </div>
+        )}
 
-            {/* HUD OVERLAY: Top Floating widgets */}
-            <div className="absolute top-3 left-3 right-3 flex justify-between items-center pointer-events-none z-20">
-              <div className="bg-slate-950/90 backdrop-blur-xs px-2.5 py-1.5 rounded-xl border border-slate-800 flex items-center gap-1.5 shadow">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[7.5px] font-mono tracking-widest text-emerald-400 uppercase">360° AI ACTIVE SCANNING</span>
-              </div>
+        {/* HUD OVERLAY: Bottom navigation hint */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none bg-slate-950/80 px-4 py-1.5 rounded-full border border-slate-800/80 backdrop-blur-xs transition-opacity opacity-90 group-hover/viewport:opacity-100 z-10">
+          <span className="text-[8px] font-black text-slate-200 uppercase tracking-widest select-none">
+            ↔️ {isTr ? "EKRAN ÜZERİNDE SÜRÜKLEYREK ODAYI GEZİNEBİLİRSİNİZ" : "DRAG ACROSS THE VIEWPORT TO omni-pan"}
+          </span>
+        </div>
+      </div>
 
-              {/* Compass Widget */}
-              <div className="bg-slate-950/90 backdrop-blur-xs px-2.5 py-1.5 rounded-xl border border-slate-800 flex items-center gap-1.5 shadow">
-                <span className="text-[7px] text-slate-400 font-mono">COMPASS:</span>
-                <span className="text-[8.5px] text-white font-mono font-bold">{Math.round(panOffset)}°</span>
-                <Compass 
-                  style={{ transform: `rotate(${panOffset}deg)` }}
-                  className="w-3.5 h-3.5 text-indigo-400 transition-transform duration-100 ease-out" 
-                />
-              </div>
-            </div>
-
-            {/* FLOATING INTERACTIVE PORTALS / HOTSPOTS */}
-            {interactiveMode === "pan" && activeRoom.hotspots.map((hotspot, idx) => {
-              // Map x-coordinate relative to current panOffset
-              const viewportWidth = 400; // estimated
-              // Shift position as background scrolls
-              const hotspotPos = ((hotspot.x * 4 + panOffset * 0.8) % 100);
-              
-              return (
+      {/* CONTROLS & COMPANION DASHBOARD GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+        {/* PANEL 1: Room Selector Map checklist */}
+        <div className="bg-slate-950/40 rounded-2xl p-5 border border-slate-800/60 flex flex-col justify-between space-y-4">
+          <div>
+            <p className="text-[9px] font-extrabold text-indigo-400 tracking-widest uppercase mb-3 flex items-center gap-1.5">
+              <span>📍</span> <span>{isTr ? "TÜM 3D TARAMA ALANLARI" : "SCANNED SPACES MAP"}</span>
+            </p>
+            
+            <div className="grid grid-cols-1 gap-2">
+              {rooms.map((room) => (
                 <button
-                  key={idx}
+                  key={room.id}
                   onClick={() => {
-                    setActiveRoomId(hotspot.targetId);
+                    setActiveRoomId(room.id);
                     setRulerPoints([]);
                   }}
-                  style={{ left: `${hotspotPos}%`, top: "60%" }}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-indigo-400 text-indigo-200 text-[9.5px] font-black tracking-wide shadow-2xl hover:bg-indigo-600 hover:text-white hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 z-10 animate-bounce"
+                  className={`w-full text-left py-3 px-4 rounded-xl text-[11px] font-black transition-all flex items-center justify-between border cursor-pointer ${
+                    activeRoomId === room.id 
+                      ? "bg-indigo-600 border-indigo-700 text-white shadow shadow-indigo-600/20" 
+                      : "bg-slate-800/60 border-slate-700/50 text-slate-350 hover:bg-slate-700 hover:text-white"
+                  }`}
                 >
-                  <Home className="w-3.5 h-3.5 shrink-0" />
-                  <span>🚪 {hotspot.name}</span>
+                  <span>🚪 {room.name}</span>
+                  <span className="text-[9px] font-mono opacity-80">{room.area}</span>
                 </button>
-              );
-            })}
-
-            {/* RULER DRAWN LINE */}
-            {interactiveMode === "ruler" && rulerPoints.length > 0 && (
-              <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-                {rulerPoints.map((point, idx) => (
-                  <circle
-                    key={idx}
-                    cx={point.x}
-                    cy={point.y}
-                    r="5"
-                    className="fill-amber-400 stroke-white stroke-2 animate-ping"
-                  />
-                ))}
-                {rulerPoints.length === 2 && (
-                  <line
-                    x1={rulerPoints[0].x}
-                    y1={rulerPoints[0].y}
-                    x2={rulerPoints[1].x}
-                    y2={rulerPoints[1].y}
-                    className="stroke-amber-400 stroke-2"
-                    strokeDasharray="4 4"
-                  />
-                )}
-              </svg>
-            )}
-
-            {/* MEASUREMENT METRICS PANEL OVERLAY */}
-            {interactiveMode === "ruler" && (
-              <div className="absolute bottom-14 left-1/2 transform -translate-x-1/2 bg-amber-950/90 backdrop-blur-sm px-4 py-2 rounded-xl border border-amber-600/30 font-mono text-[9.5px] text-amber-300 z-25 text-center shadow-lg">
-                <span className="block font-black uppercase text-[8px] tracking-widest text-amber-400 mb-0.5">📏 METRAJ LAZER TARAYICI (LAZER RULER)</span>
-                {rulerPoints.length === 0 && <span className="opacity-85">{isTr ? "İki nokta seçerek metraj ölçün" : "Place two dots in the room to measure"}</span>}
-                {rulerPoints.length === 1 && <span className="opacity-85">{isTr ? "Uç noktasını seçin..." : "Place the second end terminal point..."}</span>}
-                {rulerPoints.length === 2 && (
-                  <span className="font-extrabold text-white text-xs">
-                    📐 {isTr ? "Hesaplanan Uzunluk:" : "Calculated Distance:"} <span className="text-amber-400 underline font-black">{calculatedMeasurement} mt</span>
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* HUD OVERLAY: Bottom navigation hint */}
-            <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 pointer-events-none bg-slate-950/70 px-3 py-1 rounded-full border border-slate-800/80 backdrop-blur-xs transition-opacity opacity-85 group-hover:opacity-100 z-10">
-              <span className="text-[7.5px] font-black text-slate-300 uppercase tracking-widest select-none">
-                ↔️ {isTr ? "SÜRÜKLEYREK 360° KAMERA AÇISINI DEĞİŞTİRİN" : "DRAG HORIZONTALLY TO OMNI-PAN"}
-              </span>
+              ))}
             </div>
           </div>
 
-          {/* Bottom Virtual Staging styling rack */}
-          <div className="mt-3 bg-slate-950/80 p-3 rounded-2xl border border-slate-800.8 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="text-[10px] font-black tracking-wider text-slate-300 uppercase">
-                🛋️ {isTr ? "YAPAY ZEKA SANAL DEKORASYON (AI STAGING):" : "AI DESIGN STAGING VARIATIONS:"}
-              </span>
-            </div>
+          <div className="bg-indigo-600/5 p-3.5 rounded-xl border border-indigo-500/10 text-[10px] leading-relaxed text-indigo-300/90 font-medium">
+            💡 <strong>{isTr ? "Gezinti İpucu:" : "Navigation Tip:"}</strong> {isTr ? "Yukarıdaki listeden istediğiniz mekana tıklayarak odalar arasında geçiş yapabilirsiniz. Evin içinde dolaşmak bu kadar kolay!" : "Click any room card on the list to jump between scanning sectors. Complete virtual navigation has never been cleaner!"}
+          </div>
+        </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap">
+        {/* PANEL 2: AI Staging Style selectors */}
+        <div className="bg-slate-950/40 rounded-2xl p-5 border border-slate-800/60 flex flex-col justify-between space-y-4">
+          <div>
+            <p className="text-[9px] font-extrabold text-indigo-400 tracking-widest uppercase mb-3 flex items-center gap-1.5">
+              <span>🛋️</span> <span>{isTr ? "YAPAY ZEKA DEKORASYON (AI STAGING)" : "AI DESIGN STAGING VARIATIONS"}</span>
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
               {[
-                { id: "empty", label: isTr ? "🚧 İnşaat / Boş" : "Raw Solid Shell" },
+                { id: "empty", label: isTr ? "🚧 İnşaat / Boş" : "Raw Shell" },
                 { id: "luxury", label: isTr ? "💎 Modern Lüks" : "Modern Luxury" },
-                { id: "boho", label: isTr ? "🌿 Bohem Akdeniz" : "Boho Cyprus style" },
+                { id: "boho", label: isTr ? "🌿 Bohem Akdeniz" : "Boho Style" },
                 { id: "nordic", label: isTr ? "🪵 Nordik Meşe" : "Nordic Cozy" }
               ].map((style) => (
                 <button
                   key={style.id}
                   onClick={() => setStagingStyle(style.id as any)}
-                  className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${
+                  className={`py-3 px-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
                     stagingStyle === style.id 
-                      ? "bg-indigo-600 border-indigo-700 text-white shadow shadow-indigo-600/30" 
-                      : "bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                      ? "bg-indigo-600 border-indigo-700 text-white shadow-md shadow-indigo-600/20" 
+                      : "bg-slate-800/60 border-slate-700/50 text-slate-350 hover:bg-slate-700 hover:text-white"
                   }`}
                 >
                   {style.label}
@@ -531,39 +481,54 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Staging Advice Block */}
+          <div className="bg-slate-900/90 p-4 rounded-xl border border-slate-800/80 space-y-1.5 shadow">
+            <span className="block text-[8px] text-indigo-400 uppercase font-black tracking-widest">
+              ✨ {isTr ? "STAGING TAVSİYESİ" : "STAGING ADVICE"}
+            </span>
+            <p className="text-[10px] text-slate-400 leading-normal font-medium">
+              {stagingStyle === "empty" && (isTr ? "Mülk satılırken kaba inşaat aşamasını referans alarak duvarların mukavemetini ve beton yapıyı kontrol etmenizi sağlar." : "Direct skeletal structure view. Allows checking cement columns and wall density.")}
+              {stagingStyle === "luxury" && (isTr ? "Kuzey Kıbrıs gün batımını yansıtması için antrasit mermer hatlar, gizli entegre led aydınlatmalar ve lüks kadife chester koltuk grubu önerilir." : "High-end luxury styling designed with solid gold lines, custom velvet seating pods, and concealed soft illumination.")}
+              {stagingStyle === "boho" && (isTr ? "Doğal hazeran hasır dolaplar, el dokuması Girne ipeği kilimler ve Akdeniz rüzgarını hissettirecek palmiye saksıları ile sıcak bir konsept." : "Warm bohemian aesthetics. Authentic local palm leaves, organic wicker carpets, and warm Cyprus clay vases.")}
+              {stagingStyle === "nordic" && (isTr ? "Yumuşak keten bej perdeler, açık meşe ahşap lambiri kaplamalar ile tavan yüksekliğini destekleyen, ferah bir konfor hissi." : "Light-toned minimal oak cabinetry, beige linen curtains and soft textured carpets to boost visual warmth.")}
+            </p>
+          </div>
         </div>
 
-        {/* RIGHT COMPANION: AI interior designer notes & agent action feedback */}
-        <div className="lg:col-span-1 bg-slate-950/80 rounded-2xl p-4 border border-slate-800 flex flex-col justify-between min-h-[380px]">
-          <div className="space-y-4">
+        {/* PANEL 3: AI Co-Designer Analytics & Details */}
+        <div className="bg-slate-950/40 rounded-2xl p-5 border border-slate-800/60 flex flex-col justify-between min-h-[220px]">
+          <div className="space-y-3">
             <div>
-              <span className="text-[8px] font-extrabold text-indigo-400 tracking-widest uppercase flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-indigo-400" />
+              <span className="text-[9px] font-extrabold text-indigo-400 tracking-widest uppercase flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                 AI CO-DESIGNER INSIGHTS
               </span>
-              <h5 className="text-xs font-black text-white mt-1">
+              <h5 className="text-[12px] font-black text-white mt-1 leading-none uppercase">
                 🟢 {activeRoom.name}
               </h5>
-              <div className="mt-2 text-[10px] text-slate-300 leading-relaxed max-h-[140px] overflow-y-auto pr-1">
+              <div className="mt-2 text-[10px] text-slate-400 leading-relaxed font-semibold max-h-[100px] overflow-y-auto no-scrollbar">
                 {activeRoom.description}
               </div>
             </div>
 
-            <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="text-[7.5px] text-indigo-300 uppercase font-black tracking-widest">
-                💡 {isTr ? "STAGING TAVSİYESİ" : "INTERIOR STAGING ADVICE"}
-              </span>
-              <p className="text-[10px] text-slate-400 leading-normal">
-                {stagingStyle === "empty" && (isTr ? "Mülk satılırken kaba sıva aşaması referans alınmıştır." : "Direct skeletal structure view. Allows checking cement columns and wall density.")}
-                {stagingStyle === "luxury" && (isTr ? "Kuzey Kıbrıs gün batımını yansıtması için antrasit mermer hatlar, gizli odaya entegre led aydınlatmalı lüks kadife chester koltuk grubu önerilir." : "High-end luxury styling designed with solid gold lines, custom velvet seating pods, and concealed soft illumination.")}
-                {stagingStyle === "boho" && (isTr ? "Doğal hazeran hasır dolaplar, el dokuması Girne ipeği kilimler ve Akdeniz rüzgarını hissettirecek palmiye saksıları ile sıcak bir kurgu." : "Warm bohemian aesthetics. Authentic local palm leaves, organic wicker carpets, and warm Cyprus clay vases.")}
-                {stagingStyle === "nordic" && (isTr ? "Yumuşak keten bej perdeler, açık meşe ahşap lambiri kaplamalar ile maksimum ferahlık ve konfor hissi yakalandı." : "Light-toned minimal oak cabinetry, beige linen curtains and soft textured carpets to boost visual warmth.")}
-              </p>
+            {/* Smart technical specifics values list */}
+            <div className="border-t border-slate-800/80 pt-2 bg-slate-950/30 p-2.5 rounded-xl border border-slate-850">
+              <div className="text-[9px] font-mono leading-relaxed space-y-1.5 text-slate-450 text-slate-400">
+                <div className="flex justify-between border-b border-slate-850/60 pb-1">
+                  <span>Zemin:</span>
+                  <span className="text-white font-bold">{activeRoom.spec}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tavan Yükseklik:</span>
+                  <span className="text-emerald-400 font-extrabold font-mono">2.82mt</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2 border-t border-slate-800 pt-3">
-            <div className="flex justify-between items-center text-[9.5px]">
+          <div className="space-y-2.5 border-t border-slate-800/80 pt-3">
+            <div className="flex justify-between items-center text-[10px]">
               <span className="text-slate-400">{isTr ? "Sanal Tur No:" : "Virtual Scan ID:"}</span>
               <span className="font-mono text-emerald-400 font-bold">LP-VR-{property?.id || "992"}</span>
             </div>
@@ -576,18 +541,17 @@ export const AIVirtualTourView: React.FC<AIVirtualTourViewProps> = ({
                   alert(isTr ? "Bu mülk için dış Matterport linki tanımlanmamış. AI sanal turu üzerinden mülkü %100 oranında gezebilirsiniz!" : "No custom physical Matterport link. Use the AI Engine above to completely explore!");
                 }
               }}
-              className="w-full py-2 bg-slate-800/80 hover:bg-slate-700 hover:text-white rounded-xl text-[9px] font-bold uppercase tracking-wider text-slate-350 transition-all border border-slate-700/80 flex items-center justify-center gap-1"
+              className="w-full py-2.5 bg-slate-800/80 hover:bg-slate-750 hover:text-white rounded-xl text-[9px] font-extrabold uppercase tracking-widest text-slate-350 transition-all border border-slate-705/80 border-slate-700/80 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
             >
               <Eye className="w-3.5 h-3.5" />
               {isTr ? " Matterport Orijinal (Dış Link) ↗" : "Original Matterport External View ↗"}
             </button>
           </div>
         </div>
-
       </div>
 
       {/* Decorative branding info footer */}
-      <div className="text-[8.5px] text-slate-500 font-mono flex justify-between items-center pt-2 border-t border-slate-850">
+      <div className="text-[8.5px] text-slate-500 font-mono flex justify-between items-center pt-2.5 border-t border-slate-850">
         <span>© 2026 LookPrice VR Network • Real-time AI digital twin integration hub</span>
         <span>Securely verified in Cyprus (KKTC) portfolio pool</span>
       </div>

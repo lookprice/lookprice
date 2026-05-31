@@ -510,10 +510,12 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       let isEligible = true;
 
       // 1. Region Match
-      const matchesRegion = buyer.preferredRegions.some(reg => 
-        propLocation.toLowerCase().includes(reg.toLowerCase()) ||
-        propRegion.toLowerCase().includes(reg.toLowerCase())
-      );
+      const matchesRegion = Array.isArray(buyer.preferredRegions) ? buyer.preferredRegions.some(reg => {
+        if (!reg) return false;
+        const regLower = reg.toLowerCase();
+        return (propLocation || "").toLowerCase().includes(regLower) ||
+               (propRegion || "").toLowerCase().includes(regLower);
+      }) : false;
 
       if (matchesRegion) {
         score += 25;
@@ -576,10 +578,12 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
   const filteredProperties = properties.filter(p => {
     // Search also parses description for deep metadata matching
-    const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase()) || 
-      (p.location && p.location.toLowerCase().includes(search.toLowerCase())) ||
-      (p.description && p.description.toLowerCase().includes(search.toLowerCase())) ||
-      (p.kktc_title_type && p.kktc_title_type.toLowerCase().includes(search.toLowerCase()));
+    const titleLower = (p.title || "").toLowerCase();
+    const searchLower = (search || "").toLowerCase();
+    const matchesSearch = titleLower.includes(searchLower) || 
+      (p.location && p.location.toLowerCase().includes(searchLower)) ||
+      (p.description && p.description.toLowerCase().includes(searchLower)) ||
+      (p.kktc_title_type && p.kktc_title_type.toLowerCase().includes(searchLower));
     
     const matchesRegion = filterRegion === "all" || 
       (filterRegion === "KKTC" && p.country === "KKTC") ||
@@ -1666,7 +1670,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
                         {/* Interactive Analyzer */}
                         {(() => {
-                          const negativePriceCount = showingFeedbacks.filter(f => f.review.toLowerCase().includes("fiyat") || f.review.toLowerCase().includes("pahalı")).length;
+                          const negativePriceCount = showingFeedbacks.filter(f => (f.review || "").toLowerCase().includes("fiyat") || (f.review || "").toLowerCase().includes("pahalı")).length;
                           const avgRating = Math.round(showingFeedbacks.reduce((acc, f) => acc + f.rating, 0) / showingFeedbacks.length * 10) / 10;
                           return (
                             <div className={`p-3 rounded-xl border flex items-start gap-2 text-[10.5px] font-semibold leading-relaxed ${
@@ -2742,7 +2746,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             const existingDocs = contractProperty.documents || [];
             const updatedDocs = [...existingDocs.filter((d: any) => d.id !== contractDoc.id), contractDoc];
             await onSave({
-              id: contractProperty.id,
+              ...contractProperty,
               documents: updatedDocs
             });
             setContractProperty(prev => prev ? { ...prev, documents: updatedDocs } : null);
