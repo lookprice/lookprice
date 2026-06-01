@@ -98,12 +98,14 @@ async function startServer() {
     }
 
     try {
-      const { supabase } = await import("./src/services/supabaseService");
-      if (!supabase) {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
+      const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
+      if (!supabaseUrl || !supabaseKey) {
         return res.status(400).json({ 
           error: "Supabase API anahtarları eksik! Lütfen AI Studio Secrets veya .env ayarlarından SUPABASE_URL ve SUPABASE_KEY tanımlayın." 
         });
       }
+      const { supabase } = await import("./src/services/supabaseService");
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       const filename = uniqueSuffix + "-" + req.file.originalname;
 

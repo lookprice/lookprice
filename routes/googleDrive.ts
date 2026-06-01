@@ -9,12 +9,15 @@ import { PassThrough } from "stream";
 const router = express.Router();
 
 function getOAuth2Client(req: express.Request) {
+  const oauthClientId = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID;
+  const oauthClientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.CLIENT_SECRET;
+
   const missing = [];
-  if (!process.env.GOOGLE_CLIENT_ID) missing.push("GOOGLE_CLIENT_ID");
-  if (!process.env.GOOGLE_CLIENT_SECRET) missing.push("GOOGLE_CLIENT_SECRET");
+  if (!oauthClientId) missing.push("GOOGLE_CLIENT_ID / CLIENT_ID");
+  if (!oauthClientSecret) missing.push("GOOGLE_CLIENT_SECRET / CLIENT_SECRET");
   
   if (missing.length > 0) {
-    const errorMsg = `Google Drive API kimlik bilgileri eksik veya yapılandırılmamış: ${missing.join(", ")}. Lütfen Secrets ayarlarından GOOGLE_CLIENT_ID ve GOOGLE_CLIENT_SECRET değerlerini kontrol edin.`;
+    const errorMsg = `Google Drive API kimlik bilgileri eksik veya yapılandırılmamış: ${missing.join(", ")}. Lütfen Secrets ayarlarından GOOGLE_CLIENT_ID/CLIENT_ID ve GOOGLE_CLIENT_SECRET/CLIENT_SECRET değerlerini kontrol edin.`;
     console.error(errorMsg);
     throw new Error(errorMsg);
   }
@@ -32,11 +35,11 @@ function getOAuth2Client(req: express.Request) {
   
   const redirectUrl = `${protocol}://${host}/api/google-drive/callback`;
   
-  console.log(`OAuth2 Client initialized with: ClientID=${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}..., RedirectURL=${redirectUrl}`);
+  console.log(`OAuth2 Client initialized with: ClientID=${oauthClientId?.substring(0, 5)}..., RedirectURL=${redirectUrl}`);
 
   return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
+    oauthClientId,
+    oauthClientSecret,
     redirectUrl
   );
 }

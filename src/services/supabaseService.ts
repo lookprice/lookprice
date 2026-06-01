@@ -1,12 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
-const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
+let cachedClient: any = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn("Supabase environment variables (SUPABASE_URL/SUPABASE_KEY or project_url/service_role) are missing. File uploads will fail.");
-}
+export const supabase = {
+  get storage() {
+    if (!cachedClient) {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
+      const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
 
-export const supabase = (supabaseUrl && supabaseKey) 
-  ? createClient(supabaseUrl, supabaseKey)
-  : null as any;
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Supabase API key is missing. Please define SUPABASE_URL and SUPABASE_KEY.");
+      }
+      cachedClient = createClient(supabaseUrl, supabaseKey);
+    }
+    return cachedClient.storage;
+  }
+} as any;
