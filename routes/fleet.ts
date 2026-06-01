@@ -24,11 +24,33 @@ const upload = multer({ storage: multer.memoryStorage() });
   }
 })();
 
+function sanitizeFilename(originalName: string): string {
+  const turkishMap: { [key: string]: string } = {
+    'ç': 'c', 'Ç': 'C',
+    'ğ': 'g', 'Ğ': 'G',
+    'ı': 'i', 'İ': 'I',
+    'ö': 'o', 'Ö': 'O',
+    'ş': 's', 'Ş': 'S',
+    'ü': 'u', 'Ü': 'U'
+  };
+
+  // Convert Turkish characters
+  let clean = originalName.split('').map(char => turkishMap[char] || char).join('');
+
+  // Replace spaces and special characters with harmless characters
+  clean = clean.replace(/\s+/g, '_');
+  
+  // Keep only a-z, A-Z, 0-9, dot, underscore, hyphen
+  clean = clean.replace(/[^a-zA-Z0-9._-]/g, '');
+
+  return clean || 'file';
+}
+
 async function uploadToSupabase(file: any) {
   try {
     const { supabase } = await import('../src/services/supabaseService.ts');
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const filename = uniqueSuffix + '-' + file.originalname;
+    const filename = uniqueSuffix + '-' + sanitizeFilename(file.originalname);
 
     const { data, error } = await supabase.storage
       .from('lookdocu')

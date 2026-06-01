@@ -79,3 +79,57 @@
     @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
   }
 }
+
+/* Custom Print Page Styles */
+@media print {
+  html, body {
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide absolutely everything except our print element */
+  body > div:not(#print-poster-wrapper),
+  #root > div:not(#print-poster-wrapper),
+  main,
+  header,
+  footer,
+  aside,
+  nav,
+  button,
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    top: -9999px !important;
+  }
+
+  #print-poster-wrapper {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 15mm !important;
+    background: white !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
+

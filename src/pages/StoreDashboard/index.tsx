@@ -966,7 +966,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     dashboard: false,
     sales: true,
     operations: true,
-    real_estate: false,
+    real_estate: true,
     integrations: false,
     settings: false
   });

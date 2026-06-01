@@ -508,7 +508,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {(data.virtual_tour_url || sector === "real_estate") && (
+      {data.virtual_tour_url && false && (
         <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[8px] font-black text-indigo-500 tracking-widest mb-1 uppercase">
@@ -1470,14 +1470,16 @@ const ProductDetailModal: React.FC<{
                     <Package className="w-3 h-3" />
                     {lang === "tr" ? "Galeri" : "Gallery"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveViewMode("tour360")}
-                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
-                  >
-                    <Globe className="w-3 h-3" />
-                    {lang === "tr" ? "360°" : "360°"}
-                  </button>
+                  {product.type !== "real_estate" && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveViewMode("tour360")}
+                      className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
+                    >
+                      <Globe className="w-3 h-3" />
+                      {lang === "tr" ? "360°" : "360°"}
+                    </button>
+                  )}
                   {product.type === "real_estate" && (
                     <button
                       type="button"
