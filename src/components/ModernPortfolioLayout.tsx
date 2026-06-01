@@ -249,7 +249,8 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
           ? "Yatırım hayallerinizi gerçeğe dönüştüren profesyonel çözümler."
           : "Professional solutions turning your investment dreams into reality."),
       bgImage:
-        store.logo_url ||
+        ((store as any).page_layout && typeof (store as any).page_layout === 'object' && !Array.isArray((store as any).page_layout) && ((store as any).page_layout as any).hero_image_url) ||
+        store.hero_image_url ||
         "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2000",
     },
     stats: [
@@ -272,27 +273,40 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
   };
 
   const layoutConfig = React.useMemo(() => {
-    if (!store.page_layout) return { sections: [], grid: 'standard', count: 6 };
+    if (!store.page_layout) return { sections: [], grid: 'standard', count: 6, banners: [] };
     let layout = store.page_layout;
     if (typeof layout === "string") {
       try {
         layout = JSON.parse(layout);
       } catch (e) {
-        return { sections: [], grid: 'standard', count: 6 };
+        return { sections: [], grid: 'standard', count: 6, banners: [] };
       }
     }
     
     if (Array.isArray(layout)) {
-      return { sections: layout, grid: 'standard', count: 6 };
+      return { sections: layout, grid: 'standard', count: 6, banners: [] };
     }
     
     const l = layout as any;
     return {
       sections: l.sections || [],
       grid: l.grid || 'standard',
-      count: l.count || 6
+      count: l.count || 6,
+      banners: l.banners || []
     };
   }, [store.page_layout]);
+
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+
+  React.useEffect(() => {
+    const banners = layoutConfig.banners;
+    if (banners && banners.length > 1) {
+      const interval = setInterval(() => {
+        setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [layoutConfig.banners]);
 
   const isSectionEnabled = (sectionId: string) => {
     if (!layoutConfig.sections || layoutConfig.sections.length === 0) return true;
@@ -307,15 +321,30 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
       {/* Hero Container */}
       {isSectionEnabled("hero") && (
         <div className="h-[450px] relative flex flex-col items-center justify-center p-12 text-center w-full">
-          <div
-            className="absolute inset-0 transition-opacity duration-1000"
-            style={{
-              backgroundImage: `url(${content.hero.bgImage})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              filter: "blur(2px)",
-            }}
-          ></div>
+          {(!layoutConfig.banners || layoutConfig.banners.length === 0) ? (
+            <div
+              className="absolute inset-0 transition-opacity duration-1000"
+              style={{
+                backgroundImage: `url(${content.hero.bgImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                filter: "blur(2px)",
+              }}
+            ></div>
+          ) : (
+            layoutConfig.banners.map((bannerUrl: string, idx: number) => (
+              <div
+                key={idx}
+                className={`absolute inset-0 transition-opacity duration-1000 ${activeBannerIndex === idx ? 'opacity-100' : 'opacity-0'}`}
+                style={{
+                  backgroundImage: `url(${bannerUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  filter: "blur(2px)",
+                }}
+              ></div>
+            ))
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-white/90"></div>
 
           <div className="relative z-10 space-y-6 max-w-2xl transform translate-y-4">

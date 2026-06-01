@@ -28,11 +28,20 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
   const [blogs, setBlogs] = useState<any[]>([]);
   const [radarNews, setRadarNews] = useState<any[]>([]);
 
+  const [originalBranding, setOriginalBranding] = useState<any>({});
+  const [banners, setBanners] = useState<string[]>([]);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [faviconUrl, setFaviconUrl] = useState('');
+
   useEffect(() => {
     if (storeId) {
       // Fetch store data to load existing page_layout
       api.getBranding(storeId).then((res) => {
         if (res && !res.error) {
+          setOriginalBranding(res);
+          if (res.logo_url) setLogoUrl(res.logo_url);
+          if (res.favicon_url) setFaviconUrl(res.favicon_url);
+
           if (res.page_layout) {
             let layout = res.page_layout;
             if (typeof layout === "string") {
@@ -50,6 +59,15 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
               }
               if (layout.grid) setGridLayout(layout.grid);
               if (layout.count) setFeaturedCount(layout.count);
+              if (layout.banners && Array.isArray(layout.banners)) {
+                setBanners(layout.banners);
+                if (layout.banners.length > 0) {
+                  setContent(prev => ({
+                    ...prev,
+                    hero: { ...prev.hero, bgImage: layout.banners[0] }
+                  }));
+                }
+              }
             } else if (Array.isArray(layout)) {
               setSections(prev => prev.map(s => {
                 const found = (layout as any[]).find(ls => ls.id === s.id);
@@ -70,6 +88,12 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
             setUseCustomDomain(true);
           }
           if (res.slogan) setContent(prev => ({ ...prev, trustSlogan: res.slogan }));
+          if (res.hero_image_url && (!banners || banners.length === 0)) {
+            setContent(prev => ({
+              ...prev,
+              hero: { ...prev.hero, bgImage: res.hero_image_url }
+            }));
+          }
         }
       }).catch(console.error);
 
@@ -95,17 +119,25 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
   const handleSave = async () => {
     if (!storeId) return;
     try {
+      const updatedLayout = {
+        sections: sections.map(s => ({ id: s.id, enabled: s.enabled })),
+        grid: gridLayout,
+        count: featuredCount,
+        banners: banners
+      };
+      
       const payload = {
-        page_layout: JSON.stringify({
-          sections: sections.map(s => ({ id: s.id, enabled: s.enabled })),
-          grid: gridLayout,
-          count: featuredCount
-        }),
+        ...originalBranding,
+        logo_url: logoUrl,
+        favicon_url: faviconUrl,
+        page_layout: updatedLayout,
         slogan: content.trustSlogan,
         slug: storeSlug,
-        custom_domain: useCustomDomain ? customDomain : null
+        custom_domain: useCustomDomain ? customDomain : null,
+        hero_image_url: banners.length > 0 ? banners[0] : originalBranding.hero_image_url
       };
-      await api.updateStore(storeId, payload);
+      
+      await api.updateBranding(payload, storeId);
       alert(lang === 'tr' ? 'Ayarlar başarıyla kaydedildi!' : 'Settings saved successfully!');
     } catch (error) {
       console.error(error);
@@ -260,6 +292,64 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
                 </div>
               </div>
 
+              {/* Logo & Favicon Settings */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-indigo-500" />
+                  {lang === 'tr' ? 'LOGO & FAVICON' : 'LOGO & FAVICON'}
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{lang === 'tr' ? 'Firma Logosu (Navigasyon)' : 'Company Logo'}</label>
+                    <div className="flex gap-4 items-center">
+                      <div className="h-16 w-32 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
+                        {logoUrl ? <img src={logoUrl} className="h-full w-full object-contain p-2" /> : <ImageIcon className="h-6 w-6 text-slate-300" />}
+                      </div>
+                      <label className="px-4 py-2 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-colors border border-slate-200">
+                        {lang === 'tr' ? 'LOGO DEĞİŞTİR' : 'CHANGE LOGO'}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (uploadEvent) => setLogoUrl(uploadEvent.target?.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{lang === 'tr' ? 'Seçme Simgesi (Favicon)' : 'Favicon'}</label>
+                    <div className="flex gap-4 items-center">
+                      <div className="h-10 w-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
+                        {faviconUrl ? <img src={faviconUrl} className="h-full w-full object-cover" /> : <ImageIcon className="h-4 w-4 text-slate-300" />}
+                      </div>
+                      <label className="px-4 py-2 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-colors border border-slate-200">
+                        {lang === 'tr' ? 'FAVICON SEÇ' : 'SELECT FAVICON'}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (uploadEvent) => setFaviconUrl(uploadEvent.target?.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
                {/* Team Section */}
                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -374,6 +464,51 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
 
           {activeStep === 2 && (
               <div className="space-y-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-indigo-500" />
+                    {lang === 'tr' ? 'VİTRİN & BANNER (SLIDER)' : 'HERO & BANNERS'}
+                  </h3>
+                  <div className="space-y-4">
+                    {banners.map((banner, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border-2 border-slate-100 aspect-video flex-shrink-0">
+                        <img src={banner} className="h-full w-full object-cover" />
+                        <button 
+                          onClick={() => setBanners(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-opacity uppercase text-[9px] font-black tracking-widest shadow-md"
+                        >
+                          X SİL
+                        </button>
+                      </div>
+                    ))}
+                    {(!banners || banners.length < 5) && (
+                      <label className="w-full flex-col h-32 border-2 border-dashed border-slate-200 rounded-xl text-[10px] font-black text-slate-400 flex items-center justify-center gap-2 hover:border-indigo-300 hover:text-indigo-500 transition-all uppercase tracking-widest cursor-pointer bg-slate-50">
+                        <Plus className="h-4 w-4 mb-2" />
+                        {lang === 'tr' ? 'YENİ BANNER YÜKLE' : 'UPLOAD BANNER'}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (uploadEvent) => {
+                                const b64 = uploadEvent.target?.result as string;
+                                setBanners(prev => [...prev, b64]);
+                                if (banners.length === 0) {
+                                  setContent(prev => ({ ...prev, hero: { ...prev.hero, bgImage: b64 } }));
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                     <Layout className="h-4 w-4 text-indigo-500" />
@@ -567,13 +702,33 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
               </div>
 
               {/* Master Website Live View */}
-              <div className="flex-1 bg-white overflow-y-auto max-h-[750px] custom-scrollbar scroll-smooth">
+              <div className="flex-1 bg-white overflow-y-auto max-h-[750px] custom-scrollbar scroll-smooth relative">
+                 {/* Fake Header/Navbar */}
+                 <div className="absolute top-0 left-0 w-full z-40 bg-transparent flex items-center justify-between p-6">
+                    <div className="flex items-center gap-3">
+                       {logoUrl ? (
+                         <img src={logoUrl} className="h-8 w-auto object-contain" />
+                       ) : (
+                         <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center">
+                           <Layout className="h-4 w-4 text-indigo-600" />
+                         </div>
+                       )}
+                       <span className="text-white font-black uppercase tracking-widest text-sm drop-shadow-md">{originalBranding?.name || "MAESTRO"}</span>
+                    </div>
+                    <div className="flex items-center gap-6">
+                       <span className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'ANA SAYFA' : 'HOME'}</span>
+                       <span className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'PORTFÖY' : 'PORTFOLIO'}</span>
+                       <span className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'İLETİŞİM' : 'CONTACT'}</span>
+                       <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">MENU</div>
+                    </div>
+                 </div>
+
                  {/* Hero Container */}
                  {sections.find(s => s.id === 'hero')?.enabled && (
                     <div className="h-[450px] relative flex flex-col items-center justify-center p-12 text-center">
                        <div 
                          className="absolute inset-0 transition-opacity duration-1000" 
-                         style={{ backgroundImage: `url(${content.hero.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                         style={{ backgroundImage: `url(${banners.length > 0 ? banners[0] : content.hero.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(2px)' }}
                        ></div>
                        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/40 to-white"></div>
                        

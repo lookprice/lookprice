@@ -19,10 +19,16 @@ function getOAuth2Client(req: express.Request) {
     throw new Error(errorMsg);
   }
   
-  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+  let protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+  if (typeof protocol === "string" && protocol.includes(",")) {
+    protocol = protocol.split(",")[0].trim();
+  }
+  
   // Try to use forwarded host, then host, then a default.
-  // In production, explicitly set a BASE_URL env variable if needed.
-  const host = req.headers["x-forwarded-host"] || req.get("host") || "lookprice.net";
+  let host = req.headers["x-forwarded-host"] || req.get("host") || "lookprice.net";
+  if (typeof host === "string" && host.includes(",")) {
+    host = host.split(",")[0].trim();
+  }
   
   const redirectUrl = `${protocol}://${host}/api/google-drive/callback`;
   
