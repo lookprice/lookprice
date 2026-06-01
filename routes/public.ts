@@ -703,7 +703,7 @@ router.get("/store/:slug", async (req, res) => {
 
   // Fetch consultants 
   const consultantsRes2 = await pool.query(
-    "SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND status != 'inactive' ORDER BY name ASC", 
+    "SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND (status IS NULL OR status != 'inactive') ORDER BY name ASC", 
     [store.id]
   );
   store.consultants = consultantsRes2.rows;

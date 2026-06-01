@@ -69,7 +69,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { api } from "../services/api";
-import { useLanguage } from "../contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
 import { ModernPortfolioLayout } from "../components/ModernPortfolioLayout";
 import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
@@ -1020,7 +1020,9 @@ const ListingFinancingCalculator: React.FC<{
   );
 };
 
-const MAP_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || "";
+// @ts-ignore
+const MAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || "";
+console.log("Maps API Key loaded:", !!MAP_KEY ? "Present" : "Missing");
 
 const PropertyMapTour: React.FC<{
   location?: string;
@@ -1046,6 +1048,9 @@ const PropertyMapTour: React.FC<{
     
     // Initial entrance animation
     setTimeout(() => {
+      // Set the first POI immediately
+      if (pois.length > 0) setActivePoi(pois[0]);
+      
       map3dRef.current?.flyCameraTo({
         endCamera: {
           center: { lat: baseLat, lng: baseLng, altitude: 150 },
@@ -1059,21 +1064,32 @@ const PropertyMapTour: React.FC<{
     }, 500);
 
     const interval = setInterval(() => {
-      const poi = pois[poiIdx];
-      setActivePoi(poi);
-      
-      map3dRef.current?.flyCameraTo({
-        endCamera: {
-          center: { lat: baseLat + poi.latDelta * 0.5, lng: baseLng + poi.lngDelta * 0.5, altitude: 75 },
-          range: 600,
-          heading: (45 + poiIdx * 90) % 360,
-          tilt: 70,
-          roll: 0
-        },
-        durationMillis: 5000
-      });
+      try {
+        const poi = pois[poiIdx];
+        if (!poi) return;
+        setActivePoi(poi);
+        
+        console.log("Flying camera to POI:", poi.name);
+        
+        if (map3dRef.current) {
+          map3dRef.current.flyCameraTo({
+            endCamera: {
+              center: { lat: baseLat + poi.latDelta * 0.5, lng: baseLng + poi.lngDelta * 0.5, altitude: 75 },
+              range: 600,
+              heading: (45 + poiIdx * 90) % 360,
+              tilt: 70,
+              roll: 0
+            },
+            durationMillis: 5000
+          }).catch((err: any) => console.error("Map flyCameraTo error:", err));
+        } else {
+            console.warn("map3dRef.current is not available yet");
+        }
 
-      poiIdx = (poiIdx + 1) % pois.length;
+        poiIdx = (poiIdx + 1) % pois.length;
+      } catch (err) {
+        console.error("Interval tick error:", err);
+      }
     }, 8000);
     
     return () => clearInterval(interval);

@@ -5805,7 +5805,7 @@ router.get("/consultants", async (req: any, res) => {
 
 // Create consultant
 router.post("/consultants", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   let { name, email, phone, role, branch_id, image_url, performance } = req.body;
   
   // Handle empty branch_id
@@ -5827,7 +5827,7 @@ router.post("/consultants", async (req: any, res) => {
 // Update consultant
 router.put("/consultants/:id", async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   let { name, email, phone, role, branch_id, image_url, performance } = req.body;
   
   const effectiveBranchId = (branch_id === "" || branch_id === null) ? null : branch_id;

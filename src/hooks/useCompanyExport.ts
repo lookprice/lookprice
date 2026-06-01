@@ -179,7 +179,7 @@ export const useCompanyExport = (
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`${fixTr(t.statements.balance)}: ${currentBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${selectedCurrency}`, 196, finalY, { align: 'right' });
+    doc.text(`${fixTr(t.statements.balance)}: ${runningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US')} ${selectedCurrency}`, 196, finalY, { align: 'right' });
 
     doc.save(`${fixTr(t.statements.customerStatement.toLowerCase().replace(/\s+/g, '_'))}_${fixTr(selectedCompany.title)}_${selectedCurrency}_${transactionStartDate}_${transactionEndDate}.pdf`);
   };

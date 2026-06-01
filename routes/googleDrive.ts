@@ -9,11 +9,25 @@ import { PassThrough } from "stream";
 const router = express.Router();
 
 function getOAuth2Client(req: express.Request) {
-  const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-  const host = req.headers["x-forwarded-host"] || req.get("host");
-  // Some deployments might not have the correct host header, but for AI Studio preview:
+  const missing = [];
+  if (!process.env.GOOGLE_CLIENT_ID) missing.push("GOOGLE_CLIENT_ID");
+  if (!process.env.GOOGLE_CLIENT_SECRET) missing.push("GOOGLE_CLIENT_SECRET");
+  
+  if (missing.length > 0) {
+    const errorMsg = `Google Drive API kimlik bilgileri eksik veya yapılandırılmamış: ${missing.join(", ")}. Lütfen Secrets ayarlarından GOOGLE_CLIENT_ID ve GOOGLE_CLIENT_SECRET değerlerini kontrol edin.`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  
+  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+  // Try to use forwarded host, then host, then a default.
+  // In production, explicitly set a BASE_URL env variable if needed.
+  const host = req.headers["x-forwarded-host"] || req.get("host") || "lookprice.net";
+  
   const redirectUrl = `${protocol}://${host}/api/google-drive/callback`;
   
+  console.log(`OAuth2 Client initialized with: ClientID=${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}..., RedirectURL=${redirectUrl}`);
+
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -23,17 +37,24 @@ function getOAuth2Client(req: express.Request) {
 
 // 1. Get Google Drive Auth URL
 router.get("/auth-url", authenticate, async (req: any, res) => {
-  const storeId = req.user.storeId || req.user.store_id; // Check both depending on auth mw
-  const oauth2Client = getOAuth2Client(req);
+  const storeId = req.user.storeId || req.user.store_id; 
+  if (!storeId) {
+    return res.status(400).json({ error: "Store ID bulunamadı." });
+  }
 
-  const url = oauth2Client.generateAuthUrl({
-    access_type: "offline",
-    prompt: "consent", // Force to get refresh token
-    scope: ["https://www.googleapis.com/auth/drive.file"],
-    state: storeId.toString()
-  });
+  try {
+    const oauth2Client = getOAuth2Client(req);
+    const url = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      prompt: "consent", // Force to get refresh token
+      scope: ["https://www.googleapis.com/auth/drive.file"],
+      state: storeId.toString()
+    });
 
-  res.json({ url });
+    res.json({ url });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 // 2. Google Auth Callback
@@ -47,6 +68,7 @@ router.get("/callback", async (req: any, res) => {
 
   try {
     const oauth2Client = getOAuth2Client(req);
+    if (!oauth2Client) throw new Error("Google Drive yapılandırılmamış.");
     const { tokens } = await oauth2Client.getToken(code as string);
     
     // tokens contains access_token and refresh_token
@@ -66,7 +88,7 @@ router.get("/callback", async (req: any, res) => {
     res.send("<html><body><h1>Google Drive Bağlantısı Başarılı!</h1><p>Bu pencereyi kapatıp uygulamaya dönebilirsiniz.</p><script>setTimeout(() => window.close(), 3000);</script></body></html>");
   } catch (error: any) {
     console.error("Google Drive Callback Error:", error.message || error);
-    res.status(500).send("Bağlantı sırasında bir hata oluştu.");
+    res.status(500).send("Bağlantı sırasında bir hata oluştu: " + error.message);
   }
 });
 
@@ -111,6 +133,8 @@ router.post("/export", authenticate, async (req: any, res) => {
     }
 
     const oauth2Client = getOAuth2Client(req);
+    if (!oauth2Client) throw new Error("Google Drive yapılandırılmamış.");
+    
     oauth2Client.setCredentials({
       access_token: settings.access_token,
       refresh_token: settings.refresh_token,

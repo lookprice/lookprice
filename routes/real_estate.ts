@@ -122,7 +122,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Analyze Portfolio route
 router.post('/properties/analyze', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
 
   try {
     const properties = await pool.query(
@@ -130,6 +130,13 @@ router.post('/properties/analyze', authenticate, async (req: any, res) => {
       [storeId]
     );
 
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    console.log("RealEstate: Checking AI keys. Key present:", !!apiKey);
+    if (!apiKey) {
+      console.error("RealEstate: Error - No API Key found!");
+      return res.status(500).json({ error: "AI API anahtarı yapılandırılmamış." });
+    }
+    
     const prompt = `Aktif emlak portföyü için danışmanlara yönelik stratejik içgörüler üret. Portföy verileri: ${JSON.stringify(properties.rows.slice(0, 50))}. Sadece JSON formatında yanıt ver: { "insights": [ { "id": "property_id_or_null", "title": "...", "description": "...", "type": "warning" | "info" | "success" } ] }`;
 
     const response = await ai.models.generateContent({
@@ -210,7 +217,7 @@ router.get('/properties/:id/audit-log', authenticate, async (req: any, res) => {
 
 // Get Audit Logs for all store properties
 router.get('/audit-logs', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.body.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   try {
     const result = await pool.query(
       `SELECT l.* FROM property_audit_log l
@@ -229,7 +236,7 @@ router.get('/audit-logs', authenticate, async (req: any, res) => {
 router.post('/properties/:id/transfer-authority', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const { authorized_branch_id, responsible_consultant_id } = req.body;
-  const storeId = req.user.store_id;
+const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
 
   try {
     const result = await pool.query(
@@ -258,7 +265,7 @@ router.post('/properties/:id/transfer-authority', authenticate, async (req: any,
 
 // Basic GET route to list properties
 router.get('/properties', authenticate, async (req: any, res) => {
-  const storeId = req.query.store_id || req.body.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.user.store_id;
   try {
     // Logic: 
     // 1. Properties owned by this store
@@ -300,7 +307,7 @@ router.get('/properties', authenticate, async (req: any, res) => {
 
 // POST route to add a property
 router.post('/properties', authenticate, async (req: any, res) => {
-  const storeId = req.body.store_id || req.query.store_id || req.user.store_id;
+  const storeId = req.body.store_id || req.body.storeId || req.query.store_id || req.query.storeId || req.user.store_id;
   const property = req.body;
   const ownerInfo = property.owner_info || {};
   
@@ -338,7 +345,7 @@ router.post('/properties', authenticate, async (req: any, res) => {
 router.put('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const property = req.body;
-  const storeId = req.body.store_id || req.query.store_id || req.user.user?.store_id || req.user.store_id;
+  const storeId = req.body.store_id || req.body.storeId || req.query.store_id || req.query.storeId || req.user.user?.store_id || req.user.store_id;
   const ownerInfo = property.owner_info || {};
 
   try {
@@ -377,7 +384,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
 // DELETE route
 router.delete('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.query.store_id || req.body.store_id || req.user.store_id;
+  const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
 
   try {
     const result = await pool.query(
@@ -487,7 +494,7 @@ router.post('/news', authenticate, async (req: any, res) => {
 
 // Update or publish a radar news item with upsert on store_id + title
 router.post('/radar-news/publish', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   const { title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity } = req.body;
 
   try {
@@ -520,7 +527,7 @@ router.post('/radar-news/publish', authenticate, async (req: any, res) => {
 
 // Get published/managed radar news items for the active store
 router.get('/radar-news', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   try {
     const result = await pool.query(
       "SELECT * FROM radar_news WHERE store_id = $1 ORDER BY created_at DESC",
@@ -535,7 +542,7 @@ router.get('/radar-news', authenticate, async (req: any, res) => {
 
 // GET /transactions - Fetch portfolio financials
 router.get('/transactions', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   try {
     const result = await pool.query(
       `SELECT t.*, p.title as property_title 
@@ -554,7 +561,7 @@ router.get('/transactions', authenticate, async (req: any, res) => {
 
 // POST /transactions - Record financial transaction (income/expense)
 router.post('/transactions', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   const { type, category, title, amount, currency, date, property_id, description } = req.body;
 
   if (!type || !category || !title || !amount) {
@@ -602,7 +609,7 @@ router.post('/transactions', authenticate, async (req: any, res) => {
 
 // DELETE /transactions/:id - Remove financial record
 router.delete('/transactions/:id', authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   const { id } = req.params;
 
   try {

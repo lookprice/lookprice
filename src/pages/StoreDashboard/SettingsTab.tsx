@@ -103,8 +103,8 @@ const SettingsTab = ({
 
   React.useEffect(() => {
     api.getGoogleDriveSettings().then(res => {
-      if (res && res.data) {
-        setIsGoogleDriveConnected(res.data.connected);
+      if (res) {
+        setIsGoogleDriveConnected(res.connected);
       }
     }).catch(console.error);
   }, []);
@@ -118,7 +118,7 @@ const SettingsTab = ({
       const top = window.screen.height / 2 - height / 2;
       
       const popup = window.open(
-        res.data.url,
+        res.url,
         "Google Drive Bağlantısı",
         `width=${width},height=${height},left=${left},top=${top}`
       );
@@ -127,7 +127,7 @@ const SettingsTab = ({
         if (!popup || popup.closed) {
           clearInterval(checkPopup);
           const verifyRes = await api.getGoogleDriveSettings();
-          setIsGoogleDriveConnected(verifyRes.data.connected);
+          setIsGoogleDriveConnected(verifyRes.connected);
         }
       }, 1000);
     } catch (error) {

@@ -35,7 +35,10 @@ import {
   Loader2,
   Check,
   RefreshCw,
-  Calendar
+  Calendar,
+  List,
+  LayoutGrid,
+  Printer
 } from "lucide-react";
 import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -148,6 +151,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [filterFurnished, setFilterFurnished] = useState<string>("all");
   const [filterGated, setFilterGated] = useState<string>("all");
   const [filterPriceMin, setFilterPriceMin] = useState<string>("");
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterPriceMax, setFilterPriceMax] = useState<string>("");
   const [filterVerifiedOnly, setFilterVerifiedOnly] = useState<boolean>(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
@@ -841,6 +845,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto self-stretch">
             <button
+               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200/50 transition-all text-center"
+            >
+               {viewMode === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+               {viewMode === 'grid' ? "Liste" : "Izgara"}
+            </button>
+            <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl border border-indigo-200/50 transition-all text-center"
             >
@@ -1036,17 +1047,17 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           <p className="text-xs text-slate-400 mt-1">Yeni ilan girerek portföy oluşturabilir ve pilot satışlara devam edebilirsiniz.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
           {filteredProperties.map(property => {
             const matchesCount = runMatchingAlgorithm(property).length;
             
             return (
               <div 
                 key={property.id} 
-                className="bg-white rounded-3xl shadow-sm border border-slate-150 overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group flex flex-col h-full relative"
+                className={`bg-white rounded-3xl shadow-sm border border-slate-150 overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group relative ${viewMode === 'grid' ? 'flex flex-col h-full' : 'flex'}`}
               >
                 {/* Image Banner */}
-                <div className="w-full h-44 bg-slate-100 relative overflow-hidden">
+                <div className={`${viewMode === 'grid' ? 'w-full h-44' : 'w-64 h-64 shrink-0'} bg-slate-100 relative overflow-hidden`}>
                   {property.images && property.images.length > 0 ? (
                     <img 
                       src={property.images[0]} 
@@ -1247,6 +1258,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         >
                           <FileSignature className="w-3.5 h-3.5 stroke-[2.5]" />
                           Sözleşme
+                        </button>
+                        <button 
+                          onClick={() => window.print()}
+                          className="flex items-center gap-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 text-[10px] font-black uppercase px-2.5 py-2 rounded-xl transition-all shadow active:scale-95 border border-slate-200"
+                          title="Poster Yazdır"
+                        >
+                          <Printer className="w-3.5 h-3.5 stroke-[2.5]" />
                         </button>
                         <button 
                           onClick={() => { setActiveTourProperty(property); setIsTourModalOpen(true); }}
