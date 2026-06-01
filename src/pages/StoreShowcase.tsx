@@ -251,7 +251,9 @@ const ProductCard: React.FC<{
               className="text-[10px] uppercase tracking-[0.15em] font-semibold"
               style={{ color: primaryColor }}
             >
-              {product.category || t.dashboard.uncategorized}
+              {product.type === "real_estate" && lang === "tr"
+                ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
+                : (product.category || t.dashboard.uncategorized)}
             </span>
             {product.brand && (
               <span className="text-[9px] font-bold text-gray-400 tracking-normal">
@@ -508,7 +510,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.virtual_tour_url && false && (
+      {(data.virtual_tour_url || sector === "real_estate") && (
         <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[8px] font-black text-indigo-500 tracking-widest mb-1 uppercase">
@@ -1470,16 +1472,14 @@ const ProductDetailModal: React.FC<{
                     <Package className="w-3 h-3" />
                     {lang === "tr" ? "Galeri" : "Gallery"}
                   </button>
-                  {product.type !== "real_estate" && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveViewMode("tour360")}
-                      className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
-                    >
-                      <Globe className="w-3 h-3" />
-                      {lang === "tr" ? "360°" : "360°"}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode("tour360")}
+                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
+                  >
+                    <Globe className="w-3 h-3" />
+                    {lang === "tr" ? "360°" : "360°"}
+                  </button>
                   {product.type === "real_estate" && (
                     <button
                       type="button"
@@ -1955,7 +1955,9 @@ const ProductDetailModal: React.FC<{
                   backgroundColor: `${primaryColor}10`,
                 }}
               >
-                {product.category || t.dashboard.uncategorized}
+                {product.type === "real_estate" && lang === "tr"
+                  ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
+                  : (product.category || t.dashboard.uncategorized)}
               </span>
             </div>
             {product.brand && product.type !== "real_estate" && (

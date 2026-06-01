@@ -314,7 +314,7 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
     return section ? section.enabled : true;
   };
 
-  const displayedProducts = filteredProducts.slice(0, layoutConfig.count);
+  const displayedProducts = filteredProducts;
 
   return (
     <div className="flex-1 bg-white overflow-hidden min-h-screen relative w-full font-sans">
@@ -389,7 +389,16 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                   onChange = setPendingType;
                   options = [
                     { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                    ...types.map(v => ({ value: v, label: v }))
+                    ...types.map(v => {
+                      let displayLabel = v;
+                      if (lang === "tr") {
+                        const vLower = v.toLowerCase();
+                        if (vLower === "residence") displayLabel = "Konut";
+                        else if (vLower === "commercial") displayLabel = "Ticari";
+                        else if (vLower === "land") displayLabel = "Arsa";
+                      }
+                      return { value: v, label: displayLabel };
+                    })
                   ];
                 } else if (filt === "BUDGET") {
                   displayTitle = lang === "tr" ? "BÜTÇE" : "BUDGET";
@@ -542,7 +551,7 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                           ></div>
                           <div className="absolute top-8 left-8 flex gap-2">
                             <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl text-[10px] font-black text-slate-950 uppercase tracking-[0.2em] shadow-xl border border-slate-100">
-                              {p.category || "GAYRİMENKUL"}
+                              {lang === "tr" ? (p.category === "residence" ? "KONUT" : p.category === "commercial" ? "TİCARİ" : p.category === "land" ? "ARSA" : (p.category || "GAYRİMENKUL")) : (p.category || "REAL ESTATE")}
                             </div>
                           </div>
                           <div className="absolute bottom-0 left-0 w-full p-10 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
