@@ -99,6 +99,11 @@ async function startServer() {
 
     try {
       const { supabase } = await import("./src/services/supabaseService");
+      if (!supabase) {
+        return res.status(400).json({ 
+          error: "Supabase API anahtarları eksik! Lütfen AI Studio Secrets veya .env ayarlarından SUPABASE_URL ve SUPABASE_KEY tanımlayın." 
+        });
+      }
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       const filename = uniqueSuffix + "-" + req.file.originalname;
 

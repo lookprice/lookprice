@@ -2496,14 +2496,50 @@ const SettingsTab = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex justify-center p-8 bg-slate-50 rounded-2xl border border-slate-100 relative">
-                    <button
-                      onClick={handleConnectGoogleDrive}
-                      className="px-8 py-3.5 bg-[#4285F4] text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2"
-                    >
-                      <Database className="h-4 w-4" />
-                      <span>Google Drive Hesabı Bağla</span>
-                    </button>
+                  <div className="space-y-6">
+                    <div className="flex justify-center p-8 bg-slate-50 rounded-2xl border border-slate-100 relative">
+                      <button
+                        onClick={handleConnectGoogleDrive}
+                        className="px-8 py-3.5 bg-[#4285F4] text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2"
+                      >
+                        <Database className="h-4 w-4" />
+                        <span>Google Drive Hesabı Bağla</span>
+                      </button>
+                    </div>
+
+                    {/* Google Cloud Redirect URI Help Information Card */}
+                    <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 text-xs text-slate-600 space-y-3">
+                      <div className="font-bold text-blue-900 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+                        <span>🔑 Google Cloud Console - Yetkilendirilmiş Yönlendirme Listesi</span>
+                      </div>
+                      <p className="leading-relaxed text-slate-600">
+                        Google Drive bağlantısının sorunsuz kurulabilmesi için kullandığınız Google Cloud projesinde 
+                        aşağıdaki <strong>Yönlendirme URI'sini (Authorized Redirect URI)</strong> tanımlamanız gerekir. 
+                        Aksi takdirde <code>redirect_uri_mismatch (hata 400)</code> alırsınız.
+                      </p>
+                      <div className="space-y-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Tanımlanması Gereken Callback URL:</span>
+                          <div className="flex gap-2 items-center bg-white border border-slate-200 rounded-lg p-2 font-mono text-slate-800 text-[11px] overflow-x-auto justify-between">
+                            <span className="break-all select-all">{`${window.location.origin}/api/google-drive/callback`}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/api/google-drive/callback`);
+                                toast.success("Callback URL panoya kopyalandı!");
+                              }}
+                              className="px-2 py-1 bg-blue-50 text-blue-600 rounded font-sans font-bold hover:bg-blue-100 text-[10px] shrink-0"
+                            >
+                              Kopyala
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1 text-[10px] text-slate-500">
+                          <span>• Google Cloud Console &gt; API'ler ve Hizmetler &gt; Kimlik Bilgileri alanına gidin.</span>
+                          <span>• OAuth 2.0 İstemci Kimliğinizi düzenleyin ve "Yetkilendirilmiş yönlendirme URI'leri" kısmına ekleyin.</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2530,13 +2566,49 @@ const SettingsTab = ({
 
                 <div className="space-y-6">
                   {!isGoogleDriveConnected ? (
-                   <button
-                      onClick={handleConnectGoogleDrive}
-                      className="px-8 py-3.5 bg-[#4285F4] text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2"
-                    >
-                      <Database className="h-4 w-4" />
-                      <span>Google Drive Hesabı Bağla</span>
-                   </button>
+                    <div className="space-y-6">
+                      <button
+                        onClick={handleConnectGoogleDrive}
+                        className="px-8 py-3.5 bg-[#4285F4] text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2"
+                      >
+                        <Database className="h-4 w-4" />
+                        <span>Google Drive Hesabı Bağla</span>
+                      </button>
+
+                      {/* Google Cloud Redirect URI Help Information Card */}
+                      <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 text-xs text-slate-600 space-y-3">
+                        <div className="font-bold text-blue-900 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+                          <span>🔑 Google Cloud Console - Yetkilendirilmiş Yönlendirme Listesi</span>
+                        </div>
+                        <p className="leading-relaxed text-slate-600">
+                          Google Drive bağlantısının sorunsuz kurulabilmesi için kullandığınız Google Cloud projesinde 
+                          aşağıdaki <strong>Yönlendirme URI'sini (Authorized Redirect URI)</strong> tanımlamanız gerekir. 
+                          Aksi takdirde <code>redirect_uri_mismatch (hata 400)</code> alırsınız.
+                        </p>
+                        <div className="space-y-2">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Tanımlanması Gereken Callback URL:</span>
+                            <div className="flex gap-2 items-center bg-white border border-slate-200 rounded-lg p-2 font-mono text-slate-800 text-[11px] overflow-x-auto justify-between">
+                              <span className="break-all select-all">{`${window.location.origin}/api/google-drive/callback`}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`${window.location.origin}/api/google-drive/callback`);
+                                  toast.success("Callback URL panoya kopyalandı!");
+                                }}
+                                className="px-2 py-1 bg-blue-50 text-blue-600 rounded font-sans font-bold hover:bg-blue-100 text-[10px] shrink-0"
+                              >
+                                Kopyala
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1 text-[10px] text-slate-500">
+                            <span>• Google Cloud Console &gt; API'ler ve Hizmetler &gt; Kimlik Bilgileri alanına gidin.</span>
+                            <span>• OAuth 2.0 İstemci Kimliğinizi düzenleyin ve "Yetkilendirilmiş yönlendirme URI'leri" kısmına ekleyin.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <button
                       onClick={handleDisconnectGoogleDrive}
