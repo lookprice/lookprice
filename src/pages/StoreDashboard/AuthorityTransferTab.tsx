@@ -217,8 +217,6 @@ export default function AuthorityTransferTab({ storeId, properties, isViewer, in
             )}
           </div>
         </div>
-
-        <ConsultingInsights />
       </div>
     </div>
   );

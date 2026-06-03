@@ -66,7 +66,9 @@ import {
   BookOpen,
   Sparkles,
   Users,
-  Wallet
+  Wallet,
+  Briefcase,
+  Radar
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -990,8 +992,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "companies", label: t.companies, icon: Store },
       { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},
+    { type: 'category', key: "team", title: isTr ? "Personel & Şube" : "Staff & Branches", items: [
+      { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
+      { id: "authority_transfer", label: isTr ? "Yetki Devri (Tapu)" : "Authority Transfer", icon: Briefcase },
+    ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "radar_alerts", label: isTr ? "İmar & Haber Radarı" : "Radar & Alerts", icon: Radar },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
@@ -1013,6 +1020,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
       { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
       { id: "companies", label: t.companies, icon: Store },
+    ]},
+    { type: 'category', key: "team", title: isTr ? "Personel Yönetimi" : "Team Management", items: [
+      { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
     ]},
     { type: 'category', key: "operations", title: isTr ? "Operasyon" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },

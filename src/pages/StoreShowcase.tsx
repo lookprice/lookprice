@@ -389,13 +389,43 @@ const ProductCard: React.FC<{
   );
 };
 
-const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => void }> = ({
+const SectorSpecs: React.FC<{
+  sector: string;
+  data: any;
+  onStartTour?: () => void;
+  category?: string;
+  name?: string;
+  description?: string;
+}> = ({
   sector,
   data,
   onStartTour,
+  category,
+  name = "",
+  description = "",
 }) => {
   if (!data || typeof data !== "object") return null;
   const { lang } = useLanguage();
+
+  const getZoningStatus = (title: string, desc: string) => {
+    const text = `${title} ${desc}`.toLowerCase();
+    if (text.includes("sanayi imarlı") || text.includes("sanayi imar")) {
+      return { tr: "Sanayi İmarlı", en: "Industrial Zoned" };
+    }
+    if (text.includes("ticari imarlı") || text.includes("ticari imar")) {
+      return { tr: "Ticari İmarlı", en: "Commercial Zoned" };
+    }
+    if (text.includes("turizm imarlı") || text.includes("turizm imar") || text.includes("turistik imar")) {
+      return { tr: "Turizm İmarlı", en: "Tourism Zoned" };
+    }
+    if (text.includes("imarsız") || text.includes("tarla") || text.includes("imar izni yok") || text.includes("imar yok")) {
+      return { tr: "İmarsız (Tarla / Tarım Vasıflı)", en: "Unzoned (Agricultural Land)" };
+    }
+    if (text.includes("imarlı") || text.includes("imarli") || text.includes("konut imar")) {
+      return { tr: "Konut İmarlı", en: "Residential Zoned" };
+    }
+    return { tr: "İmarlı (Arsa Vasıflı)", en: "Zoned (Building Land)" };
+  };
 
   const renderAutomotive = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -489,6 +519,21 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
 
   const renderRealEstate = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {/* Imar Durumu/Zoning Status (Zorunlu Arsa Detayı) */}
+      {(category === "land" || name.toLowerCase().includes("imar") || description.toLowerCase().includes("imar")) && (
+        <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-150 group hover:border-indigo-300 transition-all col-span-2 shadow-sm">
+          <p className="text-[8px] font-black text-indigo-600 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "İMAR / VASIF DURUMU" : "ZONING & LAND USE"}
+          </p>
+          <p className="text-sm font-black text-indigo-950 transition-colors uppercase">
+            {(() => {
+              const status = getZoningStatus(name, description);
+              return lang === "tr" ? status.tr : status.en;
+            })()}
+          </p>
+        </div>
+      )}
+
       {data.square_meters && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
@@ -509,7 +554,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.rooms && (
+      {data.rooms && category !== "land" && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "ODA SAYISI" : "ROOM COUNT"}
@@ -549,7 +594,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.building_age && (
+      {data.building_age && category !== "land" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "BİNA YAŞI" : "BUILDING AGE"}
@@ -559,7 +604,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.floor && (
+      {data.floor && category !== "land" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "BULUNDUĞU KAT" : "PROPERTY FLOOR"}
@@ -579,7 +624,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.heating && (
+      {data.heating && category !== "land" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "ISITMA SİSTEMİ" : "HEATING"}
@@ -589,7 +634,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.furnished !== undefined && (
+      {data.furnished !== undefined && category !== "land" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "EŞYA DURUMU" : "FURNISHED STATUS"}
@@ -599,7 +644,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.in_gated_community !== undefined && (
+      {data.in_gated_community !== undefined && category !== "land" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "SİTE İÇİ" : "GATED COMMUNITY"}
@@ -609,7 +654,7 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.dues ? (
+      {data.dues && category !== "land" ? (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "AİDAT TUARI" : "DUES FEE"}
@@ -2138,6 +2183,9 @@ const ProductDetailModal: React.FC<{
                   : sector
             }
             data={product.sector_data}
+            category={product.category}
+            name={product.name}
+            description={product.description}
             onStartTour={() => setActiveViewMode("tour360")}
           />
 

@@ -167,44 +167,30 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
   const [propertyToPrint, setPropertyToPrint] = useState<any>(null);
 
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setPropertyToPrint(null);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
+
   const handlePrintProperty = (property: any) => {
     setPropertyToPrint(property);
     setTimeout(() => {
       window.print();
-      setPropertyToPrint(null);
-    }, 500);
+      // Backwards fallback timeout if afterprint listener doesn't trigger
+      setTimeout(() => {
+        setPropertyToPrint(null);
+      }, 3000);
+    }, 800);
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       
-      {/* ENRAKİPSİZ CRM: PROACTIVE CONSULTANT ASSISTANT */}
-      <ConsultingInsights />
-
-      {/* KKTC & Türkiye Pilot Başlığı */}
-      <div className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Globe className="h-60 w-60 text-white" />
-        </div>
-        <div className="relative z-10 max-w-xl space-y-3">
-          <span className="bg-indigo-600 text-[10px] font-black tracking-widest px-2.5 py-1 rounded-full uppercase">
-            Pilot Operasyon Geliştirme Platformu
-          </span>
-          <h2 className="text-3xl font-black tracking-tight leading-none">Türkiye & KKTC Emlak CRM</h2>
-          <p className="text-slate-300 text-xs leading-relaxed">
-            Kuzey Kıbrıs Türk Cumhuriyeti satış ağına özel sterilize edilmiş gayrimenkul veri alanları, Matterport 3D sanal gezinti tetikleyicileri, uluslararası yatırımcı (UK) eşleştirme motoru ve güvenli tapu/DASK evrak saklama modülü aktif.
-          </p>
-          <div className="flex gap-4 pt-1 text-xs font-bold text-slate-200">
-            <span className="flex items-center gap-1.5 bg-white/15 px-3 py-1.5 rounded-xl border border-white/10">
-              🇨🇾 KKTC Portföy Odaklı
-            </span>
-            <span className="flex items-center gap-1.5 bg-white/15 px-3 py-1.5 rounded-xl border border-white/10">
-              🇬🇧 İngiltere Yatırımcı Teşviki Desteği
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* ENRAKİPSİZ ÇOK ŞUBELİ CRM STATS BENTO PANEL */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
@@ -416,161 +402,125 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           </div>
         </div>
 
-        {/* ANALİZ KARŞILAŞTIRMA STRIP */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-          <div className="lg:col-span-4 bg-gradient-to-br from-indigo-950 to-slate-900 text-slate-100 p-4 rounded-2xl flex flex-col justify-between border border-slate-800 shadow-sm">
-            <div className="space-y-1.5">
-              <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest block">Veri Derinliği Kıyaslaması</span>
-              <h5 className="text-xs font-black">Neden Aralarında Dağlar Kadar Fark Var?</h5>
-              <p className="text-[10px] text-slate-300 font-medium leading-relaxed">
-                Klasik siteler sadece fiyat ve oda sayısıyla listeleme yaparken, Kıbrıs altyapısında <strong>Koçan Sınıfı</strong> (Türk, Eşdeğer), <strong>KDV tescili</strong>, <strong>Trafo katkı payı</strong>, <strong>Site İçi/Gated Durumu</strong> satış hızını belirleyen ana unsurlardır. "enrakipsiz" bu verileri en ince ayrıntısıyla süzmenizi sağlar.
-              </p>
-            </div>
-            <div className="pt-3 border-t border-white/5 mt-3 grid grid-cols-3 gap-1 text-center text-[9px] font-bold text-slate-400">
-              <div className="bg-white/5 p-1 rounded">
-                <span className="block text-amber-300">Klasik Mecralar</span>
-                Halk Vitrini
+        {/* ADVANCED FILTERS GRID (Rendered full-width only when requested) */}
+        {showAdvancedFilters && (
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/40">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* 1. Emlak Tipi */}
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Emlak Tipi</label>
+                <select
+                  value={filterPropertyType}
+                  onChange={(e) => setFilterPropertyType(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:bg-white focus:outline-none"
+                >
+                  <option value="all">Tüm Tipler</option>
+                  <option value="residence">Konut / Residence</option>
+                  <option value="commercial">Ticari / İşyeri</option>
+                  <option value="land">Arsa / Arazi</option>
+                </select>
               </div>
-              <div className="bg-white/5 p-1 rounded">
-                <span className="block text-indigo-300">lookprice</span>
-                CRM/Ağ Gücü
+
+              {/* 2. KKTC Koçan Tipi */}
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Koçan Türü (Title Deed)</label>
+                <select
+                  value={filterTitleType}
+                  onChange={(e) => setFilterTitleType(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
+                >
+                  <option value="all">Tüm Koçanlar</option>
+                  <option value="Türk Koçanı">Türk Koçanı (Pre-74)</option>
+                  <option value="Eşdeğer Koçan">Eşdeğer Koçan (Exchange)</option>
+                  <option value="Tahsis Koçan">Tahsis Koçanı (Allotted)</option>
+                  <option value="Diğer">Diğer / Tapusuz</option>
+                </select>
               </div>
-              <div className="bg-white/10 p-1 rounded text-white border border-indigo-500">
-                <span className="block text-emerald-300">enrakipsiz</span>
-                Lider Katalog
+
+              {/* 3. Oda Yapısı */}
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Oda Sayısı</label>
+                <select
+                  value={filterRoomCount}
+                  onChange={(e) => setFilterRoomCount(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
+                >
+                  <option value="all">Tüm Odalar</option>
+                  <option value="1+1">1+1 Flat</option>
+                  <option value="2+1">2+1 Flat / Villa</option>
+                  <option value="3+1">3+1 Flat / Villa</option>
+                  <option value="4+1">4+1 Lüks Villa</option>
+                </select>
+              </div>
+
+              {/* 4. Eşya Durumu */}
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Eşya Durumu</label>
+                <select
+                  value={filterFurnished}
+                  onChange={(e) => setFilterFurnished(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
+                >
+                  <option value="all">Fark Etmez</option>
+                  <option value="yes">Eşyalı (Furnished)</option>
+                  <option value="no">Eşyasız (Unfurnished)</option>
+                </select>
+              </div>
+
+              {/* 5. Site İçi Or Gated */}
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Kendi Sitesinde mi?</label>
+                <select
+                  value={filterGated}
+                  onChange={(e) => setFilterGated(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
+                >
+                  <option value="all">Tümü</option>
+                  <option value="yes">Evet - Site İçi (Gated)</option>
+                  <option value="no">Hayır - Bağımsız / Müstakil</option>
+                </select>
+              </div>
+
+              {/* 6. Min Fiyat */}
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Min Bütçe (GBP)</label>
+                <input
+                  type="number"
+                  placeholder="Min Fiyat (£)"
+                  value={filterPriceMin}
+                  onChange={(e) => setFilterPriceMin(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400 focus:outline-none"
+                />
+              </div>
+
+              {/* 7. Max Fiyat */}
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Max Bütçe (GBP)</label>
+                <input
+                  type="number"
+                  placeholder="Max Fiyat (£)"
+                  value={filterPriceMax}
+                  onChange={(e) => setFilterPriceMax(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400 focus:outline-none"
+                />
+              </div>
+
+              {/* 8. Sadece Doğrulanmış Portföy */}
+              <div className="flex items-center gap-2 pt-5">
+                <input
+                  type="checkbox"
+                  id="verifiedToggle"
+                  checked={filterVerifiedOnly}
+                  onChange={(e) => setFilterVerifiedOnly(e.target.checked)}
+                  className="rounded bg-slate-100 border-slate-300 text-indigo-600 h-4.5 w-4.5 focus:ring-indigo-500"
+                />
+                <label htmlFor="verifiedToggle" className="text-[10.5px] font-black text-slate-700 cursor-pointer select-none">
+                  ⭐ Doğrulanmış Portföy
+                </label>
               </div>
             </div>
           </div>
-
-          <div className="lg:col-span-8 bg-white p-4 rounded-2xl border border-slate-200/40 space-y-3 flex flex-col justify-center">
-            {showAdvancedFilters ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {/* 1. Emlak Tipi */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Emlak Tipi</label>
-                  <select
-                    value={filterPropertyType}
-                    onChange={(e) => setFilterPropertyType(e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
-                  >
-                    <option value="all">Tüm Tipler</option>
-                    <option value="residence">Konut / Residence</option>
-                    <option value="commercial">Ticari / İşyeri</option>
-                    <option value="land">Arsa / Arazi</option>
-                  </select>
-                </div>
-
-                {/* 2. KKTC Koçan Tipi */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Koçan Türü (Title Deed)</label>
-                  <select
-                    value={filterTitleType}
-                    onChange={(e) => setFilterTitleType(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
-                  >
-                    <option value="all">Tüm Koçanlar</option>
-                    <option value="Türk Koçanı">Türk Koçanı (Pre-74)</option>
-                    <option value="Eşdeğer Koçan">Eşdeğer Koçan (Exchange)</option>
-                    <option value="Tahsis Koçan">Tahsis Koçanı (Allotted)</option>
-                    <option value="Diğer">Diğer / Tapusuz</option>
-                  </select>
-                </div>
-
-                {/* 3. Oda Yapısı */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Oda Sayısı</label>
-                  <select
-                    value={filterRoomCount}
-                    onChange={(e) => setFilterRoomCount(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
-                  >
-                    <option value="all">Tüm Odalar</option>
-                    <option value="1+1">1+1 Flat</option>
-                    <option value="2+1">2+1 Flat / Villa</option>
-                    <option value="3+1">3+1 Flat / Villa</option>
-                    <option value="4+1">4+1 Lüks Villa</option>
-                  </select>
-                </div>
-
-                {/* 4. Eşya Durumu */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Eşya Durumu</label>
-                  <select
-                    value={filterFurnished}
-                    onChange={(e) => setFilterFurnished(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
-                  >
-                    <option value="all">Fark Etmez</option>
-                    <option value="yes">Eşyalı (Furnished)</option>
-                    <option value="no">Eşyasız (Unfurnished)</option>
-                  </select>
-                </div>
-
-                {/* 5. Site İçi Or Gated */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Kendi Sitesinde mi?</label>
-                  <select
-                    value={filterGated}
-                    onChange={(e) => setFilterGated(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white"
-                  >
-                    <option value="all">Tümü</option>
-                    <option value="yes">Evet - Site İçi (Gated)</option>
-                    <option value="no">Hayır - Bağımsız / Müstakil</option>
-                  </select>
-                </div>
-
-                {/* 6. Min Fiyat */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Min Bütçe (GBP)</label>
-                  <input
-                    type="number"
-                    placeholder="Min Fiyat (£)"
-                    value={filterPriceMin}
-                    onChange={(e) => setFilterPriceMin(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400"
-                  />
-                </div>
-
-                {/* 7. Max Fiyat */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Max Bütçe (GBP)</label>
-                  <input
-                    type="number"
-                    placeholder="Max Fiyat (£)"
-                    value={filterPriceMax}
-                    onChange={(e) => setFilterPriceMax(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400"
-                  />
-                </div>
-
-                {/* 8. Sadece Doğrulanmış Portföy */}
-                <div className="flex items-center gap-2 pt-5">
-                  <input
-                    type="checkbox"
-                    id="verifiedToggle"
-                    checked={filterVerifiedOnly}
-                    onChange={(e) => setFilterVerifiedOnly(e.target.checked)}
-                    className="rounded bg-slate-100 border-slate-300 text-indigo-600 h-4.5 w-4.5 focus:ring-indigo-500"
-                  />
-                  <label htmlFor="verifiedToggle" className="text-[10.5px] font-black text-slate-700 cursor-pointer select-none">
-                    ⭐ Doğrulanmış Portföy
-                  </label>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full flex flex-col justify-center space-y-1 bg-indigo-50/40 p-3 rounded-xl border border-indigo-200/20">
-                <div className="flex gap-2 items-center">
-                  <span className="text-sm">🔑</span>
-                  <span className="text-[11px] font-extrabold text-indigo-950 uppercase">Mükemmel Entegre Filtreleme Altyapısı</span>
-                </div>
-                <p className="text-[10px] text-indigo-900 font-medium leading-relaxed">
-                  Şu an basit filtreler aktiftir. <strong>Üstteki "Gelişmiş Değişkenleri Aç" butonuna</strong> basarak Koçan Niteliği, Eşya Durumu, Gated Community ve Doğrulanma statüsü gibi <strong>sektörel derinlik filtrelerine</strong> anında erişebilirsiniz.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
       
       {loading ? (
@@ -592,10 +542,10 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             return (
               <div 
                 key={property.id} 
-                className={`bg-white rounded-3xl shadow-sm border border-slate-150 overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group relative ${viewMode === 'grid' ? 'flex flex-col h-full' : 'flex'}`}
+                className={`bg-white rounded-3xl shadow-sm border border-slate-150 overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group relative ${viewMode === 'grid' ? 'flex flex-col h-full' : 'flex flex-col sm:flex-row'}`}
               >
                 {/* Image Banner */}
-                <div className={`${viewMode === 'grid' ? 'w-full h-48' : 'w-64 h-64 shrink-0'} bg-slate-100 relative overflow-hidden`}>
+                <div className={`${viewMode === 'grid' ? 'w-full h-48' : 'w-full sm:w-64 h-64 shrink-0'} bg-slate-100 relative overflow-hidden`}>
                   {property.images && property.images.length > 0 ? (
                     <img 
                       src={property.images[0]} 
@@ -922,11 +872,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   { id: 'matches', label: '🤝 Alıcı Eşleme', icon: Users },
                   { id: 'showings', label: '👁️ Sunum Hazırlığı & Yorumlar', icon: MessageSquare },
                   { id: 'negotiate', label: '⚖️ Pazarlık Pazarı', icon: Scale },
-                  { id: 'cma', label: '📊 CMA & AI Fiyat', icon: Megaphone },
                   { id: 'compliance', label: '🛡️ Mevzuat Uyumu', icon: Shield, badge: `${complianceScore}%` },
                   { id: 'splits', label: '🏢 Şube Paylaşımı', icon: Building2 },
                   { id: 'escrow', label: '📑 Tapu & Kapanış', icon: FileCheck },
-                  { id: 'integration', label: '🔄 CRM Entegrasyon', icon: Share2 },
                 ].map((tb) => {
                   const Icon = tb.icon;
                   const isActive = activeHubTab === tb.id;
@@ -1644,302 +1592,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   </div>
                 )}
 
-                {/* TAB 3: CMA & AI COPYWRITING */}
-                {activeHubTab === 'cma' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      
-                      {/* CMA & ELASTICITY SIMULATOR CARD */}
-                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">CMA & PRICE ELASTICITY ANALYZER</span>
-                            <h5 className="font-extrabold text-sm text-slate-800 leading-none mt-0.5">Fiyat Esnekliği & Talep Simülasyonu</h5>
-                          </div>
-                        </div>
-
-                        <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-                          Mülkün kiralık/satılık liste fiyatındaki oynamaların, pazarın reaksiyonuna (Müşteri gösterim talebi, tapuda kapanış süresi, teklif olasılığı) etkisini test edin.
-                        </p>
-
-                        {/* Sliders and pricing values */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5 mt-2">
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-500 font-extrabold font-sans">Önerilen Liste Fiyatı:</span>
-                            <span className="font-black text-slate-900">{matchingProperty.currency} {formatNumberVal(matchingProperty.price)}</span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex justify-between items-center text-[10px] font-bold text-indigo-600 font-sans">
-                              <span>Simüle Edilen Test Fiyatı</span>
-                              <span>{matchingProperty.currency} {formatNumberVal(cmaElasticityPrice || matchingProperty.price || 0)}</span>
-                            </div>
-                            <input 
-                              type="range"
-                              min={Math.round((matchingProperty.price || 0) * 0.7)}
-                              max={Math.round((matchingProperty.price || 0) * 1.3)}
-                              step={Math.round((matchingProperty.price || 1) * 0.01)}
-                              className="w-full justify-center accent-indigo-600 h-1 bg-slate-200 rounded-lg cursor-pointer"
-                              value={cmaElasticityPrice || (matchingProperty.price || 0)}
-                              onChange={(e) => setCmaElasticityPrice(Number(e.target.value))}
-                            />
-                            <div className="flex justify-between text-[9px] text-slate-400 font-semibold font-sans">
-                              <span>%30 Altı (Agresif Satış)</span>
-                              <span>Mevcut Fiyat</span>
-                              <span>%30 Üstü (Aşırı Fiyatlama)</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Calculated Projections Output */}
-                        {(() => {
-                          const initialPrice = matchingProperty.price || 0;
-                          const testPrice = cmaElasticityPrice || initialPrice;
-                          const pctDiff = initialPrice > 0 ? Math.round(((testPrice - initialPrice) / initialPrice) * 100) : 0;
-                          
-                          let estimatedViewsChange = 0;
-                          let estimatedOfferProbability = 75; // baseline %
-                          let daysOnMarketEstimate = 45; // baseline days
-
-                          if (pctDiff > 0) {
-                            estimatedViewsChange = -(pctDiff * 1.8);
-                            estimatedOfferProbability = Math.max(5, Math.round(75 - (pctDiff * 2.2)));
-                            daysOnMarketEstimate = Math.min(180, Math.round(45 * (1 + (pctDiff * 0.08))));
-                          } else if (pctDiff < 0) {
-                            const absDiff = Math.abs(pctDiff);
-                            estimatedViewsChange = (absDiff * 1.4);
-                            estimatedOfferProbability = Math.min(99, Math.round(75 + (absDiff * 0.8)));
-                            daysOnMarketEstimate = Math.max(5, Math.round(45 * (1 - (absDiff * 0.03))));
-                          }
-
-                          return (
-                            <div className="space-y-3 pt-1">
-                              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">SİMÜLASYON VERİ ANALİZİ (%{pctDiff >= 0 ? '+' : ''}{pctDiff})</span>
-                              
-                              <div className="grid grid-cols-3 gap-2.5 text-center">
-                                <div className="p-3 bg-slate-50 border rounded-2xl">
-                                  <span className="block text-[9px] text-slate-400 font-extrabold uppercase font-sans">TÜKETİCİ İLGİSİ</span>
-                                  <span className={`text-[11px] font-black block mt-1 ${estimatedViewsChange >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                                    {estimatedViewsChange >= 0 ? '+' : ''}{Math.round(estimatedViewsChange)}% Gösterim
-                                  </span>
-                                </div>
-
-                                <div className="p-3 bg-slate-50 border rounded-2xl">
-                                  <span className="block text-[9px] text-slate-400 font-extrabold uppercase font-sans">TEKLİF ALMA ŞANSI</span>
-                                  <span className="text-[11px] font-black block text-indigo-700 mt-1">
-                                    %{estimatedOfferProbability} İhtimal
-                                  </span>
-                                </div>
-
-                                <div className="p-3 bg-slate-50 border rounded-2xl">
-                                  <span className="block text-[9px] text-slate-400 font-extrabold uppercase font-sans">ORT. SATIŞ SÜRESİ</span>
-                                  <span className="text-[11px] font-black block text-slate-800 mt-1">
-                                    ~{daysOnMarketEstimate} Gün
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className={`p-3 rounded-xl border flex items-start gap-2 text-[10.5px] font-semibold leading-relaxed ${
-                                pctDiff > 10 
-                                  ? 'bg-rose-50 border-rose-100 text-rose-900' 
-                                  : pctDiff < -5 
-                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-900'
-                                    : 'bg-indigo-50 border-indigo-100 text-indigo-900'
-                              }`}>
-                                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                                <div>
-                                  <span className="block font-black uppercase text-[9px] font-sans">Danışman Raporu</span>
-                                  {pctDiff > 10 
-                                    ? `UYARI: Emsal değerlerin çok üzerine çıktınız. Alıcı akışı durabilir, listeleme ortalama ${daysOnMarketEstimate} güne uzayarak mülkü maliyet yüküne sokacaktır!`
-                                    : pctDiff < -5
-                                      ? `Fırsat Fiyatlama! Çok hızlı bir tescil döngüsü gerçekleşmesi bekleniyor. Gösterim oranlarında %${Math.round(estimatedViewsChange)} düzeyinde bir artış tetiklenecektir.`
-                                      : 'Piyasa dalgalanmaları ve bölge esnekliği dengeli alandadır. Portföy prestijini koruyor.'
-                                  }
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* AI AD PLATFORMS */}
-                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">YAPAY ZEKA TANITIM METNİ</span>
-                              <h5 className="font-extrabold text-sm text-slate-800 leading-none mt-0.5 font-sans">Multi-Channel AI Pazarlama Sesi</h5>
-                            </div>
-                          </div>
-                          
-                          <p className="text-[11px] text-slate-400 leading-relaxed font-sans mt-2">
-                            Pazarlık ve mülk ayrıntılarını dikkate alarak otomatik reklam metni kurgular.
-                          </p>
-
-                          <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl mt-3 font-sans">
-                            {[
-                              { id: 'portal', label: 'Zillow / Sahibinden', icon: Home },
-                              { id: 'social', label: 'Meta Ads (Insta)', icon: Megaphone },
-                              { id: 'whatsapp', label: 'WhatsApp / SMS', icon: Send },
-                            ].map((plat) => (
-                              <button
-                                key={plat.id}
-                                onClick={() => setAiAdPlatform(plat.id as any)}
-                                className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 ${
-                                  aiAdPlatform === plat.id 
-                                    ? 'bg-slate-900 text-white shadow-sm' 
-                                    : 'text-slate-600 hover:bg-slate-200'
-                                }`}
-                              >
-                                {plat.label}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="bg-slate-950 text-slate-100 p-4 rounded-2xl text-[11px] font-mono h-32 overflow-y-auto whitespace-pre-wrap select-all relative group shadow-inner mt-3">
-                            {getAICopyText()}
-                            <button 
-                              onClick={() => {
-                                navigator.clipboard.writeText(getAICopyText());
-                                alert("Tanıtım metni panoya kopyalandı!");
-                              }}
-                              className="absolute bottom-2 right-2 bg-indigo-600 text-white text-[9px] font-bold px-2 py-1 rounded hover:bg-indigo-700 transition"
-                            >
-                              Kopyala
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200 text-[10px] text-slate-500 font-bold leading-relaxed mt-3">
-                          💡 <strong>Multichannel Yapay Zeka Özelliği:</strong> Reklam metni, fiyat veya oda/konum parametreleri güncellendikçe anlık olarak revize edilir.
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* 3D MATTERPORT VISUALIZATION & AUTOMATED RENOVATION CENTER */}
-                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/80 space-y-4 shadow-sm mt-6">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="block text-[10px] font-black text-indigo-700 uppercase tracking-widest leading-none font-sans">MATTERPORT 3D & PROPERTY VISUALIZATION HUB</span>
-                          <h5 className="font-extrabold text-sm text-slate-800 mt-1">3D Dijital İkiz, Sanal Sahneleme (Staging) & Metraj Analizi</h5>
-                          <p className="text-[11px] text-slate-400 mt-1 font-sans">Alıcıları mülke girmeden önce büyüleyin. Matterport Dijital İkiz altyapısı ve yapay zeka tabanlı dekorasyon simülatörü.</p>
-                        </div>
-                        <span className="text-[9.5px] bg-teal-50 border border-teal-100 text-teal-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
-                          📷 Matterport Active
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
-                        
-                        {/* 1. Virtual Staging Selector */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
-                          <div>
-                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🛋️ YAPAY ZEKA SANAL EŞYALANDIRMA (STAGING)</span>
-                            <div className="grid grid-cols-2 gap-1.5 mt-2">
-                              {[
-                                { id: 'modern', label: 'Lüks Modern', desc: 'Minimalist metal / antrasit' },
-                                { id: 'boho', label: 'Bohem Eskiz', desc: 'Hasır / sıcak tonlar' },
-                                { id: 'scandinavian', label: 'İskandinav', desc: 'Ahşap / açık pastel' },
-                                { id: 'classic', label: 'Ağırbaşlı Klasik', desc: 'Deri / ceviz mobilyalar' }
-                              ].map((style) => (
-                                <button
-                                  key={style.id}
-                                  onClick={() => setVirtualStagingStyle(style.id as any)}
-                                  className={`p-2 text-left rounded-xl border text-[10px] transition-all leading-tight ${
-                                    virtualStagingStyle === style.id 
-                                      ? 'bg-indigo-600 border-indigo-700 text-white shadow' 
-                                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                                  }`}
-                                >
-                                  <strong>{style.label}</strong>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="p-3 bg-white border border-slate-200 rounded-xl text-[10px] text-slate-500 leading-normal">
-                            ✨ <strong>Staging Durumu:</strong> {
-                              virtualStagingStyle === 'modern' ? 'Oturma odası antrasit mermer sehpalar ve gizli LED aydınlatmalı lüks koltuklar ile döşendi.' :
-                              virtualStagingStyle === 'boho' ? 'Doğal bambu perdeler, el dokuması kilimler ve palmiye bitkileriyle Akdeniz esintisi yansıtıldı.' :
-                              virtualStagingStyle === 'scandinavian' ? 'Açık meşe ahşap zeminler, keten kumaşlar ve bej tonlar ile maksimum genişlik hissi sağlandı.' :
-                              'Masif ceviz yemek masası, chesterfield deri kanepeler ile seçkin ve prestijli bir stil kurgulandı.'
-                            }
-                          </div>
-                        </div>
-
-                        {/* 2. Automated Inspection & Renovation repair cost estimates */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
-                          <div>
-                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🔧 OTOMATİK TAMİR & RENOVASYON KESİNTİLERİ</span>
-                            <p className="text-[10px] text-slate-400 font-sans mt-0.5">Mülkün mevcut fiziki kondisyonunu seçerek satıcıya rasyonel değerleme raporu oluşturun.</p>
-                            
-                            <div className="space-y-1.5 mt-2 font-sans">
-                              {[
-                                { id: 'none', label: '🏡 Sıfır / Eksiği Yok', deduction: 0 },
-                                { id: 'medium', label: '⚠️ Hafif Bakım Masrafı', deduction: 9500 },
-                                { id: 'renovation_needed', label: '🚨 Komple Renovasyon Gerekli', deduction: 27000 }
-                              ].map((item) => (
-                                <button
-                                  key={item.id}
-                                  onClick={() => setRenovationState(item.id as any)}
-                                  className={`w-full p-2 text-left rounded-xl border text-[10.5px] font-semibold flex items-center justify-between transition-all ${
-                                    renovationState === item.id 
-                                      ? 'bg-slate-900 border-slate-950 text-white shadow-sm' 
-                                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                                  }`}
-                                >
-                                  <span>{item.label}</span>
-                                  <span className="font-extrabold text-[10.5px]">
-                                    {item.deduction > 0 ? `-£${formatNumberVal(item.deduction)}` : "Düz"}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-[10px] font-extrabold flex justify-between items-center text-slate-700 font-sans">
-                            <span>Nihai Net Değer (Kesintili):</span>
-                            <span className="font-black text-indigo-600">
-                              {matchingProperty.currency} {formatNumberVal((cmaElasticityPrice || matchingProperty.price || 0) - (renovationState === 'none' ? 0 : renovationState === 'medium' ? 9500 : 27000))}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* 3. Localized Price Trajectory & Demographic/Seasonal trends */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
-                          <div>
-                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">📈 BÖLGESEL TRAJEKTORİ VE ORTALAMA STOK GÜNÜ</span>
-                            
-                            <div className="space-y-2 mt-2 font-sans">
-                              <div className="flex justify-between items-center text-[11px] border-b pb-1.5">
-                                <span className="text-slate-500 font-extrabold">Öngörülen Fiyat Trajektorisi:</span>
-                                <span className="font-black text-emerald-600">📈 +14.8% (Gelecek 12 Ay)</span>
-                              </div>
-                              <div className="flex justify-between items-center text-[11px] border-b pb-1.5">
-                                <span className="text-slate-500 font-extrabold">Pazar Stok Envanter Seviyesi:</span>
-                                <span className="font-black text-slate-700">Düşük (Alıcı Pazarı)</span>
-                              </div>
-                              <div className="flex justify-between items-center text-[11px]">
-                                <span className="text-slate-500 font-extrabold">Maksimum Mevsimsel Alıcı İlgisi:</span>
-                                <span className="font-black text-indigo-600">Mayıs - Eylül Dönemi</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[10px] text-indigo-900 leading-normal font-medium flex items-center gap-1.5">
-                            📊 <strong>CoStar AI Tahmini:</strong> Bölgesel altyapı projeleri ve yabancı alıcı tescil başvurusu sıklığı nedeniyle önümüzdeki çeyrekte günler-stok-oranı %12 kısalacaktır.
-                          </div>
-                        </div>
-
-                      </div>
-
-
-                    </div>
-
-                  </div>
-                )}
-
                 {/* TAB 4: SPLITS */}
                 {activeHubTab === 'splits' && (
                   <div className="space-y-4">
@@ -2142,94 +1794,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   </div>
                 )}
 
-                {/* TAB: EXTERNAL CRM INTEGRATION */}
-                {activeHubTab === 'integration' && (
-                  <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/80 space-y-4 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="block text-[10px] font-black text-indigo-700 uppercase tracking-widest leading-none font-sans">EXTERNAL CRM & PORTAL SYNC ENGINE</span>
-                          <h5 className="font-extrabold text-sm text-slate-800 mt-1">Dış Sistem Entegrasyonu & Senkronizasyon Kaydı</h5>
-                          <p className="text-[11px] text-slate-400 mt-1 font-sans">Bu portföyün diğer CRM sistemleri (Sahibinden, Emlakjet, Zingat) ile veri bağlantı durumu.</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9.5px] px-2 py-0.5 rounded-full uppercase font-extrabold border ${
-                            matchingProperty.external_crm_id ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-400'
-                          }`}>
-                            {matchingProperty.external_crm_id ? 'Bağlantı Aktif' : 'Bağlı Değil'}
-                          </span>
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                        <div className="space-y-4">
-                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🔗 BAĞLI SİSTEM BİLGİLERİ</span>
-                            
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-500 font-bold">Harici Sistem:</span>
-                                <span className="font-black text-slate-900">{matchingProperty.external_crm_name || 'Tanımsız'}</span>
-                              </div>
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-500 font-bold">Harici İlan ID:</span>
-                                <span className="font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                                  {matchingProperty.external_crm_id || 'ID GİRİLMEMİŞ'}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-500 font-bold">Eşleşme Durumu:</span>
-                                <span className="flex items-center gap-1 font-black text-emerald-600">
-                                  <Check className="w-3 h-3" /> Veri Tutarlı
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="bg-slate-900 text-white p-5 rounded-3xl space-y-3">
-                             <div className="flex items-center gap-2">
-                               <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin-slow" />
-                               <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Anlık Senkronizasyon Paneli</span>
-                             </div>
-                             <p className="text-[10px] text-slate-300 font-medium leading-relaxed">
-                               LookPrice CRM üzerinden yaptığınız her güncelleme (Fiyat değişikliği, durum güncellemesi) otomatik olarak bağlı portal sistemlerine itilir.
-                             </p>
-                             <button 
-                               onClick={() => alert("Portallar arasında veri tutarlılığı kontrol ediliyor... (Sahibinden XML/API tetiklendi)")}
-                               className="w-full bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase py-2 rounded-xl border border-white/10 transition-all flex items-center justify-center gap-2"
-                             >
-                               Şimdi Manuel Senkronize Et
-                             </button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                           <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 h-full">
-                              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">📝 ENTEGRASYON LOGLARI</span>
-                              <div className="space-y-2.5">
-                                {[
-                                  { date: 'Bugün 10:45', action: 'Fiyat Güncellemesi İçeri Aktarıldı', system: 'Sahibinden' },
-                                  { date: 'Dün 14:20', action: 'Görseller Senkronize Edildi', system: 'Emlakjet' },
-                                  { date: '22 May 2026', action: 'İlan İlk Yayınlama Başarılı', system: 'Portal API' }
-                                ].map((log, idx) => (
-                                  <div key={idx} className="flex gap-3 border-b border-slate-50 pb-2 last:border-0">
-                                    <div className="w-1 h-8 bg-indigo-500 rounded-full shrink-0" />
-                                    <div>
-                                      <span className="block text-[9px] font-black text-slate-400 uppercase">{log.date} - {log.system}</span>
-                                      <span className="block text-[10px] font-bold text-slate-700">{log.action}</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              <p className="text-[9px] text-slate-400 italic mt-4">
-                                * Diğer CRM sistemleri ile XML Export ve REST API üzerinden iki taraflı (Two-way) tam entegrasyon sağlanmaktadır.
-                              </p>
-                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* FOOTER */}
@@ -2311,7 +1876,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             {/* Header */}
             <div className="flex justify-between items-center pb-4 border-b-2 border-slate-950">
               <div>
-                <h1 className="text-3xl font-black tracking-tighter text-slate-900">LOOKPRICE</h1>
+                <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">{branding?.store_name || branding?.name || 'LOOKPRICE'}</h1>
                 <p className="text-[10px] font-black tracking-widest text-indigo-600 uppercase">PREMIUM REAL ESTATE</p>
               </div>
               <div className="text-right">
@@ -2380,19 +1945,19 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                     <span className="text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.sqm_gross)} m²</span>
                   </div>
                 )}
-                {propertyToPrint.room_count && (
+                {propertyToPrint.type !== 'land' && propertyToPrint.room_count && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Oda Sayısı:</span>
                     <span className="text-slate-900 font-extrabold">{propertyToPrint.room_count}</span>
                   </div>
                 )}
-                {propertyToPrint.building_age && (
+                {propertyToPrint.type !== 'land' && propertyToPrint.building_age && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Bina Yaşı:</span>
                     <span className="text-slate-900 font-extrabold">{propertyToPrint.building_age}</span>
                   </div>
                 )}
-                {propertyToPrint.floor && (
+                {propertyToPrint.type !== 'land' && propertyToPrint.floor && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Kullanım Katı:</span>
                     <span className="text-slate-900 font-extrabold">{propertyToPrint.floor}</span>
@@ -2401,21 +1966,25 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               </div>
 
               <div className="space-y-2">
-                {propertyToPrint.heating && (
+                {propertyToPrint.type !== 'land' && propertyToPrint.heating && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Isıtma Sistemi:</span>
                     <span className="text-slate-900 font-extrabold">{propertyToPrint.heating}</span>
                   </div>
                 )}
+                {propertyToPrint.type !== 'land' && propertyToPrint.furnished !== undefined && (
                 <div className="flex justify-between border-b border-slate-100 pb-1">
                   <span className="text-slate-500 font-medium">Eşya Durumu:</span>
                   <span className="text-slate-900 font-extrabold">{propertyToPrint.furnished ? 'Evet / Eşyalı' : 'Hayır / Eşyasız'}</span>
                 </div>
+                )}
+                {propertyToPrint.type !== 'land' && propertyToPrint.in_gated_community !== undefined && (
                 <div className="flex justify-between border-b border-slate-100 pb-1">
                   <span className="text-slate-500 font-medium">Site İçi mi:</span>
                   <span className="text-slate-900 font-extrabold">{propertyToPrint.in_gated_community ? 'Evet' : 'Hayır'}</span>
                 </div>
-                {propertyToPrint.dues && (
+                )}
+                {propertyToPrint.type !== 'land' && propertyToPrint.dues && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Aidat Bedeli:</span>
                     <span className="text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.dues)} {propertyToPrint.dues_currency || '₺'}</span>
@@ -2455,7 +2024,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               <div>
                 <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">SORUMLU PORTFÖY DANIŞMANI</span>
                 <h4 className="text-sm font-black text-slate-800 leading-snug mt-1">{propertyToPrint.responsible_agent || 'Tüm Şubeler Yetkili'}</h4>
-                <p className="text-[10px] text-slate-500 font-medium">Yetkili Şube: {propertyToPrint.branch_name || 'Merkez Şube Office'}</p>
+                <p className="text-[10px] text-slate-500 font-medium mb-1">Yetkili Şube: {propertyToPrint.branch_name || 'Merkez Şube Office'}</p>
+                {branding?.phone && (
+                  <p className="text-[10px] text-slate-500 font-semibold mb-0.5">📞 {branding.phone}</p>
+                )}
+                {branding?.address && (
+                  <p className="text-[9px] text-slate-400 font-medium max-w-[200px] leading-tight">📍 {branding.address}</p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">LOOKPRICE PORTAL GÜVENCESİ</p>

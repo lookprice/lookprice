@@ -728,9 +728,9 @@ export const PortfolioWebsiteGenerator = ({ storeId }: { storeId?: number }) => 
                     <div className="h-[450px] relative flex flex-col items-center justify-center p-12 text-center">
                        <div 
                          className="absolute inset-0 transition-opacity duration-1000" 
-                         style={{ backgroundImage: `url(${banners.length > 0 ? banners[0] : content.hero.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(2px)' }}
+                         style={{ backgroundImage: `url(${banners.length > 0 ? banners[0] : content.hero.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                        ></div>
-                       <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/40 to-white"></div>
+                       <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/35 to-white/95"></div>
                        
                        <div className="relative z-10 space-y-6 max-w-2xl transform translate-y-4">
                           <div className="inline-flex items-center gap-2 bg-indigo-600/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-indigo-400/30">

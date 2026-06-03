@@ -6,6 +6,7 @@ import {
   Check,
   SlidersHorizontal,
   Users,
+  MapPin,
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -328,7 +329,6 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                 backgroundImage: `url(${content.hero.bgImage})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                filter: "blur(2px)",
               }}
             ></div>
           ) : (
@@ -340,12 +340,11 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                   backgroundImage: `url(${bannerUrl})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  filter: "blur(2px)",
                 }}
               ></div>
             ))
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-white/90"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/35 to-white/95"></div>
 
           <div className="relative z-10 space-y-6 max-w-2xl transform translate-y-4">
             <div className="inline-flex items-center gap-2 bg-indigo-600/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-indigo-400/30">
@@ -550,8 +549,16 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                             }}
                           ></div>
                           <div className="absolute top-8 left-8 flex gap-2">
-                            <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl text-[10px] font-black text-slate-950 uppercase tracking-[0.2em] shadow-xl border border-slate-100">
-                              {lang === "tr" ? (p.category === "residence" ? "KONUT" : p.category === "commercial" ? "TİCARİ" : p.category === "land" ? "ARSA" : (p.category || "GAYRİMENKUL")) : (p.category || "REAL ESTATE")}
+                            <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl text-[10px] font-black text-slate-950 uppercase tracking-[0.2em] shadow-xl border border-slate-100 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                              {(() => {
+                                const loc = p.location || p.sector_data?.location;
+                                const reg = p.sector_data?.kktc_region || p.sector_data?.region || p.sector_data?.city || p.sector_data?.district;
+                                if (loc && reg && loc.toLowerCase() !== reg.toLowerCase()) {
+                                  return `${loc} / ${reg}`;
+                                }
+                                return loc || reg || (lang === 'tr' ? 'KUZEY KIBRIS' : 'NORTH CYPRUS');
+                              })().toUpperCase()}
                             </div>
                           </div>
                           <div className="absolute bottom-0 left-0 w-full p-10 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
@@ -561,19 +568,84 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                           </div>
                         </div>
                         <div className="mt-8 space-y-3 px-4">
-                          <div className="flex justify-between items-start">
-                            <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter group-hover:text-indigo-600 transition-colors leading-none">
-                              {p.name}
-                            </h4>
+                          <div className="flex items-center justify-between gap-2 text-[10px] font-black tracking-wider uppercase text-slate-400">
+                            {p.reference_no ? (
+                              <span className="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 font-bold">
+                                #{p.reference_no}
+                              </span>
+                            ) : <span></span>}
+                            <span>
+                              {lang === "tr" ? (p.category === "residence" ? "KONUT / RESIDENCE" : p.category === "commercial" ? "TİCARİ" : p.category === "land" ? "ARSA / LAND" : p.category) : p.category}
+                            </span>
                           </div>
-                          <div className="flex items-center justify-between">
+
+                          <h4 
+                            className="text-[14px] md:text-[15px] font-extrabold tracking-tight text-slate-900 uppercase group-hover:text-indigo-600 transition-colors leading-snug line-clamp-2 min-h-[40px] flex items-center"
+                            title={p.name}
+                          >
+                            {p.name}
+                          </h4>
+
+                          {/* Elegant Region/Location row */}
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-100/80">
+                            <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                            <span className="truncate">
+                              {(() => {
+                                const loc = p.location || p.sector_data?.location;
+                                const reg = p.sector_data?.kktc_region || p.sector_data?.region || p.sector_data?.city || p.sector_data?.district;
+                                if (loc && reg && loc.toLowerCase() !== reg.toLowerCase()) {
+                                  return `${loc} • ${lang === 'tr' ? 'Bölge' : 'Region'}: ${reg}`;
+                                }
+                                return loc || reg || (lang === 'tr' ? 'Kuzey Kıbrıs' : 'North Cyprus');
+                              })()}
+                            </span>
+                          </div>
+
+                          {/* Real Estate Specific details inside grid */}
+                          {(p.type === "real_estate" || p.sector_data?.square_meters || p.sector_data?.rooms) && (
+                            <div className="grid grid-cols-2 gap-2 py-1 border-y border-slate-100 text-[10px] font-bold text-slate-600">
+                              {p.sector_data?.rooms ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-indigo-500 font-extrabold text-xs">🛏️</span>
+                                  <span>{lang === "tr" ? "Oda:" : "Rooms:"} <span className="text-slate-900 font-black">{p.sector_data.rooms}</span></span>
+                                </div>
+                              ) : null}
+                              {p.sector_data?.square_meters ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-emerald-500 font-extrabold text-xs">📏</span>
+                                  <span>{lang === "tr" ? "Net:" : "Net:"} <span className="text-slate-900 font-black">{p.sector_data.square_meters} m²</span></span>
+                                </div>
+                              ) : null}
+                              {p.sector_data?.kktc_title_type ? (
+                                <div className="flex items-center gap-1 col-span-2 text-[9px] truncate">
+                                  <span className="text-amber-500 font-extrabold text-xs">📜</span>
+                                  <span className="truncate">{lang === "tr" ? "Koçan:" : "Deed:"} <span className="text-slate-900 font-black">{p.sector_data.kktc_title_type}</span></span>
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
+
+                          {/* Vehicle Specific details */}
+                          {(p.type === "vehicle" || p.category === "Araç İlanları" || p.sector_data?.chassis_number) && (
+                            <div className="flex flex-wrap gap-2 py-1 border-y border-slate-100 text-[10px] font-bold text-slate-600">
+                              {p.brand && (
+                                <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded-md">🚗 {p.brand}</span>
+                              )}
+                              {p.description && p.description.includes("KM:") && (
+                                <span className="bg-sky-50 text-sky-800 px-2 py-0.5 rounded-md">
+                                  ⚡ {p.description.match(/KM:\s*(\d+)/)?.[0] || p.description}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-1">
                              <p className="text-xl font-black text-indigo-600 tracking-tight">
                                 {priceStr}
                              </p>
-                             {(p.sector_data?.city || p.sector_data?.district) && (
-                               <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                                 <Map className="h-3.5 w-3.5 text-indigo-500" />
-                                 {p.sector_data?.district || p.sector_data?.city}
+                             {p.branch_name && (
+                               <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-150">
+                                 {p.branch_name}
                                </div>
                              )}
                           </div>
