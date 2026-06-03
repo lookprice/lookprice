@@ -502,7 +502,9 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Fiyat</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">
+                  Fiyat {formData.price ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.price))})` : ''}
+                </label>
                 <div className="flex gap-1.5">
                   <input
                     type="number"
@@ -734,7 +736,9 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Net Alan (m²)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">
+                  Net Alan (m²) {formData.square_meters ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.square_meters))})` : ''}
+                </label>
                 <input
                   type="number"
                   placeholder="Net m²"
@@ -745,7 +749,9 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Brüt Alan (m²)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">
+                  Brüt Alan (m²) {formData.sqm_gross ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.sqm_gross))})` : ''}
+                </label>
                 <input
                   type="number"
                   placeholder="Brüt m²"
@@ -850,7 +856,9 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Aidat / Bakım Ücreti</label>
+                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                  Aidat / Bakım Ücreti {formData.dues ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.dues))})` : ''}
+                </label>
                 <div className="flex gap-1">
                   <input
                     type="number"

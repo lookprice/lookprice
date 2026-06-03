@@ -42,6 +42,8 @@ export interface Product {
   price_2?: number;
   price_2_currency?: string;
   shipping_profile_id?: string;
+  reference_no?: string;
+  location?: string;
   created_at: string;
   updated_at: string;
 }

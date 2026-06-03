@@ -49,6 +49,7 @@ import {
   FileDown,
   Printer,
   History,
+  Home,
   Share2,
   QrCode,
   Copy,
@@ -981,6 +982,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const navItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
+      { id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home },
       { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Teklifler & Cari" : "Quotations & Clients", items: [

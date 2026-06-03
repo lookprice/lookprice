@@ -383,7 +383,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                               </span>
                             </p>
                             <p className="text-[10px] font-black text-slate-400 truncate uppercase mt-0.5">
-                              {prop.currency} {Number(prop.price).toLocaleString()} • {prop.location}
+                              {prop.currency} {Math.round(Number(prop.price) || 0).toLocaleString('tr-TR')} • {prop.location}
                             </p>
                           </div>
                         </div>

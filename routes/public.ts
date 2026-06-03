@@ -796,11 +796,29 @@ router.get("/store/:slug/products", async (req, res) => {
       branch_slug: r.branch_slug,
       image_url: r.images && r.images.length > 0 ? r.images[0] : null,
       images: r.images,
+      location: r.location,
+      reference_no: r.reference_no,
       sector_data: {
         square_meters: r.square_meters,
         rooms: r.room_count,
         virtual_tour_url: r.virtual_tour_url,
-        ai_tour_enabled: r.ai_tour_enabled
+        ai_tour_enabled: r.ai_tour_enabled,
+        sqm_gross: r.sqm_gross,
+        block_plot: r.block_plot,
+        facade: r.facade,
+        building_age: r.building_age,
+        floor: r.floor,
+        total_floors: r.total_floors,
+        heating: r.heating,
+        furnished: r.furnished,
+        in_gated_community: r.in_gated_community,
+        dues: r.dues,
+        dues_currency: r.dues_currency,
+        country: r.country,
+        kktc_region: r.kktc_region,
+        kktc_title_type: r.kktc_title_type,
+        location: r.location,
+        reference_no: r.reference_no
       }
     });
   });
@@ -887,8 +905,68 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
       ORDER BY p.name ASC
     `, [store.id]);
-    const products = productsRes.rows;
-    
+
+    const vehiclesRes = await pool.query(`
+      SELECT v.*, s.name as branch_name, s.slug as branch_slug 
+      FROM vehicles v 
+      JOIN stores s ON v.store_id = s.id
+      WHERE (v.store_id = $1 OR s.parent_id = $1) 
+      AND v.status = 'for_sale'
+    `, [store.id]);
+
+    const realEstateRes = await pool.query(`
+      SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+      FROM real_estate_properties r 
+      JOIN stores s ON r.store_id = s.id
+      WHERE (r.store_id = $1 OR s.parent_id = $1) 
+      AND r.status = 'active'
+    `, [store.id]);
+
+    let mergedItems: any[] = [];
+
+    productsRes.rows.forEach(p => {
+      mergedItems.push({
+        id: p.barcode || p.id,
+        name: p.name,
+        description: p.description || p.name,
+        price: Number(p.price) || 0,
+        currency: p.currency || 'TRY',
+        stock_quantity: p.stock_quantity || 0,
+        image_url: p.image_url || '',
+        brand: p.brand || store.name,
+        category: p.category || 'Products'
+      });
+    });
+
+    vehiclesRes.rows.forEach(v => {
+      mergedItems.push({
+        id: `v_${v.id}`,
+        name: `${v.brand} ${v.model} (${v.year})`,
+        description: `Model: ${v.model}, Year: ${v.year}, Mileage: ${v.current_mileage} km. Chassis: ${v.chassis_number}`,
+        price: Number(v.selling_price) || 0,
+        currency: v.currency || 'TRY',
+        stock_quantity: 1,
+        image_url: v.image_url || store.logo_url || '',
+        brand: v.brand,
+        category: 'Vehicle'
+      });
+    });
+
+    realEstateRes.rows.forEach(r => {
+      const img = r.images && r.images.length > 0 ? r.images[0] : (store.logo_url || '');
+      mergedItems.push({
+        id: `re_${r.id}`,
+        name: r.title,
+        description: r.description || r.title,
+        price: Number(r.price) || 0,
+        currency: r.currency || 'TRY',
+        stock_quantity: 1,
+        image_url: img,
+        brand: r.location || store.name,
+        category: r.type || 'Real Estate'
+      });
+    });
+
     const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
     const host = store.custom_domain || req.get('host');
     const baseUrl = `${protocol}://${host}`;
@@ -920,7 +998,7 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
     <link>${escapeXml(baseUrl)}</link>
     <description>${escapeXml(store.description || store.name + " Ürün Kataloğu")}</description>\n`;
 
-    products.forEach(p => {
+    mergedItems.forEach(p => {
       // Currency conversion
       let convertedPrice = p.price;
       const fromCurrency = p.currency || 'TRY';
@@ -939,15 +1017,15 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       }
 
       const availability = (p.stock_quantity > 0) ? 'in stock' : 'out of stock';
-      const productUrl = store.custom_domain ? `${baseUrl}/p/${p.barcode || p.id}` : `${baseUrl}/s/${store.slug}/p/${p.barcode || p.id}`;
+      const productUrl = store.custom_domain ? `${baseUrl}/p/${p.id}` : `${baseUrl}/s/${store.slug}/p/${p.id}`;
       const imageUrl = p.image_url || '';
       const brand = p.brand || store.name;
       const description = escapeXml(p.description || p.name);
       
-      const category = p.category ? escapeXml(p.category) : 'Apparel &amp; Accessories';
+      const category = p.category ? escapeXml(p.category) : 'Product';
 
       xml += `    <item>
-      <g:id>${escapeXml(String(p.barcode || p.id))}</g:id>
+      <g:id>${escapeXml(String(p.id))}</g:id>
       <g:title>${escapeXml(p.name)}</g:title>
       <g:description>${description}</g:description>
       <g:link>${escapeXml(productUrl)}</g:link>

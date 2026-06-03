@@ -248,6 +248,161 @@ function sanitizeFilename(originalName: string): string {
     }
   });
 
+  // Dynamic Sitemap Generator for SEO & AI Crawlers
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+      const host = req.get('host') || "lookprice.net";
+      const baseUrl = `${protocol}://${host}`;
+
+      const escapeXml = (unsafe: string) => {
+        return unsafe.replace(/[<>&'"]/g, (c) => {
+          switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c;
+          }
+        });
+      };
+
+      // 1. Fetch all active stores
+      const storesRes = await pool.query("SELECT id, name, slug, custom_domain, updated_at FROM stores");
+      const stores = storesRes.rows;
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main Platform Mainpages -->
+  <url>
+    <loc>${escapeXml(baseUrl)}/</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${escapeXml(baseUrl)}/login</loc>
+    <lastmod>2026-06-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>\n`;
+
+      // 2. Fetch all listings to group and list efficiently
+      const productsRes = await pool.query(
+        "SELECT id, store_id, barcode, updated_at FROM products WHERE is_web_sale = true OR is_web_sale IS NULL"
+      );
+      const products = productsRes.rows;
+
+      const vehiclesRes = await pool.query(
+        "SELECT id, store_id, updated_at FROM vehicles WHERE status = 'for_sale'"
+      );
+      const vehicles = vehiclesRes.rows;
+
+      const realEstateRes = await pool.query(
+        "SELECT id, store_id, updated_at FROM real_estate_properties WHERE status = 'active'"
+      );
+      const realEstates = realEstateRes.rows;
+
+      // Group products, vehicles and realestates by store_id
+      const productsByStore = products.reduce((acc: any, p: any) => {
+        acc[p.store_id] = acc[p.store_id] || [];
+        acc[p.store_id].push(p);
+        return acc;
+      }, {});
+
+      const vehiclesByStore = vehicles.reduce((acc: any, v: any) => {
+        acc[v.store_id] = acc[v.store_id] || [];
+        acc[v.store_id].push(v);
+        return acc;
+      }, {});
+
+      const realEstateByStore = realEstates.reduce((acc: any, r: any) => {
+        acc[r.store_id] = acc[r.store_id] || [];
+        acc[r.store_id].push(r);
+        return acc;
+      }, {});
+
+      // For each store, add its homepage and its products/real estates/vehicles
+      stores.forEach((storeObj) => {
+        const storeBaseUrl = storeObj.custom_domain 
+          ? `${protocol}://${storeObj.custom_domain}` 
+          : `${baseUrl}/s/${storeObj.slug}`;
+
+        const storeLastMod = storeObj.updated_at 
+          ? new Date(storeObj.updated_at).toISOString().split('T')[0] 
+          : new Date().toISOString().split('T')[0];
+
+        // Store Home URL
+        xml += `  <url>
+    <loc>${escapeXml(storeBaseUrl)}</loc>
+    <lastmod>${storeLastMod}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>\n`;
+
+        // Store Products
+        const storeProds = productsByStore[storeObj.id] || [];
+        storeProds.forEach((p: any) => {
+          const prodUrl = storeObj.custom_domain 
+            ? `${storeBaseUrl}/p/${p.barcode || p.id}` 
+            : `${storeBaseUrl}/p/${p.barcode || p.id}`;
+          
+          const prodLastMod = p.updated_at 
+            ? new Date(p.updated_at).toISOString().split('T')[0] 
+            : storeLastMod;
+
+          xml += `  <url>
+    <loc>${escapeXml(prodUrl)}</loc>
+    <lastmod>${prodLastMod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>\n`;
+        });
+
+        // Store Vehicles (prefixed with v_)
+        const storeVehicles = vehiclesByStore[storeObj.id] || [];
+        storeVehicles.forEach((v: any) => {
+          const vUrl = `${storeBaseUrl}/p/v_${v.id}`;
+          const vLastMod = v.updated_at 
+            ? new Date(v.updated_at).toISOString().split('T')[0] 
+            : storeLastMod;
+
+          xml += `  <url>
+    <loc>${escapeXml(vUrl)}</loc>
+    <lastmod>${vLastMod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>\n`;
+        });
+
+        // Store Real Estate Listings (prefixed with re_)
+        const storeRealEstates = realEstateByStore[storeObj.id] || [];
+        storeRealEstates.forEach((r: any) => {
+          const rUrl = `${storeBaseUrl}/p/re_${r.id}`;
+          const rLastMod = r.updated_at 
+            ? new Date(r.updated_at).toISOString().split('T')[0] 
+            : storeLastMod;
+
+          xml += `  <url>
+    <loc>${escapeXml(rUrl)}</loc>
+    <lastmod>${rLastMod}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>\n`;
+        });
+      });
+
+      xml += `</urlset>`;
+
+      res.header('Content-Type', 'application/xml; charset=utf-8');
+      res.send(xml);
+    } catch (e: any) {
+      console.error("Dynamic sitemap generation failed:", e);
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
   // Vite Integration for Development
   if (process.env.NODE_ENV !== "production") {
     console.log("Running in DEVELOPMENT mode");

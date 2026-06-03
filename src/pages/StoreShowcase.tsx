@@ -281,50 +281,89 @@ const ProductCard: React.FC<{
         </div>
 
         <h3
-          className={`font-bold text-slate-900 line-clamp-2 h-12 mb-3 transition-colors cursor-pointer group-hover:text-primary text-base leading-tight tracking-tight ${isLuxury ? "!font-sans !font-medium text-gray-800" : ""}`}
+          className={`font-semibold text-slate-800 line-clamp-2 h-11 mb-3 transition-colors cursor-pointer hover:text-indigo-600 text-[14px] leading-snug tracking-tight ${isLuxury ? "!font-sans !font-medium text-gray-800" : ""}`}
           onClick={() => onView(product)}
         >
           {product.name}
         </h3>
 
-        {/* Portfolio Card Spec Sheet Row */}
-        {(store?.store_type === "portfolio" ||
-          product.type === "real_estate" ||
-          product.type === "vehicle") && (
-          <div className="flex items-center gap-3 my-3 text-[11px] font-bold text-slate-500 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
-            {product.type === "real_estate" && (
-              <>
-                {product.sector_data?.square_meters && (
-                  <span className="flex items-center gap-1.5">
-                    <span className="text-emerald-600 font-extrabold">m²</span>
-                    {product.sector_data.square_meters}
-                  </span>
-                )}
-                {product.sector_data?.rooms && (
-                  <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                    <span className="text-indigo-600 font-extrabold">
-                      {lang === "tr" ? "Oda" : "Rooms"}
-                    </span>
-                    {product.sector_data.rooms}
-                  </span>
-                )}
-              </>
-            )}
-            {product.type === "vehicle" && (
-              <>
-                <span className="flex items-center gap-1.5">
-                  <span className="text-rose-600 font-extrabold">
-                    {lang === "tr" ? "Yıl" : "Year"}
-                  </span>
-                  {product.name.match(/\((\d{4})\)/)?.[1] || "---"}
+        {/* Portfolio Card Spec Sheet Row & Grid */}
+        {product.type === "real_estate" && (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 my-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100 text-[10px] font-medium text-slate-600">
+            {product.sector_data?.square_meters ? (
+              <div className="flex items-center gap-1.5 min-w-0" title={`${product.sector_data.square_meters} m² Net`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Net:' : 'Net:'}</span>
+                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.square_meters} m²</span>
+              </div>
+            ) : null}
+            {product.sector_data?.sqm_gross ? (
+              <div className="flex items-center gap-1.5 min-w-0" title={`${product.sector_data.sqm_gross} m² Brüt`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Brüt:' : 'Gross:'}</span>
+                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.sqm_gross} m²</span>
+              </div>
+            ) : null}
+            {product.sector_data?.rooms ? (
+              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.rooms}>
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Oda:' : 'Rooms:'}</span>
+                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.rooms}</span>
+              </div>
+            ) : null}
+            {product.sector_data?.building_age ? (
+              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.building_age}>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Yaş:' : 'Age:'}</span>
+                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.building_age}</span>
+              </div>
+            ) : null}
+            {product.sector_data?.floor ? (
+              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.floor}>
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Kat:' : 'Floor:'}</span>
+                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.floor}</span>
+              </div>
+            ) : null}
+            {product.sector_data?.furnished !== undefined ? (
+              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.furnished ? 'Eşyalı' : 'Boş'}>
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Eşya:' : 'Furn:'}</span>
+                <span className="font-extrabold text-slate-800 truncate">
+                  {product.sector_data.furnished ? (lang === 'tr' ? 'Eşyalı' : 'Furnished') : (lang === 'tr' ? 'Boş' : 'Unfurnished')}
                 </span>
-                {product.description?.includes("KM:") && (
-                  <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                    <span className="text-sky-600 font-extrabold">KM</span>
-                    {product.description.match(/KM:\s*(\d+)/)?.[1] || "---"}
-                  </span>
-                )}
-              </>
+              </div>
+            ) : null}
+            {product.sector_data?.kktc_title_type ? (
+              <div className="flex items-center gap-1.5 col-span-2 border-t border-slate-100 pt-1.5 mt-0.5 min-w-0" title={product.sector_data.kktc_title_type}>
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Koçan:' : 'Title:'}</span>
+                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.kktc_title_type}</span>
+              </div>
+            ) : null}
+            {product.reference_no || product.sector_data?.reference_no ? (
+              <div className="flex items-center gap-1.5 col-span-2 border-t border-slate-100 pt-1 mt-0.5 min-w-0" title={product.reference_no || product.sector_data?.reference_no}>
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Ref No:' : 'Ref No:'}</span>
+                <span className="font-extrabold text-slate-600 font-mono truncate">{product.reference_no || product.sector_data?.reference_no}</span>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {product.type === "vehicle" && (
+          <div className="flex items-center gap-3 my-3 text-[11px] font-bold text-slate-500 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+            <span className="flex items-center gap-1.5">
+              <span className="text-rose-600 font-extrabold">
+                {lang === "tr" ? "Yıl" : "Year"}
+              </span>
+              {product.name.match(/\((\d{4})\)/)?.[1] || "---"}
+            </span>
+            {product.description?.includes("KM:") && (
+              <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                <span className="text-sky-600 font-extrabold">KM</span>
+                {product.description.match(/KM:\s*(\d+)/)?.[1] || "---"}
+              </span>
             )}
           </div>
         )}
@@ -460,6 +499,16 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
+      {data.sqm_gross && (
+        <div className="p-4 bg-emerald-55/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
+          <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "BRÜT METREKARE" : "GROSS AREA"}
+          </p>
+          <p className="text-sm font-black text-emerald-900 transition-colors uppercase">
+            {data.sqm_gross} m²
+          </p>
+        </div>
+      )}
       {data.rooms && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
@@ -470,13 +519,13 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
-      {data.city && (
+      {(data.city || data.kktc_region || data.location) && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "ŞEHİR / BÖLGE" : "CITY / REGION"}
           </p>
           <p className="text-sm font-black text-slate-900 transition-colors uppercase">
-            {data.city} / {data.district || '---'}
+            {data.kktc_region || data.location || data.city} {data.district ? `/ ${data.district}` : ''}
           </p>
         </div>
       )}
@@ -500,6 +549,36 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
+      {data.building_age && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "BİNA YAŞI" : "BUILDING AGE"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.building_age}
+          </p>
+        </div>
+      )}
+      {data.floor && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "BULUNDUĞU KAT" : "PROPERTY FLOOR"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.floor} {data.total_floors ? `/ ${data.total_floors}` : ''}
+          </p>
+        </div>
+      )}
+      {data.facade && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "CEPHE" : "FACADE"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.facade}
+          </p>
+        </div>
+      )}
       {data.heating && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
@@ -510,6 +589,36 @@ const SectorSpecs: React.FC<{ sector: string; data: any; onStartTour?: () => voi
           </p>
         </div>
       )}
+      {data.furnished !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "EŞYA DURUMU" : "FURNISHED STATUS"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.furnished ? (lang === "tr" ? "Eşyalı" : "Furnished") : (lang === "tr" ? "Boş / Eşyasız" : "Unfurnished")}
+          </p>
+        </div>
+      )}
+      {data.in_gated_community !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "SİTE İÇİ" : "GATED COMMUNITY"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.in_gated_community ? (lang === "tr" ? "Evet / Site İçi" : "Yes / Gated") : (lang === "tr" ? "Hayır" : "No")}
+          </p>
+        </div>
+      )}
+      {data.dues ? (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "AİDAT TUARI" : "DUES FEE"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.dues} {data.dues_currency || 'GBP'}
+          </p>
+        </div>
+      ) : null}
       {(data.virtual_tour_url || sector === "real_estate") && (
         <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between shadow-sm">
           <div>
@@ -950,7 +1059,7 @@ const ListingFinancingCalculator: React.FC<{
                     %)
                   </span>
                   <span className="text-slate-900">
-                    {downpayment.toLocaleString()} {currency}
+                    {Math.round(downpayment || 0).toLocaleString('tr-TR')} {currency}
                   </span>
                 </div>
                 <input
@@ -993,7 +1102,7 @@ const ListingFinancingCalculator: React.FC<{
                   {lang === "tr" ? "AYLIK TAKSİT" : "MONTHLY PAYMENT"}
                 </p>
                 <p className="text-base font-black text-indigo-600 tracking-tight">
-                  {monthlyPayment.toLocaleString()} {currency}
+                  {Math.round(monthlyPayment || 0).toLocaleString('tr-TR')} {currency}
                 </p>
               </div>
               <div className="border-l border-slate-100 pl-4">
@@ -1001,13 +1110,13 @@ const ListingFinancingCalculator: React.FC<{
                   {lang === "tr" ? "KREDİ TUTARI" : "LOAN AMOUNT"}
                 </p>
                 <p className="text-base font-black text-slate-800 tracking-tight">
-                  {loanAmount.toLocaleString()} {currency}
+                  {Math.round(loanAmount || 0).toLocaleString('tr-TR')} {currency}
                 </p>
               </div>
               <div className="col-span-2 border-t border-slate-100 pt-3 flex flex-wrap justify-between items-center text-xs font-bold text-slate-500 gap-2">
                 <span className="flex items-center gap-1">
                   {lang === "tr" ? "Toplam Geri Ödeme" : "Total Repayment"}:
-                  <span className="text-slate-950 font-black">{totalPayment.toLocaleString()} {currency}</span>
+                  <span className="text-slate-950 font-black">{Math.round(totalPayment || 0).toLocaleString('tr-TR')} {currency}</span>
                 </span>
                 <span className="text-[9px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-black uppercase">
                   % {interestRate} {lang === 'tr' ? 'Faiz Oranı' : 'Interest Rate'} / {activeBank.name}
@@ -1532,7 +1641,7 @@ const ProductDetailModal: React.FC<{
                     lang === "tr"
                       ? "💰 Finansal Değerleme"
                       : "💰 Financial Valuation",
-                  value: `${product.price ? Number(product.price).toLocaleString() : "---"} ${product.currency || "GBP"}`,
+                  value: `${product.price ? Math.round(Number(product.price) || 0).toLocaleString('tr-TR') : "---"} ${product.currency || "GBP"}`,
                   detail:
                     (product as any).type === "real_estate"
                       ? lang === "tr"
@@ -3637,7 +3746,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <section className="relative min-h-[60vh] md:min-h-[85vh] flex items-center overflow-hidden bg-slate-950">
               <motion.div
                 initial={{ scale: 1.1, opacity: 0 }}
-                animate={{ scale: 1, opacity: 0.7 }}
+                animate={{ scale: 1, opacity: 0.95 }}
                 transition={{ duration: 2, ease: "easeOut" }}
                 className="absolute inset-0 z-0"
               >
@@ -3645,21 +3754,21 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   <img
                     src={store.hero_image_url}
                     alt={store.hero_title || store.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover brightness-[0.80] contrast-[1.05]"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
                   <img
                     src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2048&auto=format&fit=crop"
                     alt="Store Hero"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover brightness-[0.80] contrast-[1.05]"
                     referrerPolicy="no-referrer"
                   />
                 )}
               </motion.div>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent z-10" />
-              <div className="absolute inset-0 bg-slate-950/20 z-10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 via-slate-950/10 to-black/30 z-10" />
+              <div className="absolute inset-0 bg-slate-950/10 z-10" />
 
               <div className="container max-w-7xl mx-auto px-4 md:px-8 relative z-20">
                 <div className="max-w-4xl">
@@ -4365,18 +4474,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             return (
                               <section
                                 key={section.id}
-                                className="relative h-[600px] flex items-center justify-center rounded-2xl overflow-hidden"
+                                className="relative h-[650px] flex items-center justify-center rounded-3xl overflow-hidden shadow-2xl border border-white/5"
                               >
                                 <img
                                   src={store.hero_image_url}
-                                  className="absolute inset-0 w-full h-full object-cover"
+                                  className="absolute inset-0 w-full h-full object-cover brightness-[0.85] contrast-[1.05]"
                                 />
-                                <div className="absolute inset-0 bg-black/40" />
-                                <div className="relative z-10 text-center text-white p-8">
-                                  <h1 className="text-4xl md:text-4xl font-semibold mb-4">
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-transparent" />
+                                <div className="absolute inset-0 bg-black/25" />
+                                <div className="relative z-10 text-center text-white px-6 py-12 max-w-3xl bg-slate-950/35 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl mx-4">
+                                  <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-3 block">
+                                    {store.name}
+                                  </span>
+                                  <h1 className="text-4xl md:text-5xl font-semibold font-display tracking-tight text-white mb-4">
                                     {store.hero_title}
                                   </h1>
-                                  <p className="text-xsl">
+                                  <p className="text-slate-300 font-medium leading-relaxed">
                                     {store.hero_subtitle}
                                   </p>
                                 </div>

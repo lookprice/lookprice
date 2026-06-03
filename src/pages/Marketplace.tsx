@@ -595,7 +595,7 @@ export const Marketplace = () => {
                   <div className="flex items-center gap-2 mb-4">
                     {listing.listing_type === "vehicle" && (
                       <span className="text-[11px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800/80">
-                        KM: {listing.mileage ? Number(listing.mileage).toLocaleString() : 'En Son'}
+                        KM: {listing.mileage ? Math.round(Number(listing.mileage) || 0).toLocaleString('tr-TR') : 'En Son'}
                       </span>
                     )}
                     {listing.brand && (
@@ -613,7 +613,7 @@ export const Marketplace = () => {
                         <CheckCircle2 className="w-3 h-3 text-emerald-500 inline" /> {listing.store_name}
                       </p>
                       <p className="font-extrabold text-white text-base">
-                        {(Number(listing.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} <span className="text-xs text-rose-400 font-bold">{listing.currency || 'TRY'}</span>
+                        {Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')} <span className="text-xs text-rose-400 font-bold">{listing.currency || 'TRY'}</span>
                       </p>
                     </div>
                   </div>
@@ -792,7 +792,7 @@ export const Marketplace = () => {
                   <div>
                     <span className="text-slate-500 block">Kilometre/Mil</span>
                     <span className="font-bold text-white text-sm">
-                      {selectedListing.mileage ? `${Number(selectedListing.mileage).toLocaleString()} KM` : 'Yeni Araç'}
+                      {selectedListing.mileage ? `${Math.round(Number(selectedListing.mileage) || 0).toLocaleString('tr-TR')} KM` : 'Yeni Araç'}
                     </span>
                   </div>
                 )}
@@ -810,7 +810,7 @@ export const Marketplace = () => {
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 my-3">
                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block mb-1">Satış/Talep Bedeli</span>
                 <span className="text-2xl font-black text-white">
-                  {(Number(selectedListing.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} <span className="text-rose-500 font-extrabold text-sm">{selectedListing.currency}</span>
+                  {Math.round(Number(selectedListing.price) || 0).toLocaleString('tr-TR')} <span className="text-rose-500 font-extrabold text-sm">{selectedListing.currency}</span>
                 </span>
               </div>
 

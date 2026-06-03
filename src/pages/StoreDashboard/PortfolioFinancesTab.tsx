@@ -335,7 +335,7 @@ export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabPr
                         />
                         <span className="font-semibold text-slate-600 truncate max-w-[140px]">{entry.name}</span>
                       </div>
-                      <span className="font-bold text-slate-800">£{entry.value.toLocaleString()}</span>
+                      <span className="font-bold text-slate-800">£{Math.round(entry.value || 0).toLocaleString('tr-TR')}</span>
                     </div>
                   ))}
                 </div>
@@ -385,7 +385,7 @@ export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabPr
                         />
                         <span className="font-semibold text-slate-600 truncate max-w-[140px]">{entry.name}</span>
                       </div>
-                      <span className="font-bold text-slate-800">£{entry.value.toLocaleString()}</span>
+                      <span className="font-bold text-slate-800">£{Math.round(entry.value || 0).toLocaleString('tr-TR')}</span>
                     </div>
                   ))}
                 </div>
@@ -683,7 +683,7 @@ export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabPr
                     <option value="">{isTr ? "İlişkili İlan Yok" : "No Linked Listing"}</option>
                     {properties.map(p => (
                       <option key={p.id} value={p.id}>
-                        {p.title} ({(p.price || 0).toLocaleString()} {p.currency})
+                        {p.title} ({Math.round(Number(p.price) || 0).toLocaleString('tr-TR')} {p.currency})
                       </option>
                     ))}
                   </select>

@@ -1,10 +1,165 @@
 import React, { useState, useEffect } from "react";
-// ... (imports)
+import { useLanguage } from "../../contexts/LanguageContext";
+import { translations } from "@/translations";
+import {
+  Globe,
+  Building2,
+  Share2,
+  Lock,
+  Plus,
+  Search,
+  List,
+  LayoutGrid,
+  SlidersHorizontal,
+  Home,
+  MapPin,
+  FolderLock,
+  Users,
+  Sparkles,
+  FileSignature,
+  Printer,
+  Calendar,
+  Edit2,
+  Trash2,
+  AlertTriangle,
+  Shield,
+  Megaphone,
+  Send,
+  Check,
+  RefreshCw,
+  Award,
+  X,
+  MessageSquare,
+  Scale,
+  FileCheck,
+  FileText
+} from "lucide-react";
+import { ConsultingInsights } from "../../components/ConsultingInsights";
+import { RealEstateModal } from "../../components/RealEstateModal";
+import { LegalContractModal } from "../../components/LegalContractModal";
+import { ArrangeTourModal } from "../../components/ArrangeTourModal";
+interface RealEstateTabProps {
+  properties: any[];
+  loading: boolean;
+  onSave: (p: any) => void;
+  onDelete: (id: any) => void;
+  user: any;
+  branding: any;
+  initialStatusFilter: string;
+  onResetStatusFilter: () => void;
+}
+
+const formatNumberVal = (val: any) => {
+  if (val === undefined || val === null || val === '') return '0';
+  const cleanVal = val.toString().replace(/[^\d.-]/g, '');
+  const parsed = parseFloat(cleanVal);
+  if (isNaN(parsed)) return val;
+  return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(parsed));
+};
+
 const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, initialStatusFilter, onResetStatusFilter }: RealEstateTabProps) => {
+  const safeProperties = Array.isArray(properties) ? properties : [];
+
+  const handleOpenMatching = (property: any) => {
+    setMatchingProperty(property);
+  };
+
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+
+  const [filterBranch, setFilterBranch] = useState("all");
+  const [branches, setBranches] = useState<any[]>([]);
+  const [filterScope, setFilterScope] = useState("all");
+  const [filterRegion, setFilterRegion] = useState("all");
+  const [filterStatus, setFilterStatus] = useState(initialStatusFilter || "all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filterPropertyType, setFilterPropertyType] = useState("all");
+  const [filterTitleType, setFilterTitleType] = useState("all");
+  const [filterRoomCount, setFilterRoomCount] = useState("all");
+  const [filterFurnished, setFilterFurnished] = useState("all");
+  const [filterGated, setFilterGated] = useState("all");
+  const [filterPriceMin, setFilterPriceMin] = useState("");
+  const [filterPriceMax, setFilterPriceMax] = useState("");
+  const [filterVerifiedOnly, setFilterVerifiedOnly] = useState(false);
+  
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [contractProperty, setContractProperty] = useState<any>(null);
+  const [isTourModalOpen, setIsTourModalOpen] = useState(false);
+  const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
+  const [matchingProperty, setMatchingProperty] = useState<any>(null);
+
+  const [complianceChecked, setComplianceChecked] = useState<Record<string, boolean>>({});
+  const [splitCommissionPercentage, setSplitCommissionPercentage] = useState(3);
+  const [splitRatio, setSplitRatio] = useState(50);
+  
+  const [showingFeedbacks, setShowingFeedbacks] = useState<any[]>([
+    {
+      id: "demo-f-1",
+      agent: "Emrah Ceyhan",
+      status: "Sıcak Takip",
+      date: "2026-06-01",
+      rating: 4,
+      review: "Mülk çok iyi konumda, ancak fiyat pazar ortalamasının biraz üzerinde. Alıcı düşünmek için süre istedi."
+    },
+    {
+      id: "demo-f-2",
+      agent: "Canan Yılmaz",
+      status: "Fiyat Revizesi İstiyor",
+      date: "2026-05-30",
+      rating: 3,
+      review: "Alıcı lokasyonu çok beğendi ama fiyatı yüksek buldu. Eğer biraz esneklik gösterilirse teklif vermeye hazır."
+    }
+  ]);
+  const [showingBufferTime, setShowingBufferTime] = useState<number>(15);
+  const [showingWaitlist, setShowingWaitlist] = useState<any[]>([
+    {
+      id: "wl-1",
+      clientName: "Ahmet Yılmaz",
+      phone: "+90 533 800 00 00",
+      notes: "Kıbrıs satılık arsa / sanayi imarlı arıyor"
+    }
+  ]);
+  const [showingPrep, setShowingPrep] = useState<any>({
+    alarmArmed: false,
+    lightsOn: true,
+    blindsOpen: true,
+    acAdjusted: true,
+    scentRefreshed: true,
+    flyersPresent: true
+  });
+  const [matchList, setMatchList] = useState<any[]>([]);
+  const [activeDripTemplate, setActiveDripTemplate] = useState<any>(null);
+  
+  const [newFeedbackAgent, setNewFeedbackAgent] = useState("");
+  const [newFeedbackStatus, setNewFeedbackStatus] = useState("pending");
+  const [newFeedbackReview, setNewFeedbackReview] = useState("");
+  const [newFeedbackRating, setNewFeedbackRating] = useState(5);
+  const [activeHubTab, setActiveHubTab] = useState("overview");
+  const [buyerOfferAmount, setBuyerOfferAmount] = useState(0);
+  const [negotiationNotes, setNegotiationNotes] = useState("");
+  const [cmaElasticityPrice, setCmaElasticityPrice] = useState(0);
+  const [virtualStagingStyle, setVirtualStagingStyle] = useState("");
+  const [renovationState, setRenovationState] = useState("");
+  const [selectedSplitBranch, setSelectedSplitBranch] = useState("");
+  const [splitNegotiatedAgent, setSplitNegotiatedAgent] = useState("");
+  const [escrowTimeline, setEscrowTimeline] = useState<any[]>([]);
+  const [aiAdPlatform, setAiAdPlatform] = useState("facebook");
+
+  const filteredProperties = safeProperties.filter(p => {
+      const matchesSearch = !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = filterStatus === 'all' || p.status === filterStatus;
+      // Basic filters - add others if needed
+      return matchesSearch && matchesStatus;
+  });
+
+  const runMatchingAlgorithm = (property: any) => {
+    // Placeholder matching logic
+    return [];
+  };
 
   // Safe checks for user role representation
   const userRole = (user?.role || 'admin').toString();
@@ -59,7 +214,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           <div>
             <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Ağ Portföyü</span>
             <span className="text-xl font-black text-slate-900 mt-1 block">
-              {properties.length} <span className="text-[10px] text-slate-500 font-bold">Mülk</span>
+              {formatNumberVal(safeProperties.length)} <span className="text-[10px] text-slate-500 font-bold">Mülk</span>
             </span>
           </div>
         </div>
@@ -71,7 +226,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           <div>
             <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Ortak Havuz</span>
             <span className="text-xl font-black text-emerald-600 mt-1 block">
-              {properties.filter(p => (p.sharing_scope || 'shared_pool') === 'shared_pool').length} <span className="text-[10px] text-emerald-500 font-bold">Açık</span>
+              {formatNumberVal(safeProperties.filter(p => (p.sharing_scope || 'shared_pool') === 'shared_pool').length)} <span className="text-[10px] text-emerald-500 font-bold">Açık</span>
             </span>
           </div>
         </div>
@@ -83,7 +238,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           <div>
             <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Rezervasyon Kilidi</span>
             <span className="text-xl font-black text-rose-600 mt-1 block">
-              {properties.filter(p => !!p.reserved_by_branch).length} <span className="text-[10px] text-rose-500 font-bold">Kilitli</span>
+              {formatNumberVal(safeProperties.filter(p => !!p.reserved_by_branch).length)} <span className="text-[10px] text-rose-500 font-bold">Kilitli</span>
             </span>
           </div>
         </div>
@@ -95,7 +250,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           <div>
             <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Kıbrıs (KKTC)</span>
             <span className="text-xl font-black text-slate-900 mt-1 block">
-              {properties.filter(p => p.country === 'KKTC').length} <span className="text-[10px] text-slate-500 font-bold">İlan</span>
+              {formatNumberVal(safeProperties.filter(p => p.country === 'KKTC').length)} <span className="text-[10px] text-slate-500 font-bold">İlan</span>
             </span>
           </div>
         </div>
@@ -440,94 +595,28 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                 className={`bg-white rounded-3xl shadow-sm border border-slate-150 overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group relative ${viewMode === 'grid' ? 'flex flex-col h-full' : 'flex'}`}
               >
                 {/* Image Banner */}
-                <div className={`${viewMode === 'grid' ? 'w-full h-44' : 'w-64 h-64 shrink-0'} bg-slate-100 relative overflow-hidden`}>
+                <div className={`${viewMode === 'grid' ? 'w-full h-48' : 'w-64 h-64 shrink-0'} bg-slate-100 relative overflow-hidden`}>
                   {property.images && property.images.length > 0 ? (
                     <img 
                       src={property.images[0]} 
                       alt={property.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      className="w-full h-full object-cover" 
                       referrerPolicy="no-referrer" 
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
                       <Home className="w-12 h-12 stroke-[1.25]" />
-                      <span className="text-[10px] uppercase font-black tracking-widest mt-1">Görsel Yok</span>
                     </div>
                   )}
 
-                  {/* Flag Accent */}
-                  <div className="absolute top-3 left-3 flex gap-1.5 items-center">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black uppercase text-white rounded-lg shadow-sm backdrop-blur-md ${property.country === 'KKTC' ? 'bg-indigo-600/90' : 'bg-red-600/90'}`}>
-                      {property.country === 'KKTC' ? '🇨🇾 Kıbrıs (KKTC)' : '🇹🇷 Türkiye'}
-                    </span>
-                    {property.country === 'KKTC' && (
-                      <span className="px-2 py-1 bg-amber-500/90 text-white font-black text-[9px] rounded-lg shadow-sm">
-                        🇬🇧 UK Target
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Status Overlay */}
-                  <div className="absolute top-3 right-3">
-                    <span className={`inline-flex px-2.5 py-1 text-[10px] font-black uppercase rounded-lg shadow-sm ${
-                      (property.status === 'active' || !property.status) ? 'bg-emerald-500 text-white' :
-                      property.status === 'rented' ? 'bg-blue-500 text-white' :
-                      property.status === 'optioned' ? 'bg-amber-500 text-white' :
-                      property.status === 'sold' ? 'bg-slate-700 text-white' : 'bg-emerald-500 text-white'
-                    }`}>
-                      {(property.status === 'active' || !property.status) ? 'SATILIK' :
-                       property.status === 'rented' ? 'KİRALIK' :
-                       property.status === 'optioned' ? 'OPSİYONLU (Kapora alındı)' :
-                       property.status === 'sold' ? 'SATILDI' :
-                       'SATILIK'}
+                  {/* Minimalistic Badge */}
+                  <div className="absolute top-3 left-3">
+                    <span className="bg-white/90 text-slate-900 font-bold text-[10px] px-2 py-1 rounded shadow-sm">
+                      {property.status === 'active' ? 'SATILIK' : 'KİRALIK'}
                     </span>
                   </div>
-
-                  {/* Çift Satış Engelleme / Çapraz Şube Rezervasyon Kilidi */}
-                  {property.reserved_by_branch && (
-                    <div className="absolute top-12 right-3 left-3 bg-rose-600/95 text-white p-2.5 rounded-xl flex items-center gap-2 shadow-lg border border-rose-500 z-10">
-                      <Lock className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                      <div className="text-left font-black leading-tight text-[10px]">
-                        <span className="block uppercase tracking-wider">🔒 SATIŞ KİLİDİ AKTİF</span>
-                        <span className="block opacity-90 line-clamp-1">{property.reserved_by_branch} Rezerve Etti {property.reservation_notes ? `• ${property.reservation_notes}` : ''}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* matterport tour is highlighted */}
-                  {property.virtual_tour_url && (
-                    <div className="absolute bottom-3 left-3">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/95 text-indigo-700 rounded-lg text-[10px] font-black shadow-lg shadow-indigo-600/20 border border-indigo-100 animate-pulse">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><line x1="12" y1="22" x2="12" y2="12"></line></svg>
-                        3D GEZİNTİ
-                      </span>
-                    </div>
-                  )}
                 </div>
 
-                {/* Status Badges Below Image */}
-                <div className="px-5 pt-3 pb-0 flex flex-wrap gap-2">
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black uppercase text-white rounded-lg shadow-sm ${property.country === 'KKTC' ? 'bg-indigo-600' : 'bg-red-600'}`}>
-                    {property.country === 'KKTC' ? '🇨🇾 Kıbrıs (KKTC)' : '🇹🇷 Türkiye'}
-                  </span>
-                  {property.country === 'KKTC' && (
-                    <span className="px-2.5 py-1 bg-amber-500 text-white font-black text-[10px] rounded-lg shadow-sm">
-                      🇬🇧 UK Target
-                    </span>
-                  )}
-                  <span className={`inline-flex px-2.5 py-1 text-[10px] font-black uppercase rounded-lg shadow-sm ${
-                    (property.status === 'active' || !property.status) ? 'bg-emerald-500 text-white' :
-                    property.status === 'rented' ? 'bg-blue-500 text-white' :
-                    property.status === 'optioned' ? 'bg-amber-500 text-white' :
-                    property.status === 'sold' ? 'bg-slate-700 text-white' : 'bg-emerald-500 text-white'
-                  }`}>
-                    {(property.status === 'active' || !property.status) ? 'SATILIK' :
-                     property.status === 'rented' ? 'KİRALIK' :
-                     property.status === 'optioned' ? 'OPSİYONLU (Kapora alındı)' :
-                     property.status === 'sold' ? 'SATILDI' :
-                     'SATILIK'}
-                  </span>
-                </div>
 
                 {/* Content body */}
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
@@ -593,12 +682,12 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                       )}
                       {property.square_meters && (
                         <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200">
-                          📐 {property.square_meters}m² Net {property.sqm_gross ? `/ ${property.sqm_gross}m² Brüt` : ''}
+                          📐 {formatNumberVal(property.square_meters)} m² Net {property.sqm_gross ? `/ ${formatNumberVal(property.sqm_gross)} m² Brüt` : ''}
                         </span>
                       )}
                       {property.in_gated_community && (
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md text-[10px] font-bold border border-emerald-100">
-                          🏡 Site İçi {property.dues ? `• ${property.dues} ${property.dues_currency || 'GBP'} Aidat` : ''}
+                          🏡 Site İçi {property.dues ? `• ${formatNumberVal(property.dues)} ${property.dues_currency || 'GBP'} Aidat` : ''}
                         </span>
                       )}
                       {property.facade && (
@@ -653,7 +742,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                       <div className="text-slate-900">
                         <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none">İLAN BEDELİ</span>
                         <span className="text-base font-black text-indigo-600">
-                          {property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺'}{(property.price || 0).toLocaleString()}
+                          {property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺'}{formatNumberVal(property.price)}
                         </span>
                       </div>
 
@@ -757,7 +846,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           if (aiAdPlatform === 'portal') {
             return `🌟 KAÇIRILMAYACAK FIRSAT! ${matchingProperty.location} bölgesinde satılık harika ${matchingProperty.type}! 🌟\n\n` +
                    `Özellikler:\n` +
-                   `• ${matchingProperty.square_meters} m² Net Yaşam Alanı\n` +
+                   `• ${formatNumberVal(matchingProperty.square_meters)} m² Net Yaşam Alanı\n` +
                    `• ${matchingProperty.room_count} Lüks Tasarımlı Oda Sayısı\n` +
                    `• Tapu Statüsü: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n` +
                    `• Isınma ve Donanım: Lüks iklimlendirme sistemleri hazır\n\n` +
@@ -769,8 +858,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           } else if (aiAdPlatform === 'social') {
             return `🔥 Göz Alıcı Yatırım Lokasyonu: Kuzey Kıbrıs / ${matchingProperty.kktc_region || "Girne"} 🔥\n\n` +
                    `Uluslararası yatırımcıların gözdesi ${matchingProperty.location} bölgesindeki bu muhteşem ${matchingProperty.type} yeni sahibini arıyor!\n\n` +
-                   `📈 Bölgesel Analiz: £${regionalAverage}/m²\n` +
-                   `🎯 Fırsat Fiyatı: ${matchingProperty.currency} ${(matchingProperty.price || 0).toLocaleString()} (${matchingProperty.square_meters} m²)\n` +
+                   `📈 Bölgesel Analiz: £${formatNumberVal(regionalAverage)}/m²\n` +
+                   `🎯 Fırsat Fiyatı: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)} (${formatNumberVal(matchingProperty.square_meters)} m²)\n` +
                    `📜 Tapu Güvencesi: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
                    `Sadece 3D sanal turumuzla mülke girmeden önce her detayını kristal berraklığında gezin: ${matchingProperty.virtual_tour_url || 'lookprice-3d-tour'} \n\n` +
                    `💡 Daha fazla bilgi için hemen DM veya profil bağlantımızdan bize ulaşın! #kktcemlak #kibrisyatirim #realestate #lookpricehub`;
@@ -778,8 +867,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             return `Merhaba Sayın Yatırımcımız,\n\n` +
                    `LookPrice Emlak Ağının çok şubeli veri tabanından kriterlerinize özel eşleşen yeni bir fırsat kaydoldu:\n\n` +
                    `📌 Bölge: ${matchingProperty.location} (${matchingProperty.kktc_region || 'KKTC'})\n` +
-                   `🏡 Mülk Tipi: ${matchingProperty.square_meters} m² Net - ${matchingProperty.room_count} - ${matchingProperty.type}\n` +
-                   `💰 Fiyat: ${matchingProperty.currency} ${(matchingProperty.price || 0).toLocaleString()}\n` +
+                   `🏡 Mülk Tipi: ${formatNumberVal(matchingProperty.square_meters)} m² Net - ${matchingProperty.room_count} - ${matchingProperty.type}\n` +
+                   `💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n` +
                    `🔑 Koçan: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
                    `Mülkü fiziksel olarak ziyaret etmeden önce şubemizce onaylanmış 3D dijital ikizini gezerek önizleme gerçekleştirebilirsiniz:\n` +
                    `🔗 Sanal Tur: ${matchingProperty.virtual_tour_url || "lookprice.com/virtual-tour-active"}\n\n` +
@@ -900,7 +989,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                                   <span className="font-extrabold text-sm text-slate-900">{buyer.name}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-500">
-                                  Tercihler: <strong className="text-slate-700">{buyer.preferredRegions.join(", ")}</strong> • Min: {buyer.minSqm}m² • Max Bütçe: {buyer.currency === 'GBP' ? '£' : '₺'}{(buyer.maxBudget || 0).toLocaleString()}
+                                  Tercihler: <strong className="text-slate-700">{buyer.preferredRegions.join(", ")}</strong> • Min: {formatNumberVal(buyer.minSqm)} m² • Max Bütçe: {buyer.currency === 'GBP' ? '£' : '₺'}{formatNumberVal(buyer.maxBudget)}
                                 </p>
                               </div>
 
@@ -917,7 +1006,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                               <button
                                 onClick={() => {
                                   const subject = encodeURIComponent(`LookPrice Yatırım Teklifi - ${matchingProperty.title}`);
-                                  const body = encodeURIComponent(`Sayın ${buyer.name},\n\nİstemiş olduğunuz kriterlere uyum sağlayan yeni portföyümüzü incelemenize sunmaktan memnuniyet duyarız:\n\nMülk Başlığı: ${matchingProperty.title}\nKonum: ${matchingProperty.location}\nLüks Detay: ${matchingProperty.square_meters}m² / ${matchingProperty.room_count}\n\n3D Sanal Tur Linki:\n${matchingProperty.virtual_tour_url || 'https://lookprice.me/virtual-tour'}\n\nDetaylı bilgi için şubemizle iletişime geçebilirsiniz.`);
+                                  const body = encodeURIComponent(`Sayın ${buyer.name},\n\nİstemiş olduğunuz kriterlere uyum sağlayan yeni portföyümüzü incelemenize sunmaktan memnuniyet duyarız:\n\nMülk Başlığı: ${matchingProperty.title}\nKonum: ${matchingProperty.location}\nLüks Detay: ${formatNumberVal(matchingProperty.square_meters)} m² / ${matchingProperty.room_count}\n\n3D Sanal Tur Linki:\n${matchingProperty.virtual_tour_url || 'https://lookprice.me/virtual-tour'}\n\nDetaylı bilgi için şubemizle iletişime geçebilirsiniz.`);
                                   window.open(`mailto:${buyer.email}?subject=${subject}&body=${body}`, '_blank');
                                 }}
                                 className="bg-slate-50 hover:bg-indigo-50 text-indigo-700 font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl border border-indigo-100 transition-all flex items-center gap-1.5"
@@ -927,7 +1016,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                               </button>
                               <button
                                 onClick={() => {
-                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, LookPrice Emlak ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${(matchingProperty.price || 0).toLocaleString()}\n\n3D İç Mekan Gezintisi:\n${matchingProperty.virtual_tour_url || 'lookprice-3d'}`);
+                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, LookPrice Emlak ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n\n3D İç Mekan Gezintisi:\n${matchingProperty.virtual_tour_url || 'lookprice-3d'}`);
                                   window.open(`https://wa.me/${buyer.phone.replace(/\s+/g, '')}?text=${text}`, '_blank');
                                 }}
                                 className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
@@ -1004,7 +1093,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           dripBody = `Sayın ${firstBuyerName},\n\nLookPrice portföy havuzuna henüz eklenen ve kriterlerinizle %90+ uyum sağlayan yeni bir fırsatımız var: ${matchingProperty.title}.\n\nMülkün fiziksel sunumundan önce hazırladığımız 3D sanal turumuzla mülk içinde dilediğinizce yürüyebilir, mutfak tezgahı ölçülerini bile alabilirsiniz:\n🔗 Sanal Keşif: ${matchingProperty.virtual_tour_url || 'lookprice-3d-explorer'}\n\nBu özel portföyü ne zaman yerinde görmek istersiniz?`;
                         } else if (activeDripTemplate === 'pricedrop') {
                           dripSubject = `Fiyat / Kampanya Güncellemesi - Önemli Fırsat`;
-                          dripBody = `Değerli ${firstBuyerName},\n\nTakip listenizde yer alan ${matchingProperty.title} mülkü için satıcı ile yürüttüğümüz özel pazarlık neticesinde kısa bir süreliğine özel bir esneklik sağlandı!\n\nYeni Liste Değeri: ${matchingProperty.currency} ${((cmaElasticityPrice || matchingProperty.price) || 0).toLocaleString()}\n\nBölgesel CMA rasyolarına göre bu fiyat emsallerden yaklaşık %15 daha avantajlıdır. Fırsatı kaçırmamak adına hemen bir geri dönüş yapmanızı öneririm.`;
+                          dripBody = `Değerli ${firstBuyerName},\n\nTakip listenizde yer alan ${matchingProperty.title} mülkü için satıcı ile yürüttüğümüz özel pazarlık neticesinde kısa bir süreliğine özel bir esneklik sağlandı!\n\nYeni Liste Değeri: ${matchingProperty.currency} ${formatNumberVal(cmaElasticityPrice || matchingProperty.price || 0)}\n\nBölgesel CMA rasyolarına göre bu fiyat emsallerden yaklaşık %15 daha avantajlıdır. Fırsatı kaçırmamak adına hemen bir geri dönüş yapmanızı öneririm.`;
                         } else {
                           dripSubject = `Kapanış Öncesi Son Çağrı: ${matchingProperty.location}`;
                           dripBody = `Sayın ${firstBuyerName},\n\n${matchingProperty.title} mülkü üzerinde şu anda başka bir şubemizin yürüttüğü sıcak bir pazarlık süreci bulunuyor ve tapu devir (escrow) işleminin bu hafta tamamlanması öngörülüyor.\n\nEğer bu mülkle hâlâ ciddi olarak ilgileniyorsanız, satıcıya resmi karşı teklifimizi sunabileceğimiz son güne girmiş bulunuyoruz. Talebiniz olması halinde teklif kütüğümüzü hemen işleme alabilirim.`;
@@ -1349,7 +1438,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         <div>
                           <label className="block text-[10.5px] font-bold text-slate-500 mb-1">Mülk Liste Fiyatı</label>
                           <div className="text-base font-black text-slate-900 bg-white p-2 border rounded-xl shadow-sm">
-                            {matchingProperty.currency} {(matchingProperty.price || 0).toLocaleString()}
+                            {matchingProperty.currency} {formatNumberVal(matchingProperty.price)}
                           </div>
                         </div>
 
@@ -1422,7 +1511,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                               </p>
                               
                               <div className="pt-2 border-t border-dashed border-current/20 text-[10.5px] font-bold">
-                                <span>İskonto Miktarı:</span> <span className="underline">{matchingProperty.currency} {(discountAmt || 0).toLocaleString()} ({discountPercent}%)</span>
+                                <span>İskonto Miktarı:</span> <span className="underline">{matchingProperty.currency} {formatNumberVal(discountAmt)} ({discountPercent}%)</span>
                               </div>
                             </div>
 
@@ -1435,7 +1524,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                                   Ortak hisseli pazarlık kütüğüne göre masanın karlı ve hızlı tescili için %50 orta noktadır:
                                 </p>
                                 <div className="text-2xl font-black text-indigo-300 py-1 font-mono">
-                                  {matchingProperty.currency} {(suggestedCounter || 0).toLocaleString()}
+                                  {matchingProperty.currency} {formatNumberVal(suggestedCounter)}
                                 </div>
                               </div>
 
@@ -1446,7 +1535,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                                       ...matchingProperty,
                                       title: `[PAZARLIK PROTOKOLÜ] ` + matchingProperty.title,
                                       price: suggestedCounter,
-                                      kktc_title_type: `Pazarlıklı Karşı Teklif Ön Anlaşması (Alıcı Teklifi: ${matchingProperty.currency} ${(currentOfferVal || 0).toLocaleString()})`
+                                      kktc_title_type: `Pazarlıklı Karşı Teklif Ön Anlaşması (Alıcı Teklifi: ${matchingProperty.currency} ${formatNumberVal(currentOfferVal)})`
                                     } as any);
                                     setIsContractModalOpen(true);
                                     setMatchingProperty(null);
@@ -1577,13 +1666,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5 mt-2">
                           <div className="flex justify-between items-center text-xs">
                             <span className="text-slate-500 font-extrabold font-sans">Önerilen Liste Fiyatı:</span>
-                            <span className="font-black text-slate-900">{matchingProperty.currency} {(matchingProperty.price || 0).toLocaleString()}</span>
+                            <span className="font-black text-slate-900">{matchingProperty.currency} {formatNumberVal(matchingProperty.price)}</span>
                           </div>
 
                           <div className="space-y-1">
                             <div className="flex justify-between items-center text-[10px] font-bold text-indigo-600 font-sans">
                               <span>Simüle Edilen Test Fiyatı</span>
-                              <span>{matchingProperty.currency} {((cmaElasticityPrice || matchingProperty.price) || 0).toLocaleString()}</span>
+                              <span>{matchingProperty.currency} {formatNumberVal(cmaElasticityPrice || matchingProperty.price || 0)}</span>
                             </div>
                             <input 
                               type="range"
@@ -1802,7 +1891,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                                 >
                                   <span>{item.label}</span>
                                   <span className="font-extrabold text-[10.5px]">
-                                    {item.deduction > 0 ? `-£${item.deduction.toLocaleString()}` : "Düz"}
+                                    {item.deduction > 0 ? `-£${formatNumberVal(item.deduction)}` : "Düz"}
                                   </span>
                                 </button>
                               ))}
@@ -1812,7 +1901,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-[10px] font-extrabold flex justify-between items-center text-slate-700 font-sans">
                             <span>Nihai Net Değer (Kesintili):</span>
                             <span className="font-black text-indigo-600">
-                              {matchingProperty.currency} {((cmaElasticityPrice || (matchingProperty.price || 0)) - (renovationState === 'none' ? 0 : renovationState === 'medium' ? 9500 : 27000)).toLocaleString()}
+                              {matchingProperty.currency} {formatNumberVal((cmaElasticityPrice || matchingProperty.price || 0) - (renovationState === 'none' ? 0 : renovationState === 'medium' ? 9500 : 27000))}
                             </span>
                           </div>
                         </div>
@@ -1942,17 +2031,17 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           <div className="space-y-3.5">
                             <div className="flex justify-between items-center text-xs text-slate-600 font-bold">
                               <span>Hedeflenen Toplam Hizmet Bedeli:</span>
-                              <span className="text-slate-900 font-extrabold">{matchingProperty.currency} {(estTotalCommission || 0).toLocaleString()}</span>
+                              <span className="text-slate-900 font-extrabold">{matchingProperty.currency} {formatNumberVal(estTotalCommission)}</span>
                             </div>
 
                             <div className="flex justify-between items-center text-xs text-slate-600 border-t border-dashed border-slate-100 pt-3 font-semibold">
                               <span className="flex items-center gap-1">🏢 Bizim Şube ({matchingProperty.branch_name || 'Merkez'} - {splitRatio}%):</span>
-                              <span className="text-indigo-600 font-black">{matchingProperty.currency} {(firstBranchCommission || 0).toLocaleString()}</span>
+                              <span className="text-indigo-600 font-black">{matchingProperty.currency} {formatNumberVal(firstBranchCommission)}</span>
                             </div>
 
                             <div className="flex justify-between items-center text-xs text-slate-600 pt-1 font-semibold">
                               <span className="flex items-center gap-1">🏢 İş Ortağı Şube ({selectedSplitBranch} - {100 - splitRatio}%):</span>
-                              <span className="text-teal-600 font-black">{matchingProperty.currency} {(secondBranchCommission || 0).toLocaleString()}</span>
+                              <span className="text-teal-600 font-black">{matchingProperty.currency} {formatNumberVal(secondBranchCommission)}</span>
                             </div>
                           </div>
                         </div>
@@ -2273,7 +2362,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                 <span className="block text-[8px] font-black tracking-widest text-slate-400 uppercase">SATILIK / KİRALIK BEDELİ</span>
                 <span className="text-xl font-black text-emerald-400">
                   {propertyToPrint.currency === 'GBP' ? '£' : propertyToPrint.currency === 'USD' ? '$' : propertyToPrint.currency === 'EUR' ? '€' : '₺'}
-                  {(propertyToPrint.price || 0).toLocaleString()}
+                  {formatNumberVal(propertyToPrint.price)}
                 </span>
               </div>
             </div>
@@ -2283,12 +2372,12 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               <div className="space-y-2">
                 <div className="flex justify-between border-b border-slate-100 pb-1">
                   <span className="text-slate-500 font-medium">Metrekare (Net):</span>
-                  <span className="text-slate-900 font-extrabold">{propertyToPrint.square_meters ? `${propertyToPrint.square_meters} m²` : 'Belirtilmedi'}</span>
+                  <span className="text-slate-900 font-extrabold">{propertyToPrint.square_meters ? `${formatNumberVal(propertyToPrint.square_meters)} m²` : 'Belirtilmedi'}</span>
                 </div>
                 {propertyToPrint.sqm_gross && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Metrekare (Brüt):</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.sqm_gross} m²</span>
+                    <span className="text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.sqm_gross)} m²</span>
                   </div>
                 )}
                 {propertyToPrint.room_count && (
@@ -2329,7 +2418,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                 {propertyToPrint.dues && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Aidat Bedeli:</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.dues} {propertyToPrint.dues_currency || '₺'}</span>
+                    <span className="text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.dues)} {propertyToPrint.dues_currency || '₺'}</span>
                   </div>
                 )}
                 {propertyToPrint.block_plot && (
