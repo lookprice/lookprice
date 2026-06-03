@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   Users,
   MapPin,
+  X,
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -293,7 +294,9 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
       sections: l.sections || [],
       grid: l.grid || 'standard',
       count: l.count || 6,
-      banners: l.banners || []
+      banners: l.banners || [],
+      quickLinks: l.quickLinks || [],
+      corporateLinks: l.corporateLinks || []
     };
   }, [store.page_layout]);
 
@@ -317,8 +320,82 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
 
   const displayedProducts = filteredProducts;
 
+  const [isContentModalOpen, setIsContentModalOpen] = useState(false);
+  const [activeContentMap, setActiveContentMap] = useState<{title: string, content: string}|null>(null);
+
+  const handleLinkClick = (e: React.MouseEvent, link: any) => {
+    if (link.type === 'content' && link.content) {
+      e.preventDefault();
+      setActiveContentMap({ title: link.label, content: link.content });
+      setIsContentModalOpen(true);
+    }
+  };
+
   return (
     <div className="flex-1 bg-white overflow-hidden min-h-screen relative w-full font-sans">
+      {/* Top Navbar */}
+      <div className="absolute top-0 left-0 w-full z-40 bg-transparent flex items-center justify-between p-6">
+        <div className="flex items-center gap-3">
+          {store.logo_url ? (
+            <img src={store.logo_url} className="h-12 md:h-16 max-w-[240px] md:max-w-[300px] object-contain drop-shadow" alt={store.name} />
+          ) : (
+            <div className="h-10 w-10 md:h-12 md:w-12 bg-white/90 backdrop-blur rounded-xl flex items-center justify-center shadow-lg">
+              <Layout className="h-5 w-5 md:h-6 md:w-6 text-indigo-600" />
+            </div>
+          )}
+          {!store.logo_url && <span className="text-white font-black uppercase tracking-widest text-sm md:text-base drop-shadow-md">{store.name}</span>}
+        </div>
+        <div className="hidden md:flex items-center gap-6">
+          {layoutConfig.quickLinks && layoutConfig.quickLinks.length > 0 ? (
+            layoutConfig.quickLinks.slice(0, 4).map((link: any, idx: number) => (
+              <a 
+                key={idx} 
+                href={link.url || '#'} 
+                onClick={(e) => handleLinkClick(e, link)}
+                className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm"
+              >
+                {link.label}
+              </a>
+            ))
+          ) : (
+            <>
+              <a href="#portfolio" className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'PORTFÖY' : 'PORTFOLIO'}</a>
+              <a href="#financing-section" className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'FİNANSMAN' : 'FINANCING'}</a>
+            </>
+          )}
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer ml-2">MENU</div>
+        </div>
+        <div className="md:hidden">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer">MENU</div>
+        </div>
+      </div>
+
+      {isContentModalOpen && activeContentMap && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10 shrink-0">
+              <h3 className="text-lg font-black text-slate-900 tracking-tight">{activeContentMap.title}</h3>
+              <button onClick={() => setIsContentModalOpen(false)} className="h-8 w-8 bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 rounded-full flex items-center justify-center transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div 
+              className="flex-1 overflow-y-auto p-5 sm:p-6 text-sm sm:text-base text-slate-700 font-medium leading-relaxed
+                [&_h1]:text-2xl [&_h1]:font-black [&_h1]:mb-4
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-3 [&_h2]:mt-6
+                [&_h3]:text-lg [&_h3]:font-bold [&_h3]:mb-2 [&_h3]:mt-4
+                [&_p]:mb-4 [&_p:last-child]:mb-0
+                [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4
+                [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4
+                [&_a]:text-indigo-600 [&_a]:underline
+                [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-xl"
+              style={{ wordBreak: 'break-word' }}
+              dangerouslySetInnerHTML={{ __html: activeContentMap.content }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Hero Container */}
       {isSectionEnabled("hero") && (
         <div className="h-[450px] relative flex flex-col items-center justify-center p-12 text-center w-full">
@@ -1283,49 +1360,73 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 pb-16 border-b border-slate-800">
             <div className="col-span-1 md:col-span-1 space-y-6">
-              <h2 className="text-2xl font-black italic tracking-tighter uppercase">{store.name}</h2>
-              <p className="text-slate-400 text-sm leading-relaxed font-medium">
-                {store.description || (lang === 'tr' ? 'Yenilikçi gayrimenkul çözümleri ve portföy yönetimi.' : 'Innovative real estate solutions and portfolio management.')}
-              </p>
-              <div className="flex gap-4">
+              {store.logo_url ? (
+                <img src={store.logo_url} className="h-28 md:h-36 max-w-[320px] object-contain" alt={store.name} />
+              ) : (
+                <h2 className="text-3xl font-black italic tracking-tighter uppercase">{store.name}</h2>
+              )}
+              
+              <div className="flex gap-4 pt-2">
                 {store.instagram_url && (
-                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors">
+                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700/50">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.03.07-4.85.148-3.212 1.664-4.771 4.918-4.918 1.266-.058 1.646-.07 4.85-.07zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4s1.791-4 4-4 4 1.791 4 4-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
                   </a>
                 )}
                 {store.facebook_url && (
-                  <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors">
+                  <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700/50">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-8.77h-2.953v-3.425h2.953v-2.524c0-2.921 1.782-4.513 4.391-4.513 1.25-.013 2.493.048 3.731.183v3.13h-1.854c-1.419 0-1.694.675-1.694 1.662v2.176h3.463l-.451 3.426h-3.012v8.77h6.105c.733 0 1.325-.593 1.325-1.325v-21.352c0-.732-.592-1.325-1.325-1.325z"/></svg>
                   </a>
                 )}
               </div>
             </div>
             
-            <div className="space-y-6">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Hızlı Erişim</h4>
+            <div className="space-y-6 flex-1">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
               <ul className="space-y-4 text-sm font-bold text-slate-400">
-                <li className="hover:text-indigo-400 cursor-pointer transition-colors">Mülklerimiz</li>
-                <li className="hover:text-indigo-400 cursor-pointer transition-colors">Bölgelerimiz</li>
-                <li className="hover:text-indigo-400 cursor-pointer transition-colors">Biz Kimiz?</li>
-                <li className="hover:text-indigo-400 cursor-pointer transition-colors">İletişim</li>
+                {layoutConfig.quickLinks && layoutConfig.quickLinks.length > 0 ? (
+                  layoutConfig.quickLinks.map((link: any, idx: number) => (
+                    <li key={idx} className="hover:text-indigo-400 cursor-pointer transition-colors">
+                      <a href={link.url || '#'} onClick={(e) => handleLinkClick(e, link)}>{link.label}</a>
+                    </li>
+                  ))
+                ) : (
+                  <>
+                    <li className="hover:text-indigo-400 cursor-pointer transition-colors">Mülklerimiz</li>
+                    <li className="hover:text-indigo-400 cursor-pointer transition-colors">Bölgelerimiz</li>
+                    <li className="hover:text-indigo-400 cursor-pointer transition-colors">Biz Kimiz?</li>
+                    <li className="hover:text-indigo-400 cursor-pointer transition-colors">İletişim</li>
+                  </>
+                )}
+              </ul>
+            </div>
+
+            <div className="space-y-6 flex-1">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</h4>
+              <ul className="space-y-4 text-sm font-bold text-slate-400">
+                {layoutConfig.corporateLinks && layoutConfig.corporateLinks.length > 0 ? (
+                  layoutConfig.corporateLinks.map((link: any, idx: number) => (
+                    <li key={idx} className="hover:text-indigo-400 cursor-pointer transition-colors">
+                      <a href={link.url || '#'} onClick={(e) => handleLinkClick(e, link)}>{link.label}</a>
+                    </li>
+                  ))
+                ) : (
+                  <>
+                    <li className="hover:text-indigo-400 cursor-pointer transition-colors">Gizlilik Politikası</li>
+                    <li className="hover:text-indigo-400 cursor-pointer transition-colors">Kullanım Koşulları</li>
+                    <li className="hover:text-indigo-400 cursor-pointer transition-colors">KVKK Aydınlatma</li>
+                  </>
+                )}
               </ul>
             </div>
 
             <div className="space-y-6">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Kurumsal</h4>
-              <ul className="space-y-4 text-sm font-bold text-slate-400">
-                <li className="hover:text-indigo-400 cursor-pointer transition-colors">Gizlilik Politikası</li>
-                <li className="hover:text-indigo-400 cursor-pointer transition-colors">Kullanım Koşulları</li>
-                <li className="hover:text-indigo-400 cursor-pointer transition-colors">KVKK Aydınlatma</li>
-              </ul>
-            </div>
-
-            <div className="space-y-6">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">İletişim</h4>
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'İletişim' : 'Contact'}</h4>
               <div className="space-y-4 text-sm font-bold text-slate-400">
-                <p className="flex items-center gap-3">
-                  <span className="text-indigo-500">A:</span> {store.address || 'Kıbrıs / Lefkoşa'}
-                </p>
+                {store.address && (
+                  <p className="flex items-start gap-3">
+                    <span className="text-indigo-500">A:</span> <span className="flex-1">{store.address}</span>
+                  </p>
+                )}
                 <p className="flex items-center gap-3">
                   <span className="text-indigo-500">T:</span> {store.phone || '+90 (555) 000 00 00'}
                 </p>
@@ -1337,12 +1438,14 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
           </div>
           
           <div className="pt-12 flex flex-col md:flex-row justify-between items-center gap-6">
-            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-              © {new Date().getFullYear()} {store.name}. TÜM HAKLARI SAKLIDIR.
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest text-center md:text-left">
+              © {new Date().getFullYear()} {store.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
             </p>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">POWERED BY</span>
-              <img src="https://lookprice.net/logo_dark.png" alt="Lookprice" className="h-4 opacity-30 invert" />
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest whitespace-nowrap">POWERED BY</span>
+              <a href="https://lookprice.net" target="_blank" rel="noopener noreferrer" className="flex items-center hover:opacity-80 transition-opacity">
+                <img src="https://lookprice.net/logo.png" alt="Lookprice" className="h-6 md:h-7 object-contain" />
+              </a>
             </div>
           </div>
         </div>

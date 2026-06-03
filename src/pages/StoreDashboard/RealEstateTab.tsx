@@ -73,16 +73,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [branches, setBranches] = useState<any[]>([]);
   const [filterScope, setFilterScope] = useState("all");
   const [filterRegion, setFilterRegion] = useState("all");
-  const [filterStatus, setFilterStatus] = useState(initialStatusFilter || "all");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [filterPropertyType, setFilterPropertyType] = useState("all");
-  const [filterTitleType, setFilterTitleType] = useState("all");
-  const [filterRoomCount, setFilterRoomCount] = useState("all");
-  const [filterFurnished, setFilterFurnished] = useState("all");
-  const [filterGated, setFilterGated] = useState("all");
-  const [filterPriceMin, setFilterPriceMin] = useState("");
-  const [filterPriceMax, setFilterPriceMax] = useState("");
-  const [filterVerifiedOnly, setFilterVerifiedOnly] = useState(false);
   
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -149,11 +139,21 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [escrowTimeline, setEscrowTimeline] = useState<any[]>([]);
   const [aiAdPlatform, setAiAdPlatform] = useState("facebook");
 
+  const uniqueRegions = Array.from(new Set(safeProperties.map(p => p.kktc_region).filter(Boolean))) as string[];
+
   const filteredProperties = safeProperties.filter(p => {
-      const matchesSearch = !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = filterStatus === 'all' || p.status === filterStatus;
-      // Basic filters - add others if needed
-      return matchesSearch && matchesStatus;
+      const matchesSearch = !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase()) || p.reference_no?.toLowerCase().includes(search.toLowerCase());
+      const matchesBranch = filterBranch === 'all' || p.branch_name === filterBranch;
+      
+      let matchesScope = true;
+      if (filterScope === 'shared_pool') matchesScope = p.sharing_scope === 'shared_pool' || !p.sharing_scope;
+      else if (filterScope === 'branch_private') matchesScope = p.sharing_scope === 'branch_private';
+      else if (filterScope === 'private') matchesScope = p.sharing_scope === 'private';
+      else if (filterScope === 'locked') matchesScope = !!p.reserved_by_branch;
+
+      const matchesRegion = filterRegion === 'all' || p.kktc_region === filterRegion;
+
+      return matchesSearch && matchesBranch && matchesScope && matchesRegion;
   });
 
   const runMatchingAlgorithm = (property: any) => {
@@ -272,31 +272,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             ))}
           </div>
         </div>
-
-        <div className="flex flex-col gap-2 pt-2 border-t border-slate-200/50">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ağ İçi Paylaşım Kapsamı</span>
-          <div className="flex flex-wrap gap-1.5">
-            {[
-              { id: "all", label: "Tüm İlanlar (Global)" },
-              { id: "shared_pool", label: "🌐 Ortak Havuz (Tüm Şubeler Satabilir)" },
-              { id: "branch_private", label: "🔒 Şube Özel (Ofise Korunmuş)" },
-              { id: "private", label: "🔑 Sorumlu Danışmana Özel" },
-              { id: "locked", label: "🤝 Şubeler Arası Rezervasyonlular (Kilitli)" },
-            ].map(s => (
-              <button
-                key={s.id}
-                onClick={() => setFilterScope(s.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterScope === s.id 
-                    ? "bg-indigo-600 text-white shadow-indigo-600/10 shadow-md scale-102"
-                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
@@ -335,192 +310,20 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             onChange={(e) => setFilterRegion(e.target.value)}
           >
             <option value="all">Tüm Pilot Bölgeler</option>
-            <option value="KKTC">Kuzey Kıbrıs (KKTC) Tamamı</option>
-            <option value="Girne">Girne / Kyrenia Bölgesi</option>
-            <option value="Lefkoşa">Lefkoşa / Nicosia Bölgesi</option>
-            <option value="İskele">İskele / Trikomo Bölgesi</option>
-            <option value="Gazimağusa">Gazimağusa Bölgesi</option>
-            <option value="TR">Türkiye (TR) Tamamı</option>
+            {uniqueRegions.map(region => (
+              <option key={region} value={region}>{region}</option>
+            ))}
           </select>
         </div>
         <div>
-          <select
-            className="w-full p-2 bg-slate-50 border-0 rounded-xl text-xs font-bold text-slate-600 focus:bg-white focus:ring-1 focus:ring-indigo-500"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="all">Tüm Satış Durumları</option>
-            <option value="active">Satılık (For Sale)</option>
-            <option value="rented">Kiralık (For Rent)</option>
-            <option value="optioned">Opsiyonlu (Kapora Alındı)</option>
-            <option value="sold">Satıldı (Sold)</option>
-          </select>
+           <button
+              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200/50 transition-all text-center"
+           >
+              {viewMode === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+              {viewMode === 'grid' ? "Liste Görünümü" : "Izgara Görünümü"}
+           </button>
         </div>
-      </div>
-
-      {/* 🔮 GENEL SİSTEMLER ÜSTÜ GELİŞMİŞ FİLTRELEME & ANALİZ ENTEGRASYONU */}
-      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200/60 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="p-1 px-2.5 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg uppercase">
-              Klasik Standartlar
-            </span>
-            <h4 className="text-xs font-black text-slate-800 tracking-tight">Kıbrıs Pazarı Akıllı Filtreleme Konsolu</h4>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto self-stretch">
-            <button
-               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200/50 transition-all text-center"
-            >
-               {viewMode === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
-               {viewMode === 'grid' ? "Liste" : "Izgara"}
-            </button>
-            <button
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl border border-indigo-200/50 transition-all text-center"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              {showAdvancedFilters ? "Basit Filtrelere Dön" : "Gelişmiş Değişkenleri Aç"}
-            </button>
-            {(filterPropertyType !== "all" || filterTitleType !== "all" || filterRoomCount !== "all" || filterFurnished !== "all" || filterGated !== "all" || filterPriceMin || filterPriceMax || filterVerifiedOnly) && (
-              <button
-                onClick={() => {
-                  setFilterPropertyType("all");
-                  setFilterTitleType("all");
-                  setFilterRoomCount("all");
-                  setFilterFurnished("all");
-                  setFilterGated("all");
-                  setFilterPriceMin("");
-                  setFilterPriceMax("");
-                  setFilterVerifiedOnly(false);
-                }}
-                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200/50 transition-all text-center"
-              >
-                Temizle 🧹
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ADVANCED FILTERS GRID (Rendered full-width only when requested) */}
-        {showAdvancedFilters && (
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/40">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {/* 1. Emlak Tipi */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Emlak Tipi</label>
-                <select
-                  value={filterPropertyType}
-                  onChange={(e) => setFilterPropertyType(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:bg-white focus:outline-none"
-                >
-                  <option value="all">Tüm Tipler</option>
-                  <option value="residence">Konut / Residence</option>
-                  <option value="commercial">Ticari / İşyeri</option>
-                  <option value="land">Arsa / Arazi</option>
-                </select>
-              </div>
-
-              {/* 2. KKTC Koçan Tipi */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Koçan Türü (Title Deed)</label>
-                <select
-                  value={filterTitleType}
-                  onChange={(e) => setFilterTitleType(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
-                >
-                  <option value="all">Tüm Koçanlar</option>
-                  <option value="Türk Koçanı">Türk Koçanı (Pre-74)</option>
-                  <option value="Eşdeğer Koçan">Eşdeğer Koçan (Exchange)</option>
-                  <option value="Tahsis Koçan">Tahsis Koçanı (Allotted)</option>
-                  <option value="Diğer">Diğer / Tapusuz</option>
-                </select>
-              </div>
-
-              {/* 3. Oda Yapısı */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Oda Sayısı</label>
-                <select
-                  value={filterRoomCount}
-                  onChange={(e) => setFilterRoomCount(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
-                >
-                  <option value="all">Tüm Odalar</option>
-                  <option value="1+1">1+1 Flat</option>
-                  <option value="2+1">2+1 Flat / Villa</option>
-                  <option value="3+1">3+1 Flat / Villa</option>
-                  <option value="4+1">4+1 Lüks Villa</option>
-                </select>
-              </div>
-
-              {/* 4. Eşya Durumu */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Eşya Durumu</label>
-                <select
-                  value={filterFurnished}
-                  onChange={(e) => setFilterFurnished(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
-                >
-                  <option value="all">Fark Etmez</option>
-                  <option value="yes">Eşyalı (Furnished)</option>
-                  <option value="no">Eşyasız (Unfurnished)</option>
-                </select>
-              </div>
-
-              {/* 5. Site İçi Or Gated */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Kendi Sitesinde mi?</label>
-                <select
-                  value={filterGated}
-                  onChange={(e) => setFilterGated(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white focus:outline-none"
-                >
-                  <option value="all">Tümü</option>
-                  <option value="yes">Evet - Site İçi (Gated)</option>
-                  <option value="no">Hayır - Bağımsız / Müstakil</option>
-                </select>
-              </div>
-
-              {/* 6. Min Fiyat */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Min Bütçe (GBP)</label>
-                <input
-                  type="number"
-                  placeholder="Min Fiyat (£)"
-                  value={filterPriceMin}
-                  onChange={(e) => setFilterPriceMin(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400 focus:outline-none"
-                />
-              </div>
-
-              {/* 7. Max Fiyat */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 mb-1">Max Bütçe (GBP)</label>
-                <input
-                  type="number"
-                  placeholder="Max Fiyat (£)"
-                  value={filterPriceMax}
-                  onChange={(e) => setFilterPriceMax(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-705 focus:bg-white placeholder-slate-400 focus:outline-none"
-                />
-              </div>
-
-              {/* 8. Sadece Doğrulanmış Portföy */}
-              <div className="flex items-center gap-2 pt-5">
-                <input
-                  type="checkbox"
-                  id="verifiedToggle"
-                  checked={filterVerifiedOnly}
-                  onChange={(e) => setFilterVerifiedOnly(e.target.checked)}
-                  className="rounded bg-slate-100 border-slate-300 text-indigo-600 h-4.5 w-4.5 focus:ring-indigo-500"
-                />
-                <label htmlFor="verifiedToggle" className="text-[10.5px] font-black text-slate-700 cursor-pointer select-none">
-                  ⭐ Doğrulanmış Portföy
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       
       {loading ? (
@@ -688,7 +491,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                     </div>
 
                     {/* Price and Standard Action Buttons */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="text-slate-900">
                         <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none">İLAN BEDELİ</span>
                         <span className="text-base font-black text-indigo-600">
@@ -696,29 +499,27 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         </span>
                       </div>
 
-                      <div className="flex gap-1.5 items-center">
+                      <div className="flex gap-1.5 items-center flex-wrap shrink-0 sm:justify-end">
                         <button
                           onClick={() => { setContractProperty(property); setIsContractModalOpen(true); }}
-                          className="flex items-center gap-1.5 bg-slate-900 text-white hover:bg-slate-800 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all shadow active:scale-95 border border-slate-950"
-                          title="Resmi Hizmet / Yer Gösterme Sözleşmesi Oluştur"
+                          className="flex items-center justify-center p-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl transition-all shadow active:scale-95 border border-slate-950 shrink-0"
+                          title="Sözleşme / Resmi Hizmet Oluştur"
                         >
-                          <FileSignature className="w-3.5 h-3.5 stroke-[2.5]" />
-                          Sözleşme
+                          <FileSignature className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handlePrintProperty(property)}
-                          className="flex items-center gap-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 text-[10px] font-black uppercase px-2.5 py-2 rounded-xl transition-all shadow active:scale-95 border border-slate-200"
+                          className="flex items-center justify-center p-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl transition-all shadow active:scale-95 border border-slate-200 shrink-0"
                           title="Poster Yazdır"
                         >
-                          <Printer className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <Printer className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => { setActiveTourProperty(property); setIsTourModalOpen(true); }}
-                          className="flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all shadow active:scale-95 border border-emerald-700"
+                          className="flex items-center justify-center p-2.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl transition-all shadow active:scale-95 border border-emerald-700 shrink-0"
                           title="Gezi Düzenle"
                         >
-                          <Calendar className="w-3.5 h-3.5 stroke-[2.5]" />
-                          Gezi
+                          <Calendar className="w-4 h-4" />
                         </button>
                         <button 
                          onClick={() => {
@@ -731,14 +532,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                              });
                            }
                          }}
-                         className={`p-2 rounded-xl transition-all border ${property.reserved_by_branch ? 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100' : 'text-slate-400 border-slate-100 hover:text-indigo-600 hover:bg-slate-100'}`}
+                         className={`flex items-center justify-center p-2.5 rounded-xl transition-all border shrink-0 ${property.reserved_by_branch ? 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100' : 'text-slate-400 border-slate-100 hover:text-indigo-600 hover:bg-slate-100'}`}
                          title={property.reserved_by_branch ? (lang === 'tr' ? 'Kilidi Kaldır' : 'Unlock') : (lang === 'tr' ? 'Hızlı Kilitle' : 'Quick Lock')}
                         >
                           {property.reserved_by_branch ? <Lock className="w-4 h-4" /> : <FolderLock className="w-4 h-4" />}
                         </button>
                         <button 
                           onClick={() => { setSelectedProperty(property); setIsModalOpen(true); }}
-                          className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all border border-slate-100"
+                          className="flex items-center justify-center p-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 shrink-0"
                           title="Düzenle"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -749,7 +550,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                               if (onDelete) onDelete(property.id);
                             }
                           }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent"
+                          className="flex items-center justify-center p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent shrink-0"
                           title="Sil"
                         >
                           <Trash2 className="w-4 h-4" />
