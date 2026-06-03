@@ -981,11 +981,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const navItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
-      { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
-      { id: "radar_alerts", label: isTr ? 'Live Radar & AI' : 'Live Radar & AI', icon: Sparkles },
-      { id: "authority_transfer", label: isTr ? 'Yetki Transferleri' : 'Authority Transfers', icon: ArrowLeftRight },
       { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
-      { id: "team-crm", label: isTr ? 'Ekip & CRM (Performans)' : 'Team & CRM', icon: Users },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Teklifler & Cari" : "Quotations & Clients", items: [
       { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
@@ -1024,15 +1020,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
       { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
     ]},
-    { 
-      type: 'category', 
-      key: "real_estate_demo", 
-      title: isTr ? "Emlak Portföyü (Demo)" : "Property Portfolio (Demo)", 
-      items: [
-        { id: "real_estate", label: isTr ? 'Emlak Yönetimi' : 'Real Estate', icon: Building2 },
-        { id: "radar_alerts", label: isTr ? 'Live Radar & AI' : 'Live Radar & AI', icon: Sparkles }
-      ] 
-    },
     { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
       { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
