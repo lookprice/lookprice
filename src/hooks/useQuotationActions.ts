@@ -173,5 +173,19 @@ export const useQuotationActions = (
     }
   };
 
-  return { handleQuickAddProduct, handleAddQuotation, handleApproveQuotation, handleCancelQuotation, handleDeleteQuotation };
+  const handleUpdateQuotationStatus = async (id: number, status: string) => {
+    const updatePromise = (async () => {
+      const res = await api.updateQuotation(id, { status }, currentStoreId || undefined);
+      fetchQuotations();
+      return res;
+    })();
+
+    toast.promise(updatePromise, {
+      loading: lang === 'tr' ? "Güncelleniyor..." : "Updating...",
+      success: lang === 'tr' ? "Güncellendi" : "Updated",
+      error: lang === 'tr' ? "Hata oluştu" : "Error occurred"
+    });
+  };
+
+  return { handleQuickAddProduct, handleAddQuotation, handleApproveQuotation, handleCancelQuotation, handleDeleteQuotation, handleUpdateQuotationStatus };
 };

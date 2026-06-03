@@ -1,74 +1,36 @@
 import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue, Suspense } from "react";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { useParams } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
 import { 
   ArrowLeftRight,
   Bell,
   Car,
-  ChevronDown,
-  ChevronUp,
   LayoutDashboard, 
   Package, 
   Settings as SettingsIcon, 
-  LogOut, 
   Plus, 
-  Search, 
-  ShoppingBag,
-  Trash2, 
-  Upload, 
-  Edit2, 
-  ChevronRight, 
-  AlertCircle,
-  AlertTriangle,
-  TrendingUp,
-  Scan,
-  FileText,
-  Download,
-  CheckCircle2,
-  Filter,
   Store,
-  Clock,
-  XCircle,
-  CreditCard,
-  Save,
-  Globe,
-  Palette,
-  User as UserIcon,
-  Lock,
-  Smartphone,
-  MapPin,
-  Mail,
-  Languages,
-  Menu,
-  X,
-  PanelLeftClose,
-  PanelLeft,
-  Eye,
-  FileDown,
-  Printer,
   History,
   Home,
-  Share2,
-  QrCode,
-  Copy,
-  Check,
-  Activity,
-  ImageIcon,
-  Tag,
-  Key,
-  Loader2,
-  Truck,
-  Wrench,
-  Building2,
-  Facebook,
-  BookOpen,
-  Sparkles,
+  Briefcase,
+  Radar,
+  CreditCard,
+  Scan,
+  FileText,
   Users,
   Wallet,
-  Briefcase,
-  Radar
+  Globe,
+  ShoppingBag,
+  Facebook,
+  BookOpen,
+  Truck,
+  Wrench,
+  Printer,
+  X,
+  QrCode,
+  Download,
+  FileDown,
+  Edit2,
+  Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -82,13 +44,17 @@ import { useSales } from "../../hooks/useSales";
 import { useCompanies } from "../../hooks/useCompanies";
 import { useRealEstate } from "../../hooks/useRealEstate";
 import { api } from "../../services/api";
-import { User, Product, Store as StoreType, Quotation } from "../../types";
-import Logo from "../../components/Logo";
+import { User, Product } from "../../types";
 import * as XLSX from 'xlsx';
-import ErrorBoundary from "../../components/ErrorBoundary";
 import { useReactToPrint } from 'react-to-print';
+import { toast } from "sonner";
+import { handleDownloadQuotationPDF, numberToTurkishWords } from "../../utils/dashboardUtils";
 
-// Import Tabs
+// Modular Components
+import { DashboardLayout } from "./DashboardLayout";
+import { DashboardModals } from "./DashboardModals";
+
+// Lazy Tabs
 const ProductsTab = React.lazy(() => import("./ProductsTab"));
 const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
 const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
@@ -112,9 +78,8 @@ const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
 const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
 const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ default: m.RadarAlertsTab })));
 const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
+
 import ShippingSlip from "../../components/ShippingSlip";
-import { AutocompleteSelect } from "../../components/AutocompleteSelect";
-import { toast } from "sonner";
 
 interface StoreDashboardProps {
   user: User;
@@ -127,70 +92,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const isTr = lang === 'tr';
   const [shipCarrier, setShipCarrier] = useState('');
   const [shipTrackingNumber, setShipTrackingNumber] = useState('');
-
-  const numberToTurkishWords = (number: number, currency: string = 'TRY') => {
-    const units = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
-    const tens = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
-    const thousands = ["", "Bin", "Milyon", "Milyar", "Trilyon"];
-
-    const convertThreeDigits = (n: number) => {
-      let str = "";
-      const h = Math.floor(n / 100);
-      const t = Math.floor((n % 100) / 10);
-      const u = n % 10;
-
-      if (h > 0) {
-        str += (h === 1 ? "" : units[h]) + "Yüz";
-      }
-      if (t > 0) {
-        str += tens[t];
-      }
-      if (u > 0) {
-        str += units[u];
-      }
-      return str;
-    };
-
-    if (number === 0) return "Sıfır";
-
-    const parts = number.toFixed(2).split(".");
-    const integerPart = parseInt(parts[0]);
-    const decimalPart = parseInt(parts[1]);
-
-    let result = "";
-    let tempInteger = integerPart;
-    let i = 0;
-
-    if (tempInteger === 0) {
-      result = "Sıfır";
-    } else {
-      while (tempInteger > 0) {
-        const threeDigits = tempInteger % 1000;
-        if (threeDigits > 0) {
-          let partStr = convertThreeDigits(threeDigits);
-          if (i === 1 && threeDigits === 1) partStr = ""; 
-          result = partStr + thousands[i] + result;
-        }
-        tempInteger = Math.floor(tempInteger / 1000);
-        i++;
-      }
-    }
-
-    const currencyMap: { [key: string]: { main: string, sub: string } } = {
-      'TRY': { main: 'TL', sub: 'Kr' },
-      'USD': { main: 'USD', sub: 'Cent' },
-      'EUR': { main: 'EUR', sub: 'Cent' }
-    };
-
-    const cur = currencyMap[currency] || { main: currency, sub: '' };
-    result += cur.main;
-
-    if (decimalPart > 0) {
-      result += " " + convertThreeDigits(decimalPart) + " " + cur.sub;
-    }
-
-    return result;
-  };
 
   const t = translations[lang].dashboard;
   const {
@@ -258,51 +159,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleAddQuotation,
     handleApproveQuotation,
     handleCancelQuotation,
-    handleDeleteQuotation
+    handleDeleteQuotation,
+    handleUpdateQuotationStatus
   } = useQuotations(currentStoreId, fetchProductsData, branding, lang);
 
   const [customers, setCustomers] = useState<any[]>([]);
-
-  const handleQuotationItemAdd = (p: Product) => {
-    const existingIdx = quotationItems.findIndex(item => item.product_id === p.id);
-    const taxRate = Math.round(Number(p.tax_rate ?? (branding?.default_tax_rate !== undefined ? branding.default_tax_rate : 20)));
-    
-    let unitPriceNum: number;
-    if (isTaxInclusive) {
-      unitPriceNum = Number(p.price);
-    } else {
-      if (p.price_2 && Number(p.price_2) > 0) {
-        unitPriceNum = Number(p.price_2);
-      } else {
-        unitPriceNum = Number(p.price) / (1 + taxRate / 100);
-      }
-    }
-
-    if (existingIdx > -1) {
-      const newItems = [...quotationItems];
-      newItems[existingIdx].quantity += 1;
-      newItems[existingIdx].total_price = (newItems[existingIdx].total_price || 0) + (newItems[existingIdx].unit_price * 1);
-      setQuotationItems(newItems);
-    } else {
-      setQuotationItems([...quotationItems, {
-        product_id: Number(p.id),
-        product_name: p.name,
-        barcode: p.barcode,
-        quantity: 1,
-        unit_price: unitPriceNum,
-        tax_rate: taxRate,
-        total_price: unitPriceNum
-      }]);
-    }
-  };
 
   useEffect(() => {
     if (currentStoreId) {
       api.getCustomers(currentStoreId).then(setCustomers);
     }
   }, [currentStoreId]);
-
-  const deferredQuotationProductSearch = useDeferredValue(quotationProductSearch);
 
   const {
     sales, setSales,
@@ -334,49 +201,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleExportSales,
     getConvertedPrice
   } = useSales(user, currentStoreId, branding, lang, fetchProductsData);
-
-  const [invoiceInitialData, setInvoiceInitialData] = useState<any>(null);
-
-  const handleConvertToInvoice = (sale: any) => {
-    const isTaxInclusiveSource = sale.is_tax_inclusive !== undefined ? sale.is_tax_inclusive : true;
-
-    const initialData = {
-      sale_id: sale.id,
-      customer_id: sale.customer_id,
-      company_id: sale.company_id,
-      customer_name: sale.customer_name,
-      company_title: sale.customer_name,
-      items: sale.items?.map((item: any) => {
-        const taxRate = item.tax_rate || 20;
-        let unitPrice = Number(item.unit_price); // Sale items usually store exclusive price internally
-        
-        // If the source was tax-inclusive, we should stay inclusive in the invoice for consistency
-        // But internally Sale items might store exclusive. Let's check how Sale items are stored.
-        // Actually, let's just use the sale's tax preference.
-        if (isTaxInclusiveSource) {
-           unitPrice = unitPrice * (1 + taxRate / 100);
-        }
-
-        return {
-          product_id: item.product_id,
-          product_name: item.product_name,
-          barcode: item.barcode,
-          quantity: item.quantity,
-          unit_price: unitPrice.toFixed(2),
-          tax_rate: taxRate,
-          total_price: item.total_price
-        };
-      }) || [],
-      currency: sale.currency || branding?.default_currency || 'TRY',
-      payment_method: sale.payment_method === 'iyzico' ? 'credit_card' : (['cash', 'credit_card', 'bank', 'term'].includes(sale.payment_method) ? sale.payment_method : 'term'),
-      notes: sale.notes ? `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}\n${sale.notes}` : `${isTr ? 'Referans Satış' : 'Reference Sale'}: #${sale.id}`,
-      is_tax_inclusive: isTaxInclusiveSource
-    };
-    
-    setInvoiceInitialData(initialData);
-    setShowSaleDetailsModal(false);
-    setActiveTab('sales_invoices');
-  };
 
   const {
     companies, setCompanies,
@@ -415,6 +239,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
   }, [activeTab, user.store_id]);
+  
   const [analytics, setAnalytics] = useState<any>(null);
   const [realEstateStatusFilter, setRealEstateStatusFilter] = useState("all");
   const shippingSlipRef = useRef<HTMLDivElement>(null);
@@ -429,6 +254,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
     return localStorage.getItem('desktopSidebarCollapsed') === 'true';
   });
+
+  const companyList = Array.isArray(companies) ? companies : [];
 
   useEffect(() => {
     localStorage.setItem('desktopSidebarCollapsed', desktopSidebarCollapsed.toString());
@@ -479,13 +306,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const publicUrl = `${window.location.origin}/s/${effectiveSlug}`;
   const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(publicUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-
   const fetchAnalytics = async (start?: string, end?: string) => {
     if (!currentStoreId) return;
     try {
@@ -505,32 +325,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       
       let targetStoreId = user.store_id;
       
-      // If superadmin and slug is provided, we need to find the store ID first
       if (user.role === 'superadmin') {
         if (slug) {
           const storeInfo = await api.getBranding(undefined, slug);
           if (storeInfo && storeInfo.id) {
             targetStoreId = storeInfo.id;
           } else if (storeInfo && storeInfo.error) {
-            console.error("Store branding error:", storeInfo.error);
-            // Maybe redirect to admin if store not found
             return;
           }
         } else {
-          // Superadmin on /dashboard without slug - redirect to admin
           window.location.href = "/admin";
           return;
         }
       }
       
       if (targetStoreId === undefined || targetStoreId === null) {
-        console.error("No target store ID found");
         if (!isSilent) setLoading(false);
         return;
       }
       
-      // setCurrentStoreId(targetStoreId); // This is now handled in useProducts
-
       const [productsRes, analyticsRes, brandingRes, usersRes, branchesRes] = await Promise.all([
         api.getProducts("", targetStoreId, includeBranches),
         api.getAnalytics(targetStoreId),
@@ -606,7 +419,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   useEffect(() => {
     fetchData();
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Check every minute
+    const interval = setInterval(fetchNotifications, 60000); 
     return () => clearInterval(interval);
   }, [fetchData, fetchNotifications]);
 
@@ -623,14 +436,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   }, [activeTab, fetchSales]);
 
+  const handleSaleSuccess = async (saleId?: any) => {
+    await fetchData();
+    if (saleId) {
+      handleFetchSalesInvoiceDetails(saleId);
+    }
+  };
+
+  const onBrandingChange = (field: string, value: any) => {
+    setBranding({ ...branding, [field]: value });
+  };
+
   const handleSaveBranding = async () => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     try {
       await api.updateBranding(branding, targetStoreId);
-      await fetchData(); // Refresh data to sync state
-      alert(t.saveSuccess || (lang === 'tr' ? "Başarıyla kaydedildi" : "Saved successfully"));
+      await fetchData(); 
+      toast.success(t.saveSuccess || (lang === 'tr' ? "Başarıyla kaydedildi" : "Saved successfully"));
     } catch (error) {
-      alert("Hata oluştu");
+      toast.error("Hata oluştu");
     }
   };
 
@@ -642,267 +466,30 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     try {
       const res = await api.uploadFile(formData);
       const urlField = type === 'logo' ? 'logo_url' : type === 'favicon' ? 'favicon_url' : 'hero_image_url';
-      setBranding({ ...branding, [urlField]: res.url });
+      onBrandingChange(urlField, res.url);
+      toast.success(lang === 'tr' ? 'Dosya yüklendi' : 'File uploaded');
     } catch (error) {
-      alert("Yükleme hatası");
+      toast.error("Yükleme hatası");
     }
   };
 
-
   const quotationPrintRef = useRef<HTMLDivElement>(null);
-  const handleDownloadQuotationPDF = async (quotation: any) => {
-    if (!quotation) return;
-    
+  const onDownloadQuotationPDF = async (quotation: any) => {
     let qData = quotation;
-    // If quotation missing items, fetch it.
     if (!quotation.items || quotation.items.length === 0) {
       try {
         const response = await api.getQuotation(quotation.id, currentStoreId);
-        // Handle both direct object and {data: object} patterns
         qData = response.id ? response : (response.data || response);
       } catch (error) {
         console.error("Fetch quotation error for PDF:", error);
       }
     }
-
-    if (!qData || !qData.id) {
-       alert(lang === 'tr' ? "Teklif verileri alınamadı." : "Could not fetch quotation data.");
-       return;
-    }
-
-    const doc = new jsPDF();
-    const isTr = lang === 'tr';
-    
-    const fixTr = (text: string) => {
-      if (!text) return "";
-      return text
-        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
-        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
-        .replace(/ş/g, 's').replace(/Ş/g, 'S')
-        .replace(/ı/g, 'i').replace(/İ/g, 'I')
-        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
-        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
-    };
-
-    // Helper to convert image URL to base64 for jsPDF
-    const getBase64Image = (url: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.setAttribute('crossOrigin', 'anonymous');
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL("image/png"));
-        };
-        img.onerror = (e) => reject(e);
-        img.src = url;
-      });
-    };
-
-    let logoBase64 = "";
-    if (branding.logo_url) {
-      try {
-        logoBase64 = await getBase64Image(branding.logo_url);
-      } catch (e) {
-        console.error("Logo loading error for PDF:", e);
-      }
-    }
-
-    const addHeader = (doc: jsPDF) => {
-      // Logo (if exists) - Top Left
-      if (logoBase64) {
-        try {
-          doc.addImage(logoBase64, 'PNG', 14, 5, 12, 12);
-        } catch (e) {
-          console.error("Logo addImage error:", e);
-        }
-      }
-      
-      doc.setTextColor(0, 0, 0);
-      
-      // Title - Top Center
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(fixTr(isTr ? "TEKLİF FORMU" : "QUOTATION FORM"), 105, 10, { align: 'center' });
-      
-      // Store Name - Below Title
-      doc.setFontSize(8);
-      const storeName = fixTr(branding.store_name || branding.name || "LookPrice");
-      const splitStoreName = doc.splitTextToSize(storeName, 100);
-      doc.text(splitStoreName, 105, 15, { align: 'center' });
-      
-      // Quotation Info - Top Right
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100);
-      doc.text(fixTr(`${isTr ? "Teklif" : "Quote"} No: #${quotation.id}`), 196, 10, { align: 'right' });
-      doc.text(fixTr(`${isTr ? "Tarih" : "Date"}: ${new Date(quotation.created_at).toLocaleDateString('tr-TR')}`), 196, 14, { align: 'right' });
-
-      // Contact Info - Small below store name
-      doc.setFontSize(6);
-      const contactInfo = [
-        branding.address,
-        branding.phone,
-        branding.email
-      ].filter(Boolean).map(fixTr).join(" | ");
-      if (contactInfo) {
-        doc.text(contactInfo, 105, 20, { align: 'center' });
-      }
-      
-      // Separator Line
-      doc.setDrawColor(230);
-      doc.line(14, 23, 196, 23);
-    };
-
-    const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text(fixTr(`${branding.store_name || branding.name || "LookPrice"} - ${isTr ? "Teklif Formu" : "Quotation Form"}`), 14, 292);
-      doc.text(`${pageNumber} / ${totalPages}`, 196, 292, { align: 'right' });
-    };
-
-    addHeader(doc);
-    let yPos = 28;
-
-    // Customer Info Box - Very compact
-    doc.setFillColor(249, 250, 251);
-    doc.roundedRect(14, yPos, 182, 14, 1, 1, 'F');
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Müşteri Bilgileri" : "Customer Information"), 18, yPos + 5);
-    
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(50);
-    const customerInfo = [qData.customer_name, qData.customer_title].filter(Boolean).join(" - ");
-    doc.text(fixTr(customerInfo), 18, yPos + 10);
-    yPos += 18;
-
-    const tableData = (qData.items || []).map((item: any) => [
-      fixTr(`${item.product_name}\n(${item.barcode || `#${item.product_id}`})`),
-      item.quantity,
-      `${item.tax_rate || 20}%`,
-      `${Number(item.unit_price).toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`,
-      `${Number(item.total_price).toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`
-    ]);
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [[
-        fixTr(isTr ? "Ürün Açıklaması" : "Product Description"), 
-        fixTr(isTr ? "Adet" : "Qty"), 
-        fixTr(isTr ? "KDV" : "Tax"),
-        fixTr(isTr ? "Birim Fiyat" : "Unit Price"), 
-        fixTr(isTr ? "Toplam" : "Total")
-      ]],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
-      styles: { fontSize: 6, cellPadding: 1, font: "helvetica" },
-      columnStyles: {
-        1: { halign: 'center', cellWidth: 10 },
-        2: { halign: 'center', cellWidth: 12 },
-        3: { halign: 'right', cellWidth: 22 },
-        4: { halign: 'right', cellWidth: 22 }
-      },
-      margin: { left: 14, right: 14, top: 25, bottom: 10 },
-      didDrawPage: (data) => {
-        if (data.pageNumber > 1) {
-          addHeader(doc);
-        }
-      }
-    });
-
-    let finalY = (doc as any).lastAutoTable.finalY + 3;
-    
-    const subtotal = (qData.items || []).reduce((s: number, i: any) => s + Number(i.total_price), 0);
-    let grandTotal = subtotal;
-
-    // Summary Section
-    if (qData.is_tax_inclusive) {
-      doc.setDrawColor(230);
-      doc.line(130, finalY, 196, finalY);
-      finalY += 4;
-      
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(79, 70, 229);
-      doc.text(fixTr(isTr ? "GENEL TOPLAM" : "GRAND TOTAL"), 130, finalY);
-      doc.text(`${subtotal.toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
-      
-      finalY += 3;
-      doc.setFontSize(5);
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(100);
-      doc.text(fixTr(isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."), 196, finalY, { align: 'right' });
-      
-      grandTotal = subtotal;
-    } else {
-      // For Tax Excluded, just show a small note or total
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(79, 70, 229);
-      doc.text(`${isTr ? 'TOPLAM (Vergi Haric):' : 'TOTAL (Excl. Tax):'} ${subtotal.toLocaleString('tr-TR')} ${qData.currency?.slice(0, 3)}`, 196, finalY, { align: 'right' });
-      grandTotal = subtotal;
-    }
-
-    if (qData.exchange_rate && Number(qData.exchange_rate) !== 1) {
-      finalY += 4;
-      doc.setFontSize(5);
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(150);
-      doc.text(fixTr(`${isTr ? 'Kur' : 'Rate'}: 1 ${qData.currency?.slice(0, 3)} = ${Number(qData.exchange_rate).toLocaleString('tr-TR')} TRY`), 196, finalY, { align: 'right' });
-    }
-
-    // Total in Words
-    finalY += 5;
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(100);
-    const words = numberToTurkishWords(grandTotal, qData.currency || 'TRY');
-    doc.text(fixTr(`${isTr ? 'Yazıyla' : 'In Words'}: ${words}`), 196, finalY, { align: 'right' });
-
-    // Notes Section
-    if (qData.notes) {
-      finalY += 10;
-      if (finalY > 270) {
-        doc.addPage();
-        addHeader(doc);
-        finalY = 35;
-      }
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(50);
-      doc.text(fixTr(isTr ? "Notlar / Açıklamalar:" : "Notes / Descriptions:"), 14, finalY);
-      finalY += 5;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(100);
-      const splitNotes = doc.splitTextToSize(fixTr(qData.notes), 182);
-      doc.text(splitNotes, 14, finalY);
-    }
-
-    // Add page numbers to all pages
-    const totalPages = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      addFooter(doc, i, totalPages);
-    }
-
-    doc.save(`Quotation_${qData.id}.pdf`);
+    handleDownloadQuotationPDF(qData, branding, lang);
   };
 
   const handlePrintQuotation = useReactToPrint({
     contentRef: quotationPrintRef,
   });
-
-  // Handlers for Users
-
-
 
   const handleExportQuotations = () => {
     const data = quotationList.map(q => ({
@@ -965,22 +552,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
-    dashboard: false,
-    sales: true,
-    operations: true,
-    real_estate: true,
-    integrations: false,
-    settings: false
-  });
-
   const isPortfolio = branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
 
   useEffect(() => {
-    if (isPortfolio && (activeTab === 'products' || activeTab === 'pos' || activeTab === 'fast-pos' || activeTab === 'sales_invoices' || activeTab === 'procurements' || activeTab === 'purchase_invoices' || activeTab === 'stock_transfer' || activeTab === 'service')) {
+    if (isPortfolio && (['products', 'pos', 'fast-pos', 'sales_invoices', 'procurements', 'purchase_invoices', 'stock_transfer', 'service'].includes(activeTab))) {
       setActiveTab('real_estate');
     }
-  }, [isPortfolio, activeTab]);
+  }, [isPortfolio, activeTab, setActiveTab]);
 
   const navItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
@@ -1039,3188 +617,375 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ];
-  console.log("navItems:", navItems);
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative">
-      {/* Zebra/Barcode Background Pattern */}
-      <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden select-none flex flex-wrap gap-8 p-8">
-        {Array.from({ length: 150 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center rotate-12">
-            <div className="w-16 h-1 bg-slate-900 mb-0.5" />
-            <div className="w-16 h-2 bg-slate-900 mb-0.5" />
-            <div className="w-16 h-0.5 bg-slate-900 mb-0.5" />
-            <div className="w-16 h-3 bg-slate-900 mb-0.5" />
-            <div className="text-[10px] font-mono mt-1 text-slate-900">LOOKPRICE BARCODE</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
+    <DashboardLayout
+      lang={lang}
+      loading={loading}
+      sidebarProps={{
+        navItems,
+        activeTab,
+        setActiveTab,
+        branding,
+        publicUrl,
+        scanUrl,
+        isPortfolio,
+        onLogout,
+        setShowQrModal,
+        sidebarOpen,
+        setSidebarOpen,
+        desktopSidebarCollapsed,
+        setDesktopSidebarCollapsed,
+        translations: t,
+        startTransition
+      }}
+    >
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/40 z-40 backdrop-blur-sm"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Sidebar - Modern Rail */}
-      <aside className={`
-        fixed ${!desktopSidebarCollapsed ? 'lg:static' : ''} inset-y-0 left-0 w-72 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        ${!desktopSidebarCollapsed && !sidebarOpen ? 'lg:translate-x-0' : ''}
-      `}>
-        <div className="flex flex-col h-full">
-          <div className="p-8 border-b border-indigo-500/10">
-            <div className="flex items-center space-x-4">
-              <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-500/20 scale-110">
-                <Logo size={28} className="text-white" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate">
-                  {branding.name || branding.store_name || "LookPrice"}
-                </h1>
-                <div className="flex items-center space-x-1.5 mt-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Retail_OS v4.2</p>
-                </div>
-              </div>
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center space-x-3"
+          >
+            <div className="h-10 w-1 bg-indigo-600 rounded-full" />
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+                {activeTab.replace(/_/g, ' ')}
+              </h2>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
+                Control_Center / {activeTab}
+              </p>
             </div>
-          </div>
-          
-          <nav className="flex-1 overflow-y-auto p-5 space-y-1.5 custom-scrollbar">
-            {navItems.map((navItem) => {
-              if (navItem.type === 'category') {
-                return (
-                  <div key={navItem.key} className="mb-2">
-                    <button
-                       onClick={() => setOpenCategories({...openCategories, [navItem.key]: !openCategories[navItem.key]})}
-                       className="flex items-center justify-between w-full text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-4 py-2 hover:text-indigo-400 transition-colors"
-                    >
-                      <span>{navItem.title}</span>
-                      {openCategories[navItem.key] ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                    </button>
-                    {openCategories[navItem.key] && navItem.items.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          startTransition(() => {
-                            setActiveTab(item.id);
-                          });
-                          setSidebarOpen(false);
-                        }}
-                        className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
-                          activeTab === item.id 
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
-                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3.5">
-                          <item.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-                          <span className="tracking-tight">{item.label}</span>
-                        </div>
-                        {item.badge > 0 && (
-                          <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black rounded-lg shadow-sm ${
-                            activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-rose-600 text-white animate-pulse'
-                          }`}>
-                            {item.badge}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                );
-              } else {
-                return (
-                  <button
-                    key={navItem.id}
-                    onClick={() => {
-                      startTransition(() => {
-                        setActiveTab(navItem.id);
-                      });
-                      setSidebarOpen(false);
-                    }}
-                    className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
-                      activeTab === navItem.id 
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3.5">
-                      <navItem.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === navItem.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-                      <span className="tracking-tight">{navItem.label}</span>
-                    </div>
-                  </button>
-                );
-              }
-            })}
-
-            <div className="pt-6 mt-6 border-t border-white/5">
-              <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">External_Access</div>
-              <a
-                href={publicUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-              >
-                <Globe className="h-4.5 w-4.5 text-slate-500" />
-                <span className="tracking-tight">{t.storeWebsite}</span>
-              </a>
-              {!isPortfolio && (
-                <a
-                  href={scanUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-                >
-                  <Scan className="h-4.5 w-4.5 text-slate-500" />
-                  <span className="tracking-tight">{t.barcodeScanner}</span>
-                </a>
-              )}
-            </div>
-          </nav>
-          
-      <div className="p-4 md:p-6 border-t border-white/5 bg-slate-900/30">
-            <button
-              onClick={() => setShowQrModal(true)}
-              className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
-            >
-              <QrCode className="h-4 w-4 md:h-3 md:w-3" />
-              <span>{t.storeQR || "QR Kodu"}</span>
-            </button>
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] md:text-xs font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"
-            >
-              <LogOut className="h-4 w-4 md:h-3 md:w-3" />
-              <span>{t.logout}</span>
-            </button>
-          </div>
+          </motion.div>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Mobile/Desktop Sidebar Toggle (Floating) */}
-        <button 
-          onClick={() => {
-            if (window.innerWidth >= 1024) {
-              setDesktopSidebarCollapsed(!desktopSidebarCollapsed);
-            } else {
-              setSidebarOpen(!sidebarOpen);
-            }
-          }} 
-          className={`fixed bottom-6 ${!desktopSidebarCollapsed ? 'max-lg:left-5 lg:left-[calc(18rem+1.25rem)]' : 'left-5'} z-[60] p-4 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-500/30 active:scale-90 transition-all duration-300 border border-indigo-500/20`}
-          title="Toggle Menu"
-        >
-          {!desktopSidebarCollapsed ? (
-            <>
-              <X className="h-6 w-6 lg:hidden" />
-              <PanelLeftClose className="h-6 w-6 hidden lg:block" />
-            </>
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </button>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
-          <div className="max-w-7xl mx-auto space-y-8">
-            {/* Analytical Header Section */}
-            {['products', 'quotations', 'companies'].includes(activeTab) && (
-              <div className="flex justify-end gap-3 mb-6">
-                {activeTab === 'products' && (
-                  <>
-                    {(user.role === 'superadmin' || ((branding.stores || branding.branches || branches.length > 0) && ((branding.stores?.length || 0) > 1 || (branding.branches?.length || 0) > 1 || branches.length > 1))) && (
-                      <div className="flex items-center bg-white/50 backdrop-blur-md border border-slate-200 rounded-2xl px-5 py-3 shadow-sm hover:border-indigo-200 transition-colors">
-                        <label className="flex items-center cursor-pointer gap-4">
-                          <div className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              className="sr-only peer" 
-                              checked={includeBranches}
-                              onChange={() => setIncludeBranches(!includeBranches)}
-                            />
-                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900"></div>
-                          </div>
-                          <span className="text-[10px] font-black text-slate-700 whitespace-nowrap uppercase tracking-[0.15em]">
-                            {t.allBranches}
-                          </span>
-                        </label>
-                      </div>
-                    )}
-                  </>
-                )}
-                {activeTab === 'quotations' && (
-                  <button 
-                    onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} 
-                    className="os-btn-primary flex items-center space-x-4 px-8 py-4 shadow-2xl shadow-indigo-500/20 active:scale-95 group"
-                  >
-                    <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
-                    <span className="text-xs font-black uppercase tracking-[0.2em]">{t.newQuotation}</span>
-                  </button>
-                )}
-                {activeTab === 'companies' && (
-                  <button onClick={() => { setEditingCompany(null); setShowCompanyModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
-                    <Plus className="h-4 w-4" />
-                    <span>{t.registerCompany}</span>
-                  </button>
-                )}
-              </div>
+        {['products', 'quotations', 'companies'].includes(activeTab) && (
+          <div className="flex justify-end gap-3 mb-6">
+            {activeTab === 'quotations' && (
+              <button 
+                onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} 
+                className="os-btn-primary flex items-center space-x-4 px-8 py-4 shadow-2xl shadow-indigo-500/20 active:scale-95 group rounded-2xl bg-indigo-600 text-white font-bold"
+              >
+                <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-[0.2em]">{t.newQuotation}</span>
+              </button>
             )}
+            {activeTab === 'companies' && (
+              <button onClick={() => { setEditingCompany(null); setShowCompanyModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
+                <Plus className="h-4 w-4" />
+                <span>{t.registerCompany}</span>
+              </button>
+            )}
+          </div>
+        )}
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className={`transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
-              >
-                <ErrorBoundary lang={lang}>
-                  {loading ? (
-                  <div className="flex flex-col items-center justify-center h-64 tech-grid">
-                    <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="tech-label">Synchronizing_Data...</p>
-                  </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={`transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+          >
+            <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+              {activeTab === "products" && (
+                <ProductsTab 
+                  products={products}
+                  loading={loading}
+                  isViewer={isViewer}
+                  onDeleteAll={handleDeleteAllProducts}
+                  onBulkDelete={handleBulkDelete}
+                  onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
+                  onAddNew={() => { setEditingProduct(null); setShowProductModal(true); }}
+                  onImport={() => setShowImportModal(true)}
+                  onDelete={handleDeleteProduct}
+                  onExportReport={handleExportProducts}
+                  onApplyTaxRule={handleApplyTaxRule}
+                  onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
+                  onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
+                  onShowQr={() => setShowQrModal(true)}
+                  branding={branding}
+                  showStoreName={branding?.show_store_name}
+                  currentStoreId={currentStoreId!}
+                  includeBranches={includeBranches}
+                  propertiesCount={properties.length}
+                  onSwitchTab={(tab) => setActiveTab(tab)}
+                />
+              )}
+              {activeTab === "real_estate" && (
+                <RealEstateTab 
+                  properties={properties}
+                  loading={realEstateLoading}
+                  onSave={saveProperty}
+                  onDelete={deleteProperty}
+                  user={user}
+                  branding={branding}
+                  initialStatusFilter={realEstateStatusFilter}
+                  onResetStatusFilter={() => setRealEstateStatusFilter("all")}
+                />
+              )}
+              {activeTab === "fleet" && (
+                <FleetTab storeId={currentStoreId!} isViewer={isViewer} />
+              )}
+              {activeTab === "analytics" && (
+                isPortfolio ? (
+                  <PortfolioAnalyticsTab 
+                    analytics={analytics} 
+                    branding={branding} 
+                    loading={loading}
+                    onDateChange={(start, end) => fetchAnalytics(start, end)}
+                    onNavigateTab={(tab) => setActiveTab(tab)}
+                  />
                 ) : (
-                  <>
-                    {activeTab === "products" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <ProductsTab 
-                          products={products}
-                          loading={loading}
-                          isViewer={isViewer}
-                          onDeleteAll={handleDeleteAllProducts}
-                          onBulkDelete={handleBulkDelete}
-                          onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
-                          onAddNew={() => { setEditingProduct(null); setShowProductModal(true); }}
-                          onImport={() => setShowImportModal(true)}
-                          onDelete={handleDeleteProduct}
-                          onExportReport={handleExportProducts}
-                          onApplyTaxRule={handleApplyTaxRule}
-                          onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
-                          onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
-                          onShowQr={() => setShowQrModal(true)}
-                          branding={branding}
-                          showStoreName={includeBranches}
-                          currentStoreId={currentStoreId}
-                          includeBranches={includeBranches}
-                          propertiesCount={properties ? properties.length : 0}
-                          onSwitchTab={(tab) => setActiveTab(tab)}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "portfolio_finances" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <PortfolioFinancesTab storeId={currentStoreId!} />
-                      </Suspense>
-                    )}
-                    {activeTab === "real_estate" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <RealEstateTab 
-                          properties={properties}
-                          loading={realEstateLoading}
-                          onSave={saveProperty}
-                          onDelete={deleteProperty}
-                          user={user}
-                          branding={branding}
-                          initialStatusFilter={realEstateStatusFilter}
-                          onResetStatusFilter={() => setRealEstateStatusFilter("all")}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "radar_alerts" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <RadarAlertsTab />
-                      </Suspense>
-                    )}
-                    {activeTab === "analytics" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                      {isPortfolio ? (
-                        <PortfolioAnalyticsTab 
-                          analytics={analytics} 
-                          branding={branding} 
-                          onDateChange={(s, e) => fetchAnalytics(s, e)} 
-                          loading={loading} 
-                          onNavigateTab={(tab, status) => {
-                            setActiveTab(tab);
-                            if (status) {
-                              setRealEstateStatusFilter(status);
-                            }
-                          }}
-                        />
-                      ) : (
-                        <AnalyticsTab analytics={analytics} branding={branding} onDateChange={(s, e) => fetchAnalytics(s, e)} loading={loading} />
-                      )}
-                      </Suspense>
-                    )}
-                    {activeTab === "notifications" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <PortfolioNotificationsTab analytics={analytics} />
-                      </Suspense>
-                    )}
-                    {activeTab === "website-generator" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <PortfolioWebsiteGeneratorTab storeId={currentStoreId} />
-                      </Suspense>
-                    )}
-                    {activeTab === "team-crm" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <TeamCrmTab storeId={currentStoreId} />
-                      </Suspense>
-                    )}
-                    {activeTab === "quotations" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <QuotationsTab 
-                          quotations={quotationList}
-                          isViewer={isViewer}
-                          storeSlug={effectiveSlug}
-                          onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
-                          onGeneratePDF={(q) => handleDownloadQuotationPDF(q)}
-                          onApprove={(q) => handleApproveQuotation(q)}
-                          onCancel={handleCancelQuotation}
-                          onConvertToSale={handleConvertToSale}
-                          onEdit={(q) => { 
-                            setEditingQuotation(q); 
-                            setQuotationItems((q.items || []).map((item: any) => ({
-                              ...item,
-                              quantity: Math.floor(Number(item.quantity) || 0),
-                              unit_price: Number(item.unit_price),
-                              total_price: Number(item.total_price),
-                              tax_rate: Math.round(Number(item.tax_rate) || 0)
-                            }))); 
-                            setShowQuotationModal(true); 
-                          }}
-                          onDelete={handleDeleteQuotation}
-                          onSearchChange={setQuotationSearch}
-                          onStatusFilterChange={setQuotationStatusFilter}
-                          onExportReport={handleExportQuotations}
-                          statusFilter={quotationStatusFilter}
-                          onShowQr={() => setShowQrModal(true)}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "purchase_invoices" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <PurchaseInvoices 
-                          storeId={currentStoreId} 
-                          role={user?.role} 
-                          lang={lang} 
-                          api={api} 
-                          branding={branding}
-                          onSave={fetchData}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "sales_invoices" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <SalesInvoices 
-                          storeId={currentStoreId} 
-                          role={user?.role} 
-                          lang={lang} 
-                          api={api} 
-                          branding={branding}
-                          onSave={fetchData}
-                          initialData={invoiceInitialData}
-                          onCloseInitialData={() => setInvoiceInitialData(null)}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "procurements" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <ProcurementTab 
-                          storeId={currentStoreId}
-                          isViewer={isViewer}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "service" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <ServiceTab 
-                          storeId={currentStoreId}
-                          isViewer={isViewer}
-                          products={products}
-                          role={user.role}
-                          onTabChange={setActiveTab}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "authority_transfer" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <AuthorityTransferTab 
-                          storeId={currentStoreId!}
-                          properties={properties}
-                          isViewer={isViewer}
-                          includeBranches={includeBranches}
-                          onUpdate={fetchNotifications}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "stock_transfer" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <StockTransferTab 
-                          storeId={currentStoreId!}
-                          products={products}
-                          isViewer={isViewer}
-                          includeBranches={includeBranches}
-                          onUpdate={fetchNotifications}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "fleet" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <FleetTab 
-                          storeId={currentStoreId!}
-                          isViewer={isViewer}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "blog" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <BlogTab storeId={currentStoreId} storeName={branding.name} isTr={isTr} />
-                      </Suspense>
-                    )}
-                    {activeTab === "companies" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <CompaniesTab 
-                          companies={companies}
-                          isViewer={isViewer}
-                          onViewTransactions={(c) => { setSelectedCompany(c); setShowTransactionModal(true); handleFetchTransactions(c.id); }}
-                          onEdit={(c) => { setEditingCompany(c); setShowCompanyModal(true); }}
-                          onDelete={handleDeleteCompany}
-                          onExportReport={handleExportCompanies}
-                          includeZero={includeZeroBalance}
-                          onIncludeZeroChange={setIncludeZeroBalance}
-                          defaultCurrency={branding?.default_currency}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "pos" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <PosTab 
-                          sales={sales}
-                          loading={salesLoading}
-                          statusFilter={salesStatusFilter}
-                          onStatusFilterChange={setSalesStatusFilter}
-                          startDate={salesStartDate}
-                          onStartDateChange={setSalesStartDate}
-                          endDate={salesEndDate}
-                          onEndDateChange={setSalesEndDate}
-                          onViewDetails={(s) => { setSelectedSale(s); setShowSaleDetailsModal(true); }}
-                          onDeleteSale={handleDeleteSale}
-                          isViewer={isViewer}
-                          onExportReport={() => { setShowDailyReportModal(true); fetchDailySalesReport(); }}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "fast-pos" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <FastPosTab 
-                          storeId={currentStoreId} 
-                          onSaleComplete={fetchSales}
-                          branding={branding}
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "audit-logs" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <AuditLogTab 
-                          storeId={currentStoreId} 
-                        />
-                      </Suspense>
-                    )}
-                    {activeTab === "meta" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <MetaIntegrationTab />
-                      </Suspense>
-                    )}
-                    {activeTab === "google-merchant" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <GoogleMerchantTab />
-                      </Suspense>
-                    )}
-                    {activeTab === "settings" && (
-                      <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-                        <SettingsTab 
-                          branding={branding}
-                          products={products}
-                          onBrandingChange={(field, value) => setBranding(prev => ({ ...prev, [field]: value }))}
-                          onSaveBranding={handleSaveBranding}
-                          onLogoUpload={(e) => handleFileUpload(e, 'logo')}
-                          onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
-                          onBannerUpload={(e) => handleFileUpload(e, 'banner')}
-                          onAddUser={() => setShowUserModal(true)}
-                          onDeleteUser={handleDeleteUser}
-                          users={users}
-                          currentUser={user}
-                          currentStoreId={currentStoreId}
-                          onRefresh={fetchData}
-                          bulkPriceForm={bulkPriceForm}
-                          setBulkPriceForm={setBulkPriceForm}
-                          handleBulkPriceSubmit={handleBulkPriceSubmit}
-                        />
-                      </Suspense>
-                    )}
-                  </>
-                )}
-              </ErrorBoundary>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+                  <AnalyticsTab 
+                    analytics={analytics} 
+                    branding={branding} 
+                    onDateChange={(start, end) => fetchAnalytics(start, end)} 
+                    loading={loading} 
+                  />
+                )
+              )}
+              {activeTab === "pos" && (
+                <PosTab 
+                  sales={sales}
+                  loading={salesLoading}
+                  statusFilter={salesStatusFilter}
+                  onStatusFilterChange={setSalesStatusFilter}
+                  startDate={salesStartDate}
+                  onStartDateChange={setSalesStartDate}
+                  endDate={salesEndDate}
+                  onEndDateChange={setSalesEndDate}
+                  onViewDetails={(s) => { setSelectedSale(s); setShowSaleDetailsModal(true); }}
+                  onDeleteSale={handleDeleteSale}
+                  onExportReport={handleExportSales}
+                  isViewer={isViewer}
+                />
+              )}
+              {activeTab === "fast-pos" && (
+                <FastPosTab 
+                  branding={branding} 
+                  onSaleComplete={handleSaleSuccess}
+                  storeId={currentStoreId!} 
+                />
+              )}
+              {activeTab === "sales_invoices" && (
+                <SalesInvoices currentStoreId={currentStoreId} onFetchDetails={handleFetchSalesInvoiceDetails} />
+              )}
+              {activeTab === "quotations" && (
+                <QuotationsTab 
+                  quotations={quotationList}
+                  isViewer={isViewer}
+                  onViewDetails={(q) => { setSelectedQuotationDetails(q); setShowQuotationDetailsModal(true); }}
+                  onGeneratePDF={onDownloadQuotationPDF}
+                  onApprove={handleApproveQuotation}
+                  onCancel={handleCancelQuotation}
+                  onConvertToSale={(q) => { setSelectedQuotation(q); setShowSaleModal(true); }}
+                  onEdit={(q) => { setEditingQuotation(q); setQuotationItems(q.items || []); setShowQuotationModal(true); }}
+                  onDelete={handleDeleteQuotation}
+                  onSearchChange={setQuotationSearch}
+                  onStatusFilterChange={setQuotationStatusFilter}
+                  onExportReport={handleExportQuotations}
+                  statusFilter={quotationStatusFilter}
+                  onShowQr={() => setShowQrModal(true)}
+                />
+              )}
+              {activeTab === "companies" && (
+                <CompaniesTab 
+                  companies={companyList} 
+                  isViewer={isViewer}
+                  onViewTransactions={(c) => { setSelectedCompany(c); setShowTransactionModal(true); }}
+                  onEdit={(c) => { setEditingCompany(c); setShowCompanyModal(true); }} 
+                  onDelete={handleDeleteCompany} 
+                  onExportReport={handleExportCompanies}
+                  includeZero={includeZeroBalance}
+                  onIncludeZeroChange={setIncludeZeroBalance}
+                  defaultCurrency={branding.default_currency}
+                />
+              )}
+              {activeTab === "procurements" && (
+                <ProcurementTab storeId={currentStoreId!} isViewer={isViewer} />
+              )}
+              {activeTab === "purchase_invoices" && (
+                <PurchaseInvoices currentStoreId={currentStoreId} onFetchDetails={handleFetchPurchaseInvoiceDetails} />
+              )}
+              {activeTab === "stock_transfer" && (
+                <StockTransferTab 
+                  storeId={currentStoreId!} 
+                  products={products}
+                  isViewer={isViewer} 
+                  includeBranches={includeBranches}
+                  onUpdate={fetchData}
+                />
+              )}
+              {activeTab === "service" && (
+                <ServiceTab 
+                  storeId={currentStoreId!} 
+                  isViewer={isViewer} 
+                  products={products} 
+                  role={user.role} 
+                  onTabChange={(tab) => setActiveTab(tab)} 
+                />
+              )}
+              {activeTab === "audit-logs" && (
+                <AuditLogTab storeId={currentStoreId!} />
+              )}
+              {activeTab === "settings" && (
+                <SettingsTab 
+                  branding={branding}
+                  onBrandingChange={onBrandingChange}
+                  onSaveBranding={handleSaveBranding}
+                  onLogoUpload={(e) => handleFileUpload(e, 'logo')}
+                  onFaviconUpload={(e) => handleFileUpload(e, 'favicon')}
+                  onBannerUpload={(e) => handleFileUpload(e, 'banner')}
+                  onAddUser={() => setShowUserModal(true)}
+                  onDeleteUser={handleDeleteUser}
+                  users={users}
+                  currentUser={user}
+                  currentStoreId={currentStoreId!}
+                  products={products}
+                  onRefresh={fetchData}
+                  bulkPriceForm={bulkPriceForm}
+                  setBulkPriceForm={setBulkPriceForm}
+                  handleBulkPriceSubmit={handleBulkPriceSubmit}
+                />
+              )}
+              {activeTab === "blog" && (
+                <BlogTab 
+                  storeId={currentStoreId!} 
+                  storeName={branding?.store_name || branding?.name || ""} 
+                  isTr={lang === 'tr'} 
+                />
+              )}
+              {activeTab === "meta" && (
+                <MetaIntegrationTab />
+              )}
+              {activeTab === "google-merchant" && (
+                <GoogleMerchantTab />
+              )}
+              {activeTab === "notifications" && (
+                <PortfolioNotificationsTab analytics={analytics} />
+              )}
+              {activeTab === "website-generator" && (
+                <PortfolioWebsiteGeneratorTab storeId={currentStoreId!} />
+              )}
+              {activeTab === "team-crm" && (
+                <TeamCrmTab storeId={currentStoreId!} />
+              )}
+              {activeTab === "radar_alerts" && (
+                <RadarAlertsTab />
+              )}
+              {activeTab === "authority_transfer" && (
+                <AuthorityTransferTab 
+                  storeId={currentStoreId!} 
+                  properties={properties} 
+                  isViewer={isViewer} 
+                  includeBranches={includeBranches} 
+                  onUpdate={fetchData}
+                />
+              )}
+              {activeTab === "portfolio_finances" && (
+                <PortfolioFinancesTab storeId={currentStoreId!} />
+              )}
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
       </div>
-    </main>
 
-      {/* Modals */}
-      <AnimatePresence>
-        {showQrModal && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
-            >
-              <div className="p-4 sm:p-8 text-center flex-1 overflow-y-auto">
-                <div className="flex justify-between items-center mb-6 sm:mb-8">
-                  <div className="text-left">
-                    <h3 className="text-xl sm:text-2xl font-black text-gray-900">{t.storeQR}</h3>
-                    <p className="text-[10px] sm:text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">{t.shareWithCustomers}</p>
-                  </div>
-                  <button onClick={() => setShowQrModal(false)} className="p-2 sm:p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
-                    <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
-                  </button>
-                </div>
-
-                <div className="bg-gray-50 p-4 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] inline-block w-full max-w-[280px] sm:max-w-none mb-6 sm:mb-8 shadow-inner border border-gray-100">
-                  <div ref={qrPrintRef} className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm text-center flex flex-col items-center justify-center">
-                    <div className="mb-4 text-center">
-                      <h4 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tighter">
-                        {branding.store_name || branding.name || "LookPrice"}
-                      </h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.storeQR || "Mağaza QR Kodu"}</p>
-                    </div>
-                    <QRCodeSVG 
-                      value={scanUrl}
-                      size={200}
-                      style={{ width: '100%', height: 'auto', maxWidth: '240px' }}
-                      level="H"
-                      includeMargin={true}
-                      imageSettings={{
-                        src: branding.logo_url || "",
-                        x: undefined,
-                        y: undefined,
-                        height: 40,
-                        width: 40,
-                        excavate: true,
-                      }}
-                    />
-                    <div className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      lookprice.net
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="text-left">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.website?.toUpperCase() || 'WEBSITE'}</p>
-                    <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
-                      <Globe className="h-5 w-5 text-indigo-500 shrink-0" />
-                      <a 
-                        href={publicUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm font-bold text-indigo-600 hover:underline truncate flex-1 text-left"
-                      >
-                        {publicUrl}
-                      </a>
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(publicUrl);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }}
-                        className="p-2 hover:bg-white rounded-xl transition-all shadow-sm"
-                      >
-                        {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-gray-400" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {!isPortfolio && (
-                    <div className="text-left">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.barcodeScanner?.toUpperCase()}</p>
-                      <div className="flex items-center space-x-2 p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
-                        <Scan className="h-5 w-5 text-slate-500 shrink-0" />
-                        <a 
-                          href={scanUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm font-bold text-slate-600 hover:underline truncate flex-1 text-left"
-                        >
-                          {scanUrl}
-                        </a>
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(scanUrl);
-                            setCopied(true);
-                            setTimeout(() => setCopied(false), 2000);
-                          }}
-                          className="p-2 hover:bg-white rounded-xl transition-all shadow-sm"
-                        >
-                          {copied ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-gray-400" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      onClick={() => handlePrintQR()}
-                      className="flex items-center justify-center space-x-2 p-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all"
-                    >
-                      <Printer className="h-5 w-5" />
-                      <span>{t.print}</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const svg = document.querySelector('svg');
-                        if (svg) {
-                          const svgData = new XMLSerializer().serializeToString(svg);
-                          const canvas = document.createElement("canvas");
-                          const ctx = canvas.getContext("2d");
-                          const img = new Image();
-                          img.onload = () => {
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                            ctx?.drawImage(img, 0, 0);
-                            const pngFile = canvas.toDataURL("image/png");
-                            const downloadLink = document.createElement("a");
-                            downloadLink.download = "Store_QR.png";
-                            downloadLink.href = pngFile;
-                            downloadLink.click();
-                          };
-                          img.src = "data:image/svg+xml;base64," + btoa(svgData);
-                        }
-                      }}
-                      className="flex items-center justify-center space-x-2 p-4 bg-indigo-600 rounded-2xl font-bold text-white hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                    >
-                      <Download className="h-5 w-5" />
-                      <span>{t.download}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {showPurchaseInvoiceDetailsModal && selectedPurchaseInvoice && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{t.purchaseInvoiceDetails}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">#{selectedPurchaseInvoice.invoice_number}</p>
-                </div>
-                <button onClick={() => setShowPurchaseInvoiceDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.invoiceDate}</p>
-                    <p className="text-sm font-bold text-gray-900">{new Date(selectedPurchaseInvoice.invoice_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.paymentMethod}</p>
-                    <p className="text-sm font-bold text-gray-900 uppercase">{selectedPurchaseInvoice.payment_method || '-'}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t.items}</p>
-                  <div className="border border-gray-100 rounded-2xl overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</th>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.quantity}</th>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.unitPrice}</th>
-                          <th className="py-2 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.total}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {(selectedPurchaseInvoice.items || []).map((item: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="py-3 px-4 text-xs font-bold text-gray-700 truncate max-w-[150px] md:max-w-[200px]" title={item.product_name}>{item.product_name}</td>
-                            <td className="py-3 px-4 text-xs font-bold text-gray-700 text-right">{item.quantity}</td>
-                            <td className="py-3 px-4 text-xs font-bold text-gray-700 text-right">{Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</td>
-                            <td className="py-3 px-4 text-xs font-black text-gray-900 text-right">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-indigo-600 rounded-2xl text-white">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.grandTotal?.toUpperCase() || 'GRAND TOTAL'}</span>
-                    <span className="text-xl font-black">{Number(selectedPurchaseInvoice.grand_total).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedPurchaseInvoice.currency?.slice(0, 3)}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50">
-                <button 
-                  onClick={() => setShowPurchaseInvoiceDetailsModal(false)}
-                  className="w-full px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
-                  {t.close || 'Kapat'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {showSaleDetailsModal && selectedSale && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{t.saleDetails}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
-                    #{selectedSale.id} • {new Date(selectedSale.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handlePrint()} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title={t.printShippingSlip}>
-                    <Printer className="h-5 w-5 text-gray-400" />
-                  </button>
-                  <button onClick={() => setShowSaleDetailsModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                    <X className="h-5 w-5 text-gray-400" />
-                  </button>
-                </div>
-              </div>
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                <div style={{ display: 'none' }}>
-                  <ShippingSlip ref={shippingSlipRef} sale={selectedSale} store={branding} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t.customer}</p>
-                    <p className="font-bold text-gray-900 truncate">{selectedSale.customer_name || "-"}</p>
-                    {selectedSale.customer_phone && (
-                      <p className="text-xs text-gray-500 mt-1 font-medium">{selectedSale.customer_phone}</p>
-                    )}
-                  </div>
-                  <div className="p-4 bg-indigo-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t.amount}</p>
-                    <p className="text-xl font-black text-indigo-600">{Number(selectedSale.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.substring(0, 3)}</p>
-                  </div>
-                  <div className="p-4 bg-emerald-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{t.paymentMethod}</p>
-                    <p className="font-bold text-emerald-600 uppercase text-xs">
-                      {selectedSale.payment_method === 'cash' ? t.cash :
-                       selectedSale.payment_method === 'credit_card' ? t.credit_card :
-                       selectedSale.payment_method === 'bank' ? t.bank :
-                       selectedSale.payment_method === 'term' ? t.term :
-                       selectedSale.payment_method || '-'}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedSale.customer_address && (
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t.deliveryAddress?.toUpperCase() || 'DELIVERY ADDRESS'}</p>
-                    <p className="text-sm text-gray-700 font-medium leading-relaxed">{selectedSale.customer_address}</p>
-                  </div>
-                )}
-
-                {selectedSale.notes && (
-                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">{t.notes || 'Notlar'}</p>
-                    <p className="text-sm text-amber-900 font-medium leading-relaxed">{selectedSale.notes}</p>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.items || 'Ürünler'}</h4>
-                  
-                  {/* Desktop Table View */}
-                  <div className="hidden md:block border border-gray-100 rounded-2xl overflow-hidden">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 font-bold text-gray-600">{t.productName}</th>
-                          <th className="px-4 py-2 font-bold text-gray-600 text-center">{t.quantity}</th>
-                          <th className="px-4 py-2 font-bold text-gray-600 text-right">{t.total}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {selectedSale.items?.map((item: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-3 text-gray-900">
-                              <div className="font-bold truncate max-w-[150px] md:max-w-[200px]" title={item.product_name}>{item.product_name}</div>
-                              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                                {item.barcode ? item.barcode : `#${item.product_id}`}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {selectedSale.status === 'pending' ? (
-                                <input 
-                                  type="text" 
-                                  className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-center font-bold"
-                                  value={item.quantity === 0 ? '' : item.quantity}
-                                  onChange={(e) => handleUpdateSaleItem(idx, 'quantity', e.target.value)}
-                                  onFocus={(e) => e.target.select()}
-                                />
-                              ) : (
-                                <span className="text-gray-600">{item.quantity}</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              {selectedSale.status === 'pending' ? (
-                                <div className="flex flex-col items-end gap-1">
-                                  <div className="flex items-center gap-1">
-                                    <input 
-                                      type="text" 
-                                      className="w-24 px-2 py-1 border border-gray-200 rounded-lg text-right font-bold text-indigo-600"
-                                      value={item.unit_price === 0 ? '' : item.unit_price}
-                                      onChange={(e) => handleUpdateSaleItem(idx, 'unit_price', e.target.value)}
-                                      onFocus={(e) => e.target.select()}
-                                    />
-                                    <span className="text-[10px] font-bold text-gray-400">{item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
-                                  </div>
-                                  <div className="text-[10px] font-black text-gray-900">
-                                    {t.total}: {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}
-                                  </div>
-                                  <button 
-                                    onClick={() => handleRemoveSaleItem(idx)}
-                                    className="text-rose-500 hover:text-rose-700 p-1"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile List View */}
-                  <div className="md:hidden space-y-3">
-                    {selectedSale.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-bold text-gray-900 leading-tight">{item.product_name}</div>
-                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                              {item.barcode ? item.barcode : `#${item.product_id}`}
-                            </div>
-                          </div>
-                          {selectedSale.status === 'pending' && (
-                            <button 
-                              onClick={() => handleRemoveSaleItem(idx)}
-                              className="p-2 bg-rose-50 text-rose-500 rounded-xl"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-200/50">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.quantity}</span>
-                            {selectedSale.status === 'pending' ? (
-                              <input 
-                                type="text" 
-                                className="w-16 px-2 py-1 bg-white border border-gray-200 rounded-lg text-center font-bold text-sm"
-                                value={item.quantity === 0 ? '' : item.quantity}
-                                onChange={(e) => handleUpdateSaleItem(idx, 'quantity', e.target.value)}
-                                onFocus={(e) => e.target.select()}
-                              />
-                            ) : (
-                              <span className="font-bold text-gray-900">{item.quantity}</span>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.total}</span>
-                            {selectedSale.status === 'pending' ? (
-                              <div className="flex items-center gap-1">
-                                <input 
-                                  type="text" 
-                                  className="w-24 px-2 py-1 bg-white border border-gray-200 rounded-lg text-right font-bold text-sm text-indigo-600"
-                                  value={item.unit_price === 0 ? '' : item.unit_price}
-                                  onChange={(e) => handleUpdateSaleItem(idx, 'unit_price', e.target.value)}
-                                  onFocus={(e) => e.target.select()}
-                                />
-                                <span className="text-[10px] font-bold text-gray-400">{item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
-                              </div>
-                            ) : (
-                              <span className="font-bold text-gray-900">{Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}</span>
-                            )}
-                          </div>
-                        </div>
-                        {selectedSale.status === 'pending' && (
-                          <div className="text-right text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                            {t.total}: {Number(item.total_price).toLocaleString('tr-TR')} {item.currency?.slice(0, 3) || selectedSale.currency?.slice(0, 3)}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Removed duplicate notes block */}
-
-                {selectedSale.status === 'pending' && !isViewer && (
-                  <div className="p-4 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
-                          <CreditCard className="h-4 w-4" />
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-900">{t.paymentMethod}</h4>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                      {[
-                        { id: 'cash', label: t.cash, icon: "💵" },
-                        { id: 'credit_card', label: t.credit_card, icon: "💳" },
-                        { id: 'bank', label: t.bank, icon: "🏦" }
-                      ].map((method) => (
-                        <button
-                          key={method.id}
-                          onClick={() => setPosPaymentMethod(method.id as any)}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all whitespace-nowrap flex-1 justify-center ${
-                            posPaymentMethod === method.id 
-                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100' 
-                              : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'
-                          }`}
-                        >
-                          <span className="text-base">{method.icon}</span>
-                          <span className="text-[10px] font-bold uppercase tracking-wider">{method.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedSale.status === 'processing' && !isViewer && (
-                  <div className="p-4 bg-emerald-50 rounded-3xl border border-emerald-100 space-y-3">
-                    <div className="flex items-center space-x-2">
-                       <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600">
-                         <CheckCircle2 className="h-4 w-4" />
-                       </div>
-                       <h4 className="text-xs font-bold text-emerald-900">{t.paymentConfirmed || "Ödeme Onaylandı"}</h4>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
-                       <span>{lang === 'tr' ? 'Yöntem' : 'Method'}:</span>
-                       <span className="bg-emerald-100 px-2 py-0.5 rounded-full">
-                         {selectedSale.payment_method === 'iyzico' ? 'Online Ödeme (Iyzico)' : (selectedSale.payment_method || (lang === 'tr' ? 'Kartla Ödendi' : 'Paid with Card'))}
-                       </span>
-                    </div>
-                  </div>
-                )}
-
-                {selectedSale.status === 'processing' && !isViewer && (
-                  <div className="p-4 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
-                    <div className="flex items-center space-x-2">
-                       <div className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
-                         <Truck className="h-4 w-4" />
-                       </div>
-                       <h4 className="text-xs font-bold text-slate-900">{lang === 'tr' ? 'Kargo Bilgileri' : 'Shipping Info'}</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">{lang === 'tr' ? 'Kargo Firması' : 'Carrier'}</label>
-                        <input 
-                          type="text"
-                          value={shipCarrier}
-                          onChange={(e) => setShipCarrier(e.target.value)}
-                          placeholder={lang === 'tr' ? 'Örn: Aras, Yurtiçi...' : 'e.g. FedEx, DHL...'}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-sm text-slate-900"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">{lang === 'tr' ? 'Takip No' : 'Tracking No'}</label>
-                        <input 
-                          type="text"
-                          value={shipTrackingNumber}
-                          onChange={(e) => setShipTrackingNumber(e.target.value)}
-                          placeholder={lang === 'tr' ? 'Takip numarası' : 'Tracking number'}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-sm text-slate-900"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3">
-                {!isViewer && (
-                  <button 
-                    onClick={() => handleConvertToInvoice(selectedSale)}
-                    className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
-                    title={isTr ? "Faturalandır (Resmi Fatura)" : "Create Official Invoice"}
-                  >
-                    <FileText className="h-6 w-6" />
-                  </button>
-                )}
-                {['pending', 'processing', 'shipped'].includes(selectedSale.status) && !isViewer ? (
-                  <>
-                    <button 
-                      onClick={() => handleCancelPendingSale(selectedSale.id)}
-                      disabled={completingSale}
-                      className="p-4 bg-white border border-rose-200 text-rose-600 rounded-2xl hover:bg-rose-50 transition-all disabled:opacity-50 shadow-sm"
-                      title={t.cancelOrder || 'İptal Et'}
-                    >
-                      <XCircle className="h-6 w-6" />
-                    </button>
-                    
-                    {selectedSale.status === 'processing' ? (
-                      <button 
-                        onClick={() => handleShipSale(selectedSale.id, shipCarrier, shipTrackingNumber)}
-                        disabled={completingSale || !shipCarrier || !shipTrackingNumber}
-                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50"
-                      >
-                        {completingSale ? (
-                          <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <Truck className="h-6 w-6" />
-                            <span className="hidden sm:inline">{lang === 'tr' ? 'Sevk Et' : 'Ship Order'}</span>
-                          </>
-                        )}
-                      </button>
-                    ) : selectedSale.status === 'shipped' ? (
-                      <button 
-                        onClick={() => handleDeliverSale(selectedSale.id)}
-                        disabled={completingSale}
-                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
-                      >
-                        {completingSale ? (
-                          <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <CheckCircle2 className="h-6 w-6" />
-                            <span className="hidden sm:inline">{lang === 'tr' ? 'Teslim Edildi' : 'Mark Delivered'}</span>
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleCompletePendingSale(selectedSale.id)}
-                        disabled={completingSale}
-                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
-                      >
-                        {completingSale ? (
-                          <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <CheckCircle2 className="h-6 w-6" />
-                            <span className="hidden sm:inline">{t.completeSale || 'Tamamla'}</span>
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <button 
-                      onClick={() => handlePrint()}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
-                    >
-                      <Printer className="h-5 w-5" /> {lang === 'tr' ? 'Yazdır' : 'Print'}
-                    </button>
-                    <button 
-                      onClick={() => setShowSaleDetailsModal(false)}
-                      className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                    >
-                      {t.close || 'Kapat'}
-                    </button>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {showQuotationDetailsModal && selectedQuotationDetails && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
-            >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="text-xl font-bold text-slate-900">{t.quotationDetails || "Teklif Detayları"}</h3>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleDownloadQuotationPDF(selectedQuotationDetails)} 
-                    className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold"
-                  >
-                    <Download className="h-4 w-4" />
-                    {isTr ? 'İndir' : 'Download'}
-                  </button>
-                  <button 
-                    onClick={() => setShowQuotationDetailsModal(false)} 
-                    className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
-                  >
-                    <X className="h-5 w-5 text-slate-400" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-6 max-h-[75vh] overflow-y-auto" ref={quotationPrintRef}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                  <div className="space-y-2">
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t.customer || "Müşteri"}</p>
-                    <p className="text-lg font-bold text-slate-900">{selectedQuotationDetails.customer_name}</p>
-                    {selectedQuotationDetails.customer_title && <p className="text-sm text-slate-500">{selectedQuotationDetails.customer_title}</p>}
-                  </div>
-                  <div className="space-y-2 text-right">
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Teklif Bilgileri' : 'Quotation Info'}</p>
-                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Teklif No:' : 'Quote No:'}</span> #{selectedQuotationDetails.id}</p>
-                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {new Date(selectedQuotationDetails.created_at).toLocaleDateString('tr-TR')}</p>
-                    <p className="text-sm text-slate-600">
-                      <span className="font-bold">{t.validUntil || "Geçerlilik"}:</span> {
-                        selectedQuotationDetails.expiry_date 
-                          ? new Date(selectedQuotationDetails.expiry_date).toLocaleDateString('tr-TR')
-                          : new Date(new Date(selectedQuotationDetails.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')
-                      }
-                    </p>
-                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {selectedQuotationDetails.currency}</p>
-                  </div>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{t.product || "Ürün"}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{t.quantity || "Miktar"}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.unitPrice || "Birim Fiyat"}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">KDV</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{t.total || "Toplam"}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {(selectedQuotationDetails.items || []).map((item: any, idx: number) => (
-                        <tr key={idx}>
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-medium text-slate-900 truncate max-w-[150px] md:max-w-[250px]" title={item.product_name}>{item.product_name}</div>
-                            <div className="text-xs text-slate-400">#{item.product_id}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                            {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-500 text-center">
-                            %{item.tax_rate || 20}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-bold text-slate-900 text-right">
-                            {Number(item.total_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedQuotationDetails.currency?.slice(0, 3)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex flex-col md:flex-row justify-between gap-8">
-                  <div className="flex-1">
-                    {selectedQuotationDetails.notes && (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-2">{t.notes || "Notlar"}</p>
-                        <p className="text-sm text-slate-700">{selectedQuotationDetails.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="w-full md:w-80 space-y-3">
-                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                      <span>{selectedQuotationDetails.is_tax_inclusive ? (t.grandTotal || "Genel Toplam") : (isTr ? "Toplam (Vergi Hariç)" : "Total (Excl. Tax)")}</span>
-                      <span className="text-indigo-600 text-lg font-black">
-                        {(() => {
-                          const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
-                          return sub.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
-                        })()} {selectedQuotationDetails.currency?.slice(0, 3)}
-                      </span>
-                    </div>
-                    {selectedQuotationDetails.is_tax_inclusive ? (
-                      <div className="text-[10px] text-right text-slate-400 font-bold italic">
-                        {isTr ? "* Fiyatlara KDV dahildir." : "* Prices include VAT."}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-right text-indigo-500 font-bold italic">
-                        {isTr ? "* Fiyatlara KDV dahil değildir." : "* Prices exclude VAT."}
-                      </div>
-                    )}
-                    <div className="text-[10px] text-right text-slate-500 font-bold italic pt-2">
-                       {isTr ? 'Yalnızca:' : 'Only:'} {(() => {
-                         const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
-                         return numberToTurkishWords(sub, selectedQuotationDetails.currency);
-                       })()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {showDailyReportModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{t.dailySalesReport}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{branding.store_name}</p>
-                </div>
-                <button onClick={() => setShowDailyReportModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.startDate}</label>
-                    <input 
-                      type="date" 
-                      value={reportStartDate} 
-                      onChange={(e) => setReportStartDate(e.target.value)}
-                      className="w-[16ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.endDate}</label>
-                    <input 
-                      type="date" 
-                      value={reportEndDate} 
-                      onChange={(e) => setReportEndDate(e.target.value)}
-                      className="w-[16ch] px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                    />
-                  </div>
-                  <button 
-                    onClick={fetchDailySalesReport}
-                    disabled={reportLoading}
-                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50"
-                  >
-                    {reportLoading ? t.loading : t.getReport}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {['cash', 'credit_card', 'bank', 'term'].map((method) => {
-                    const data = (dailyReportData.summary || []).find(d => d.payment_method === method) || { total_amount: 0, transaction_count: 0 };
-                    return (
-                      <div key={method} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{t[method] || method}</span>
-                          <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-lg">
-                            {data.transaction_count} {t.transactionCount}
-                          </span>
-                        </div>
-                        <p className="text-xl font-black text-gray-900">
-                          {Number(data.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {branding.default_currency?.slice(0, 3)}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="p-6 bg-indigo-600 rounded-3xl text-white shadow-xl shadow-indigo-100">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM GENEL' : 'GRAND TOTAL'}</p>
-                      <p className="text-3xl font-black">
-                        {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {branding.default_currency?.slice(0, 3)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">{t.transactionCount}</p>
-                      <p className="text-xl font-black">
-                        {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.transaction_count), 0)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
-                <button 
-                  onClick={handleDownloadDailyReportExcel}
-                  disabled={!dailyReportData.details || dailyReportData.details.length === 0}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all disabled:opacity-50"
-                >
-                  <FileDown className="h-5 w-5" /> {lang === 'tr' ? 'Excel İndir' : 'Download Excel'}
-                </button>
-                <button 
-                  onClick={() => setShowDailyReportModal(false)}
-                  className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
-                  {t.close || 'Kapat'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {showTransactionModal && selectedCompany && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{selectedCompany.title}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{t.accountTransactions}</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => setShowAddTransactionModal(true)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all flex items-center"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    {t.newTransaction}
-                  </button>
-                  <button onClick={() => setShowTransactionModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                    <X className="h-5 w-5 text-gray-400" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 bg-white border-b border-gray-100 flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
-                  <select
-                    value={selectedCurrency}
-                    onChange={(e) => setSelectedCurrency(e.target.value)}
-                    className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {Object.keys(selectedCompany.balances || {}).length > 0 ? (
-                      Object.keys(selectedCompany.balances).map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))
-                    ) : (
-                      <option value={branding.default_currency || 'TRY'}>{branding.default_currency || 'TRY'}</option>
-                    )}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.start}</label>
-                  <input 
-                    type="date" 
-                    value={transactionStartDate}
-                    onChange={(e) => setTransactionStartDate(e.target.value)}
-                    className="w-[16ch] px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.end}</label>
-                  <input 
-                    type="date" 
-                    value={transactionEndDate}
-                    onChange={(e) => setTransactionEndDate(e.target.value)}
-                    className="w-[16ch] px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <button 
-                  onClick={() => handleFetchTransactions(selectedCompany.id)}
-                  className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
-                  title={t.refresh}
-                >
-                  <History className={`h-4 w-4 ${transactionLoading ? 'animate-spin' : ''}`} />
-                </button>
-                <button 
-                  onClick={handleExportTransactionsPDF}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-200 transition-all"
-                >
-                  <FileDown className="h-4 w-4" />
-                  {t.pdfStatement}
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {(() => {
-                  const filteredTransactions = companyTransactions.filter(tx => (tx.currency || 'TRY') === selectedCurrency);
-                  const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
-                  return (
-                    <>
-                      <div className="flex flex-wrap gap-2 pb-2">
-                        {Object.entries((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances || {}).some(([_, b]) => Number(b) !== 0) ? (
-                          Object.entries((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances || {}).map(([curr, bal]) => {
-                            const nBal = Number(bal);
-                            if (nBal === 0) return null;
-                            const isSelected = curr === selectedCurrency;
-                            return (
-                              <button
-                                key={curr}
-                                onClick={() => setSelectedCurrency(curr)}
-                                className={`flex items-center gap-3 pl-4 pr-3 py-2 rounded-2xl border transition-all ${
-                                  isSelected 
-                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 ring-2 ring-indigo-600 ring-offset-2' 
-                                    : 'bg-white border-gray-100 text-gray-600 hover:border-gray-200 shadow-sm'
-                                }`}
-                              >
-                                <div className="flex flex-col items-start leading-none gap-1">
-                                  <span className={`text-[10px] font-black uppercase tracking-widest opacity-70 ${isSelected ? 'text-white' : 'text-gray-400'}`}>
-                                    {curr}
-                                  </span>
-                                  <span className="text-sm font-black tabular-nums">
-                                    {Math.abs(nBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                                  </span>
-                                </div>
-                                <div className={`flex flex-col items-center justify-center p-1.5 rounded-lg ${
-                                  isSelected ? 'bg-white/20' : nBal > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
-                                }`}>
-                                  <span className="text-[8px] font-black uppercase leading-none">
-                                    {nBal > 0 ? t.statements.debt.slice(0, 3) : t.statements.credit.slice(0, 3)}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })
-                        ) : (
-                          <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 text-gray-400 text-xs font-bold italic">
-                            {lang === 'tr' ? 'Henüz bakiye bulunmuyor' : 'No balances yet'}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-                          <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
-                          <p className="text-2xl font-black">
-                            {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
-                          </p>
-                        </div>
-                        <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
-                          <p className="text-2xl font-black text-red-600">
-                            {filteredTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
-                          </p>
-                        </div>
-                        <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
-                          <p className="text-2xl font-black text-green-600">
-                            {filteredTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {transactionLoading ? (
-                          <div className="flex flex-col items-center justify-center py-12">
-                            <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
-                            <p className="text-gray-500 font-medium">{t.loading}</p>
-                          </div>
-                        ) : filteredTransactions.length === 0 ? (
-                          <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                            <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500 font-medium">{lang === 'tr' ? 'Seçili tarihlerde hareket bulunmuyor' : (lang === 'de' ? 'Keine Transaktionen in ausgewählten Daten' : 'No transactions in selected dates')}</p>
-                          </div>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                              <thead>
-                                <tr className="border-b border-gray-100">
-                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
-                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
-                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
-                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
-                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
-                                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{lang === 'tr' ? 'İşlem' : 'Action'}</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(() => {
-                                  let runningBalance = openingBalances[selectedCurrency] || 0;
-                                  return (
-                                    <>
-                                      {runningBalance !== 0 && (
-                                        <tr className="border-b border-gray-100 bg-slate-50/50">
-                                          <td className="py-4 px-4">
-                                            <p className="text-xs font-bold text-slate-500">{new Date(transactionStartDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                                          </td>
-                                          <td className="py-4 px-4">
-                                            <div className="flex items-center gap-2">
-                                              <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                                              <p className="text-xs font-bold text-slate-600">{lang === 'tr' ? 'Devreden Bakiye' : 'Opening Balance'}</p>
-                                            </div>
-                                          </td>
-                                          <td className="py-4 px-4 text-right">
-                                            {runningBalance > 0 ? (
-                                              <span className="text-xs font-black text-rose-600">
-                                                {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
-                                              </span>
-                                            ) : '-'}
-                                          </td>
-                                          <td className="py-4 px-4 text-right">
-                                            {runningBalance < 0 ? (
-                                              <span className="text-xs font-black text-emerald-600">
-                                                {Math.abs(runningBalance).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
-                                              </span>
-                                            ) : '-'}
-                                          </td>
-                                          <td className="py-4 px-4 text-right">
-                                            <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-slate-900' : 'text-emerald-600'}`}>
-                                              {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </span>
-                                          </td>
-                                        </tr>
-                                      )}
-                                      {filteredTransactions.map((tx: any) => {
-                                        const amount = Number(tx.amount);
-                                        if (tx.type === 'debt') runningBalance += amount;
-                                        else runningBalance -= amount;
-
-                                        return (
-                                          <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50 transition-all group">
-                                            <td className="py-4 px-4">
-                                              <p className="text-xs font-bold text-gray-900">{new Date(tx.transaction_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}</p>
-                                              {tx.due_date && (
-                                                <span className="text-[9px] text-amber-600 font-bold uppercase tracking-tighter">
-                                                  {lang === 'tr' ? 'Vade: ' : 'Due: '} {new Date(tx.due_date).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-                                                </span>
-                                              )}
-                                            </td>
-                                        <td className="py-4 px-4">
-                                          <p className="text-xs font-bold text-gray-700">{tx.description}</p>
-                                          <div className="flex gap-2 mt-1">
-                                            {tx.sale_id && !tx.sales_invoice_id && (
-                                              <button 
-                                                onClick={() => {
-                                                  setSelectedSale({ id: tx.sale_id });
-                                                  setShowSaleDetailsModal(true);
-                                                }}
-                                                className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest hover:underline"
-                                              >
-                                                #{tx.sale_id} {t.sources.pos}
-                                              </button>
-                                            )}
-                                            {tx.sales_invoice_id && (
-                                              <button 
-                                                onClick={() => handleFetchSalesInvoiceDetails(tx.sales_invoice_id)}
-                                                className="text-[9px] text-blue-600 font-bold uppercase tracking-widest hover:underline"
-                                              >
-                                                #{tx.sales_invoice_number || tx.sales_invoice_id} {lang === 'tr' ? 'SATIŞ FATURASI' : 'SALES INVOICE'}
-                                              </button>
-                                            )}
-                                            {tx.purchase_invoice_id && (
-                                              <button 
-                                                onClick={() => handleFetchPurchaseInvoiceDetails(tx.purchase_invoice_id)}
-                                                className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest hover:underline"
-                                              >
-                                                #{tx.purchase_invoice_number || tx.purchase_invoice_id} {t.sources.purchase_invoice}
-                                              </button>
-                                            )}
-                                          </div>
-                                        </td>
-                                        <td className="py-4 px-4 text-right">
-                                          {tx.type === 'debt' ? (
-                                            <div className="flex flex-col items-end">
-                                              <span className="text-xs font-black text-red-600">
-                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
-                                              </span>
-                                            </div>
-                                          ) : '-'}
-                                        </td>
-                                        <td className="py-4 px-4 text-right">
-                                          {tx.type === 'credit' ? (
-                                            <div className="flex flex-col items-end">
-                                              <span className="text-xs font-black text-green-600">
-                                                {amount.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
-                                              </span>
-                                            </div>
-                                          ) : '-'}
-                                        </td>
-                                        <td className="py-4 px-4 text-right">
-                                          <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                                            {runningBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </span>
-                                        </td>
-                                        <td className="py-4 px-4 text-right">
-                                          <div className="flex justify-end gap-2">
-                                            <button 
-                                              onClick={() => {
-                                                const newDesc = prompt(lang === 'tr' ? 'Yeni açıklama:' : 'New description:', tx.description);
-                                                const newAmount = prompt(lang === 'tr' ? 'Yeni tutar:' : 'New amount:', tx.amount);
-                                                if (newDesc !== null && newAmount !== null) {
-                                                  handleEditTransaction(tx.id, { description: newDesc, amount: Number(newAmount), type: tx.type });
-                                                }
-                                              }}
-                                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                            >
-                                              <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            <button 
-                                              onClick={() => handleDeleteTransaction(tx.id)}
-                                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                    </>
-                                  );
-                                })()}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
-                <button 
-                  onClick={() => setShowTransactionModal(false)}
-                  className="w-full px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
-                  {t.close || 'Kapat'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {showAddTransactionModal && selectedCompany && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <div className="flex flex-col">
-                  <h3 className="text-xl font-bold text-gray-900">{t.addNewTransaction}</h3>
-                  <p className="text-xs text-gray-500 font-medium">{selectedCompany.name}</p>
-                </div>
-                <button onClick={() => setShowAddTransactionModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <form onSubmit={handleAddTransaction} className="p-6 space-y-4">
-                <div className="p-4 bg-gray-50 rounded-2xl flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Mevcut Bakiye' : 'Current Balance'}</span>
-                  <span className={`font-black ${Number(selectedCompany.balances?.[newTransactionCurrency] || 0) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {Math.abs(Number(selectedCompany.balances?.[newTransactionCurrency] || 0)).toLocaleString('tr-TR')} {newTransactionCurrency.slice(0, 3)}
-                    {Number(selectedCompany.balances?.[newTransactionCurrency] || 0) < 0 ? (lang === 'tr' ? ' (Borçlu)' : ' (Debt)') : (lang === 'tr' ? ' (Alacaklı)' : ' (Credit)')}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewTransactionType('credit')}
-                    className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
-                      newTransactionType === 'credit' 
-                        ? 'bg-green-600 border-green-600 text-white shadow-lg shadow-green-100' 
-                        : 'bg-white border-gray-100 text-gray-600 hover:border-green-200'
-                    }`}
-                  >
-                    {lang === 'tr' ? 'Tahsilat (Giriş)' : 'Collection (In)'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewTransactionType('debt')}
-                    className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
-                      newTransactionType === 'debt' 
-                        ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-100' 
-                        : 'bg-white border-gray-100 text-gray-600 hover:border-red-200'
-                    }`}
-                  >
-                    {lang === 'tr' ? 'Ödeme (Çıkış)' : 'Payment (Out)'}
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tutar' : 'Amount'}</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      required 
-                      value={newTransactionAmount}
-                      onChange={(e) => setNewTransactionAmount(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                      placeholder="0.00"
-                    />
-                    <select
-                      value={newTransactionCurrency}
-                      onChange={(e) => {
-                        setNewTransactionCurrency(e.target.value);
-                        if (e.target.value === (branding?.default_currency || 'TRY')) {
-                          setNewTransactionExchangeRate('1');
-                        }
-                      }}
-                      className="w-24 px-2 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-xs font-bold"
-                    >
-                      <option value="TRY">TRY</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
-                </div>
-
-                {newTransactionCurrency !== (branding?.default_currency || 'TRY') && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Döviz Kuru' : 'Exchange Rate'}</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={newTransactionExchangeRate}
-                      onChange={(e) => setNewTransactionExchangeRate(e.target.value.replace(',', '.'))}
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                      placeholder="1.00"
-                    />
-                  </div>
-                )}
-
-                {newTransactionType === 'credit' && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.paymentMethod || 'Ödeme Yöntemi'}</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['cash', 'credit_card', 'bank'].map((method) => (
-                        <button
-                          key={method}
-                          type="button"
-                          onClick={() => setNewTransactionPaymentMethod(method as any)}
-                          className={`px-4 py-2 rounded-xl font-bold text-xs transition-all border-2 ${
-                            newTransactionPaymentMethod === method 
-                              ? 'bg-indigo-600 border-indigo-600 text-white' 
-                              : 'bg-white border-gray-100 text-gray-600 hover:border-indigo-200'
-                          }`}
-                        >
-                          {t[method] || method}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Açıklama' : 'Description'}</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={newTransactionDescription}
-                    onChange={(e) => setNewTransactionDescription(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                    placeholder={lang === 'tr' ? 'İşlem açıklaması...' : 'Transaction description...'}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'tr' ? 'Tarih' : 'Date'}</label>
-                  <input 
-                    type="date" 
-                    required 
-                    value={newTransactionDate}
-                    onChange={(e) => setNewTransactionDate(e.target.value)}
-                    className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <button 
-                    type="submit"
-                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
-                  >
-                    {lang === 'tr' ? 'Kaydet' : 'Save'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {showSaleModal && selectedQuotation && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-xl font-bold text-gray-900">{lang === 'tr' ? 'Satışa Dönüştür' : 'Convert to Sale'}</h3>
-                <button onClick={() => setShowSaleModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <form onSubmit={handleConfirmSale} className="p-6 space-y-4">
-                <div className="p-4 bg-gray-50 rounded-2xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-500">{t.customer}</span>
-                    <span className="font-bold">{selectedQuotation.customer_name}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">{t.amount}</span>
-                    <span className="text-xl font-black text-indigo-600">
-                      {Number(selectedQuotation.total_amount).toLocaleString('tr-TR')} {selectedQuotation.currency?.slice(0, 3)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.dueDate || 'Vade Tarihi'}</label>
-                  <input 
-                    type="date" 
-                    required 
-                    className="w-[16ch] px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.notes}</label>
-                  <textarea 
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all h-20 resize-none"
-                    placeholder={lang === 'tr' ? 'Satış notları...' : 'Sale notes...'}
-                    value={saleNotes}
-                    onChange={(e) => setSaleNotes(e.target.value)}
-                  />
-                </div>
-
-                {!selectedQuotation.company_id && (
-                  <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <input 
-                      type="checkbox" 
-                      id="createCompany"
-                      checked={createCompanyFromSale}
-                      onChange={(e) => setCreateCompanyFromSale(e.target.checked)}
-                      className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-                    />
-                    <label htmlFor="createCompany" className="text-sm font-bold text-amber-900 cursor-pointer">
-                      {lang === 'tr' ? 'Müşteriyi Cari Hesap Olarak Kaydet' : 'Save Customer as Current Account'}
-                    </label>
-                  </div>
-                )}
-
-                <div className="pt-4 flex gap-3">
-                  <button 
-                    type="button" 
-                    onClick={() => setShowSaleModal(false)} 
-                    disabled={isConfirmingSale}
-                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all disabled:opacity-50"
-                  >
-                    {t.cancel}
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isConfirmingSale}
-                    className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isConfirmingSale ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-5 w-5" />
-                    )}
-                    {lang === 'tr' ? 'Satışı Onayla' : 'Confirm Sale'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
+      <DashboardModals 
+        showQrModal={showQrModal}
+        setShowQrModal={setShowQrModal}
+        branding={branding}
+        scanUrl={scanUrl}
+        publicUrl={publicUrl}
+        isPortfolio={isPortfolio}
+        translations={t}
+        handlePrintQR={handlePrintQR}
+        qrPrintRef={qrPrintRef}
+        showPurchaseInvoiceDetailsModal={showPurchaseInvoiceDetailsModal}
+        setShowPurchaseInvoiceDetailsModal={setShowPurchaseInvoiceDetailsModal}
+        selectedPurchaseInvoice={selectedPurchaseInvoice}
+        lang={lang}
+        showSaleDetailsModal={showSaleDetailsModal}
+        setShowSaleDetailsModal={setShowSaleDetailsModal}
+        selectedSale={selectedSale}
+        handlePrint={handlePrint}
+        shippingSlipRef={shippingSlipRef}
         
-        {showBulkPriceModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
-            >
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 className="text-lg font-bold text-slate-800">
-                  {lang === 'tr' ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}
-                </h3>
-                <button onClick={() => setShowBulkPriceModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <form onSubmit={handleBulkPriceSubmit} className="p-6 space-y-5">
-                {/* Target Selection */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    {lang === 'tr' ? 'Hedef Ürünler' : 'Target Products'}
-                  </label>
-                  <select 
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                    value={bulkPriceForm.target}
-                    onChange={e => setBulkPriceForm({...bulkPriceForm, target: e.target.value})}
-                  >
-                    <option value="all">{lang === 'tr' ? 'Tüm Ürünler' : 'All Products'}</option>
-                    <option value="category">{lang === 'tr' ? 'Belirli Bir Kategori' : 'Specific Category'}</option>
-                  </select>
-                </div>
-
-                {bulkPriceForm.target === 'category' && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      {lang === 'tr' ? 'Kategori Seçin' : 'Select Category'}
-                    </label>
-                    <select 
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                      value={bulkPriceForm.category}
-                      onChange={e => setBulkPriceForm({...bulkPriceForm, category: e.target.value})}
-                      required
-                    >
-                      <option value="">{lang === 'tr' ? 'Kategori Seçiniz...' : 'Select Category...'}</option>
-                      {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Direction & Type */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      {lang === 'tr' ? 'İşlem Yönü' : 'Direction'}
-                    </label>
-                    <select 
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                      value={bulkPriceForm.direction}
-                      onChange={e => setBulkPriceForm({...bulkPriceForm, direction: e.target.value})}
-                    >
-                      <option value="increase">{lang === 'tr' ? 'Zam Yap (Artır)' : 'Increase'}</option>
-                      <option value="decrease">{lang === 'tr' ? 'İndirim Yap (Düşür)' : 'Decrease'}</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      {lang === 'tr' ? 'Değer Tipi' : 'Value Type'}
-                    </label>
-                    <select 
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                      value={bulkPriceForm.type}
-                      onChange={e => setBulkPriceForm({...bulkPriceForm, type: e.target.value})}
-                    >
-                      <option value="percentage">{lang === 'tr' ? 'Yüzde (%)' : 'Percentage (%)'}</option>
-                      <option value="amount">{lang === 'tr' ? 'Tutar (₺)' : 'Amount (₺)'}</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Value */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    {bulkPriceForm.type === 'percentage' 
-                      ? (lang === 'tr' ? 'Yüzde Oranı (%)' : 'Percentage (%)') 
-                      : (lang === 'tr' ? 'Tutar Değeri' : 'Amount Value')}
-                  </label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    min="0.01"
-                    required
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                    placeholder={lang === 'tr' ? 'Örn: 15' : 'e.g. 15'}
-                    value={bulkPriceForm.value}
-                    onChange={e => setBulkPriceForm({...bulkPriceForm, value: e.target.value})}
-                  />
-                </div>
-
-                {/* Rounding */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    {lang === 'tr' ? 'Yuvarlama' : 'Rounding'}
-                  </label>
-                  <select 
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                    value={bulkPriceForm.rounding}
-                    onChange={e => setBulkPriceForm({...bulkPriceForm, rounding: e.target.value})}
-                  >
-                    <option value="none">{lang === 'tr' ? 'Kuruşlu Kalsın (Örn: 14.53 ₺)' : 'No Rounding (e.g. 14.53)'}</option>
-                    <option value="round">{lang === 'tr' ? 'En Yakın Tam Sayıya Yuvarla (Örn: 15 ₺)' : 'Nearest Integer (e.g. 15)'}</option>
-                    <option value="ceil">{lang === 'tr' ? 'Yukarı Yuvarla (Örn: 15 ₺)' : 'Round Up (e.g. 15)'}</option>
-                    <option value="floor">{lang === 'tr' ? 'Aşağı Yuvarla (Örn: 14 ₺)' : 'Round Down (e.g. 14)'}</option>
-                  </select>
-                </div>
-
-                <div className="pt-4 flex gap-3">
-                  <button 
-                    type="button" 
-                    onClick={() => setShowBulkPriceModal(false)} 
-                    className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
-                  >
-                    {lang === 'tr' ? 'İptal' : 'Cancel'}
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={loading} 
-                    className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center"
-                  >
-                    {loading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      lang === 'tr' ? 'Uygula' : 'Apply'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {showProductModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh]"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingProduct ? t.editProduct : t.addManual}
-                </h3>
-                <button onClick={() => setShowProductModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <form onSubmit={handleAddProduct} className="flex flex-col overflow-hidden flex-1 min-h-0">
-                <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left Column */}
-                  <div className="space-y-4">
-                    {/* Row 1: Barcode */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.barcode}</label>
-                      <input 
-                        name="barcode" 
-                        required 
-                        maxLength={14}
-                        defaultValue={editingProduct?.barcode} 
-                        placeholder="869..."
-                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono" 
-                      />
-                    </div>
-
-                    {/* Row 2: Product Name */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</label>
-                      <input 
-                        name="name" 
-                        required 
-                        defaultValue={editingProduct?.name} 
-                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-semibold" 
-                      />
-                    </div>
-
-                    {/* Row 2.5: Category & Sub-Category */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'KATEGORİ' : 'CATEGORY'}
-                        </label>
-                        <input 
-                          list="existing-categories"
-                          name="category" 
-                          defaultValue={editingProduct?.category} 
-                          placeholder={lang === 'tr' ? 'Seç veya Yaz...' : 'Select or Type...'}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-sm" 
-                        />
-                        <datalist id="existing-categories">
-                          {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
-                            <option key={cat} value={cat} />
-                          ))}
-                        </datalist>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ALT KATEGORİ' : 'SUB-CATEGORY'}
-                        </label>
-                        <input 
-                          list="existing-sub-categories"
-                          name="sub_category" 
-                          defaultValue={editingProduct?.sub_category}
-                          placeholder={lang === 'tr' ? 'Seç veya Yaz...' : 'Select or Type...'}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-sm" 
-                        />
-                        <datalist id="existing-sub-categories">
-                          {Array.from(new Set(products.map(p => p.sub_category).filter(Boolean))).map(sub => (
-                            <option key={sub} value={sub} />
-                          ))}
-                        </datalist>
-                      </div>
-                    </div>
-
-                    {/* Row 2.6: Brand & Author */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          <Globe className="h-2.5 w-2.5" /> {lang === 'tr' ? 'MARKA' : 'BRAND'}
-                        </label>
-                        <input 
-                          name="brand" 
-                          defaultValue={editingProduct?.brand} 
-                          placeholder={lang === 'tr' ? 'Örn: Apple' : 'e.g. Apple'}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          <UserIcon className="h-2.5 w-2.5" /> {lang === 'tr' ? 'YAZAR' : 'AUTHOR'}
-                        </label>
-                        <input 
-                          name="author" 
-                          defaultValue={editingProduct?.author} 
-                          placeholder={lang === 'tr' ? 'Örn: Sabahattin Ali' : 'e.g. Orwell'}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-4">
-                    {/* Row 3: Price & Currency */}
-                    <div className="grid grid-cols-12 gap-4">
-                      <div className="space-y-1 col-span-8">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.price} (KDV Dahil)</label>
-                        <input 
-                          name="price" 
-                          type="text" 
-                          required 
-                          defaultValue={editingProduct?.price} 
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => {
-                            const form = e.target.closest('form');
-                            if (!form) return;
-                            const taxRate = (form.querySelector('input[name="tax_rate"]') as HTMLInputElement)?.value || String(branding.default_tax_rate ?? 20);
-                            const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
-                            if (price2Input) {
-                              const p = Number(e.target.value.replace(',', '.'));
-                              const t = Number(taxRate);
-                              if (!isNaN(p) && !isNaN(t)) {
-                                price2Input.value = (p / (1 + t / 100)).toFixed(2);
-                              }
-                            }
-                          }}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600 text-lg" 
-                        />
-                      </div>
-                      <div className="space-y-1 col-span-4">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.currency}</label>
-                        <select 
-                          name="currency" 
-                          defaultValue={editingProduct?.currency || branding.default_currency} 
-                          onChange={(e) => {
-                            const form = e.target.closest('form');
-                            if (!form) return;
-                            const price2CurrencySelect = form.querySelector('select[name="price_2_currency"]') as HTMLSelectElement;
-                            if (price2CurrencySelect) {
-                              price2CurrencySelect.value = e.target.value;
-                            }
-                          }}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
-                        >
-                          <option value="TRY">TRY</option>
-                          <option value="USD">USD</option>
-                          <option value="EUR">EUR</option>
-                          <option value="GBP">GBP</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Row 3.5: Price 2 (KDV Hariç / Invoice Price) */}
-                    <div className="grid grid-cols-12 gap-4">
-                      <div className="space-y-1 col-span-8">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? '2. SATIŞ FİYATI (KDV HARİÇ)' : '2ND SALE PRICE (EXCL. TAX)'}</label>
-                        <input 
-                          name="price_2" 
-                          type="text" 
-                          defaultValue={editingProduct?.price_2 || 0} 
-                          onFocus={(e) => e.target.select()}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-emerald-600" 
-                        />
-                      </div>
-                      <div className="space-y-1 col-span-4">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'PARA BİRİMİ' : 'CURRENCY'}</label>
-                        <select 
-                          name="price_2_currency" 
-                          defaultValue={editingProduct?.price_2_currency || branding.default_currency} 
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
-                        >
-                          <option value="TRY">TRY</option>
-                          <option value="USD">USD</option>
-                          <option value="EUR">EUR</option>
-                          <option value="GBP">GBP</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Row 4: Cost Price & Currency */}
-                    <div className="grid grid-cols-12 gap-4">
-                      <div className="space-y-1 col-span-8">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'MALİYET FİYATI' : 'COST PRICE'}</label>
-                        <input 
-                          name="cost_price" 
-                          type="text" 
-                          defaultValue={editingProduct?.cost_price} 
-                          onFocus={(e) => e.target.select()}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-600" 
-                        />
-                      </div>
-                      <div className="space-y-1 col-span-4">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'PARA BİRİMİ' : 'CURRENCY'}</label>
-                        <select 
-                          name="cost_currency" 
-                          defaultValue={editingProduct?.cost_currency || branding.default_currency} 
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
-                        >
-                          <option value="TRY">TRY</option>
-                          <option value="USD">USD</option>
-                          <option value="EUR">EUR</option>
-                          <option value="GBP">GBP</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Row 5: Stock & Min Stock */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.stock}</label>
-                        <input 
-                          name="stock_quantity" 
-                          type="text" 
-                          inputMode="numeric"
-                          defaultValue={editingProduct?.stock_quantity || 0} 
-                          onFocus={(e) => e.target.select()}
-                          onKeyDown={(e) => {
-                            if (e.key === '.' || e.key === ',') e.preventDefault();
-                          }}
-                          onInput={(e: any) => {
-                            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-                          }}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.minStock}</label>
-                        <input 
-                          name="min_stock_level" 
-                          type="text" 
-                          inputMode="numeric"
-                          defaultValue={editingProduct?.min_stock_level ?? 5} 
-                          onFocus={(e) => e.target.select()}
-                          onKeyDown={(e) => {
-                            if (e.key === '.' || e.key === ',') e.preventDefault();
-                          }}
-                          onInput={(e: any) => {
-                            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-                          }}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
-                        />
-                      </div>
-                    </div>
-
-                    {/* Row 6: Unit & Tax */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.unit}</label>
-                        <input 
-                          name="unit" 
-                          defaultValue={editingProduct?.unit || 'Adet'} 
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">KDV %</label>
-                        <input 
-                          name="tax_rate" 
-                          type="text" 
-                          defaultValue={editingProduct?.tax_rate !== undefined ? Math.floor(Number(editingProduct.tax_rate)) : (branding.default_tax_rate !== undefined ? Math.floor(Number(branding.default_tax_rate)) : 20)} 
-                          onFocus={(e) => e.target.select()}
-                          onInput={(e) => {
-                            const target = e.target as HTMLInputElement;
-                            target.value = target.value.replace(/[^0-9]/g, '').substring(0, 2);
-                            
-                            const form = target.closest('form');
-                            if (!form) return;
-                            const price = (form.querySelector('input[name="price"]') as HTMLInputElement)?.value || '0';
-                            const price2Input = form.querySelector('input[name="price_2"]') as HTMLInputElement;
-                            if (price2Input) {
-                              const p = Number(price.replace(',', '.'));
-                              const t = Number(target.value);
-                              if (!isNaN(p) && !isNaN(t)) {
-                                price2Input.value = (p / (1 + t / 100)).toFixed(2);
-                              }
-                            }
-                          }}
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
-                        />
-                      </div>
-                    </div>
-
-                    {/* Sector Specific Inputs */}
-                    {branding?.sector && branding.sector !== 'general' && (
-                      <div className="pt-6 border-t border-gray-100">
-                        <div className="flex items-center gap-3 mb-6">
-                           <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
-                              <Sparkles className="w-4 h-4 text-amber-500" />
-                           </div>
-                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">{lang === 'tr' ? 'SEKTÖREL TEKNİK VERİLER' : 'SECTORAL TECHNICAL DATA'}</h4>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          {branding.sector === 'automotive' && (
-                            <>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'BEYGİR GÜCÜ (HP)' : 'HORSEPOWER (HP)'}</label>
-                                <input name="sector_spec_hp" defaultValue={editingProduct?.sector_data?.hp} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'MOTOR HACMİ' : 'ENGINE DISPLACEMENT'}</label>
-                                <input name="sector_spec_engine" defaultValue={editingProduct?.sector_data?.engine} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'ŞANZIMAN' : 'TRANSMISSION'}</label>
-                                <input name="sector_spec_transmission" defaultValue={editingProduct?.sector_data?.transmission} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'YAKIT TİPİ' : 'FUEL TYPE'}</label>
-                                <input name="sector_spec_fuel" defaultValue={editingProduct?.sector_data?.fuel} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                            </>
-                          )}
-                          {branding.sector === 'fashion' && (
-                            <>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'MATERYAL' : 'MATERIAL'}</label>
-                                <input name="sector_spec_material" defaultValue={editingProduct?.sector_data?.material} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KALIP' : 'FIT'}</label>
-                                <input name="sector_spec_fit" defaultValue={editingProduct?.sector_data?.fit} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                              <div className="col-span-2 space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'STİL REHBERİ / KOLEKSİYON' : 'STYLE GUIDE / COLLECTION'}</label>
-                                <input name="sector_spec_collection" defaultValue={editingProduct?.sector_data?.collection} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                            </>
-                          )}
-                          {branding.sector === 'tech' && (
-                            <>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">CPU</label>
-                                <input name="sector_spec_cpu" defaultValue={editingProduct?.sector_data?.cpu} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">RAM</label>
-                                <input name="sector_spec_ram" defaultValue={editingProduct?.sector_data?.ram} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">STORAGE</label>
-                                <input name="sector_spec_storage" defaultValue={editingProduct?.sector_data?.storage} className="w-full px-4 py-2 bg-slate-50 rounded-xl text-sm font-bold border-none" />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Row 7: Web Sale & Product Type */}
-                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-50">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          {lang === 'tr' ? 'ÜRÜN TİPİ' : 'PRODUCT TYPE'}
-                        </label>
-                        <select 
-                          name="product_type" 
-                          defaultValue={editingProduct?.product_type || 'product'} 
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
-                        >
-                          <option value="product">{lang === 'tr' ? 'Stoklu Ürün' : 'Inventory Product'}</option>
-                          <option value="service">{lang === 'tr' ? 'Hizmet / Servis' : 'Service / Fee'}</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          <Truck className="h-2.5 w-2.5" /> {lang === 'tr' ? 'KARGO PROFİLİ' : 'SHIPPING PROFILE'}
-                        </label>
-                        <select 
-                          name="shipping_profile_id" 
-                          defaultValue={editingProduct?.shipping_profile_id || ''} 
-                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
-                        >
-                          <option value="">{lang === 'tr' ? 'Seçiniz...' : 'Select...'}</option>
-                          {(branding?.shipping_profiles || []).map((profile: any) => (
-                            <option key={profile.id} value={profile.id}>
-                              {profile.name} ({profile.cost} {profile.currency})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col space-y-2 pt-4 border-t border-gray-50">
-                      <div className="flex items-center space-x-3">
-                        <label className={`relative inline-flex items-center ${(editingProduct?.stock_quantity || 0) <= 0 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                          <input 
-                            type="checkbox" 
-                            name="is_web_sale" 
-                            defaultChecked={editingProduct ? (editingProduct.stock_quantity > 0 && editingProduct.is_web_sale !== false) : false} 
-                            disabled={(editingProduct?.stock_quantity || 0) <= 0}
-                            className="sr-only peer" 
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                          <span className="ml-3 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            {lang === 'tr' ? 'WEB SATIŞI' : 'WEB SALE'}
-                          </span>
-                        </label>
-                      </div>
-                      {(editingProduct?.stock_quantity || 0) <= 0 && (
-                        <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {lang === 'tr' 
-                            ? 'Stok miktarı 0 veya daha az olan ürünler web satışına açılamaz.' 
-                            : 'Products with zero or negative stock cannot be enabled for web sale.'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Full Width Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-gray-50">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <Tag className="h-2.5 w-2.5" /> {lang === 'tr' ? 'ETİKETLER (VİRGÜLLE AYIRIN)' : 'LABELS (COMMA SEPARATED)'}
-                    </label>
-                    <input 
-                      name="labels_input" 
-                      defaultValue={Array.isArray(editingProduct?.labels) ? editingProduct.labels.join(', ') : ''} 
-                      placeholder={lang === 'tr' ? 'Yeni, Çok Satanlar' : 'New, Bestseller'}
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                      onBlur={(e) => {
-                        const labels = e.target.value.split(',').map(l => l.trim()).filter(l => l !== '');
-                        const hiddenInput = e.target.closest('form')?.querySelector('input[name="labels"]') as HTMLInputElement;
-                        if (hiddenInput) hiddenInput.value = JSON.stringify(labels);
-                      }}
-                    />
-                    <input type="hidden" name="labels" defaultValue={JSON.stringify(editingProduct?.labels || [])} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <ImageIcon className="h-2.5 w-2.5" /> {lang === 'tr' ? 'GÖRSEL URL' : 'IMAGE URL'}
-                    </label>
-                    <input 
-                      name="image_url" 
-                      defaultValue={editingProduct?.image_url} 
-                      placeholder="https://..."
-                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm" 
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.description}</label>
-                    <button 
-                      type="button" 
-                          onClick={async (e) => {
-                            const form = (e.currentTarget as HTMLElement).closest('form');
-                            const nameEl = form?.querySelector('input[name="name"]') as HTMLInputElement;
-                            const catEl = form?.querySelector('input[name="category"]') as HTMLInputElement;
-                            const name = nameEl?.value;
-                            const category = catEl?.value;
-                            
-                            if(!name) { 
-                              alert(isTr ? 'Lütfen önce ürün adını girin.' : 'Please enter product name first.'); 
-                              return; 
-                            }
-                            
-                            try {
-                              const { generateProductDescription } = await import('../../services/geminiService');
-                              const text = await generateProductDescription({ name, category }, isTr ? 'tr' : 'en');
-                              
-                              const textarea = form?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
-                              if(textarea) {
-                                textarea.value = text;
-                                // Trigger input event so React/Form picks up the change
-                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                              }
-                            } catch(err) {
-                              console.error("AI Error:", err);
-                              alert(isTr ? "Yapaya zeka ile açıklama üretilemedi." : "AI failed to generate description.");
-                            }
-                          }}
-                      className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-700 transition-colors"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      {isTr ? 'AI ile Oluştur' : 'AI Generate'}
-                    </button>
-                  </div>
-                  <textarea 
-                    name="description" 
-                    rows={2}
-                    defaultValue={editingProduct?.description} 
-                    className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm resize-none" 
-                  />
-                </div>
-
-                </div>
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-4 shrink-0">
-                  {/* Sync with branches option (only for headquarters or superadmin) */}
-                  {(user.role === 'superadmin' || !branding.parent_id) && (
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        name="sync_group"
-                        className="w-5 h-5 rounded-lg border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">
-                          {lang === 'tr' ? 'Tüm Şubelere Tanımla/Senkronize Et' : 'Define/Sync to All Branches'}
-                        </span>
-                        <span className="text-[9px] text-gray-400 font-medium">
-                          {lang === 'tr' ? 'Aynı barkoda sahip ürünü tüm şubelerde de oluşturur/günceller.' : 'Creates/updates product for all branches with same barcode.'}
-                        </span>
-                      </div>
-                    </label>
-                  )}
-                  <div className="flex gap-3 ml-auto">
-                    <button 
-                      type="button" 
-                      onClick={() => setShowProductModal(false)} 
-                      className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all text-sm"
-                    >
-                      {t.cancel}
-                    </button>
-                    <button 
-                      type="submit" 
-                      className="px-10 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 text-sm"
-                    >
-                      {editingProduct ? t.update : t.save}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {showImportModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-xl font-bold text-gray-900">{t.importTitle}</h3>
-                <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportColumns([]); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <form onSubmit={handleImport} className="p-6 space-y-6">
-                {!importFile ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-                      <p className="text-sm text-indigo-700 font-medium mb-2">Excel Şablonu Gereksinimleri:</p>
-                      <ul className="text-xs text-indigo-600 space-y-1 list-disc list-inside">
-                        <li>Sütunlar: Barkod, Ürün Adı, Kategori, Alt Kategori, Marka, Fiyat, Açıklama, Stok Adedi</li>
-                        <li>Dosya formatı: .xlsx veya .xls</li>
-                      </ul>
-                    </div>
-                    <div className="relative">
-                      <input 
-                        type="file" 
-                        name="file" 
-                        accept=".xlsx, .xls" 
-                        required 
-                        onChange={handleFileSelect}
-                        className="w-full px-4 py-12 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl text-center cursor-pointer hover:border-indigo-400 transition-all" 
-                      />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <Upload className="h-8 w-8 text-gray-300 mb-2" />
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.selectFile}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-6 w-6 text-emerald-600" />
-                        <span className="text-sm font-bold text-emerald-900">{importFile.name}</span>
-                      </div>
-                      <button onClick={() => { setImportFile(null); setImportColumns([]); }} className="text-xs font-bold text-emerald-600 hover:underline">Değiştir</button>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.mapping}</h4>
-                      <div className="grid grid-cols-1 gap-3">
-                        {[
-                          { key: 'barcode', label: t.barcode, required: true },
-                          { key: 'name', label: t.productName, required: true },
-                          { key: 'category', label: lang === 'tr' ? 'Kategori' : 'Category', required: false },
-                          { key: 'sub_category', label: lang === 'tr' ? 'Alt Kategori' : 'Sub-Category', required: false },
-                          { key: 'brand', label: lang === 'tr' ? 'Marka' : 'Brand', required: false },
-                          { key: 'author', label: lang === 'tr' ? 'Yazar' : 'Author', required: false },
-                          { key: 'price', label: t.price, required: true },
-                          { key: 'description', label: t.description, required: false },
-                          { key: 'stock_quantity', label: t.stock, required: false },
-                          { key: 'unit', label: t.unit, required: false },
-                          { key: 'currency', label: t.currency, required: false }
-                        ].map((field) => (
-                          <div key={field.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                            <span className="text-sm font-bold text-gray-700">{field.label} {field.required && <span className="text-red-500">*</span>}</span>
-                            <select 
-                              required={field.required}
-                              className="bg-white border-gray-200 rounded-lg text-sm focus:ring-indigo-500"
-                              value={mapping[field.key]}
-                              onChange={(e) => setMapping({ ...mapping, [field.key]: e.target.value })}
-                            >
-                              <option value="">{lang === 'tr' ? 'Sütun Seçin' : 'Select Column'}</option>
-                              {importColumns.map((col, idx) => (
-                                <option key={idx} value={col}>{col}</option>
-                              ))}
-                            </select>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                      <input 
-                        type="checkbox" 
-                        id="convertCurrency"
-                        checked={convertCurrency}
-                        onChange={(e) => setConvertCurrency(e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="convertCurrency" className="text-xs font-bold text-indigo-900">
-                        {lang === 'tr' 
-                          ? `Fiyatları mağaza varsayılan para birimine (${branding.default_currency}) dönüştür` 
-                          : `Convert prices to store's default currency (${branding.default_currency})`}
-                      </label>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex gap-3">
-                  <button 
-                    type="button" 
-                    disabled={isImporting}
-                    onClick={() => { setShowImportModal(false); setImportFile(null); setImportColumns([]); }} 
-                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all disabled:opacity-50"
-                  >
-                    {t.cancel}
-                  </button>
-                  {importFile && (
-                    <button 
-                      type="submit" 
-                      disabled={isImporting}
-                      className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:bg-indigo-400 flex items-center justify-center space-x-2"
-                    >
-                      {isImporting ? (
-                        <>
-                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                          <span>{lang === 'tr' ? 'İşleniyor...' : 'Processing...'}</span>
-                        </>
-                      ) : (
-                        <span>{t.importBtn}</span>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {showCompanyModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingCompany ? (lang === 'tr' ? 'Şirketi Düzenle' : 'Edit Company') : (lang === 'tr' ? 'Yeni Şirket' : 'New Company')}
-                </h3>
-                <button onClick={() => setShowCompanyModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <form onSubmit={handleAddCompany} className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Şirket Ünvanı' : 'Company Title'}</label>
-                  <input name="title" required defaultValue={editingCompany?.title} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi Dairesi' : 'Tax Office'}</label>
-                    <input name="tax_office" defaultValue={editingCompany?.tax_office} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi No' : 'Tax Number'}</label>
-                    <input name="tax_number" defaultValue={editingCompany?.tax_number} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Telefon' : 'Phone'}</label>
-                    <input name="phone" defaultValue={editingCompany?.phone} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Firma Yetkilisi' : 'Company Representative'}</label>
-                    <input name="representative" defaultValue={editingCompany?.representative} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'E-posta' : 'Email'}</label>
-                  <input name="email" type="email" defaultValue={editingCompany?.email} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Adres' : 'Address'}</label>
-                  <textarea name="address" defaultValue={editingCompany?.address} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all h-20 resize-none" />
-                </div>
-                <div className="pt-4 flex gap-3">
-                  <button type="button" onClick={() => setShowCompanyModal(false)} className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                    {t.cancel}
-                  </button>
-                  <button type="submit" className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-                    {editingCompany ? t.update : t.save}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {showUserModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-xl font-bold text-gray-900">{t.addUser}</h3>
-                <button onClick={() => setShowUserModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <form onSubmit={handleAddUser} className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.email}</label>
-                  <input name="email" type="email" required className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.password}</label>
-                  <input name="password" type="password" required className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.role}</label>
-                  <select name="role" className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all">
-                    <option value="editor">{t.editor}</option>
-                    <option value="viewer">{t.viewer}</option>
-                  </select>
-                </div>
-                <div className="pt-4 flex gap-3">
-                  <button type="button" onClick={() => setShowUserModal(false)} className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                    {t.cancel}
-                  </button>
-                  <button type="submit" className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-                    {t.add}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {showQuotationModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
-            >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingQuotation ? (lang === 'tr' ? 'Teklifi Düzenle' : 'Edit Quotation') : (lang === 'tr' ? 'Yeni Teklif' : 'New Quotation')}
-                </h3>
-                <button onClick={() => setShowQuotationModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-              <form onSubmit={handleAddQuotation} className="flex flex-col overflow-hidden flex-1 min-h-0">
-                <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                  <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <AutocompleteSelect
-                      label={lang === 'tr' ? 'Firma / Müşteri Seçimi' : 'Select Company / Customer'}
-                      items={[
-                        ...companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' })),
-                        ...customers.map(c => ({ ...c, display: c.name || c.customer_name, type: 'customer' }))
-                      ]}
-                      displayField="display"
-                      secondaryField="tax_number"
-                      type="company"
-                      lang={lang as 'tr' | 'en'}
-                      value={editingQuotation?.customer_name || ''}
-                      placeholder={lang === 'tr' ? 'Firma ismi yazın veya seçin...' : 'Type or select company name...'}
-                      onSelect={(item) => {
-                        const form = document.querySelector('form[onSubmit*="handleAddQuotation"]') as HTMLFormElement;
-                        if (!form) return;
-                        
-                        const customerNameInput = form.elements.namedItem('customer_name') as HTMLInputElement;
-                        const companyIdInput = form.elements.namedItem('company_id') as HTMLInputElement;
-                        const taxOfficeInput = form.elements.namedItem('tax_office') as HTMLInputElement;
-                        const taxNumberInput = form.elements.namedItem('tax_number') as HTMLInputElement;
-                        const titleInput = form.elements.namedItem('customer_title') as HTMLInputElement;
-
-                        if (item) {
-                          if (customerNameInput) customerNameInput.value = item.display;
-                          if (companyIdInput) companyIdInput.value = item.id.toString();
-                          if (taxOfficeInput) taxOfficeInput.value = item.tax_office || '';
-                          if (taxNumberInput) taxNumberInput.value = item.tax_number || '';
-                          if (titleInput) titleInput.value = item.representative || item.contact_person || '';
-                        } else {
-                          if (customerNameInput) customerNameInput.value = '';
-                          if (companyIdInput) companyIdInput.value = '';
-                          if (taxOfficeInput) taxOfficeInput.value = '';
-                          if (taxNumberInput) taxNumberInput.value = '';
-                          if (titleInput) titleInput.value = '';
-                        }
-                      }}
-                      onQuickAdd={(search) => {
-                        const form = document.querySelector('form[onSubmit*="handleAddQuotation"]') as HTMLFormElement;
-                        if (!form) return;
-                        const customerNameInput = form.elements.namedItem('customer_name') as HTMLInputElement;
-                        if (customerNameInput) {
-                          customerNameInput.value = search;
-                          toast.info(lang === 'tr' ? 'Yeni cari bilgileriyle devam edebilirsiniz. Kaydet dediğinizde otomatik oluşturulacaktır.' : 'You can continue with new current account info. It will be created upon saving.');
-                        }
-                      }}
-                    />
-                    <input type="hidden" name="customer_name" defaultValue={editingQuotation?.customer_name} />
-                    <input type="hidden" name="company_id" defaultValue={editingQuotation?.company_id} />
-                    
-                    <div className="grid grid-cols-2 gap-4 mt-2">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi Dairesi' : 'Tax Office'}</label>
-                        <input name="tax_office" defaultValue={editingQuotation?.tax_office} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-medium" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi No' : 'Tax Number'}</label>
-                        <input name="tax_number" defaultValue={editingQuotation?.tax_number} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-medium" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Firma Yetkilisi' : 'Company Representative'}</label>
-                    <input name="customer_title" defaultValue={editingQuotation?.customer_title} className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all" placeholder={lang === 'tr' ? 'Yetkili kişi...' : 'Representative...'} />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Teklif Para Birimi' : 'Quotation Currency'}</label>
-                      <select 
-                        name="currency" 
-                        defaultValue={editingQuotation?.currency || branding?.default_currency || 'TRY'}
-                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-gray-700"
-                      >
-                        <option value="TRY">TRY</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Vergi Senaryosu' : 'Tax Scenario'}</label>
-                      <select 
-                        value={isTaxInclusive ? 'dahil' : 'haric'}
-                        onChange={(e) => setIsTaxInclusive(e.target.value === 'dahil')}
-                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-gray-700"
-                      >
-                        <option value="haric">{lang === 'tr' ? 'Vergi Hariç' : 'Tax Excluded'}</option>
-                        <option value="dahil">{lang === 'tr' ? 'Vergi Dahil' : 'Tax Included'}</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Döviz Kuru' : 'Exchange Rate'}</label>
-                      <input 
-                        name="exchange_rate" 
-                        type="number"
-                        step="0.01"
-                        defaultValue={editingQuotation?.exchange_rate || '1'} 
-                        className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-gray-700" 
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t.items || 'Ürünler'}</h4>
-                  </div>
-                  
-                  <div className="relative">
-                    <AutocompleteSelect
-                      items={products}
-                      displayField="name"
-                      secondaryField="barcode"
-                      type="product"
-                      lang={lang as 'tr' | 'en'}
-                      value={quotationProductSearch}
-                      placeholder={lang === 'tr' ? 'Ürün adı veya barkod ile ara...' : 'Search by product name or barcode...'}
-                      onSelect={(p) => {
-                        if (p) {
-                          handleQuotationItemAdd(p);
-                          setQuotationProductSearch("");
-                        }
-                      }}
-                      onQuickAdd={(search) => {
-                        setQuickProductForm(prev => ({ ...prev, name: search }));
-                        setShowQuickProductModal(true);
-                      }}
-                    />
-                    {/* Old dropdown logic replaced by AutocompleteSelect */}
-                  </div>
-                  
-                  <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
-                    {quotationItems.map((item, idx) => (
-                      <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-gray-900 truncate">{item.product_name}</div>
-                          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{item.barcode || `#${item.product_id}`}</div>
-                        </div>
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                          <div className="flex-1 sm:w-24 space-y-1">
-                            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Birim Fiyat' : 'Unit Price'}</label>
-                            <input 
-                              type="number" 
-                              value={item.unit_price === 0 ? '' : item.unit_price}
-                              onChange={(e) => {
-                                const price = parseFloat(e.target.value) || 0;
-                                const newItems = [...quotationItems];
-                                newItems[idx] = { ...newItems[idx], unit_price: price, total_price: item.quantity * price };
-                                setQuotationItems(newItems);
-                              }}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 transition-all" 
-                            />
-                          </div>
-                          <div className="w-16 space-y-1">
-                            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KDV %' : 'Tax %'}</label>
-                            <input 
-                              type="number" 
-                              step="1"
-                              min="0"
-                              max="99"
-                              value={item.tax_rate === 0 ? '' : Math.round(item.tax_rate)}
-                              onChange={(e) => {
-                                const tax = parseInt(e.target.value) || 0;
-                                const newItems = [...quotationItems];
-                                newItems[idx] = { ...newItems[idx], tax_rate: tax };
-                                setQuotationItems(newItems);
-                              }}
-                              onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-indigo-500 transition-all" 
-                            />
-                          </div>
-                          <div className="w-20 space-y-1">
-                            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{t.quantity}</label>
-                            <input 
-                              type="number" 
-                              min="1"
-                              step="1"
-                              value={item.quantity === 0 ? '' : item.quantity}
-                              onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                              onChange={(e) => {
-                                const qty = Math.floor(Number(e.target.value)) || 0;
-                                const newItems = [...quotationItems];
-                                newItems[idx] = { ...newItems[idx], quantity: qty, total_price: qty * Number(item.unit_price) };
-                                setQuotationItems(newItems);
-                              }}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-indigo-500 transition-all" 
-                            />
-                          </div>
-                          <button 
-                            type="button"
-                            onClick={() => setQuotationItems(quotationItems.filter((_, i) => i !== idx))}
-                            className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors mt-4 sm:mt-0"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-4">
-                  <button 
-                    type="button"
-                    onClick={() => setShowNotes(!showNotes)}
-                    className="flex items-center space-x-2 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
-                  >
-                    <ChevronRight className={`h-4 w-4 transition-transform ${showNotes ? 'rotate-90' : ''}`} />
-                    <span>{t.notes}</span>
-                  </button>
-                  
-                  <div className={`${showNotes ? 'block' : 'hidden'}`}>
-                    <textarea 
-                      name="notes" 
-                      value={quotationNotes}
-                      onChange={(e) => setQuotationNotes(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all h-24 resize-none text-sm" 
-                      placeholder={t.notesPlaceholder}
-                    />
-                  </div>
-                </div>
-
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3 shrink-0">
-                  <button type="button" onClick={() => setShowQuotationModal(false)} className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all">
-                    {t.cancel}
-                  </button>
-                  <button type="submit" className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-                    {editingQuotation ? (lang === 'tr' ? 'Güncelle' : 'Update') : t.save}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {showQuickProductModal && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden"
-            >
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-8">
-                  <div>
-                    <h3 className="text-2xl font-black text-gray-900">{lang === 'tr' ? 'Hızlı Ürün Ekle' : 'Quick Add Product'}</h3>
-                    <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Yeni stok kartı oluşturulacak' : 'New stock card will be created'}</p>
-                  </div>
-                  <button onClick={() => setShowQuickProductModal(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
-                    <X className="h-6 w-6 text-gray-400" />
-                  </button>
-                </div>
-
-                <form onSubmit={handleQuickAddProduct} className="space-y-6">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.productName}</label>
-                    <input 
-                      required
-                      value={quickProductForm.name}
-                      onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.price}</label>
-                      <input 
-                        type="number"
-                        required
-                        value={quickProductForm.price}
-                        onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
-                        onFocus={(e) => e.target.select()}
-                        className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-600" 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'KDV %' : 'Tax %'}</label>
-                      <input 
-                        type="number"
-                        step="1"
-                        min="0"
-                        max="99"
-                        required
-                        value={quickProductForm.tax_rate === '0' ? '0' : (quickProductForm.tax_rate ? Math.round(Number(quickProductForm.tax_rate)) : '')}
-                        onChange={(e) => setQuickProductForm({ ...quickProductForm, tax_rate: e.target.value })}
-                        onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                        onFocus={(e) => e.target.select()}
-                        className="w-[8ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-700" 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.barcode}</label>
-                      <input 
-                        value={quickProductForm.barcode}
-                        onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
-                        maxLength={14}
-                        className="w-[22ch] px-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-4 flex gap-3">
-                    <button type="button" onClick={() => setShowQuickProductModal(false)} className="flex-1 px-6 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all">
-                      {t.cancel}
-                    </button>
-                    <button type="submit" className="flex-1 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
-                      {t.save}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+        showQuotationDetailsModal={showQuotationDetailsModal}
+        setShowQuotationDetailsModal={setShowQuotationDetailsModal}
+        selectedQuotationDetails={selectedQuotationDetails}
+        onDownloadQuotationPDF={onDownloadQuotationPDF}
+        numberToTurkishWords={numberToTurkishWords}
+        quotationPrintRef={quotationPrintRef}
+        
+        showDailyReportModal={showDailyReportModal}
+        setShowDailyReportModal={setShowDailyReportModal}
+        dailyReportData={dailyReportData}
+        reportStartDate={reportStartDate}
+        setReportStartDate={setReportStartDate}
+        reportEndDate={reportEndDate}
+        setReportEndDate={setReportEndDate}
+        fetchDailySalesReport={fetchDailySalesReport}
+        reportLoading={reportLoading}
+        handleDownloadDailyReportExcel={handleDownloadDailyReportExcel}
+        
+        showTransactionModal={showTransactionModal}
+        setShowTransactionModal={setShowTransactionModal}
+        selectedCompany={selectedCompany}
+        companyTransactions={companyTransactions}
+        selectedCurrency={selectedCurrency}
+        setSelectedCurrency={setSelectedCurrency}
+        transactionStartDate={transactionStartDate}
+        setTransactionStartDate={setTransactionStartDate}
+        transactionEndDate={transactionEndDate}
+        setTransactionEndDate={setTransactionEndDate}
+        handleFetchTransactions={handleFetchTransactions}
+        transactionLoading={transactionLoading}
+        handleExportTransactionsPDF={handleExportTransactionsPDF}
+        openingBalances={openingBalances}
+        companies={companyList}
+        
+        setShowAddTransactionModal={setShowAddTransactionModal}
+        handleEditTransaction={handleEditTransaction}
+        handleDeleteTransaction={handleDeleteTransaction}
+        
+        showAddTransactionModal={showAddTransactionModal}
+        newTransactionType={newTransactionType}
+        setNewTransactionType={setNewTransactionType}
+        newTransactionAmount={newTransactionAmount}
+        setNewTransactionAmount={setNewTransactionAmount}
+        newTransactionCurrency={newTransactionCurrency}
+        setNewTransactionCurrency={setNewTransactionCurrency}
+        newTransactionExchangeRate={newTransactionExchangeRate}
+        setNewTransactionExchangeRate={setNewTransactionExchangeRate}
+        newTransactionPaymentMethod={newTransactionPaymentMethod}
+        setNewTransactionPaymentMethod={setNewTransactionPaymentMethod}
+        newTransactionDescription={newTransactionDescription}
+        setNewTransactionDescription={setNewTransactionDescription}
+        newTransactionDate={newTransactionDate}
+        setNewTransactionDate={setNewTransactionDate}
+        handleAddTransaction={handleAddTransaction}
+        
+        showSaleModal={showSaleModal}
+        setShowSaleModal={setShowSaleModal}
+        selectedQuotation={selectedQuotation}
+        handleConfirmSale={handleConfirmSale}
+        isConfirmingSale={isConfirmingSale}
+        dueDate={dueDate}
+        setDueDate={setDueDate}
+        saleNotes={saleNotes}
+        setSaleNotes={setSaleNotes}
+        createCompanyFromSale={createCompanyFromSale}
+        setCreateCompanyFromSale={setCreateCompanyFromSale}
+        
+        showBulkPriceModal={showBulkPriceModal}
+        setShowBulkPriceModal={setShowBulkPriceModal}
+        bulkPriceForm={bulkPriceForm}
+        setBulkPriceForm={setBulkPriceForm}
+        handleBulkPriceSubmit={handleBulkPriceSubmit}
+        products={products}
+      />
+    </DashboardLayout>
   );
 }

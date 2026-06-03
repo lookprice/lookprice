@@ -20,6 +20,7 @@ export const useQuotations = (currentStoreId: number | undefined, fetchProductsD
     handleAddQuotation: (e: React.FormEvent) => actions.handleAddQuotation(e, ui.quotationItems, ui.editingQuotation),
     handleApproveQuotation: actions.handleApproveQuotation,
     handleCancelQuotation: actions.handleCancelQuotation,
-    handleDeleteQuotation: actions.handleDeleteQuotation
+    handleDeleteQuotation: actions.handleDeleteQuotation,
+    handleUpdateQuotationStatus: actions.handleUpdateQuotationStatus
   };
 };
