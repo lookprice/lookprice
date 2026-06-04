@@ -84,9 +84,13 @@ import {
   LegalPage,
 } from "../types";
 import SEO from "../components/SEO";
+import { ProductCard } from "../components/ProductCard";
+import { SectorSpecs } from "../components/SectorSpecs";
+import { ListingFinancingCalculator } from "../components/ListingFinancingCalculator";
+import { PropertyMapTour } from "../components/PropertyMapTour";
+import { ProductDetailModal } from "../components/ProductDetailModal";
 import { StoreLocatorModal } from "../components/StoreLocatorModal";
 import { KktcAiDioramaModal } from "../components/KktcAiDioramaModal";
-import { AIVirtualTourView } from "../components/AIVirtualTourView";
 
 interface BasketItem extends Product {
   quantity: number;
@@ -111,285 +115,9 @@ const formatPrice = (price: number, currency: string, sector: string, storeType?
   return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
 };
 
-const ProductCard: React.FC<{
-  product: Product;
-  store: StoreInfo | null;
-  t: any;
-  addToBasket: (p: Product) => void;
-  onView: (p: Product) => void;
-  primaryColor: string;
-  isLuxury?: boolean;
-  sector?: string;
-}> = ({
-  product,
-  store,
-  t,
-  addToBasket,
-  onView,
-  primaryColor,
-  isLuxury,
-  sector = "general",
-}) => {
-  const { lang } = useLanguage();
-  const [convertedPrice, setConvertedPrice] = useState<number>(product.price);
 
-  useEffect(() => {
-    if (
-      store?.currency &&
-      product.currency &&
-      product.currency !== store.currency
-    ) {
-      getExchangeRate(product.currency, store.currency).then((rate) => {
-        setConvertedPrice(product.price * rate);
-      });
-    } else {
-      setConvertedPrice(product.price);
-    }
-  }, [product.price, product.currency, store?.currency]);
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-white rounded-lg border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
-    >
-      <div className="aspect-[4/5] bg-slate-50 relative overflow-hidden">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="w-full h-full object-contain p-4 bg-white group-hover:scale-105 transition-transform duration-1000"
-            referrerPolicy="no-referrer"
-            onClick={() => onView(product)}
-          />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center text-gray-200"
-            onClick={() => onView(product)}
-          >
-            <Package className="w-16 h-16" />
-          </div>
-        )}
-
-        {/* Sector Specific Mini Specs */}
-        {product.sector_data && (
-          <div className="absolute top-24 left-4 flex flex-col gap-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-            {(sector === "automotive" || product.type === "vehicle") &&
-              product.sector_data.hp && (
-                <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-white/10 tracking-wide">
-                  {product.sector_data.hp} HP
-                </span>
-              )}
-            {sector === "tech" && product.sector_data.ram && (
-              <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-indigo-500/20 tracking-wide">
-                {product.sector_data.ram} RAM
-              </span>
-            )}
-            {product.type === "real_estate" &&
-              product.sector_data.square_meters && (
-                <span className="px-2 py-1 bg-emerald-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-emerald-500/20 tracking-wide">
-                  {product.sector_data.square_meters} m²
-                </span>
-              )}
-          </div>
-        )}
-
-        {/* Product Labels */}
-        {getLabels(product.labels).length > 0 && (
-          <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
-            {getLabels(product.labels).map((label, idx) => (
-              <span
-                key={idx}
-                className="px-3 py-1 bg-white/90 backdrop-blur-md text-[10px] font-semibold tracking-wide rounded-lg shadow-sm"
-                style={{ color: primaryColor }}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
-          <button
-            onClick={() => {
-              if (
-                product.type === "vehicle" ||
-                product.type === "real_estate" ||
-                (product.available_branches &&
-                  product.available_branches.length > 1)
-              ) {
-                onView(product);
-              } else {
-                addToBasket(product);
-              }
-            }}
-            className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
-          >
-            {product.type === "vehicle" || product.type === "real_estate" ? (
-              <>
-                <Eye className="w-4 h-4" />{" "}
-                {lang === "tr" ? "Detayları İncele" : "View Details"}
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />{" "}
-                {product.available_branches &&
-                product.available_branches.length > 1
-                  ? lang === "tr"
-                    ? "Seçenekleri Gör"
-                    : "View Options"
-                  : t.dashboard.addToBasket}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-      <div className="p-6 flex flex-col flex-1">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span
-              className="text-[10px] uppercase tracking-[0.15em] font-semibold"
-              style={{ color: primaryColor }}
-            >
-              {product.type === "real_estate" && lang === "tr"
-                ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
-                : (product.category || t.dashboard.uncategorized)}
-            </span>
-            {product.brand && (
-              <span className="text-[9px] font-bold text-gray-400 tracking-normal">
-                {product.brand}
-              </span>
-            )}
-            {product.branch_name && product.branch_name !== store?.name && (
-              <div className="flex items-center gap-1 mt-0.5">
-                <MapPin className="w-2 h-2 text-gray-400" />
-                <span className="text-[9px] font-bold text-gray-500 tracking-tight">
-                  {product.available_branches &&
-                  product.available_branches.length > 1
-                    ? lang === "tr"
-                      ? `${product.available_branches.length} Şubede Mevcut`
-                      : `Available in ${product.available_branches.length} Branches`
-                    : product.branch_name}
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-yellow-400">
-            <Star className="w-3 h-3 fill-current" />
-            <span className="text-[10px] font-bold text-gray-400">4.8</span>
-          </div>
-        </div>
-
-        <h3
-          className={`font-semibold text-slate-800 line-clamp-2 h-11 mb-3 transition-colors cursor-pointer hover:text-indigo-600 text-[14px] leading-snug tracking-tight ${isLuxury ? "!font-sans !font-medium text-gray-800" : ""}`}
-          onClick={() => onView(product)}
-        >
-          {product.name}
-        </h3>
-
-        {/* Portfolio Card Spec Sheet Row & Grid */}
-        {product.type === "real_estate" && (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 my-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100 text-[10px] font-medium text-slate-600">
-            {product.sector_data?.square_meters ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={`${product.sector_data.square_meters} m² Net`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Net:' : 'Net:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.square_meters} m²</span>
-              </div>
-            ) : null}
-            {product.sector_data?.sqm_gross ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={`${product.sector_data.sqm_gross} m² Brüt`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Brüt:' : 'Gross:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.sqm_gross} m²</span>
-              </div>
-            ) : null}
-            {product.sector_data?.rooms ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.rooms}>
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Oda:' : 'Rooms:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.rooms}</span>
-              </div>
-            ) : null}
-            {product.sector_data?.building_age ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.building_age}>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Yaş:' : 'Age:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.building_age}</span>
-              </div>
-            ) : null}
-            {product.sector_data?.floor ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.floor}>
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Kat:' : 'Floor:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.floor}</span>
-              </div>
-            ) : null}
-            {product.sector_data?.furnished !== undefined ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.furnished ? 'Eşyalı' : 'Boş'}>
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Eşya:' : 'Furn:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">
-                  {product.sector_data.furnished ? (lang === 'tr' ? 'Eşyalı' : 'Furnished') : (lang === 'tr' ? 'Boş' : 'Unfurnished')}
-                </span>
-              </div>
-            ) : null}
-            {product.sector_data?.kktc_title_type ? (
-              <div className="flex items-center gap-1.5 col-span-2 border-t border-slate-100 pt-1.5 mt-0.5 min-w-0" title={product.sector_data.kktc_title_type}>
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Koçan:' : 'Title:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.kktc_title_type}</span>
-              </div>
-            ) : null}
-            {product.reference_no || product.sector_data?.reference_no ? (
-              <div className="flex items-center gap-1.5 col-span-2 border-t border-slate-100 pt-1 mt-0.5 min-w-0" title={product.reference_no || product.sector_data?.reference_no}>
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Ref No:' : 'Ref No:'}</span>
-                <span className="font-extrabold text-slate-600 font-mono truncate">{product.reference_no || product.sector_data?.reference_no}</span>
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        {product.type === "vehicle" && (
-          <div className="flex items-center gap-3 my-3 text-[11px] font-bold text-slate-500 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
-            <span className="flex items-center gap-1.5">
-              <span className="text-rose-600 font-extrabold">
-                {lang === "tr" ? "Yıl" : "Year"}
-              </span>
-              {product.name.match(/\((\d{4})\)/)?.[1] || "---"}
-            </span>
-            {product.description?.includes("KM:") && (
-              <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                <span className="text-sky-600 font-extrabold">KM</span>
-                {product.description.match(/KM:\s*(\d+)/)?.[1] || "---"}
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 font-bold tracking-wide leading-none mb-1">
-              {t.dashboard.price}
-            </span>
-            <span className="text-xsl font-bold text-gray-900">
-              {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
-            </span>
-          </div>
-          <button
-            onClick={() => onView(product)}
-            className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all"
-          >
-            <Eye className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-const SectorSpecs: React.FC<{
+const SectorSpecs_Deprecated: React.FC<{
   sector: string;
   data: any;
   onStartTour?: () => void;
@@ -664,24 +392,6 @@ const SectorSpecs: React.FC<{
           </p>
         </div>
       ) : null}
-      {(data.virtual_tour_url || sector === "real_estate") && (
-        <div className="col-span-2 sm:col-span-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[8px] font-black text-indigo-500 tracking-widest mb-1 uppercase">
-              {lang === "tr" ? "SANAL TUR" : "VIRTUAL TOUR"}
-            </p>
-            <p className="text-sm font-black text-indigo-900 uppercase">
-              {lang === "tr" ? "3D GEZİNTİ MEVCUT" : "3D TOUR AVAILABLE"}
-            </p>
-          </div>
-          <button
-            onClick={() => onStartTour ? onStartTour() : data.virtual_tour_url ? window.open(data.virtual_tour_url, "_blank") : null}
-            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
-          >
-            {lang === "tr" ? "TURU BAŞLAT" : "START TOUR"}
-          </button>
-        </div>
-      )}
     </div>
   );
 
@@ -937,7 +647,7 @@ const DiscoverModal: React.FC<{
   );
 };
 
-const ListingFinancingCalculator: React.FC<{
+const ListingFinancingCalculator_Deprecated: React.FC<{
   price: number;
   currency: string;
   lang: string;
@@ -1180,7 +890,7 @@ const ListingFinancingCalculator: React.FC<{
 const MAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || "";
 console.log("Maps API Key loaded:", !!MAP_KEY ? "Present" : "Missing");
 
-const PropertyMapTour: React.FC<{
+const PropertyMapTour_Deprecated: React.FC<{
   location?: string;
   property: Product;
   lang: string;
@@ -1310,7 +1020,7 @@ const PropertyMapTour: React.FC<{
   );
 };
 
-const ProductDetailModal: React.FC<{
+const ProductDetailModal_Deprecated: React.FC<{
   product: Product | null;
   store: StoreInfo | null;
   t: any;
@@ -1344,7 +1054,7 @@ const ProductDetailModal: React.FC<{
   );
 
   // States for 360° virtual tour mode
-  const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tour360" | "tourMap">(
+  const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tourMap">(
     "gallery",
   );
   const [selectedHotspotIdx, setSelectedHotspotIdx] = useState(0);
@@ -1415,7 +1125,7 @@ const ProductDetailModal: React.FC<{
   useEffect(() => {
     let frameId: number;
     const rotate = () => {
-      if (isOrbiting && activeViewMode === "tour360") {
+      if (isOrbiting) {
         setCurrentAngle((prev) => (prev + orbitSpeed * 0.45) % 360);
       }
       frameId = requestAnimationFrame(rotate);
@@ -1563,7 +1273,7 @@ const ProductDetailModal: React.FC<{
           <X className="w-5 h-5" />
         </button>
 
-        <div className={`${activeViewMode === "tour360" ? "w-full min-h-[85vh] md:min-h-[750px]" : "w-full md:w-1/2 min-h-[50vh] md:aspect-auto md:min-h-[650px]"} bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500`}>
+        <div className="w-full md:w-1/2 min-h-[50vh] md:aspect-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500">
           {/* Share Buttons Overlay */}
           <div className="absolute top-6 left-6 flex items-center gap-2 z-20">
             <button
@@ -1614,9 +1324,8 @@ const ProductDetailModal: React.FC<{
 
           {/* View Mode Switcher Moved and Refined */}
           {store?.store_type === "portfolio" &&
-            (product.type === "vehicle" ||
-              product.type === "real_estate") && (
-              <div className={`absolute top-6 ${activeViewMode === "tour360" ? "right-16 md:right-20" : "right-6"} z-30 transition-all duration-500`}>
+            product.type === "real_estate" && (
+              <div className="absolute top-6 right-6 z-30 transition-all duration-500">
                 <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
                   <button
                     type="button"
@@ -1628,22 +1337,12 @@ const ProductDetailModal: React.FC<{
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveViewMode("tour360")}
-                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tour360" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
+                    onClick={() => setActiveViewMode("tourMap")}
+                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tourMap" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
                   >
-                    <Globe className="w-3 h-3" />
-                    {lang === "tr" ? "360°" : "360°"}
+                    <MapIcon className="w-3 h-3" />
+                    {lang === "tr" ? "HARİTA" : "MAP FLOW"}
                   </button>
-                  {product.type === "real_estate" && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveViewMode("tourMap")}
-                      className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tourMap" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
-                    >
-                      <MapIcon className="w-3 h-3" />
-                      {lang === "tr" ? "HARİTA" : "MAP FLOW"}
-                    </button>
-                  )}
                 </div>
               </div>
             )}
@@ -1655,356 +1354,6 @@ const ProductDetailModal: React.FC<{
                 property={product} 
                 lang={lang} 
               />
-          ) : store?.store_type === "portfolio" &&
-          activeViewMode === "tour360" &&
-          (product.type === "vehicle" || product.type === "real_estate") ? (
-            (() => {
-              if (product.type === "real_estate") {
-                return (
-                  <div className="w-full h-full relative bg-slate-950 p-1 overflow-y-auto">
-                    <AIVirtualTourView property={product} lang={lang} />
-                  </div>
-                );
-              }
-              if ((product as any).virtual_tour_url) {
-                return (
-                  <div className="w-full h-full relative bg-slate-950 flex items-center justify-center">
-                    <iframe 
-                      src={(product as any).virtual_tour_url}
-                      className="w-full h-full border-0"
-                      allow="xr-spatial-tracking; vr; gyroscope; accelerometer; fullscreen; camera"
-                      allowFullScreen
-                    />
-                  </div>
-                );
-              }
-
-              const orbitPins = [
-                {
-                  id: "price",
-                  title:
-                    lang === "tr"
-                      ? "💰 Finansal Değerleme"
-                      : "💰 Financial Valuation",
-                  value: `${product.price ? Math.round(Number(product.price) || 0).toLocaleString('tr-TR') : "---"} ${product.currency || "GBP"}`,
-                  detail:
-                    (product as any).type === "real_estate"
-                      ? lang === "tr"
-                        ? "Tahmini Kira Getirisi: %7.4 | Amortisman: 12 Yıl"
-                        : "Estimated Rent Yield: 7.4% | Amortization: 12 Years"
-                      : lang === "tr"
-                        ? "Değer Koruma Endeksi: %94 (Çok Yüksek)"
-                        : "Value Retention Index: 94% (Very High)",
-                },
-                {
-                  id: "specs",
-                  title:
-                    (product as any).type === "real_estate"
-                      ? lang === "tr"
-                        ? "📏 Konstrüksiyon & Net Alan"
-                        : "📏 Layout & Area"
-                      : lang === "tr"
-                        ? "⚙️ Motor ve Donanım"
-                        : "⚙️ Performance & Spec",
-                  value:
-                    (product as any).type === "real_estate"
-                      ? `${product.sector_data?.square_meters || "120"} m² Net / ${product.sector_data?.sqm_gross || "145"} m² Brüt`
-                      : `${product.sector_data?.year || "2023"} Model | ${product.sector_data?.engine_power || "180"} HP`,
-                  detail:
-                    (product as any).type === "real_estate"
-                      ? lang === "tr"
-                        ? `Plan: ${product.sector_data?.rooms || "2+1"} | Isıtma: Kombi/Klima | Cephe: ${product.sector_data?.facade || "Kuzey"}`
-                        : `Layout: ${product.sector_data?.rooms || "2+1"} | Heating: Heat Pump/AC | Facade: ${product.sector_data?.facade || "North"}`
-                      : lang === "tr"
-                        ? `Şanzıman: Otomatik | Kilometre: 42,000 km | Yakıt: Hibrit`
-                        : `Gearbox: Automatic | Mileage: 42,000 km | Fuel: Hybrid`,
-                },
-                {
-                  id: "legal",
-                  title:
-                    (product as any).type === "real_estate"
-                      ? lang === "tr"
-                        ? "📜 Tapu ve İmar Durumu"
-                        : "📜 Title Deed Type"
-                      : lang === "tr"
-                        ? "🛡️ Ruhsat & Tescil"
-                        : "🛡️ Registry & Transfer",
-                  value:
-                    (product as any).type === "real_estate"
-                      ? `${product.sector_data?.kktc_title_type || "Eşdeğer Koçan"}`
-                      : lang === "tr"
-                        ? "Tescil: Hemen Kimlik Devri"
-                        : "Transfer: Instanly Available",
-                  detail:
-                    lang === "tr"
-                      ? "Tüm ipotek ve haciz sorguları temiz, satışa %100 hazır."
-                      : "Completely cleared of liens, 100% ready for official ownership transfer.",
-                },
-                {
-                  id: "location",
-                  title:
-                    lang === "tr"
-                      ? "📍 Konum & Lokasyon Analizi"
-                      : "📍 Location & Area Analysis",
-                  value: `${product.sector_data?.kktc_region || (product as any).location || "Girne"} / KKTC`,
-                  detail:
-                    (product as any).type === "real_estate"
-                      ? lang === "tr"
-                        ? "Denize 650m | Toplu taşımaya ve süpermarkete yürüme mesafesinde."
-                        : "650m to beach | Steps away from major transport & luxury grocery stores."
-                      : lang === "tr"
-                        ? "Distribütör çıkışlı, periyodik yetkili servis bakımlı."
-                        : "Officially certified, fully documented authorized dealer services.",
-                },
-              ];
-
-              const currentPin = orbitPins[selectedHotspotIdx] || orbitPins[0];
-
-              const handleMouseDown = (e: React.MouseEvent) => {
-                setIsDragging(true);
-                setDragStart({ x: e.clientX, y: currentAngle });
-              };
-
-              const handleMouseMove = (e: React.MouseEvent) => {
-                if (!isDragging) return;
-                const deltaX = e.clientX - dragStart.x;
-                setCurrentAngle((dragStart.y - deltaX * 0.5) % 360);
-              };
-
-              const handleMouseUpOrLeave = () => {
-                setIsDragging(false);
-              };
-
-              const handleTouchStart = (e: React.TouchEvent) => {
-                if (e.touches.length === 0) return;
-                setIsDragging(true);
-                setDragStart({ x: e.touches[0].clientX, y: currentAngle });
-              };
-
-              const handleTouchMove = (e: React.TouchEvent) => {
-                if (!isDragging || e.touches.length === 0) return;
-                const deltaX = e.touches[0].clientX - dragStart.x;
-                setCurrentAngle((dragStart.y - deltaX * 0.5) % 360);
-              };
-
-              // 3D calculation for pin rotations
-              const getPinPosition = (baseAngle: number) => {
-                const angleRad = ((currentAngle + baseAngle) * Math.PI) / 180;
-                const x = 50 + Math.sin(angleRad) * 35; // orbit radius
-                const opacity = Math.cos(angleRad) > 0 ? 1 : 0.25; // hide behind
-                const zIndex = Math.cos(angleRad) > 0 ? 30 : 10;
-                return { x, opacity, zIndex };
-              };
-
-              return (
-                <div
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUpOrLeave}
-                  onMouseLeave={handleMouseUpOrLeave}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleMouseUpOrLeave}
-                  className="w-full h-full bg-slate-950 relative overflow-hidden select-none cursor-grab active:cursor-grabbing flex flex-col justify-between"
-                >
-                  {/* HUD Overlay Header */}
-                  <div className="absolute top-6 left-6 right-6 flex justify-between items-start pointer-events-none z-10">
-                    <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 shadow-xl">
-                      <p className="text-[7px] text-indigo-400 font-extrabold uppercase tracking-widest leading-none mb-1">
-                        {lang === "tr"
-                          ? "DİJİTAL ORBİT MOTORU v2.0"
-                          : "DIGITAL ORBIT ENGINE v2.0"}
-                      </p>
-                      <p className="text-[10px] text-white font-extrabold tracking-tight uppercase">
-                        {lang === "tr"
-                          ? "🌀 3D PARALLAX AKTİF"
-                          : "🌀 3D PARALLAX ACTIVE"}
-                      </p>
-                    </div>
-                    <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 text-right shadow-xl">
-                      <p className="text-[7px] text-slate-400 font-extrabold uppercase tracking-widest leading-none mb-1">
-                        {lang === "tr" ? "UZAYSAL AÇI" : "SPATIAL ANGLE"}
-                      </p>
-                      <p className="text-[10px] text-emerald-400 font-mono font-black leading-none">
-                        ROT: {Math.round((currentAngle + 360) % 360)}°
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 3D Scene viewport parent */}
-                  <div className="absolute inset-0 flex items-center justify-center p-4 pt-16 pb-28 perspective-[1200px]">
-                    {/* Shadow grid floor */}
-                    <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent rotate-12 blur-sm pointer-events-none" />
-                    <div className="absolute bottom-[20%] w-[120%] h-[2px] bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -rotate-12 blur-sm pointer-events-none" />
-
-                    {/* Panoramic 360 View */}
-                    <div
-                      className="absolute inset-0 overflow-hidden bg-slate-900"
-                    >
-                      <div
-                        className="w-full h-full cursor-grab active:cursor-grabbing transition-transform duration-100 ease-linear"
-                        style={{
-                          backgroundImage: `url(${(product as any).images?.[0] || product.image_url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200"})`,
-                          backgroundSize: "cover",
-                          backgroundPosition: `${-currentAngle * 2}px center`,
-                          backgroundRepeat: "repeat-x"
-                        }}
-                      />
-                      
-                      {/* Vignette lighting overlay */}
-                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent to-slate-900/60 pointer-events-none" />
-                    </div>
-
-                    {/* Spatial floating 3D markers */}
-                    <div className="absolute inset-0 pointer-events-none z-10">
-                      {orbitPins.map((spot, idx) => {
-                        const baseAngle = idx * 90; // space pins evenly around 360 circle
-                        const pos = getPinPosition(baseAngle);
-
-                        return (
-                          <button
-                            key={spot.id}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedHotspotIdx(idx);
-                            }}
-                            className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group/spot"
-                            style={{
-                              left: `${pos.x}%`,
-                              top: `${42 + (idx % 2 === 0 ? -12 : 12)}%`,
-                              opacity: pos.opacity,
-                              zIndex: pos.zIndex,
-                              transition: isDragging
-                                ? "none"
-                                : "left 0.1s ease-out, opacity 0.1s ease-out",
-                            }}
-                          >
-                            <span
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedHotspotIdx === idx ? "bg-indigo-600 ring-4 ring-indigo-400/40 text-white scale-110 shadow-lg shadow-indigo-600/40" : "bg-slate-900/90 border border-slate-750 text-slate-300 hover:scale-110"}`}
-                            >
-                              <span className="text-[11px] font-black leading-none">
-                                {idx + 1}
-                              </span>
-                            </span>
-                            <span
-                              className={`absolute mt-10 transition-all text-[8px] font-bold px-2 py-1 rounded-md border leading-none tracking-wide whitespace-nowrap shadow-xl ${selectedHotspotIdx === idx ? "bg-indigo-600 text-white border-indigo-500 scale-100 opacity-100" : "bg-slate-900/95 text-slate-300 border-slate-800 scale-90 opacity-0 group-hover/spot:opacity-100"}`}
-                            >
-                              {spot.title.split(" ")[1] || spot.title}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Simulator Control Panel footer */}
-                  <div className="mt-auto p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800/80 relative z-20 space-y-4">
-                    {/* Dynamic highlighted valuation tag */}
-                    <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-850/60 animate-fade-in">
-                      <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1 leading-none">
-                        {lang === "tr"
-                          ? "RADAR DIAGNOSTİK NOKTASI"
-                          : "RADAR DIAGNOSTIC NODE"}
-                      </p>
-                      <h5 className="text-[12px] font-black text-white mb-1 tracking-tight flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping shrink-0" />
-                        {currentPin.title}
-                      </h5>
-                      <p className="text-[11px] text-indigo-100 font-extrabold mb-1">
-                        {currentPin.value}
-                      </p>
-                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                        {currentPin.detail}
-                      </p>
-                    </div>
-
-                    {/* Operational dials */}
-                    <div className="flex flex-col gap-3 pt-2 border-t border-slate-800/40">
-                      <div className="flex flex-wrap items-center justify-between gap-3 text-white text-xs">
-                        {/* Lighting preset picker */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">
-                            {lang === "tr"
-                              ? "GÜN IŞIĞI SENTEZİ:"
-                              : "LIGHT SYNTHESIS:"}
-                          </span>
-                          <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-850">
-                            {[
-                              {
-                                id: "noon",
-                                label: lang === "tr" ? "☀️ Gündüz" : "☀️ Noon",
-                              },
-                              {
-                                id: "golden",
-                                label:
-                                  lang === "tr"
-                                    ? "🌆 Altın Saat"
-                                    : "🌆 Golden Hour",
-                              },
-                              {
-                                id: "cyber",
-                                label: lang === "tr" ? "🌌 Gece" : "🌌 Night",
-                              },
-                            ].map((preset) => (
-                              <button
-                                key={preset.id}
-                                type="button"
-                                onClick={() => setLighting(preset.id as any)}
-                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${lighting === preset.id ? "bg-indigo-600 text-white shadow" : "text-slate-500 hover:text-slate-300"}`}
-                              >
-                                {preset.label.split(" ")[1]}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Interactive sliders or rotational switches */}
-                        <div className="flex items-center gap-4">
-                          {/* Auto orbit trigger */}
-                          <button
-                            type="button"
-                            onClick={() => setIsOrbiting(!isOrbiting)}
-                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 transition-all ${isOrbiting ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-slate-950 text-slate-500 border-slate-850"}`}
-                          >
-                            <RefreshCw
-                              className={`w-3 h-3 ${isOrbiting ? "animate-spin" : ""}`}
-                            />
-                            {isOrbiting
-                              ? lang === "tr"
-                                ? "Oto Spin"
-                                : "Auto Orbit"
-                              : lang === "tr"
-                                ? "Durduruldu"
-                                : "Paused"}
-                          </button>
-
-                          {/* Zoom depth slider */}
-                          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-850">
-                            <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">
-                              DOLLY:
-                            </span>
-                            <input
-                              type="range"
-                              min="70"
-                              max="140"
-                              value={dollyDistance}
-                              onChange={(e) =>
-                                setDollyDistance(Number(e.target.value))
-                              }
-                              className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                            />
-                            <span className="text-[8px] font-bold font-mono text-indigo-400">
-                              {dollyDistance}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()
           ) : productImages.length > 0 ? (
             <div className="w-full h-full flex flex-col justify-between bg-white relative p-4 pb-6">
               {/* Main Viewport Box */}
@@ -2086,8 +1435,7 @@ const ProductDetailModal: React.FC<{
             </div>
           )}
         </div>
-        {activeViewMode !== "tour360" && (
-          <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
+        <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
           <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 items-center">
             {getLabels(product.labels).map((label, idx) => (
               <span
@@ -2186,7 +1534,6 @@ const ProductDetailModal: React.FC<{
             category={product.category}
             name={product.name}
             description={product.description}
-            onStartTour={() => setActiveViewMode("tour360")}
           />
 
           {((store?.store_type === "portfolio" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (
@@ -2318,7 +1665,6 @@ const ProductDetailModal: React.FC<{
             </button>
           )}
         </div>
-        )}
       </motion.div>
 
       {/* Lightbox / Fullscreen Image Viewer Modal Overlay */}

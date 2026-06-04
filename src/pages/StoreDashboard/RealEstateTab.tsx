@@ -82,6 +82,24 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [matchingProperty, setMatchingProperty] = useState<any>(null);
 
+  // Missing States for CRM Overlay & Hub tabs
+  const [activeHubTab, setActiveHubTab] = useState<string>('matches');
+  const [aiAdPlatform, setAiAdPlatform] = useState<string>('portal');
+  const [buyerOfferAmount, setBuyerOfferAmount] = useState<number | "">("");
+  const [negotiationNotes, setNegotiationNotes] = useState<string>("");
+  const [newFeedbackReview, setNewFeedbackReview] = useState<string>("");
+  const [newFeedbackRating, setNewFeedbackRating] = useState<number>(5);
+  const [selectedSplitBranch, setSelectedSplitBranch] = useState<any>(null);
+  const [splitNegotiatedAgent, setSplitNegotiatedAgent] = useState<string>("");
+  const [escrowTimeline, setEscrowTimeline] = useState<any[]>([
+    { id: "e1", label: "Kaparo Depozito Yatırımı", completed: true, date: "2026-06-02" },
+    { id: "e2", label: "Koçan / Hukuki İnceleme", completed: true, date: "2026-06-03" },
+    { id: "e3", label: "Yabancı Satın Alım İznine Başvuru", completed: false, date: "Bekliyor" },
+    { id: "e4", label: "Devlet Harç ve Damga Pulu Ödemesi", completed: false, date: "Bekliyor" },
+    { id: "e5", label: "Tapu Sicil Devir Mukavelesi İmza", completed: false, date: "Bekliyor" }
+  ]);
+  const cmaElasticityPrice = matchingProperty ? Math.round((matchingProperty.price || 0) * 0.95) : 0;
+
   const [complianceChecked, setComplianceChecked] = useState<Record<string, boolean>>({});
   const [splitCommissionPercentage, setSplitCommissionPercentage] = useState(3);
   const [splitRatio, setSplitRatio] = useState(50);
@@ -126,18 +144,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   
   const [newFeedbackAgent, setNewFeedbackAgent] = useState("");
   const [newFeedbackStatus, setNewFeedbackStatus] = useState("pending");
-  const [newFeedbackReview, setNewFeedbackReview] = useState("");
-  const [newFeedbackRating, setNewFeedbackRating] = useState(5);
-  const [activeHubTab, setActiveHubTab] = useState("overview");
-  const [buyerOfferAmount, setBuyerOfferAmount] = useState(0);
-  const [negotiationNotes, setNegotiationNotes] = useState("");
-  const [cmaElasticityPrice, setCmaElasticityPrice] = useState(0);
-  const [virtualStagingStyle, setVirtualStagingStyle] = useState("");
-  const [renovationState, setRenovationState] = useState("");
-  const [selectedSplitBranch, setSelectedSplitBranch] = useState("");
-  const [splitNegotiatedAgent, setSplitNegotiatedAgent] = useState("");
-  const [escrowTimeline, setEscrowTimeline] = useState<any[]>([]);
-  const [aiAdPlatform, setAiAdPlatform] = useState("facebook");
 
   const uniqueRegions = Array.from(new Set(safeProperties.map(p => p.kktc_region).filter(Boolean))) as string[];
 
@@ -515,29 +521,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           <Printer className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => { setActiveTourProperty(property); setIsTourModalOpen(true); }}
-                          className="flex items-center justify-center p-2.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl transition-all shadow active:scale-95 border border-emerald-700 shrink-0"
-                          title="Gezi Düzenle"
-                        >
-                          <Calendar className="w-4 h-4" />
-                        </button>
-                        <button 
-                         onClick={() => {
-                           if (onSave) {
-                             const isLocked = !!property.reserved_by_branch;
-                             onSave({
-                               ...property,
-                               reserved_by_branch: isLocked ? '' : (property.branch_name || 'Merkez Ofis'),
-                               reservation_notes: isLocked ? '' : (lang === 'tr' ? 'Hızlı Kilit (İşlem Bekliyor)' : 'Fast Lock (Pending)')
-                             });
-                           }
-                         }}
-                         className={`flex items-center justify-center p-2.5 rounded-xl transition-all border shrink-0 ${property.reserved_by_branch ? 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100' : 'text-slate-400 border-slate-100 hover:text-indigo-600 hover:bg-slate-100'}`}
-                         title={property.reserved_by_branch ? (lang === 'tr' ? 'Kilidi Kaldır' : 'Unlock') : (lang === 'tr' ? 'Hızlı Kilitle' : 'Quick Lock')}
-                        >
-                          {property.reserved_by_branch ? <Lock className="w-4 h-4" /> : <FolderLock className="w-4 h-4" />}
-                        </button>
-                        <button 
                           onClick={() => { setSelectedProperty(property); setIsModalOpen(true); }}
                           className="flex items-center justify-center p-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 shrink-0"
                           title="Düzenle"
@@ -601,18 +584,15 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                    `• ${matchingProperty.room_count} Lüks Tasarımlı Oda Sayısı\n` +
                    `• Tapu Statüsü: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n` +
                    `• Isınma ve Donanım: Lüks iklimlendirme sistemleri hazır\n\n` +
-                   `📍 Konum Avantajları:\n` +
-                   `• Yatırım geri dönüş (ROI) rasyosu bölge ortalamasının üstündedir.\n` +
-                   `${isUnderpriced ? `• Bölge metrekare ortalamasından %${diffPercent} daha avantajlı fiyat! Fırsat mülküdür.\n` : ''}` +
-                   `• Mağaza, deniz hattı ve sosyal yaşam mekanlarına yürüme mesafesinde.\n\n` +
-                   `📞 LookPrice çok şubeli ağ güvencesiyle detaylı sunum, dosya inceleme ve 3D sanal tur gezintisi için hemen iletişime geçin.`;
+                   `📍 Konum: Mağaza, deniz hattı ve sosyal yaşam mekanlarına yürüme mesafesinde.\n\n` +
+                   `📞 LookPrice çok şubeli ağ güvencesiyle detaylı sunum, dosya inceleme ve mülk yerinde sunumu için hemen iletişime geçin.`;
           } else if (aiAdPlatform === 'social') {
             return `🔥 Göz Alıcı Yatırım Lokasyonu: Kuzey Kıbrıs / ${matchingProperty.kktc_region || "Girne"} 🔥\n\n` +
                    `Uluslararası yatırımcıların gözdesi ${matchingProperty.location} bölgesindeki bu muhteşem ${matchingProperty.type} yeni sahibini arıyor!\n\n` +
                    `📈 Bölgesel Analiz: £${formatNumberVal(regionalAverage)}/m²\n` +
                    `🎯 Fırsat Fiyatı: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)} (${formatNumberVal(matchingProperty.square_meters)} m²)\n` +
                    `📜 Tapu Güvencesi: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
-                   `Sadece 3D sanal turumuzla mülke girmeden önce her detayını kristal berraklığında gezin: ${matchingProperty.virtual_tour_url || 'lookprice-3d-tour'} \n\n` +
+                   `Detaylı görsel kataloğumuz ve mülk raporuna profilimizden hemen ulaşabilirsiniz.\n\n` +
                    `💡 Daha fazla bilgi için hemen DM veya profil bağlantımızdan bize ulaşın! #kktcemlak #kibrisyatirim #realestate #lookpricehub`;
           } else {
             return `Merhaba Sayın Yatırımcımız,\n\n` +
@@ -621,8 +601,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                    `🏡 Mülk Tipi: ${formatNumberVal(matchingProperty.square_meters)} m² Net - ${matchingProperty.room_count} - ${matchingProperty.type}\n` +
                    `💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n` +
                    `🔑 Koçan: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
-                   `Mülkü fiziksel olarak ziyaret etmeden önce şubemizce onaylanmış 3D dijital ikizini gezerek önizleme gerçekleştirebilirsiniz:\n` +
-                   `🔗 Sanal Tur: ${matchingProperty.virtual_tour_url || "lookprice.com/virtual-tour-active"}\n\n` +
+                   `Mülkle ilgili detaylı görseller ve resmî mülk fizibilite raporuna ulaşmak ve incelemek için bizimle dilediğiniz an iletişime geçebilirsiniz.\n\n` +
                    `Portföy sorumlumuz ile öncelikli randevu ayarlamak için bu mesaja dönüş yapabilirsiniz. Saygılarımızla.`;
           }
         };
@@ -714,9 +693,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         <h5 className="font-extrabold text-sm text-slate-800">Eşleşen Yatırımcı Adayları</h5>
                         <p className="text-[11px] text-slate-400">Yatırımcı bütçesi, metrekare ve Kıbrıs koçan beklentilerine göre anlık uyum testi.</p>
                       </div>
-                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase">
-                        AI MATCHER ETKİN
-                      </span>
                     </div>
 
                     <div className="space-y-3">
@@ -755,7 +731,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                               <button
                                 onClick={() => {
                                   const subject = encodeURIComponent(`LookPrice Yatırım Teklifi - ${matchingProperty.title}`);
-                                  const body = encodeURIComponent(`Sayın ${buyer.name},\n\nİstemiş olduğunuz kriterlere uyum sağlayan yeni portföyümüzü incelemenize sunmaktan memnuniyet duyarız:\n\nMülk Başlığı: ${matchingProperty.title}\nKonum: ${matchingProperty.location}\nLüks Detay: ${formatNumberVal(matchingProperty.square_meters)} m² / ${matchingProperty.room_count}\n\n3D Sanal Tur Linki:\n${matchingProperty.virtual_tour_url || 'https://lookprice.me/virtual-tour'}\n\nDetaylı bilgi için şubemizle iletişime geçebilirsiniz.`);
+                                  const body = encodeURIComponent(`Sayın ${buyer.name},\n\nİstemiş olduğunuz kriterlere uyum sağlayan yeni portföyümüzü incelemenize sunmaktan memnuniyet duyarız:\n\nMülk Başlığı: ${matchingProperty.title}\nKonum: ${matchingProperty.location}\nLüks Detay: ${formatNumberVal(matchingProperty.square_meters)} m² / ${matchingProperty.room_count}\n\nDetaylı bilgi için şubemizle iletişime geçebilirsiniz.`);
                                   window.open(`mailto:${buyer.email}?subject=${subject}&body=${body}`, '_blank');
                                 }}
                                 className="bg-slate-50 hover:bg-indigo-50 text-indigo-700 font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl border border-indigo-100 transition-all flex items-center gap-1.5"
@@ -765,7 +741,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                               </button>
                               <button
                                 onClick={() => {
-                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, LookPrice Emlak ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n\n3D İç Mekan Gezintisi:\n${matchingProperty.virtual_tour_url || 'lookprice-3d'}`);
+                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, LookPrice Emlak ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}`);
                                   window.open(`https://wa.me/${buyer.phone.replace(/\s+/g, '')}?text=${text}`, '_blank');
                                 }}
                                 className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
@@ -1163,10 +1139,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                             ➕ Bekleme Listesine Alıcı Ekle
                           </button>
                         </div>
-
                       </div>
                     </div>
-
                   </div>
                 )}
 
@@ -1196,7 +1170,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           <input 
                             type="number" 
                             className="p-2 w-full font-black text-indigo-700 bg-white border border-indigo-200 rounded-xl focus:outline-indigo-600 shadow-sm"
-                            value={buyerOfferAmount || Math.round((matchingProperty.price || 0) * 0.9)}
+                            value={buyerOfferAmount || ""}
                             onChange={(e) => setBuyerOfferAmount(Number(e.target.value))}
                           />
                           <p className="text-[9px] text-indigo-600 mt-1">Önerilen varsayılan: Liste fiyatının %90'ı</p>
@@ -1221,9 +1195,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         const discountAmt = initialPriceVal - currentOfferVal;
                         const discountPercent = initialPriceVal > 0 ? Math.round((discountAmt / initialPriceVal) * 100) : 0;
                         const isUnderBudget = discountPercent < 0; // offers higher than list price
-                        
-                        // Sweet spot calculation (50/50 division rule)
-                        const suggestedCounter = Math.round(initialPriceVal - (discountAmt / 2));
 
                         // Generate warnings
                         let warningTitle = "";
@@ -1240,7 +1211,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           toneStyle = "bg-rose-50 border-rose-500 text-rose-950";
                         } else if (discountPercent > 8 && discountPercent < 20) {
                           warningTitle = "⚖️ DENGELİ ALAN: STANDART PAZARLIK (%9 - %19)";
-                          warningDesc = "Bu teklif, pazar şartlarında makul bir açılıştır. Alıcı sizin adınıza bir karşı mukavele bekliyor. Orta nokta kuralını (50/50 Kuralı) kullanarak aşağıdaki önerilen fiyata yönelin. Mülkü elde tutmanın maliyeti (holding costs) göz önüne alındığında anlaşma karlı tescillenecektir.";
+                          warningDesc = "Bu teklif, pazar şartlarında makul bir açılıştır. Alıcı sizin adınıza bir karşı mukavele bekliyor. Mülkü elde tutmanın maliyeti (holding costs) göz önüne alındığında anlaşma karlı tescillenecektir.";
                           toneStyle = "bg-amber-50 border-amber-500 text-amber-950";
                         } else {
                           warningTitle = "💚 MÜKEMMEL ALAN: SATIŞA ÇOK YAKIN (%1 - %8)";
@@ -1249,47 +1220,40 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         }
 
                         return (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                          <div className="space-y-4 pt-2">
                             
                             {/* DECISION ANALYSIS CARD */}
-                            <div className={`p-5 rounded-[2rem] border-l-8 ${toneStyle} space-y-3`}>
-                              <span className="text-[10px] font-black uppercase tracking-widest block leading-none font-sans">RASYONEL PAZARLIK ÖNGÖRÜSÜ</span>
-                              <h6 className="font-extrabold text-sm leading-tight">{warningTitle}</h6>
-                              <p className="text-[11px] leading-relaxed font-medium font-sans">
+                            <div className={`p-6 rounded-[2rem] border-l-8 ${toneStyle} space-y-4 shadow-sm`}>
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                                <div>
+                                  <span className="text-[10px] font-black uppercase tracking-widest block leading-none font-sans">RASYONEL PAZARLIK ÖNGÖRÜSÜ</span>
+                                  <h6 className="font-extrabold text-base leading-tight mt-1">{warningTitle}</h6>
+                                </div>
+                                <div className="text-left sm:text-right text-[10.5px] font-bold">
+                                  <span>İskonto Miktarı:</span> <span className="underline block text-base font-black font-mono mt-0.5">{matchingProperty.currency} {formatNumberVal(discountAmt)} ({discountPercent}%)</span>
+                                </div>
+                              </div>
+                              
+                              <p className="text-[12px] leading-relaxed font-semibold font-sans opacity-95">
                                 {warningDesc}
                               </p>
                               
-                              <div className="pt-2 border-t border-dashed border-current/20 text-[10.5px] font-bold">
-                                <span>İskonto Miktarı:</span> <span className="underline">{matchingProperty.currency} {formatNumberVal(discountAmt)} ({discountPercent}%)</span>
-                              </div>
-                            </div>
-
-                            {/* SMART COUNTER PROPOSAL */}
-                            <div className="bg-slate-900 text-slate-100 p-5 rounded-[2rem] flex flex-col justify-between shadow">
-                              <div className="space-y-2">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block font-black">AI SMART SWEET-SPOT</span>
-                                <h6 className="font-extrabold text-white text-base">Tavsiye Edilen Karşı Teklif Değeri</h6>
-                                <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
-                                  Ortak hisseli pazarlık kütüğüne göre masanın karlı ve hızlı tescili için %50 orta noktadır:
-                                </p>
-                                <div className="text-2xl font-black text-indigo-300 py-1 font-mono">
-                                  {matchingProperty.currency} {formatNumberVal(suggestedCounter)}
+                              <div className="pt-4 border-t border-dashed border-current/25 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                                <div className="text-[11px] font-bold opacity-90">
+                                  Teklif Edilen Değer: <span className="font-mono font-black text-xs">{matchingProperty.currency} {formatNumberVal(currentOfferVal)}</span>
                                 </div>
-                              </div>
-
-                              <div className="pt-4 border-t border-slate-800">
                                 <button
                                   onClick={() => {
                                     setContractProperty({
                                       ...matchingProperty,
                                       title: `[PAZARLIK PROTOKOLÜ] ` + matchingProperty.title,
-                                      price: suggestedCounter,
+                                      price: currentOfferVal,
                                       kktc_title_type: `Pazarlıklı Karşı Teklif Ön Anlaşması (Alıcı Teklifi: ${matchingProperty.currency} ${formatNumberVal(currentOfferVal)})`
                                     } as any);
                                     setIsContractModalOpen(true);
                                     setMatchingProperty(null);
                                   }}
-                                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[11px] uppercase rounded-xl transition-all shadow"
+                                  className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase rounded-xl transition-all shadow"
                                 >
                                   ✍️ Karşı Teklif Mukavelesi Hazırla ve Yazdır
                                 </button>
