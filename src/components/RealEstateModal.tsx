@@ -56,6 +56,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     currency: 'GBP', // default to GBP for KKTC marketing style
     type: 'residence',
     subtype: '',
+    listing_intent: 'sale', // Default to sale
+    deposit: 0,
     status: 'active',
     location: '',
     description: '',
@@ -236,6 +238,20 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         {/* Form Body - Scrollable */}
         <div className="overflow-y-auto space-y-6 pr-2 pb-24 hide-scrollbar flex-1">
           
+          {/* Intent Toggle */}
+          <div className="grid grid-cols-2 gap-4">
+             <button
+                type="button"
+                onClick={() => setFormData({...formData, listing_intent: 'sale'})}
+                className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 font-black transition-all ${formData.listing_intent === 'sale' ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-500'}`}
+             >🏠 SATILIK (SALE)</button>
+             <button
+                type="button"
+                onClick={() => setFormData({...formData, listing_intent: 'rent'})}
+                className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 font-black transition-all ${formData.listing_intent === 'rent' ? 'border-sky-600 bg-sky-50 text-sky-800' : 'border-slate-200 text-slate-500'}`}
+             >🔑 KİRALIK (RENT)</button>
+          </div>
+
           {/* Bölge ve Pilot Alan Başlığı */}
           <div className="bg-gradient-to-r from-indigo-50 to-emerald-50 p-5 rounded-2xl border border-indigo-100/50 space-y-3">
             <div className="flex justify-between items-center flex-wrap gap-2">
@@ -577,7 +593,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             <h4 className="text-sm font-black text-slate-800 border-l-4 border-slate-800 pl-2">Detaylı Metrikler & Konum Bilgileri</h4>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {!(formData.status === 'rented') && (
+              {formData.listing_intent === 'sale' && (
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1">Ada / Parsel</label>
                   <input
@@ -587,6 +603,22 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     value={formData.block_plot || ''}
                     onChange={(e) => setFormData({...formData, block_plot: e.target.value})}
                   />
+                </div>
+              )}
+
+              {formData.listing_intent === 'rent' && (
+                <div className="grid grid-cols-2 gap-4 col-span-2 md:col-span-4 bg-amber-50 p-4 rounded-xl border border-amber-100">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Depozito Tutarı</label>
+                    <input type="number" className="w-full p-3 border rounded-xl text-sm" value={formData.deposit || 0} onChange={(e) => setFormData({...formData, deposit: Number(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Ödeme Periyodu</label>
+                    <select className="w-full p-3 border rounded-xl text-sm" value={formData.billing_period || 'monthly'} onChange={(e) => setFormData({...formData, billing_period: e.target.value as 'monthly'|'yearly'})}>
+                        <option value="monthly">Aylık</option>
+                        <option value="yearly">Yıllık</option>
+                    </select>
+                  </div>
                 </div>
               )}
 

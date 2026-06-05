@@ -34,6 +34,7 @@ import autoTable from 'jspdf-autotable';
 import { useReactToPrint } from 'react-to-print';
 
 import { AutocompleteSelect } from "./AutocompleteSelect";
+import QuickRegisterModal from "./QuickRegisterModal";
 
 export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
   const storeId = initialStoreId || currentStoreId;
@@ -223,14 +224,16 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [editTaxOffice, setEditTaxOffice] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [showQuickRegisterModal, setShowQuickRegisterModal] = useState(false);
+  const [registerType, setRegisterType] = useState<'customer' | 'company'>('customer');
   const [lastEditedId, setLastEditedId] = useState<number | null>(null);
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ 
-    name: "", 
-    price: "", 
-    barcode: "", 
+  const [quickProductForm, setQuickProductForm] = useState({
+    name: "",
+    price: "",
+    barcode: "",
     tax_rate: String(branding?.default_tax_rate ?? 20),
-    currency: branding?.default_currency || 'TRY' 
+    currency: branding?.default_currency || 'TRY'
   });
 
   const isTr = lang === 'tr';
@@ -1064,8 +1067,24 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         </div>
       </div>
 
-      {/* Invoices List */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <QuickRegisterModal 
+        isOpen={showQuickRegisterModal} 
+        onClose={() => setShowQuickRegisterModal(false)}
+        type={registerType}
+        api={api}
+        isTr={isTr}
+        onSave={(data: any) => {
+            if (registerType === 'customer') {
+                setCustomers(prev => [...prev, data]);
+                setCustomerId(data.id);
+                setCustomerSearch(data.name);
+            } else {
+                setCompanies(prev => [...prev, data]);
+                setCompanyId(data.id);
+                setCustomerSearch(data.title);
+            }
+        }}
+      />
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -2166,7 +2185,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           </div>
         )}
       </AnimatePresence>
-    </div>
   </>
 );
 }
