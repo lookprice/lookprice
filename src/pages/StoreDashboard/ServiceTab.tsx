@@ -451,7 +451,10 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
   const handleEdit = async (record: ServiceRecord) => {
     try {
       const fullRecord = await api.getServiceRecord(record.id, storeId);
-      setEditingRecord(fullRecord);
+      setEditingRecord({
+        ...fullRecord,
+        currency: fullRecord.currency || storeInfo?.default_currency || 'TRY'
+      });
       setServiceItems((fullRecord.items || []).map((item: any) => ({
         ...item,
         quantity: Math.floor(Number(item.quantity) || 0),
@@ -659,7 +662,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
           {!isViewer && (
             <button
               onClick={() => {
-                setEditingRecord({ status: 'received' });
+                setEditingRecord({ status: 'received', currency: storeInfo?.default_currency || 'TRY' });
                 setServiceItems([]);
                 setShowModal(true);
               }}
@@ -935,20 +938,37 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                     />
                   </div>
                   <div className="space-y-3">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.status}</label>
-                    <select
-                      value={editingRecord?.status || 'received'}
-                      onChange={(e) => setEditingRecord(prev => ({ ...prev!, status: e.target.value as any }))}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    >
-                      <option value="received">{t.service_tab.statuses.received}</option>
-                      <option value="diagnosing">{t.service_tab.statuses.diagnosing}</option>
-                      <option value="waiting_approval">{t.service_tab.statuses.waitingApproval}</option>
-                      <option value="repairing">{t.service_tab.statuses.repairing}</option>
-                      <option value="ready">{t.service_tab.statuses.ready}</option>
-                      <option value="delivered">{t.service_tab.statuses.delivered}</option>
-                      <option value="cancelled">{t.service_tab.statuses.cancelled}</option>
-                    </select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.service_tab.status}</label>
+                        <select
+                          value={editingRecord?.status || 'received'}
+                          onChange={(e) => setEditingRecord(prev => ({ ...prev!, status: e.target.value as any }))}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        >
+                          <option value="received">{t.service_tab.statuses.received}</option>
+                          <option value="diagnosing">{t.service_tab.statuses.diagnosing}</option>
+                          <option value="waiting_approval">{t.service_tab.statuses.waitingApproval}</option>
+                          <option value="repairing">{t.service_tab.statuses.repairing}</option>
+                          <option value="ready">{t.service_tab.statuses.ready}</option>
+                          <option value="delivered">{t.service_tab.statuses.delivered}</option>
+                          <option value="cancelled">{t.service_tab.statuses.cancelled}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{isTr ? "Para Birimi" : "Currency"}</label>
+                        <select
+                          value={editingRecord?.currency || storeInfo?.default_currency || 'TRY'}
+                          onChange={(e) => setEditingRecord(prev => ({ ...prev!, currency: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-indigo-700"
+                        >
+                          <option value="TRY">TRY (₺)</option>
+                          <option value="USD">USD ($)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="GBP">GBP (£)</option>
+                        </select>
+                      </div>
+                    </div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mt-4 mb-1">{t.service_tab.notesInternal}</label>
                     <textarea
                       value={editingRecord?.notes || ''}
@@ -1123,7 +1143,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                 <div className="text-right">
                   <p className="text-xs font-bold text-slate-400 uppercase">{t.service_tab.totalAmount}</p>
                   <p className="text-2xl font-black text-slate-900">
-                    {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: editingRecord?.currency || 'TRY' })}
+                    {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: (editingRecord?.currency || storeInfo?.default_currency || 'TRY').toUpperCase() })}
                   </p>
                 </div>
                 <div className="flex gap-3">

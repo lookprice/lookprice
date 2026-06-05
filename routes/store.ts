@@ -5154,13 +5154,13 @@ router.get("/service-records/:id", async (req: any, res) => {
 
 router.post("/service-records", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
-  const { customer_name, customer_phone, device_model, device_serial, issue_description, notes, items } = req.body;
+  const { customer_name, customer_phone, device_model, device_serial, issue_description, notes, items, currency } = req.body;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const recordRes = await client.query(
-      "INSERT INTO service_records (store_id, customer_name, customer_phone, device_model, device_serial, issue_description, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-      [storeId, customer_name, customer_phone, device_model, device_serial, issue_description, notes]
+      "INSERT INTO service_records (store_id, customer_name, customer_phone, device_model, device_serial, issue_description, notes, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+      [storeId, customer_name, customer_phone, device_model, device_serial, issue_description, notes, currency || 'TRY']
     );
     const serviceId = recordRes.rows[0].id;
     let totalAmount = 0;
@@ -5187,13 +5187,13 @@ router.post("/service-records", async (req: any, res) => {
 router.put("/service-records/:id", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId) : req.user.store_id;
   const { id } = req.params;
-  const { customer_name, customer_phone, device_model, device_serial, issue_description, notes, status, items } = req.body;
+  const { customer_name, customer_phone, device_model, device_serial, issue_description, notes, status, items, currency } = req.body;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await client.query(
-      "UPDATE service_records SET customer_name = $1, customer_phone = $2, device_model = $3, device_serial = $4, issue_description = $5, notes = $6, status = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 AND store_id = $9",
-      [customer_name, customer_phone, device_model, device_serial, issue_description, notes, status, id, storeId]
+      "UPDATE service_records SET customer_name = $1, customer_phone = $2, device_model = $3, device_serial = $4, issue_description = $5, notes = $6, status = $7, currency = $8, updated_at = CURRENT_TIMESTAMP WHERE id = $9 AND store_id = $10",
+      [customer_name, customer_phone, device_model, device_serial, issue_description, notes, status, currency || 'TRY', id, storeId]
     );
     let totalAmount = 0;
     if (items && Array.isArray(items)) {

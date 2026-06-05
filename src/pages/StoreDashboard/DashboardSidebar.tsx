@@ -64,63 +64,6 @@ export const DashboardSidebar = ({
     settings: false
   });
 
-  const [driveConnected, setDriveConnected] = useState(false);
-  const [driveLoading, setDriveLoading] = useState(false);
-
-  const fetchDriveSettings = async () => {
-    try {
-      const res = await api.getGoogleDriveSettings();
-      if (res) {
-        setDriveConnected(res.connected);
-      }
-    } catch (e) {
-      console.error("Error fetching drive settings in sidebar:", e);
-    }
-  };
-
-  useEffect(() => {
-    fetchDriveSettings();
-    window.addEventListener("google-drive-connected", fetchDriveSettings);
-    return () => {
-      window.removeEventListener("google-drive-connected", fetchDriveSettings);
-    };
-  }, []);
-
-  const handleConnectDrive = async () => {
-    setDriveLoading(true);
-    try {
-      const res = await api.getGoogleDriveAuthUrl();
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
-      
-      const popup = window.open(
-        res.url,
-        "Google Drive Bağlantısı",
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-      
-      const checkPopup = setInterval(async () => {
-        if (!popup || popup.closed) {
-          clearInterval(checkPopup);
-          const verifyRes = await api.getGoogleDriveSettings();
-          const isConnected = !!verifyRes?.connected;
-          setDriveConnected(isConnected);
-          setDriveLoading(false);
-          if (isConnected) {
-            toast.success("Google Drive başarıyla bağlandı!");
-            // Notify SettingsTab via event
-            window.dispatchEvent(new Event("google-drive-connected"));
-          }
-        }
-      }, 1000);
-    } catch (error) {
-      setDriveLoading(false);
-      toast.error("Google Drive bağlantısı kurulamadı.");
-    }
-  };
-
   return (
     <>
       {/* Mobile Sidebar Overlay */}
@@ -243,57 +186,6 @@ export const DashboardSidebar = ({
                 );
               }
             })}
-
-            {/* Google Drive Status Integration Card */}
-            <div className="pt-2 mt-4 px-2">
-              <div className={`p-3 rounded-2xl border transition-all duration-300 ${
-                driveConnected 
-                  ? 'bg-emerald-950/20 border-emerald-500/10 shadow-emerald-950/5' 
-                  : 'bg-amber-950/10 border-amber-500/10 hover:bg-amber-950/20 cursor-pointer shadow-amber-950/5'
-              }`}
-              onClick={!driveConnected ? handleConnectDrive : undefined}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    <div className={`p-1.5 rounded-xl shrink-0 ${
-                      driveConnected ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
-                    }`}>
-                      {driveConnected ? <Cloud className="h-4 w-4 animate-pulse text-emerald-400" /> : <CloudOff className="h-4 w-4 text-amber-400" />}
-                    </div>
-                    {!desktopSidebarCollapsed && (
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-300 tracking-tight leading-none truncate">
-                          {driveConnected ? "Google Drive Bulut" : "Yedekleme Bulutu"}
-                        </p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider block mt-1 leading-none">
-                          {driveConnected ? (
-                            <span className="text-emerald-400 flex items-center gap-1 font-extrabold">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
-                              Bağlı_Bulut
-                            </span>
-                          ) : (
-                            <span className="text-amber-400 font-extrabold">Bağlantı_Yok</span>
-                          )}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {!desktopSidebarCollapsed && !driveConnected && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleConnectDrive();
-                      }}
-                      disabled={driveLoading}
-                      className="px-2 py-1 bg-amber-500 text-slate-950 text-[9px] font-black rounded-lg hover:bg-amber-400 transition-colors uppercase shrink-0"
-                    >
-                      {driveLoading ? "..." : "Bağla"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
 
             {/* Cockpit Status Mini HUD */}
             {!desktopSidebarCollapsed && (

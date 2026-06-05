@@ -30,7 +30,8 @@ import {
   CircleDot,
   Zap,
   Sparkles,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Cloud
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "@/translations";
@@ -87,6 +88,14 @@ const ProductsTab = ({
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
+  const [driveConnected, setDriveConnected] = useState(false);
+  const [isBackupLoading, setIsBackupLoading] = useState(false);
+
+  useEffect(() => {
+    api.getGoogleDriveSettings().then(res => {
+      setDriveConnected(!!res?.connected);
+    }).catch(err => console.error("Error fetching drive connected status in ProductsTab", err));
+  }, []);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [marketplaceFilter, setMarketplaceFilter] = useState("all"); // all, listed, not_listed
   const [includeZeroStock, setIncludeZeroStock] = useState(false);
@@ -473,6 +482,33 @@ const ProductsTab = ({
                 >
                   <Download className="h-4.5 w-4.5" />
                 </button>
+
+                {driveConnected && (
+                  <button 
+                    onClick={async () => {
+                      setIsBackupLoading(true);
+                      const promise = api.exportToGoogleDrive({ targetType: 'products', format: 'xls' });
+                      toast.promise(promise, {
+                        loading: 'Ürün şeması Google Drive\'a yedekleniyor...',
+                        success: 'Ürün şeması Excel formatında Google Drive\'a başarıyla kaydoldu!',
+                        error: 'Google Drive yedeklemesi başarısız oldu.'
+                      });
+                      try {
+                        await promise;
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setIsBackupLoading(false);
+                      }
+                    }}
+                    disabled={isBackupLoading}
+                    className="flex items-center gap-1.5 p-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 rounded-[1rem] transition-all active:scale-95 text-xs font-black shrink-0 shadow-sm shadow-emerald-50"
+                    title="Google Drive'a Doğrudan Excel Yedekle"
+                  >
+                    <Cloud className="h-4 w-4 text-emerald-600 animate-pulse" />
+                    <span className="hidden sm:inline uppercase text-[10px] tracking-wider font-extrabold">Drive'a Yedekle</span>
+                  </button>
+                )}
             </div>
           </div>
 

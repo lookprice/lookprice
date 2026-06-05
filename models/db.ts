@@ -453,6 +453,7 @@ export async function initDb() {
 
       ALTER TABLE service_records ADD COLUMN IF NOT EXISTS quotation_id INTEGER;
       ALTER TABLE service_records ADD COLUMN IF NOT EXISTS is_converted_to_sale BOOLEAN DEFAULT FALSE;
+      ALTER TABLE service_records ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'TRY';
 
       -- Update service_records status check constraint
       DO $$ 

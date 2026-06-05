@@ -32,8 +32,11 @@ import {
   MessageSquare,
   Scale,
   FileCheck,
-  FileText
+  FileText,
+  Cloud
 } from "lucide-react";
+import { api } from "../../services/api";
+import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
 import { RealEstateModal } from "../../components/RealEstateModal";
 import { LegalContractModal } from "../../components/LegalContractModal";
@@ -67,6 +70,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
+  const [driveConnected, setDriveConnected] = useState(false);
+  const [isBackupLoading, setIsBackupLoading] = useState(false);
+
+  useEffect(() => {
+    api.getGoogleDriveSettings().then(res => {
+      setDriveConnected(!!res?.connected);
+    }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
+  }, []);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   const [filterBranch, setFilterBranch] = useState("all");
@@ -285,16 +296,44 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           <h3 className="text-xl font-extrabold text-slate-900">Portföy Listesi</h3>
           <p className="text-xs text-slate-500">Mevcut şubeniz ve tüm pilot bölgelerdeki portföy</p>
         </div>
-        <button
-          onClick={() => {
-            setSelectedProperty(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition-all font-black text-xs uppercase shadow-md hover:shadow-indigo-600/10 active:scale-95 self-start md:self-auto"
-        >
-          <Plus className="h-4 w-4 stroke-[3]" />
-          Yeni Portföy Ekle
-        </button>
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          {driveConnected && (
+            <button
+              onClick={async () => {
+                setIsBackupLoading(true);
+                const promise = api.exportToGoogleDrive({ targetType: 'real_estate', format: 'xls' });
+                toast.promise(promise, {
+                  loading: 'Portföy şeması Google Drive\'a yedekleniyor...',
+                  success: 'Emlak Portföy şeması Excel formatında Google Drive\'a başarıyla kaydoldu!',
+                  error: 'Google Drive yedeklemesi başarısız oldu.'
+                });
+                try {
+                  await promise;
+                } catch (e) {
+                  console.error(e);
+                } finally {
+                  setIsBackupLoading(false);
+                }
+              }}
+              disabled={isBackupLoading}
+              className="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm shadow-emerald-50 active:scale-95"
+              title="Google Drive'a Doğrudan Excel Yedekle"
+            >
+              <Cloud className="h-4 w-4 text-emerald-600 animate-pulse font-bold" />
+              Drive'a Yedekle
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setSelectedProperty(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition-all font-black text-xs uppercase shadow-md hover:shadow-indigo-600/10 active:scale-95 self-start md:self-auto"
+          >
+            <Plus className="h-4 w-4 stroke-[3]" />
+            Yeni Portföy Ekle
+          </button>
+        </div>
       </div>
 
       {/* Filters and Search Grid */}
