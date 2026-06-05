@@ -419,7 +419,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                     </div>
 
                     <p className="text-slate-500 text-xs line-clamp-2 leading-relaxed">
-                      {property.description || "Açıklama girilmemiş..."}
+                      {property.description ? property.description.replace(/<[^>]*>?/gm, '') : "Açıklama girilmemiş..."}
                     </p>
 
                     {/* Regional Badges */}

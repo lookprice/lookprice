@@ -31,7 +31,8 @@ import autoTable from 'jspdf-autotable';
 
 import { AutocompleteSelect } from "./AutocompleteSelect";
 
-export default function PurchaseInvoices({ storeId, role, lang, api, branding, onSave }: any) {
+export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave }: any) {
+  const storeId = initialStoreId || currentStoreId;
   const [invoices, setInvoices] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [products, setProducts] = useState([]);

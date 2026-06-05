@@ -1358,28 +1358,32 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
       {/* Footer */}
       <footer className="bg-slate-900 pt-24 pb-12 text-white mt-32">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 pb-16 border-b border-slate-800">
-            <div className="col-span-1 md:col-span-1 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-12 sm:gap-8 pb-16 border-b border-slate-800 items-start">
+            <div className="col-span-1 md:col-span-1 flex flex-col justify-center min-h-[140px] h-full">
               {store.logo_url ? (
-                <img src={store.logo_url} className="h-28 md:h-36 max-w-[320px] object-contain" alt={store.name} />
+                <img src={store.logo_url} className="h-28 md:h-36 lg:h-40 w-auto max-w-full object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle self-start" alt={store.name} />
               ) : (
-                <h2 className="text-3xl font-black italic tracking-tighter uppercase">{store.name}</h2>
+                <h2 className="text-3xl font-black italic tracking-tighter uppercase text-white">{store.name}</h2>
               )}
-              
-              <div className="flex gap-4 pt-2">
+            </div>
+
+            {/* Sosyal Medya Column */}
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'SOSYAL MEDYA' : 'SOCIAL MEDIA'}</h4>
+              <div className="flex gap-4 pt-2 flex-wrap">
                 {store.instagram_url && (
-                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700/50">
+                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.03.07-4.85.148-3.212 1.664-4.771 4.918-4.918 1.266-.058 1.646-.07 4.85-.07zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4s1.791-4 4-4 4 1.791 4 4-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
                   </a>
                 )}
                 {store.facebook_url && (
-                  <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700/50">
+                  <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-8.77h-2.953v-3.425h2.953v-2.524c0-2.921 1.782-4.513 4.391-4.513 1.25-.013 2.493.048 3.731.183v3.13h-1.854c-1.419 0-1.694.675-1.694 1.662v2.176h3.463l-.451 3.426h-3.012v8.77h6.105c.733 0 1.325-.593 1.325-1.325v-21.352c0-.732-.592-1.325-1.325-1.325z"/></svg>
                   </a>
                 )}
               </div>
             </div>
-            
+
             <div className="space-y-6 flex-1">
               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
               <ul className="space-y-4 text-sm font-bold text-slate-400">

@@ -290,9 +290,17 @@ export async function initDb() {
         phone TEXT,
         email TEXT,
         contact_person TEXT,
+        representative TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
       );
+
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='representative') THEN
+          ALTER TABLE companies ADD COLUMN representative TEXT;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS current_account_transactions (
         id SERIAL PRIMARY KEY,

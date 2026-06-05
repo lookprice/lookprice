@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, FileText, Upload, Plus, Trash2, Shield, Calendar, Check, Sparkles, Cpu, Eye, Image as ImageIcon, RefreshCw, EyeOff, Camera, Compass } from 'lucide-react';
 import { ImageGallery } from './ImageGallery';
 import { MultiImageUploader } from './MultiImageUploader';
 import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
 import { contractTemplates } from '../utils/contractTemplates';
+import JoditEditor from 'jodit-react';
 
 interface RealEstateModalProps {
   isOpen: boolean;
@@ -23,6 +24,30 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 }) => {
   // Office manager checks: superadmin, admin, manager, owner count as office managers
   const isOfficeManager = ['superadmin', 'admin', 'storeadmin', 'manager', 'owner', 'yönetici', 'yonetici', 'portfolio_manager', 'portföy yöneticisi', 'consultant', 'danışman', 'danisman', 'editor'].includes((userRole || 'admin').toString().toLowerCase());
+
+  const joditRef = useRef(null);
+  const joditConfig = useMemo(
+    () => ({
+      readonly: false,
+      placeholder: 'Gayrimenkulün yatırım potansiyeli, amortisman süresi ve konumu hakkında detaylı açıklamaları buraya yazın...',
+      height: 320,
+      language: 'tr',
+      toolbarAdaptive: false,
+      buttons: [
+        'source', '|',
+        'bold', 'strikethrough', 'underline', 'italic', '|',
+        'superscript', 'subscript', '|',
+        'ul', 'ol', '|',
+        'outdent', 'indent', '|',
+        'font', 'fontsize', 'brush', 'paragraph', '|',
+        'image', 'video', 'table', 'link', '|',
+        'align', 'undo', 'redo', '|',
+        'hr', 'eraser', 'copyformat', '|',
+        'symbol', 'fullsize', 'print', 'about'
+      ]
+    }),
+    []
+  );
 
   const [formData, setFormData] = useState<Partial<RealEstateProperty>>({
     title: '',
@@ -761,12 +786,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           {/* Açıklama */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-500">Açıklama (UK ve TR Yatırımcıları için Notlar)</label>
-            <textarea
-              placeholder="Gayrimenkulün yatırım potansiyeli, amortisman süresi ve konumu hakkında detaylı açıklamaları buraya yazın..."
-              className="w-full p-3 border border-slate-200 rounded-xl min-h-[120px] text-sm focus:outline-indigo-600 focus:ring-0 shadow-sm"
-              value={formData.description || ''}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-            />
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <JoditEditor
+                ref={joditRef}
+                value={formData.description || ''}
+                config={joditConfig}
+                onBlur={(newContent) => setFormData(prev => ({...prev, description: newContent}))}
+              />
+            </div>
           </div>
 
           {/* DOKÜMAN YÖNETİMİ (Tapu, DASK, Yetki Belgesi) */}

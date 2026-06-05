@@ -35,7 +35,8 @@ import { useReactToPrint } from 'react-to-print';
 
 import { AutocompleteSelect } from "./AutocompleteSelect";
 
-export default function SalesInvoices({ storeId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
+export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
+  const storeId = initialStoreId || currentStoreId;
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [companies, setCompanies] = useState([]);

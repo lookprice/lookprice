@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { 
+  Activity,
   ArrowLeftRight,
   Bell,
   Car,
@@ -55,6 +56,7 @@ import { DashboardLayout } from "./DashboardLayout";
 import { DashboardModals } from "./DashboardModals";
 
 // Lazy Tabs
+const CockpitTab = React.lazy(() => import("./CockpitTab"));
 const ProductsTab = React.lazy(() => import("./ProductsTab"));
 const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
 const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
@@ -575,6 +577,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "authority_transfer", label: isTr ? "Yetki Devri (Tapu)" : "Authority Transfer", icon: Briefcase },
     ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
+      { id: "system_cockpit", label: isTr ? "Sistem Kokpiti 🔬" : "System Cockpit", icon: Activity },
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
       { id: "radar_alerts", label: isTr ? "İmar & Haber Radarı" : "Radar & Alerts", icon: Radar },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
@@ -588,6 +591,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ] : [
     { type: 'category', key: "dashboard", title: isTr ? "Dashboard" : "Dashboard", items: [
+      { id: "system_cockpit", label: isTr ? "Sistem Kokpiti 🔬" : "System Cockpit", icon: Activity },
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "audit-logs", label: t.auditLogs, icon: History },
@@ -770,7 +774,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 />
               )}
               {activeTab === "sales_invoices" && (
-                <SalesInvoices currentStoreId={currentStoreId} onFetchDetails={handleFetchSalesInvoiceDetails} />
+                <SalesInvoices 
+                  storeId={currentStoreId} 
+                  role={user.role} 
+                  lang={lang} 
+                  api={api} 
+                  branding={branding} 
+                  onFetchDetails={handleFetchSalesInvoiceDetails} 
+                />
               )}
               {activeTab === "quotations" && (
                 <QuotationsTab 
@@ -807,7 +818,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <ProcurementTab storeId={currentStoreId!} isViewer={isViewer} />
               )}
               {activeTab === "purchase_invoices" && (
-                <PurchaseInvoices currentStoreId={currentStoreId} onFetchDetails={handleFetchPurchaseInvoiceDetails} />
+                <PurchaseInvoices 
+                  storeId={currentStoreId} 
+                  role={user.role} 
+                  lang={lang} 
+                  api={api} 
+                  branding={branding} 
+                  onFetchDetails={handleFetchPurchaseInvoiceDetails} 
+                />
               )}
               {activeTab === "stock_transfer" && (
                 <StockTransferTab 
@@ -825,6 +843,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   products={products} 
                   role={user.role} 
                   onTabChange={(tab) => setActiveTab(tab)} 
+                />
+              )}
+              {activeTab === "system_cockpit" && (
+                <CockpitTab 
+                  currentStoreId={currentStoreId!}
+                  branding={branding}
+                  user={user}
+                  isPortfolio={isPortfolio}
+                  onSwitchTab={(tab) => setActiveTab(tab)}
                 />
               )}
               {activeTab === "audit-logs" && (
@@ -985,6 +1012,40 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         setBulkPriceForm={setBulkPriceForm}
         handleBulkPriceSubmit={handleBulkPriceSubmit}
         products={products}
+
+        // Missing Modals Props
+        showProductModal={showProductModal}
+        setShowProductModal={setShowProductModal}
+        editingProduct={editingProduct}
+        setEditingProduct={setEditingProduct}
+        handleAddProduct={handleAddProduct}
+        
+        showCompanyModal={showCompanyModal}
+        setShowCompanyModal={setShowCompanyModal}
+        editingCompany={editingCompany}
+        setEditingCompany={setEditingCompany}
+        handleAddCompany={handleAddCompany}
+        
+        showUserModal={showUserModal}
+        setShowUserModal={setShowUserModal}
+        handleAddUser={handleAddUser}
+        
+        showQuotationModal={showQuotationModal}
+        setShowQuotationModal={setShowQuotationModal}
+        editingQuotation={editingQuotation}
+        setEditingQuotation={setEditingQuotation}
+        quotationItems={quotationItems}
+        setQuotationItems={setQuotationItems}
+        handleAddQuotation={handleAddQuotation}
+        isTaxInclusive={isTaxInclusive}
+        setIsTaxInclusive={setIsTaxInclusive}
+        quotationNotes={quotationNotes}
+        setQuotationNotes={setQuotationNotes}
+        showQuickProductModal={showQuickProductModal}
+        setShowQuickProductModal={setShowQuickProductModal}
+        quickProductForm={quickProductForm}
+        setQuickProductForm={setQuickProductForm}
+        handleQuickAddProduct={handleQuickAddProduct}
       />
     </DashboardLayout>
   );

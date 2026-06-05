@@ -550,13 +550,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             )}
           </div>
 
-          <div className="prose prose-gray max-w-none mb-10">
+          <div className="prose prose-slate max-w-none mb-10 text-slate-700">
             <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-4">
               {t.dashboard.description}
             </h4>
-            <p className="text-gray-500 leading-relaxed text-lg font-medium">
-              {product.description || t.dashboard.noProductsDesc}
-            </p>
+            <div 
+              className="text-slate-600 leading-relaxed text-base font-medium [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_h1]:text-2xl [&_h2]:text-xl"
+              dangerouslySetInnerHTML={{ __html: product.description || t.dashboard.noProductsDesc }} 
+            />
           </div>
 
           <SectorSpecs
