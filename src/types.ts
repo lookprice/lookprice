@@ -38,6 +38,7 @@ export interface Product {
   db_id?: number;
   branch_name?: string;
   branch_slug?: string;
+  status?: string;
   available_branches?: { id: number; store_id: number; branch_name: string; branch_slug: string }[];
   price_2?: number;
   price_2_currency?: string;
@@ -232,6 +233,7 @@ export interface RealEstateProperty {
   currency: string;
   location?: string;
   type: 'residence' | 'commercial' | 'land';
+  subtype?: string; // New: E.g., 'Daire', 'Villa', 'Malikane', 'Dükkan', 'Ofis', 'Tarla', etc.
   room_count?: string;
   square_meters?: number;
   sqm_gross?: number;

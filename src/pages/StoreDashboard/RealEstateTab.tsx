@@ -155,6 +155,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   
   const [newFeedbackAgent, setNewFeedbackAgent] = useState("");
   const [newFeedbackStatus, setNewFeedbackStatus] = useState("pending");
+  const [statusTabFilter, setStatusTabFilter] = useState<'all' | 'sale' | 'rent' | 'optioned' | 'sold'>('all');
 
   const uniqueRegions = Array.from(new Set(safeProperties.map(p => p.kktc_region).filter(Boolean))) as string[];
 
@@ -172,6 +173,21 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
       return matchesSearch && matchesBranch && matchesScope && matchesRegion;
   });
+
+  const displayedProperties = filteredProperties.filter(p => {
+    if (statusTabFilter === 'all') return true;
+    if (statusTabFilter === 'sale') return p.status === 'active' || !p.status;
+    if (statusTabFilter === 'rent') return p.status === 'rented';
+    if (statusTabFilter === 'optioned') return p.status === 'optioned';
+    if (statusTabFilter === 'sold') return p.status === 'sold';
+    return true;
+  });
+
+  const totalCount = filteredProperties.length;
+  const saleCount = filteredProperties.filter(p => p.status === 'active' || !p.status).length;
+  const rentCount = filteredProperties.filter(p => p.status === 'rented').length;
+  const optionedCount = filteredProperties.filter(p => p.status === 'optioned').length;
+  const soldCount = filteredProperties.filter(p => p.status === 'sold').length;
 
   const runMatchingAlgorithm = (property: any) => {
     // Placeholder matching logic
@@ -370,13 +386,69 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
            </button>
         </div>
       </div>
+
+      {/* Portföy Durum Sekmeleri (Satılık / Kiralık Ayrımı) */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-1.5 bg-slate-100/60 border border-slate-200/50 rounded-2xl">
+        <div className="flex flex-wrap gap-1 md:gap-1.5">
+          <button
+            onClick={() => setStatusTabFilter('all')}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              statusTabFilter === 'all'
+                ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            TÜMÜ ({totalCount})
+          </button>
+          <button
+            onClick={() => setStatusTabFilter('sale')}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+              statusTabFilter === 'sale'
+                ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            🏠 SATILIK ({saleCount})
+          </button>
+          <button
+            onClick={() => setStatusTabFilter('rent')}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+              statusTabFilter === 'rent'
+                ? 'bg-sky-600 text-white shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            🔑 KİRALIK ({rentCount})
+          </button>
+          <button
+            onClick={() => setStatusTabFilter('optioned')}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+              statusTabFilter === 'optioned'
+                ? 'bg-amber-600 text-white shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            ✍ OPSİYONLU ({optionedCount})
+          </button>
+          <button
+            onClick={() => setStatusTabFilter('sold')}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+              statusTabFilter === 'sold'
+                ? 'bg-rose-600 text-white shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            ✅ SATILDI ({soldCount})
+          </button>
+        </div>
+      </div>
       
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
           <span className="text-xs text-slate-500 font-bold">Portföy Yükleniyor...</span>
         </div>
-      ) : filteredProperties.length === 0 ? (
+      ) : displayedProperties.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
           <Home className="h-12 w-12 text-slate-300 mx-auto mb-4" />
           <p className="text-slate-500 font-bold text-sm">Aradığınız kriterlere uygun gayrimenkul bulunamadı.</p>
@@ -384,7 +456,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         </div>
       ) : (
         <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
-          {filteredProperties.map(property => {
+          {displayedProperties.map(property => {
             const matchesCount = runMatchingAlgorithm(property).length;
             
             return (
@@ -409,8 +481,15 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
                   {/* Minimalistic Badge */}
                   <div className="absolute top-3 left-3">
-                    <span className="bg-white/90 text-slate-900 font-bold text-[10px] px-2 py-1 rounded shadow-sm">
-                      {property.status === 'active' ? 'SATILIK' : 'KİRALIK'}
+                    <span className={`font-black text-[10px] px-2.5 py-1.5 rounded-xl shadow-lg tracking-wide ${
+                      property.status === 'active' || !property.status ? 'bg-emerald-600 text-white' :
+                      property.status === 'rented' ? 'bg-sky-600 text-white' :
+                      property.status === 'optioned' ? 'bg-amber-600 text-white' :
+                      'bg-rose-600 text-white'
+                    }`}>
+                      {property.status === 'active' || !property.status ? '🏠 SATILIK' :
+                       property.status === 'rented' ? '🔑 KİRALIK' :
+                       property.status === 'optioned' ? '✍ OPSİYONLU' : '✅ SATILDI'}
                     </span>
                   </div>
                 </div>

@@ -150,9 +150,15 @@ const SettingsTab = ({
     setIsGoogleDriveExporting(true);
     try {
       const res = await api.exportToGoogleDrive({ targetType, format });
-      toast.success(res.data.message || 'Başarıyla eklendi!');
+      if (res && (res.success || res.message)) {
+        toast.success(res.message || 'Yedekleme başarıyla tamamlandı!');
+      } else if (res && res.error) {
+        toast.error(res.error || 'Yedekleme sırasında hata oluştu.');
+      } else {
+        toast.error('Yedekleme sırasında hata oluştu.');
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Yedekleme sırasında hata oluştu.');
+      toast.error(err.message || 'Yedekleme sırasında hata oluştu.');
     } finally {
       setIsGoogleDriveExporting(false);
     }

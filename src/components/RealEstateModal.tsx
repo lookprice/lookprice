@@ -55,6 +55,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     reference_no: `REF-${Math.floor(Math.random() * 9000) + 1000}`,
     currency: 'GBP', // default to GBP for KKTC marketing style
     type: 'residence',
+    subtype: '',
     status: 'active',
     location: '',
     description: '',
@@ -124,6 +125,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         country: property.country || 'KKTC',
         kktc_region: property.kktc_region || 'Girne',
         kktc_title_type: property.kktc_title_type || 'Eşdeğer Koçan',
+        subtype: property.subtype || '',
         branch_name: property.branch_name || 'Merkez Ofis',
         authorized_branch_id: property.authorized_branch_id,
         responsible_agent: property.responsible_agent || '',
@@ -371,12 +373,23 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 <select
                   className="w-full p-3 border rounded-xl text-sm font-bold text-slate-700"
                   value={formData.type}
-                  onChange={(e) => setFormData({...formData, type: e.target.value as any})}
+                  onChange={(e) => setFormData({...formData, type: e.target.value as any, subtype: ''})}
                 >
                   <option value="residence">Konut / Residence</option>
                   <option value="commercial">Ticari / Commercial</option>
                   <option value="land">Arsa / Land</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Alt Tip</label>
+                <input
+                  type="text"
+                  placeholder={formData.type === 'residence' ? 'Daire/Villa' : 'Dükkan/Ofis'}
+                  className="w-full p-3 border rounded-xl text-sm font-bold text-slate-700"
+                  value={formData.subtype || ''}
+                  onChange={(e) => setFormData({...formData, subtype: e.target.value})}
+                />
               </div>
 
               <div>
@@ -436,7 +449,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   >
                     <option value="">Şube Seçiniz (Merkez)</option>
                     {branches.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
+                      <option key={b.id} value={b.name}>{b.name}</option>
                     ))}
                   </select>
                 </div>
@@ -453,7 +466,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   >
                     <option value="">Danışman Seçiniz</option>
                     {consultants.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
                   </select>
                 </div>
@@ -564,16 +577,18 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             <h4 className="text-sm font-black text-slate-800 border-l-4 border-slate-800 pl-2">Detaylı Metrikler & Konum Bilgileri</h4>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Ada / Parsel</label>
-                <input
-                  type="text"
-                  placeholder="Ada/Parsel No"
-                  className="w-full p-3 border rounded-xl text-sm font-medium"
-                  value={formData.block_plot || ''}
-                  onChange={(e) => setFormData({...formData, block_plot: e.target.value})}
-                />
-              </div>
+              {!(formData.status === 'rented') && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Ada / Parsel</label>
+                  <input
+                    type="text"
+                    placeholder="Ada/Parsel No"
+                    className="w-full p-3 border rounded-xl text-sm font-medium"
+                    value={formData.block_plot || ''}
+                    onChange={(e) => setFormData({...formData, block_plot: e.target.value})}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">

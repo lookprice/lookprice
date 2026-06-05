@@ -754,7 +754,7 @@ router.get("/store/:slug/products", async (req, res) => {
     FROM real_estate_properties r 
     JOIN stores s ON r.store_id = s.id
     WHERE (r.store_id = $1 OR s.parent_id = $1) 
-    AND r.status = 'active'
+    AND r.status IN ('active', 'rented', 'optioned', 'sold')
   `, [store.id]);
 
   let allListings: any[] = [ ...productsRes.rows.map((p: any) => ({ ...p, type: 'product' })) ];
@@ -798,6 +798,7 @@ router.get("/store/:slug/products", async (req, res) => {
       images: r.images,
       location: r.location,
       reference_no: r.reference_no,
+      status: r.status,
       sector_data: {
         square_meters: r.square_meters,
         rooms: r.room_count,
@@ -919,7 +920,7 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       FROM real_estate_properties r 
       JOIN stores s ON r.store_id = s.id
       WHERE (r.store_id = $1 OR s.parent_id = $1) 
-      AND r.status = 'active'
+      AND r.status IN ('active', 'rented', 'optioned', 'sold')
     `, [store.id]);
 
     let mergedItems: any[] = [];
@@ -963,7 +964,8 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
         stock_quantity: 1,
         image_url: img,
         brand: r.location || store.name,
-        category: r.type || 'Real Estate'
+        category: r.type || 'Real Estate',
+        status: r.status
       });
     });
 
