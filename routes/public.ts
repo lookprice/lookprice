@@ -708,8 +708,12 @@ router.get("/store/:slug", async (req, res) => {
   );
   store.consultants = consultantsRes2.rows;
 
+  res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
   res.json(store);
 });
+
+// Cache for 5 minutes, serve stale for up to 1 hour
+const PUBLIC_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=3600';
 
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
@@ -879,6 +883,7 @@ router.get("/store/:slug/products", async (req, res) => {
     }
   });
 
+  res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
   res.json(Array.from(groupedProductsMap.values()));
 });
 

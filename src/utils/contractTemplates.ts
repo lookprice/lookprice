@@ -394,5 +394,196 @@ Bu sözleşme 6 ay süreyle geçerlidir.
 `;
       return { html, markdown };
     }
+  },
+  {
+    id: "rental_agreement",
+    titleTr: "Kira Sözleşmesi (Konut ve Çatılı İşyeri)",
+    titleEn: "Rental & Lease Agreement",
+    descriptionTr: "Kiracı ve mülk sahibi arasında yapılan standart kira sözleşmesi.",
+    descriptionEn: "Standard lease agreement between landlord and tenant.",
+    getTemplate: (v) => {
+      const html = `
+<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
+  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
+    <h1 style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">KİRA SÖZLEŞMESİ</h1>
+    <h2 style="font-size: 14px; font-weight: bold; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 0.1em;">LEASE AGREEMENT</h2>
+  </div>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">MÜLK SAHİBİ / LANDLORD</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.storeName} (Veya Temsil Ettiği Mal Sahibi)</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİRACI / TENANT</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.clientName}</strong></td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">T.C. / PASAPORT NO</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.clientIdentity}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">TELEFON / PHONE</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.clientPhone}</td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİRALANAN MÜLK / PROPERTY</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation})</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">AYLIK KİRA BEDELİ / MONTHLY RENT</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1d4ed8;">${v.propertyPrice}</td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.contractDate}</td>
+    </tr>
+  </table>
+
+  <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">SÖZLEŞME ŞARTLARI (TR)</h3>
+  <ol style="font-size: 12px; color: #334155; padding-left: 20px; text-align: justify; margin-bottom: 25px;">
+    <li><strong>Kira Süresi:</strong> Kira sözleşmesi aksi belirtilmedikçe 1 (Bir) yıl sürelidir. Süre sonunda taraflar fesih bildiriminde bulunmazsa sözleşme aynı şartlarla birer yıl uzar.</li>
+    <li><strong>Ödeme Günü:</strong> Kira bedeli her ayın en geç 5. (Beşinci) günü mülk sahibinin banka hesabına ödenmelidir.</li>
+    <li><strong>Depozito:</strong> Kiracı, mülke gelebilecek zararlara karşılık bir kira bedeli tutarında depozitoyu başlangıçta ödemiştir.</li>
+    <li><strong>Kullanım Amacı:</strong> Taşınmaz sadece konut/işyeri amacıyla kullanılabilir, alt kiralama yapılamaz.</li>
+    <li><strong>Demirbaşlar:</strong> Kiracı, mülkü teslim aldığı andaki demirbaşları korumakla ve sözleşme sonunda eksiksiz teslim etmekle yükümlüdür.</li>
+  </ol>
+
+  <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">LEASE TERMS (EN)</h3>
+  <ol style="font-size: 11px; color: #475569; padding-left: 20px; text-align: justify; margin-bottom: 30px;">
+    <li><strong>Lease Period:</strong> The standard lease period is 1 (One) year unless specified otherwise. It auto-renews annually if not terminated.</li>
+    <li><strong>Payment Date:</strong> Rent must be paid to the landlord's bank account by the 5th day of each month.</li>
+    <li><strong>Security Deposit:</strong> The tenant has paid a security deposit equal to one month's rent for potential property damages.</li>
+    <li><strong>Usage Purpose:</strong> The property shall only be used as a residence/office and cannot be sub-leased.</li>
+    <li><strong>Fixtures:</strong> The tenant is responsible for protecting all fixtures and returning them in full at the end of the term.</li>
+  </ol>
+
+  <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 40px;">
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 150px; display: flex; flex-direction: column; justify-content: space-between;">
+      <strong>MÜLK SAHİBİ / LANDLORD</strong>
+      <div style="font-size: 12px; color: #475569;">İmza / Signature</div>
+    </div>
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 150px; display: flex; flex-direction: column; justify-content: space-between;">
+      <strong>KİRACI / TENANT</strong>
+      <div style="font-size: 14px; font-weight: bold; color: #0284c7;">${v.clientName}</div>
+      <div style="font-size: 12px; color: #475569;">İmza / Signature</div>
+    </div>
+  </div>
+</div>
+`;
+      const markdown = `
+# KİRA SÖZLEŞMESİ (LEASE AGREEMENT)
+**Kiracı:** ${v.clientName}
+**Mülk:** ${v.propertyTitle}
+**Kira Bedeli:** ${v.propertyPrice}
+**Tarih:** ${v.contractDate}
+`;
+      return { html, markdown };
+    }
+  },
+  {
+    id: "rental_authorization",
+    titleTr: "Kiralama Yetki Belgesi",
+    titleEn: "Rental Authorization Mandate",
+    descriptionTr: "Mülk sahibinin gayrimenkul kiralama yetkisini emlak ofisine devrettiği yetki belgesi.",
+    descriptionEn: "Mandate from owner granting rights to market and rent the property.",
+    getTemplate: (v) => {
+      const html = `
+<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
+  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
+    <h1 style="font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">KİRALAMA YETKİ BELGESİ</h1>
+    <h2 style="font-size: 13px; font-weight: bold; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 0.1em;">RENTAL AUTHORIZATION MANDATE</h2>
+  </div>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">ARACI OFİS / AGENT</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.storeName}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK SAHİBİ / OWNER</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.clientName}</strong></td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK BİLGİSİ / PROPERTY</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation})</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HEDEF KİRA / ASKING RENT</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1d4ed8;">${v.propertyPrice}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HİZMET BEDELİ / COMMISSION</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">Bir aylık kira bedeli (+ KDV)</td>
+    </tr>
+  </table>
+
+  <p style="font-size: 12px; text-align: justify;">
+    Mülk Sahibi, yukarıdaki taşınmazın kiralanması için <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi bir aylık kira bedeli tutarında hizmet bedeli ödemeyi kabul eder.
+  </p>
+
+  <div style="margin-top: 40px; display: flex; justify-content: space-between;">
+    <div style="text-align: center;"><strong>MÜLK SAHİBİ</strong></div>
+    <div style="text-align: center;"><strong>ARACI OFİS</strong></div>
+  </div>
+</div>
+`;
+      const markdown = `
+# KİRALAMA YETKİ BELGESİ
+**Mülk Sahibi:** ${v.clientName}
+**Aracı:** ${v.storeName}
+**Mülk:** ${v.propertyTitle}
+**Hedef Kira:** ${v.propertyPrice}
+`;
+      return { html, markdown };
+    }
+  },
+  {
+    id: "eviction_undertaking",
+    titleTr: "Tahliye Taahhütnamesi",
+    titleEn: "Eviction Undertaking",
+    descriptionTr: "Kiracının mülkü belirli bir tarihte tahliye edeceğine dair resmi taahhüdü.",
+    descriptionEn: "Tenant's official undertaking to vacate the property on a specific date.",
+    getTemplate: (v) => {
+      const html = `
+<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
+  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
+    <h1 style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">TAHLİYE TAAHHÜTNAMESİ</h1>
+    <h2 style="font-size: 14px; font-weight: bold; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 0.1em;">EVICTION UNDERTAKING</h2>
+  </div>
+
+  <div style="margin-bottom: 30px; text-align: justify; font-size: 14px;">
+    <strong>KİRACI BİLGİLERİ:</strong><br/>
+    Adı Soyadı: <strong>${v.clientName}</strong><br/>
+    T.C. Kimlik No: ${v.clientIdentity}<br/>
+    Adres: ${v.propertyTitle} (${v.propertyLocation})
+  </div>
+
+  <div style="margin-bottom: 30px; text-align: justify; font-size: 14px; line-height: 1.8;">
+    Halen kiracı olarak kullanmakta olduğum yukarıda adresi belirtilen taşınmazı, hiçbir ihtar ve ihbara gerek kalmadan, kayıtsız ve şartsız olarak <strong>[Tahliye Tarihi]</strong> tarihinde boşaltarak, boş ve sağlam olarak mal sahibine teslim edeceğimi, adı geçen tarihte tahliye etmediğim takdirde mülk sahibinin icra yoluna başvurarak yapacağı tüm masrafları ve doğacak zararları ödeyeceğimi şimdiden kabul, beyan ve taahhüt ederim.
+  </div>
+
+  <div style="margin-bottom: 40px; text-align: justify; font-size: 12px; font-style: italic; color: #475569;">
+    I, the tenant, hereby declare and undertake to vacate the property specified above on <strong>[Eviction Date]</strong> without any further notice, unconditionally and in good condition. If I fail to vacate on the specified date, I agree to be responsible for all legal costs and damages incurred by the landlord.
+  </div>
+
+  <div style="margin-top: 60px; display: flex; justify-content: flex-end;">
+    <div style="text-align: center; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; background-color: #f8fafc; min-width: 200px;">
+      <span style="font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase;">TAAHHÜT EDEN (KİRACI)</span><br/>
+      <div style="font-size: 16px; font-weight: bold; color: #0284c7; margin: 15px 0;">${v.clientName}</div>
+      <div style="font-size: 10px; color: #94a3b8;">İmza / Signature</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 10px;">Tarih: ${v.contractDate}</div>
+    </div>
+  </div>
+</div>
+`;
+      const markdown = `
+# TAHLİYE TAAHHÜTNAMESİ
+**Kiracı:** ${v.clientName}
+**Mülk:** ${v.propertyTitle}
+**Taahhüt Tarihi:** ${v.contractDate}
+`;
+      return { html, markdown };
+    }
   }
 ];

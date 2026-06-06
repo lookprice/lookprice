@@ -75,6 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             alt={product.name}
             className="w-full h-full object-contain p-4 bg-white group-hover:scale-105 transition-transform duration-1000"
             referrerPolicy="no-referrer"
+            loading="lazy"
             onClick={() => onView(product)}
           />
         ) : (

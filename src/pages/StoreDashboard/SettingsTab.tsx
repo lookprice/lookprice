@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { 
   Save, 
   Upload, 
@@ -52,6 +52,7 @@ import { DEVELOPED_COUNTRIES } from "../../constants";
 import { api } from "../../services/api";
 import { PageBuilder } from "../../components/PageBuilder";
 import { toast } from "sonner";
+import CockpitTab from "./CockpitTab";
 
 interface SettingsTabProps {
   branding: any;
@@ -70,6 +71,7 @@ interface SettingsTabProps {
   bulkPriceForm: any;
   setBulkPriceForm: (form: any) => void;
   handleBulkPriceSubmit: (e: React.FormEvent) => Promise<void>;
+  initialSubTab?: string;
 }
 
 const SettingsTab = ({ 
@@ -88,7 +90,8 @@ const SettingsTab = ({
   onRefresh,
   bulkPriceForm,
   setBulkPriceForm,
-  handleBulkPriceSubmit
+  handleBulkPriceSubmit,
+  initialSubTab
 }: SettingsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
@@ -235,8 +238,14 @@ const SettingsTab = ({
   const [emails, setEmails] = React.useState<string[]>((branding.emails && branding.emails.length > 0) ? branding.emails : ['']);
   const [phones, setPhones] = React.useState<string[]>((branding.phones && branding.phones.length > 0) ? branding.phones : ['']);
   const [activeSubTab, setActiveSubTab] = React.useState<string>(() => {
-    return localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) || 'web';
+    return initialSubTab || localStorage.getItem(`settingsSubTab_${currentStoreId || 'admin'}`) || 'web';
   });
+
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   React.useEffect(() => {
     localStorage.setItem(`settingsSubTab_${currentStoreId || 'admin'}`, activeSubTab);
@@ -742,7 +751,7 @@ const SettingsTab = ({
             className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'integrations' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
           >
             <Database className="h-4 w-4" />
-            <span>Entegrasyonlar</span>
+            <span>Yedekleme</span>
           </button>
           <button 
             onClick={() => setActiveSubTab('web')}
@@ -807,6 +816,13 @@ const SettingsTab = ({
           >
             <History className="h-4 w-4" />
             <span>{lang === 'tr' ? 'Günlük' : 'Logs'}</span>
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('cockpit')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'cockpit' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Activity className="h-4 w-4" />
+            <span>{lang === 'tr' ? 'Sistem Kokpiti' : 'System Cockpit'}</span>
           </button>
         </div>
 
@@ -1023,89 +1039,16 @@ const SettingsTab = ({
         </motion.div>
       )}
 
-      {activeSubTab === 'logs' && (
+      {activeSubTab === 'cockpit' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-4xl mx-auto space-y-8"
         >
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-slate-100 rounded-2xl">
-                  <History className="h-6 w-6 text-slate-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Sistem İşlem Günlüğü' : 'System Audit Logs'}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Son 50 Entegrasyon ve Yönetim Aktivitesi' : 'Audit trails of store activity'}</p>
-                </div>
-              </div>
-              <button 
-                onClick={fetchLogs}
-                disabled={loadingLogs}
-                className="flex items-center space-x-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2.5 rounded-xl transition-all cursor-pointer border border-indigo-100 disabled:opacity-50"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingLogs ? 'animate-spin' : ''}`} />
-                <span>{lang === 'tr' ? 'Yenile' : 'Refresh'}</span>
-              </button>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {loadingLogs ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                </div>
-              ) : logs.length === 0 ? (
-                <div className="text-center py-12">
-                  <History className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm font-semibold text-slate-500">{lang === 'tr' ? 'Henüz hiçbir işlem kaydı bulunmuyor.' : 'No audit logs captured yet.'}</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead>
-                      <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                        <th className="pb-4 pl-4">{lang === 'tr' ? 'KULLANICI' : 'USER'}</th>
-                        <th className="pb-4">{lang === 'tr' ? 'TARİH' : 'DATE'}</th>
-                        <th className="pb-4">{lang === 'tr' ? 'İŞLEM' : 'ACTION'}</th>
-                        <th className="pb-4">{lang === 'tr' ? 'DETAY' : 'DETAILS'}</th>
-                        <th className="pb-4 pr-4 text-right">{lang === 'tr' ? 'VERİ' : 'RAW'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {logs.slice(0, 50).map((log: any) => (
-                        <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="py-4 pl-4 font-bold text-slate-900">{log.user_email || 'Sistem'}</td>
-                          <td className="py-4 text-xs font-medium text-slate-500">{new Date(log.created_at).toLocaleString()}</td>
-                          <td className="py-4">
-                            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                              log.action?.includes('error') ? 'bg-rose-50 text-rose-600' :
-                              log.action?.includes('warning') ? 'bg-amber-50 text-amber-600' :
-                              'bg-slate-100 text-slate-600'
-                            }`}>
-                              {log.action}
-                            </span>
-                          </td>
-                          <td className="py-4 text-slate-700 max-w-xs truncate" title={log.details}>
-                            {log.details}
-                          </td>
-                          <td className="py-4 pr-4 text-right">
-                            {log.metadata ? (
-                              <button 
-                                onClick={() => alert(JSON.stringify(log.metadata, null, 2))}
-                                className="text-xs text-blue-600 hover:underline font-bold"
-                              >
-                                {lang === 'tr' ? 'HAM VERİ' : 'RAW DATA'}
-                              </button>
-                            ) : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <Suspense fallback={<div>Loading...</div>}>
+              <CockpitTab currentStoreId={currentStoreId!} branding={branding} user={currentUser} isPortfolio={isPortfolio} onSwitchTab={(tab) => {}} />
+            </Suspense>
           </div>
         </motion.div>
       )}

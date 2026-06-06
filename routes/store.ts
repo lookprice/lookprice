@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import axios from "axios";
 import { pool, logAction, addStockMovement } from "../models/db";
 import { authenticate } from "../middleware/auth";
+import { getEInvoiceService } from "./einvoice";
 import { GoogleGenAI } from "@google/genai";
 
 import { promises as dnsPromises } from "dns";
@@ -3007,7 +3008,20 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       );
 
       // NEW: Automatically create a DRAFT Sales Invoice
-      const invoiceNumber = `INV-${Date.now()}`;
+      // Try to determine document type for the draft
+      let autoEDocumentType = 'E-ARSIV';
+      try {
+        const service = await getEInvoiceService(storeId);
+        const taxNum = (quotation.tax_number || "").replace(/\D/g, '');
+        if (taxNum && (taxNum.length === 10 || taxNum.length === 11)) {
+          const tp = await service.checkTaxpayer(taxNum);
+          if (tp.isTaxpayer) autoEDocumentType = 'E-FATURA';
+        }
+      } catch (e) {
+        // Fallback to EARŞİV if check fails
+      }
+
+      const invoiceNumber = `TASLAK-${Date.now().toString().slice(-6)}`;
       
       const invoiceNotes = quotation.service_id 
         ? `Teknik Servis #${quotation.service_id} - Teklif #${quotation.id} üzerinden otomatik oluşturuldu.`
@@ -3015,9 +3029,30 @@ router.post("/quotations/:id/approve", async (req: any, res) => {
       
       const invRes = await client.query(
         `INSERT INTO sales_invoices 
-          (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
-        [storeId, saleId, quotation.company_id || null, quotation.customer_id || null, invoiceNumber, new Date(), grandTotalAmount - totalQuotationTax, totalQuotationTax, grandTotalAmount, quotation.currency || 'TRY', quotation.exchange_rate || 1, invoiceNotes, 'manual', 'draft', paymentMethod, quotation.id]
+          (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, tax_number, tax_office, address, e_document_type) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
+        [
+          storeId, 
+          saleId, 
+          quotation.company_id || null, 
+          quotation.customer_id || null, 
+          invoiceNumber, 
+          new Date(), 
+          grandTotalAmount - totalQuotationTax, 
+          totalQuotationTax, 
+          grandTotalAmount, 
+          quotation.currency || 'TRY', 
+          quotation.exchange_rate || 1, 
+          invoiceNotes, 
+          'manual', 
+          'draft', 
+          paymentMethod, 
+          quotation.id,
+          quotation.tax_number || null,
+          quotation.tax_office || null,
+          quotation.address || null,
+          autoEDocumentType
+        ]
       );
       const invoiceId = invRes.rows[0].id;
 

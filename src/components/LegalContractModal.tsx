@@ -101,7 +101,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   branding,
   onSaveContract
 }) => {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("showing_agreement");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
+    property.listing_intent === 'rent' ? "rental_agreement" : "showing_agreement"
+  );
   const [clientName, setClientName] = useState<string>("");
   const [clientIdentity, setClientIdentity] = useState<string>("");
   const [clientPhone, setClientPhone] = useState<string>("");

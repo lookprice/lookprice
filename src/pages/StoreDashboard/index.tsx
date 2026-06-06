@@ -23,12 +23,14 @@ import {
   ShoppingBag,
   Facebook,
   BookOpen,
+  Database,
   Truck,
   Wrench,
   Printer,
   X,
   QrCode,
   Download,
+  FileCheck,
   FileDown,
   Edit2,
   Trash2
@@ -567,8 +569,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home },
       { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
     ]},
-    { type: 'category', key: "sales", title: isTr ? "Teklifler & Cari" : "Quotations & Clients", items: [
-      { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
+    { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
       { id: "companies", label: t.companies, icon: Store },
       { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},
@@ -576,48 +577,47 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
       { id: "authority_transfer", label: isTr ? "Yetki Devri (Tapu)" : "Authority Transfer", icon: Briefcase },
     ]},
+    { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
+      { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
+      { id: "settings_yedekleme", label: isTr ? "Yedekleme" : "Backup", icon: Database },
+    ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
-      { id: "system_cockpit", label: isTr ? "Sistem Kokpiti 🔬" : "System Cockpit", icon: Activity },
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
       { id: "radar_alerts", label: isTr ? "İmar & Haber Radarı" : "Radar & Alerts", icon: Radar },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
+      { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
       { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
-    { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
-      { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
-      { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
-    ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ] : [
-    { type: 'category', key: "dashboard", title: isTr ? "Dashboard" : "Dashboard", items: [
-      { id: "system_cockpit", label: isTr ? "Sistem Kokpiti 🔬" : "System Cockpit", icon: Activity },
-      { id: "analytics", label: t.analytics, icon: LayoutDashboard },
-      { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
-      { id: "audit-logs", label: t.auditLogs, icon: History },
+    { type: 'category', key: "operations", title: isTr ? "Operasyonlar" : "Operations", items: [
+      { id: "products", label: t.products, icon: Package },
+      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+      { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
+      { id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
+      { id: "procurements", label: t.procurements, icon: Truck },
+      { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
     ]},
-    { type: 'category', key: "sales", title: isTr ? "Satış & Müşteriler" : "Sales & Customers", items: [
+    { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
+      { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
+      { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },
-      { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
-      { id: "quotations", label: t.quotations, icon: FileText, badge: notifications.quotations },
-      { id: "companies", label: t.companies, icon: Store },
     ]},
     { type: 'category', key: "team", title: isTr ? "Personel Yönetimi" : "Team Management", items: [
       { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
     ]},
-    { type: 'category', key: "operations", title: isTr ? "Operasyon" : "Operations", items: [
-      { id: "products", label: t.products, icon: Package },
-      { id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
-      { id: "procurements", label: t.procurements, icon: Truck },
-      { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
-      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
-      { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
-    ]},
-    { type: 'category', key: "integrations", title: isTr ? "Entegrasyonlar" : "Integrations", items: [
+    { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
       { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
+      { id: "settings_yedekleme", label: isTr ? "Yedekleme" : "Backup", icon: Database },
+    ]},
+    { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Blog" : "Analytics & Blog", items: [
+      { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
+      { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ];
@@ -727,6 +727,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   branding={branding}
                   initialStatusFilter={realEstateStatusFilter}
                   onResetStatusFilter={() => setRealEstateStatusFilter("all")}
+                  storeId={currentStoreId!}
                 />
               )}
               {activeTab === "fleet" && (
@@ -857,7 +858,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               {activeTab === "audit-logs" && (
                 <AuditLogTab storeId={currentStoreId!} />
               )}
-              {activeTab === "settings" && (
+              {(activeTab === "settings" || activeTab === "settings_yedekleme") && (
                 <SettingsTab 
                   branding={branding}
                   onBrandingChange={onBrandingChange}
@@ -875,6 +876,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   bulkPriceForm={bulkPriceForm}
                   setBulkPriceForm={setBulkPriceForm}
                   handleBulkPriceSubmit={handleBulkPriceSubmit}
+                  initialSubTab={activeTab === "settings_yedekleme" ? "integrations" : undefined}
                 />
               )}
               {activeTab === "blog" && (

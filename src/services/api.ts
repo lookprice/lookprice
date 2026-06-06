@@ -20,11 +20,13 @@ const handleResponse = async (res: Response) => {
 export const api = {
   async get(url: string) {
     const token = getToken(url);
+    const isPublic = url.includes('/api/public/');
     const separator = url.includes('?') ? '&' : '?';
-    const cacheBustedUrl = `${url}${separator}_t=${Date.now()}`;
-    const res = await fetch(cacheBustedUrl, {
+    // Only cache bust if it's NOT a public request
+    const finalUrl = isPublic ? url : `${url}${separator}_t=${Date.now()}`;
+    const res = await fetch(finalUrl, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      cache: 'no-store',
+      ...(!isPublic ? { cache: 'no-store' } : {}),
     });
     return handleResponse(res);
   },

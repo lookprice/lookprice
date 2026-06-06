@@ -448,6 +448,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   };
 
   const handleAddProduct = (product: any) => {
+    console.log("handleAddProduct product:", product);
     const productCurrency = product.currency || branding?.default_currency || 'TRY';
     const targetCurrency = items.length === 0 ? productCurrency : currency;
 
@@ -1074,11 +1075,14 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         api={api}
         isTr={isTr}
         onSave={(data: any) => {
+            console.log("QuickRegisterModal onSave data:", data);
             if (registerType === 'customer') {
+                if (!data.id) console.error("Customer added but no ID!", data);
                 setCustomers(prev => [...prev, data]);
                 setCustomerId(data.id);
                 setCustomerSearch(data.name);
             } else {
+                if (!data.id) console.error("Company added but no ID!", data);
                 setCompanies(prev => [...prev, data]);
                 setCompanyId(data.id);
                 setCustomerSearch(data.title);

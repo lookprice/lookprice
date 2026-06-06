@@ -12,6 +12,7 @@ interface RealEstateModalProps {
   onClose: () => void;
   onSave: (property: RealEstateProperty) => void;
   property?: RealEstateProperty | null;
+  storeId?: number;
   userRole?: string; // 'superadmin' | 'admin' | 'manager' | 'owner' | 'employee' | 'viewer'
 }
 
@@ -20,6 +21,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   onClose, 
   onSave, 
   property,
+  storeId,
   userRole = 'admin' // default to admin for standalone compatibility
 }) => {
   // Office manager checks: superadmin, admin, manager, owner count as office managers
@@ -107,8 +109,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     setLoadingCrm(true);
     try {
       const [branchesRes, consultantsRes] = await Promise.all([
-        api.getBranches(),
-        api.getConsultants()
+        api.getBranches(storeId),
+        api.getConsultants(storeId)
       ]);
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
       setConsultants(Array.isArray(consultantsRes) ? consultantsRes : []);
@@ -132,6 +134,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         authorized_branch_id: property.authorized_branch_id,
         responsible_agent: property.responsible_agent || '',
         responsible_consultant_id: property.responsible_consultant_id,
+        listing_intent: property.listing_intent || 'sale',
         owner_info: property.owner_info || { fullName: '', phone: '' },
         sharing_scope: property.sharing_scope || 'shared_pool',
         reserved_by_branch: property.reserved_by_branch || '',
@@ -144,6 +147,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         price: 0,
         currency: 'GBP',
         type: 'residence',
+        listing_intent: 'sale',
         status: 'active',
         location: '',
         description: '',
@@ -465,7 +469,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   >
                     <option value="">Şube Seçiniz (Merkez)</option>
                     {branches.map(b => (
-                      <option key={b.id} value={b.name}>{b.name}</option>
+                      <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
                 </div>
@@ -482,7 +486,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   >
                     <option value="">Danışman Seçiniz</option>
                     {consultants.map(c => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>

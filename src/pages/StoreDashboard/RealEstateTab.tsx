@@ -41,6 +41,7 @@ import { ConsultingInsights } from "../../components/ConsultingInsights";
 import { RealEstateModal } from "../../components/RealEstateModal";
 import { LegalContractModal } from "../../components/LegalContractModal";
 import { ArrangeTourModal } from "../../components/ArrangeTourModal";
+import { SocialMediaShareModal } from "../../components/SocialMediaShareModal";
 interface RealEstateTabProps {
   properties: any[];
   loading: boolean;
@@ -50,6 +51,7 @@ interface RealEstateTabProps {
   branding: any;
   initialStatusFilter: string;
   onResetStatusFilter: () => void;
+  storeId?: number;
 }
 
 const formatNumberVal = (val: any) => {
@@ -60,7 +62,7 @@ const formatNumberVal = (val: any) => {
   return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(parsed));
 };
 
-const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, initialStatusFilter, onResetStatusFilter }: RealEstateTabProps) => {
+const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, initialStatusFilter, onResetStatusFilter, storeId }: RealEstateTabProps) => {
   const safeProperties = Array.isArray(properties) ? properties : [];
 
   const handleOpenMatching = (property: any) => {
@@ -92,6 +94,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [matchingProperty, setMatchingProperty] = useState<any>(null);
+  const [isSocialShareModalOpen, setIsSocialShareModalOpen] = useState(false);
+  const [socialShareProperty, setSocialShareProperty] = useState<any>(null);
 
   // Missing States for CRM Overlay & Hub tabs
   const [activeHubTab, setActiveHubTab] = useState<string>('matches');
@@ -176,18 +180,35 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
   const displayedProperties = filteredProperties.filter(p => {
     if (statusTabFilter === 'all') return true;
-    if (statusTabFilter === 'sale') return p.status === 'active' || !p.status;
-    if (statusTabFilter === 'rent') return p.status === 'rented';
+    if (statusTabFilter === 'sale') return p.listing_intent === 'sale' || !p.listing_intent;
+    if (statusTabFilter === 'rent') return p.listing_intent === 'rent';
     if (statusTabFilter === 'optioned') return p.status === 'optioned';
     if (statusTabFilter === 'sold') return p.status === 'sold';
     return true;
   });
 
   const totalCount = filteredProperties.length;
-  const saleCount = filteredProperties.filter(p => p.status === 'active' || !p.status).length;
-  const rentCount = filteredProperties.filter(p => p.status === 'rented').length;
+  const saleCount = filteredProperties.filter(p => p.listing_intent === 'sale' || !p.listing_intent).length;
+  const rentCount = filteredProperties.filter(p => p.listing_intent === 'rent').length;
   const optionedCount = filteredProperties.filter(p => p.status === 'optioned').length;
   const soldCount = filteredProperties.filter(p => p.status === 'sold').length;
+
+  const unescapeEntities = (str: string) => {
+    if (!str) return '';
+    return str
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&nbsp;/g, ' ');
+  };
+
+  const unescapeHtmlManual = (html: string) => {
+    if (!html) return '';
+    // This is for list view - strip all tags
+    return unescapeEntities(html).replace(/<[^>]*>?/gm, '');
+  };
 
   const runMatchingAlgorithm = (property: any) => {
     // Placeholder matching logic
@@ -482,14 +503,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   {/* Minimalistic Badge */}
                   <div className="absolute top-3 left-3">
                     <span className={`font-black text-[10px] px-2.5 py-1.5 rounded-xl shadow-lg tracking-wide ${
-                      property.status === 'active' || !property.status ? 'bg-emerald-600 text-white' :
-                      property.status === 'rented' ? 'bg-sky-600 text-white' :
                       property.status === 'optioned' ? 'bg-amber-600 text-white' :
-                      'bg-rose-600 text-white'
+                      property.status === 'sold' ? 'bg-rose-600 text-white' :
+                      property.listing_intent === 'rent' ? 'bg-sky-600 text-white' :
+                      'bg-emerald-600 text-white'
                     }`}>
-                      {property.status === 'active' || !property.status ? '🏠 SATILIK' :
-                       property.status === 'rented' ? '🔑 KİRALIK' :
-                       property.status === 'optioned' ? '✍ OPSİYONLU' : '✅ SATILDI'}
+                      {property.status === 'optioned' ? '✍ OPSİYONLU' :
+                       property.status === 'sold' ? '✅ SATILDI' :
+                       property.listing_intent === 'rent' ? '🔑 KİRALIK' : '🏠 SATILIK'}
                     </span>
                   </div>
                 </div>
@@ -537,7 +558,10 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                     </div>
 
                     <p className="text-slate-500 text-xs line-clamp-2 leading-relaxed">
-                      {property.description ? property.description.replace(/<[^>]*>?/gm, '') : "Açıklama girilmemiş..."}
+                      {property.description ? 
+                        unescapeHtmlManual(property.description)
+                        : "Açıklama girilmemiş..."
+                      }
                     </p>
 
                     {/* Regional Badges */}
@@ -630,6 +654,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           title="Sözleşme / Resmi Hizmet Oluştur"
                         >
                           <FileSignature className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => { setSocialShareProperty(property); setIsSocialShareModalOpen(true); }}
+                          className="flex items-center justify-center p-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-all shadow active:scale-95 border border-indigo-100 shrink-0"
+                          title="Sosyal Medya Afiş & Paylaşım Sihirbazı"
+                        >
+                          <Share2 className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handlePrintProperty(property)}
@@ -1700,6 +1731,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         property={selectedProperty}
+        storeId={storeId || user?.store_id}
         userRole={userRole}
         onSave={async (p) => {
           try {
@@ -1751,9 +1783,39 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         />
       )}
 
+      {/* Social Media Sharing & Poster Creation Wizard */}
+      {isSocialShareModalOpen && socialShareProperty && (
+        <SocialMediaShareModal
+          isOpen={isSocialShareModalOpen}
+          onClose={() => {
+            setIsSocialShareModalOpen(false);
+            setSocialShareProperty(null);
+          }}
+          property={socialShareProperty}
+          branding={branding}
+        />
+      )}
+
       {/* Real Estate Poster Print Component */}
       {propertyToPrint && (
         <div id="print-poster-wrapper" className="hidden print:block bg-white text-slate-900 h-full w-full font-sans p-6">
+          <style>
+            {`
+              @media print {
+                .print-description-content * {
+                  color: #1e293b !important;
+                  background-color: transparent !important;
+                  background: none !important;
+                  font-family: inherit !important;
+                  font-size: 11px !important;
+                  line-height: 1.5 !important;
+                }
+                .print-description-content p {
+                  margin-bottom: 4px !important;
+                }
+              }
+            `}
+          </style>
           <div className="flex flex-col h-full border-[10px] border-double border-slate-900 p-6 min-h-[267mm]">
             
             {/* Header */}
@@ -1898,7 +1960,10 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             {propertyToPrint.description && (
               <div className="my-4 text-[11px] text-slate-700 leading-relaxed font-sans flex-1">
                 <span className="block font-black text-slate-900 mb-1 tracking-wider uppercase text-[9px]">AÇIKLAMA VE AYRINTILAR</span>
-                <p className="line-clamp-4 whitespace-pre-line text-xs italic">{propertyToPrint.description}</p>
+                <div 
+                  className="print-description-content text-[11px]"
+                  dangerouslySetInnerHTML={{ __html: unescapeEntities(propertyToPrint.description) }}
+                />
               </div>
             )}
 

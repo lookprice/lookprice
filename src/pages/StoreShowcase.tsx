@@ -87,10 +87,10 @@ import SEO from "../components/SEO";
 import { ProductCard } from "../components/ProductCard";
 import { SectorSpecs } from "../components/SectorSpecs";
 import { ListingFinancingCalculator } from "../components/ListingFinancingCalculator";
-import { PropertyMapTour } from "../components/PropertyMapTour";
-import { ProductDetailModal } from "../components/ProductDetailModal";
-import { StoreLocatorModal } from "../components/StoreLocatorModal";
-import { KktcAiDioramaModal } from "../components/KktcAiDioramaModal";
+const PropertyMapTour = React.lazy(() => import("../components/PropertyMapTour").then(m => ({ default: m.PropertyMapTour })));
+const ProductDetailModal = React.lazy(() => import("../components/ProductDetailModal").then(m => ({ default: m.ProductDetailModal })));
+const StoreLocatorModal = React.lazy(() => import("../components/StoreLocatorModal").then(m => ({ default: m.StoreLocatorModal })));
+const KktcAiDioramaModal = React.lazy(() => import("../components/KktcAiDioramaModal").then(m => ({ default: m.KktcAiDioramaModal })));
 
 interface BasketItem extends Product {
   quantity: number;

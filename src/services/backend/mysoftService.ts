@@ -92,11 +92,15 @@ export class MySoftService {
           console.log(`Checking taxpayer at: ${url}`);
           const response = await axios.get(url, config);
           
-          const data = response.data.Data || response.data;
+          const rawData = response.data;
+          console.log(`Taxpayer Response check for ${vknTckn}:`, JSON.stringify(rawData).substring(0, 200));
+          
+          const data = rawData.Data || rawData.data || rawData;
           if (!data) continue;
 
           let isTaxpayer = false;
           let title = "";
+          let alias = "";
 
           if (Array.isArray(data)) {
             if (data.length > 0) {
@@ -106,30 +110,37 @@ export class MySoftService {
                 item.EInvoiceUser || 
                 item.Type === 'EFATURA' || 
                 item.type === 'EFATURA' ||
-                item.Identifier === vknTckn
+                item.Identifier === vknTckn ||
+                item.Vkn === vknTckn
               );
-              title = data[0].Title || data[0].title || data[0].Name || data[0].name || "";
+              const bestMatch = data.find(item => item.Identifier === vknTckn || item.Vkn === vknTckn) || data[0];
+              title = bestMatch.Title || bestMatch.title || bestMatch.Name || bestMatch.name || "";
+              alias = bestMatch.Alias || bestMatch.alias || "";
             }
           } else {
-            isTaxpayer = data.IsEInvoiceUser || data.isEInvoiceUser || data.EInvoiceUser || false;
+            isTaxpayer = data.IsEInvoiceUser || data.isEInvoiceUser || data.EInvoiceUser || 
+                         data.efaturaMukkellefi === true || data.efaturaMukkellefi === "True" ||
+                         data.Type === 'EFATURA' || data.type === 'EFATURA';
+                         
             title = data.Title || data.title || data.Name || data.name || "";
+            alias = data.Alias || data.alias || "";
             
-            // If the endpoint is GetContactByVkn and it returned a valid object with the VKN, 
-            // it's highly likely they are an e-invoice user in some API versions
             if (!isTaxpayer && (data.Vkn === vknTckn || data.Identifier === vknTckn || data.vkn === vknTckn)) {
+              // If we found the record by VKN specifically, some API versions imply they are registered
               isTaxpayer = true;
             }
           }
 
           if (isTaxpayer) {
+            console.log(`Taxpayer ${vknTckn} identified as E-FATURA`);
             return {
               isTaxpayer: true,
               title: title,
               documentType: 'E-FATURA'
             };
           }
-        } catch (innerErr) {
-          // continue to next variation
+        } catch (innerErr: any) {
+          console.log(`Variation ${url} failed: ${innerErr.message}`);
         }
       }
 

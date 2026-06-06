@@ -711,10 +711,11 @@ export const translations: Record<string, any> = {
         taxUnits: "Vergi Birimleri",
         posSettings: "POS Ayarları",
         webSettings: "Web Ayarları",
-        domainSettings: "Domain Ayarları"
+        domainSettings: "Domain Ayarları",
+        yedekleme: "Yedekleme"
       },
       saveSettings: "Ayarları Kaydet",
-      integrations: "Entegrasyonlar",
+      yedekleme: "Yedekleme",
       amazonIntegration: "Amazon Entegrasyonu",
       amazonIntegrationDesc: "Amazon.com.tr siparişlerinizi otomatik olarak sisteme çekin",
       connectAmazon: "Amazon Hesabını Bağla",

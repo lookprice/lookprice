@@ -187,31 +187,6 @@ export const DashboardSidebar = ({
               }
             })}
 
-            {/* Cockpit Status Mini HUD */}
-            {!desktopSidebarCollapsed && (
-              <div className="pt-2 px-2">
-                <div 
-                  onClick={() => setActiveTab('system_cockpit')}
-                  className="p-3 rounded-2xl bg-slate-950/40 border border-indigo-500/10 hover:border-indigo-500/25 hover:bg-slate-950/60 transition-all duration-300 cursor-pointer shadow-indigo-950/5 flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    <div className="p-1.5 rounded-xl shrink-0 bg-indigo-500/15 text-indigo-400">
-                      <Activity className="h-4 w-4 animate-pulse text-indigo-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-bold text-slate-300 tracking-tight leading-none truncate">
-                        Sistem Kokpiti
-                      </p>
-                      <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1.5 uppercase block mt-1.5 leading-none">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block animate-ping" />
-                        PRE-FLIGHT: READY
-                      </span>
-                    </div>
-                  </div>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-500 -rotate-90" />
-                </div>
-              </div>
-            )}
 
             <div className="pt-6 mt-6 border-t border-white/5">
               <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">External_Access</div>
