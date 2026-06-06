@@ -566,9 +566,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
                     {/* Regional Badges */}
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {property.kktc_title_type && (
+                      {property.listing_intent !== 'rent' && property.kktc_title_type && (
                         <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-extrabold border border-indigo-100">
                           📜 {property.kktc_title_type}
+                        </span>
+                      )}
+                      {property.listing_intent === 'rent' && (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-extrabold border border-amber-100">
+                          🛋️ {property.furnished ? 'Tam Eşyalı' : 'Eşyasız'}
                         </span>
                       )}
                       {property.block_plot && (
@@ -726,30 +731,41 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
         // Dynamic Copywriting generator
         const getAICopyText = () => {
+          const isRentMatch = matchingProperty.listing_intent === 'rent';
+          const priceLabelMatch = isRentMatch ? "Aylık Kira Bedeli" : "Fiyatı";
+          const intentWordMatch = isRentMatch ? "kiralık" : "satılık";
+          const intentActionMatch = isRentMatch ? "kiracısını bekliyor" : "yeni sahibini arıyor";
+
           if (aiAdPlatform === 'portal') {
-            return `🌟 KAÇIRILMAYACAK FIRSAT! ${matchingProperty.location} bölgesinde satılık harika ${matchingProperty.type}! 🌟\n\n` +
+            return `🌟 KAÇIRILMAYACAK FIRSAT! ${matchingProperty.location} bölgesinde ${intentWordMatch} harika ${matchingProperty.type}! 🌟\n\n` +
                    `Özellikler:\n` +
                    `• ${formatNumberVal(matchingProperty.square_meters)} m² Net Yaşam Alanı\n` +
                    `• ${matchingProperty.room_count} Lüks Tasarımlı Oda Sayısı\n` +
-                   `• Tapu Statüsü: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n` +
+                   (isRentMatch 
+                     ? `• Eşya Durumu: ${matchingProperty.furnished ? 'Tam Eşyalı & Taşınmaya Hazır' : 'Eşyasız (Zevkinize Göre Tasarım)'}\n`
+                     : `• Tapu Statüsü: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n`) +
                    `• Isınma ve Donanım: Lüks iklimlendirme sistemleri hazır\n\n` +
                    `📍 Konum: Mağaza, deniz hattı ve sosyal yaşam mekanlarına yürüme mesafesinde.\n\n` +
                    `📞 LookPrice çok şubeli ağ güvencesiyle detaylı sunum, dosya inceleme ve mülk yerinde sunumu için hemen iletişime geçin.`;
           } else if (aiAdPlatform === 'social') {
             return `🔥 Göz Alıcı Yatırım Lokasyonu: Kuzey Kıbrıs / ${matchingProperty.kktc_region || "Girne"} 🔥\n\n` +
-                   `Uluslararası yatırımcıların gözdesi ${matchingProperty.location} bölgesindeki bu muhteşem ${matchingProperty.type} yeni sahibini arıyor!\n\n` +
+                   `Uluslararası standartlarda yaşam sunan ${matchingProperty.location} bölgesindeki bu muhteşem ${matchingProperty.type} ${intentActionMatch}!\n\n` +
                    `📈 Bölgesel Analiz: £${formatNumberVal(regionalAverage)}/m²\n` +
-                   `🎯 Fırsat Fiyatı: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)} (${formatNumberVal(matchingProperty.square_meters)} m²)\n` +
-                   `📜 Tapu Güvencesi: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
+                   `🎯 Fırsat ${priceLabelMatch}: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}${isRentMatch ? ' / Aylık' : ''} (${formatNumberVal(matchingProperty.square_meters)} m²)\n` +
+                   (isRentMatch
+                     ? `🔑 Kiralama Koşulu: Minimum 1 Yıl Resmi Sözleşme Güvencesi\n\n`
+                     : `📜 Tapu Güvencesi: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n`) +
                    `Detaylı görsel kataloğumuz ve mülk raporuna profilimizden hemen ulaşabilirsiniz.\n\n` +
-                   `💡 Daha fazla bilgi için hemen DM veya profil bağlantımızdan bize ulaşın! #kktcemlak #kibrisyatirim #realestate #lookpricehub`;
+                   `💡 Daha fazla bilgi için hemen DM veya profil bağlantımızdan bize ulaşın! ${isRentMatch ? '#kktckiralik #kibriskiralik #realestate #lookpricehub' : '#kktcemlak #kibrisyatirim #realestate #lookpricehub'}`;
           } else {
             return `Merhaba Sayın Yatırımcımız,\n\n` +
-                   `LookPrice Emlak Ağının çok şubeli veri tabanından kriterlerinize özel eşleşen yeni bir fırsat kaydoldu:\n\n` +
+                   `LookPrice Emlak Ağının çok şubeli veri tabanından kriterlerinize özel eşleşen yeni bir ${intentWordMatch} mülk fırsatı kaydoldu:\n\n` +
                    `📌 Bölge: ${matchingProperty.location} (${matchingProperty.kktc_region || 'KKTC'})\n` +
                    `🏡 Mülk Tipi: ${formatNumberVal(matchingProperty.square_meters)} m² Net - ${matchingProperty.room_count} - ${matchingProperty.type}\n` +
-                   `💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n` +
-                   `🔑 Koçan: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n` +
+                   `💰 ${priceLabelMatch}: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n` +
+                   (isRentMatch
+                     ? `🛋️ Eşya Durumu: ${matchingProperty.furnished ? 'Tam Teşekküllü Eşyalı' : 'Eşyasız/Sıfır Daire'}\n\n`
+                     : `🔑 Koçan: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n`) +
                    `Mülkle ilgili detaylı görseller ve resmî mülk fizibilite raporuna ulaşmak ve incelemek için bizimle dilediğiniz an iletişime geçebilirsiniz.\n\n` +
                    `Portföy sorumlumuz ile öncelikli randevu ayarlamak için bu mesaja dönüş yapabilirsiniz. Saygılarımızla.`;
           }
@@ -1869,7 +1885,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               )}
               {/* Dynamic Price Plate */}
               <div className="absolute bottom-4 right-4 bg-slate-950 text-white px-5 py-2.5 rounded-xl shadow-2xl border border-slate-800">
-                <span className="block text-[8px] font-black tracking-widest text-slate-400 uppercase">SATILIK / KİRALIK BEDELİ</span>
+                <span className="block text-[8px] font-black tracking-widest text-slate-400 uppercase">
+                  {propertyToPrint.listing_intent === 'rent' ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}
+                </span>
                 <span className="text-xl font-black text-emerald-400">
                   {propertyToPrint.currency === 'GBP' ? '£' : propertyToPrint.currency === 'USD' ? '$' : propertyToPrint.currency === 'EUR' ? '€' : '₺'}
                   {formatNumberVal(propertyToPrint.price)}
@@ -1947,10 +1965,16 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                     <span className="text-slate-900 font-extrabold">{propertyToPrint.facade}</span>
                   </div>
                 )}
-                {propertyToPrint.kktc_title_type && (
+                {propertyToPrint.listing_intent !== 'rent' && propertyToPrint.kktc_title_type && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Koçan Türü (Tapu):</span>
                     <span className="text-slate-900 font-extrabold text-amber-800">{propertyToPrint.kktc_title_type}</span>
+                  </div>
+                )}
+                {propertyToPrint.listing_intent === 'rent' && (
+                  <div className="flex justify-between border-b border-slate-100 pb-1">
+                    <span className="text-slate-500 font-medium">Sözleşme Standardı:</span>
+                    <span className="text-slate-900 font-extrabold text-indigo-700">Minimum 1 Yıl Kontrat</span>
                   </div>
                 )}
               </div>

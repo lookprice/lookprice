@@ -198,7 +198,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
         </div>
       )}
-      {data.kktc_title_type && (
+      {data.kktc_title_type && data.listing_intent !== "rent" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "KOÇAN TİPİ" : "TITLE TYPE"}

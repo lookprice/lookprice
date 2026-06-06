@@ -45,6 +45,8 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const isRent = property?.listing_intent === 'rent';
+
   // Capitalize/Format Helper
   const formatNumberVal = (val: any) => {
     if (val === undefined || val === null || val === '') return '0';
@@ -126,6 +128,12 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     const contactPhone = branding?.phone || '+90 (548) 000 0000';
     const brokerName = property.responsible_agent || 'LookPrice Uzman Portföy Temsilcisi';
 
+    const priceLabel = isRent ? "Aylık Kira Bedeli" : "Değerleme Fiyatı";
+    const statusAction = isRent ? "kiralık olarak sunulmuştur" : "satışa sunulmuştur";
+    const mainHashtags = isRent 
+      ? `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibriskiralik #luxurylire #lookprice #realestatepremium #kiralikfirsati`
+      : `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibrisyatirim #luxurylire #lookprice #realestatepremium #yatirimfirsati`;
+
     switch (selectedTone) {
       case 'luxury':
         return `🌟 PRESTİJ VE LÜKS BİR ARADA! 🌟\n\n` +
@@ -133,48 +141,65 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `🏡 Mülk Detayları:\n` +
                `• Tip: ${typeText} / ${roomsText || 'Geniş Yerleşim'}\n` +
                `• Metrekare: ${sqmText || 'Belirtilmedi'}\n` +
-               `• Tapu Durumu: ${titleType}\n` +
+               (isRent 
+                 ? `• Eşya Durumu: ${property.furnished ? 'A-Z Tam Teşekküllü Eşyalı' : 'Eşyasız (Zevkinize Uygun Tasarım)'}\n`
+                 : `• Tapu Durumu: ${titleType}\n`) +
                `• Bölge: ${regionText}\n\n` +
-               `💰 Değerleme Fiyatı: ${priceText}\n\n` +
-               `Sınırları zorlayan mimarisi, lüks kaplama detayları ve yüksek yaşam standartlarıyla bu mülk, hem prestijli bir yaşam hem de seçkin bir varlık yatırımı sunmaktadır.\n\n` +
+               `💰 ${priceLabel}: ${priceText}\n\n` +
+               `Sınırları zorlayan mimarisi, lüks kaplama detayları ve yüksek yaşam standartlarıyla bu mülk, ${isRent ? 'prestijli ve konforlu bir Kıbrıs hayatı sunmaktadır.' : 'hem prestijli bir yaşam hem de seçkin bir varlık yatırımı sunmaktadır.'}\n\n` +
                `Detaylı fizibilite dosyası, video turu ve yerinde özel randevulu sunum talepleriniz için bize hemen DM gönderebilir ya da iletişim hattımızdan ulaşabilirsiniz.\n\n` +
                `👤 Danışman: ${brokerName}\n` +
                `📞 İletişim: ${contactPhone}\n` +
                `🏢 Ofis: ${brandName}\n\n` +
-               `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibrisyatirim #luxurylire #lookprice #realestatepremium #yatirimfirsati`;
+               `${mainHashtags}`;
 
       case 'investment':
-        return `📈 KAÇIRILMAYACAK YATIRIM VE ARTI DEĞER FIRSATI! 📈\n\n` +
-               `LookPrice Çok Şubeli Ağ Veri Analizlerimize göre, ${propertyLocation} bölgesinde emsallere kıyasla %15+ değer avantajı sağlayan üst seviye portföyümüz ön lansman aşamasında satışa sunulmuştur.\n\n` +
+        const profitSentence = isRent 
+          ? `Kıbrıs'ta yüksek döviz kira getirisi ve prestijli yaşam avantajı arayan seçkin kiracılar için ideal yaşam alanı sunulmuştur.`
+          : `Kıbrıs'ta yüksek döviz kira getirisi (GBP bazlı amortisman) ve kesintisiz bölgesel prim potansiyeli arayan uluslararası yatırımcılar için ideal kârlılık şeması geliştirilmiştir.`;
+        const amortSentence = isRent 
+          ? `• Kiralama Potansiyeli: Çok talep gören seçkin lokasyon`
+          : `• Bölgesel Amortisman Trendi: Çok hızlı geri dönüş rasyosu`;
+
+        return `📈 KAÇIRILMAYACAK SEÇKİN FIRSAT! 📈\n\n` +
+               `LookPrice Çok Şubeli Ağ Veri Analizlerimize göre, ${propertyLocation} bölgesinde emsallere kıyasla mükemmel fiyat-fayda rasyosu sunan üst seviye portföyümüz ${statusAction}.\n\n` +
                `🎯 Finansal & Yapısal Özet:\n` +
-               `• Bölgesel Amortisman Trendi: Çok hızlı geri dönüş rasyosu\n` +
+               `• Değer Raporu: Bölgesel ortalamalara göre oldukça avantajlı\n` +
+               `${amortSentence}\n` +
                `• Kapalı Alan Raporu: ${sqmText || 'Belirtilmedi'} (${roomsText})\n` +
                `• Konum Kusursuzluğu: Ana arterlere, denize ve lüks marina hattına yürüme mesafesinde\n` +
-               `• Tapu Statüsü: ${titleType} (Sorunsuz devir hazır)\n\n` +
-               `💰 Fırsat Liste Bedeli: ${priceText}\n\n` +
-               `Kıbrıs'ta yüksek döviz kira getirisi (GBP bazlı amortisman) ve kesintisiz bölgesel prim potansiyeli arayan uluslararası yatırımcılar için ideal kârlılık şeması geliştirilmiştir.\n\n` +
-               `LookPrice güvencesiyle dosya analizi ve hızlı devir süreçleri için bizimle iletişime geçin.\n\n` +
+               (isRent
+                 ? `• Kiralama Koşulu: Minimum 1 Yıllık Resmi Sözleşmeli\n\n`
+                 : `• Tapu Statüsü: ${titleType} (Sorunsuz devir hazır)\n\n`) +
+               `💰 Fırsat Liste Bedeli: ${priceText}${isRent ? ' / Aylık' : ''}\n\n` +
+               `${profitSentence}\n\n` +
+               `LookPrice güvencesiyle dosya analizi ve hızlı sözleşme süreçleri için bizimle iletişime geçin.\n\n` +
                `📞 Detaylar İçin Arayın: ${contactPhone}\n` +
                `👤 Sorumlu Temsilci: ${brokerName}\n` +
                `🏢 Yetkili Şube: ${brandName}\n\n` +
-               `#kibrisemlak #kibrisyatirim #emlakraporu #lookpricecapital #yatirimvizyonu #kibrissatilik #${propertyLocation.toLowerCase()}realestate`;
+               `${isRent ? `#kibrisemlak #kibriskiralik #lookpricecapital #yatirimvizyonu #kibriskiralikdaire #${propertyLocation.toLowerCase()}realestate` : `#kibrisemlak #kibrisyatirim #emlakraporu #lookpricecapital #yatirimvizyonu #kibrissatilik #${propertyLocation.toLowerCase()}realestate`}`;
 
       case 'friendly':
+        const friendlyHashtags = isRent 
+          ? `#kibrisvizyon #keyifliyasam #kibriskiralikdaire #lookpriceemlak #huzurluyasam #kibristakiralikev #homedesign`
+          : `#kibrisvizyon #keyifliyasam #kibrissatilikdaire #lookpriceemlak #huzurluyasam #kibristaevsahibiol #homedesign`;
         return `🔑 Hayalinizdeki Kıbrıs Yaşamına İlk Adımı Atın! 🔑\n\n` +
-               `Merhaba sevgili takipçilerimiz! Bugün size Kuzey Kıbrıs'ın en samimi, en huzurlu köşelerinden biri olan ${propertyLocation}'da yer alan sıcacık bir ${typeText.toLowerCase()} fırsatını tanıtmak istiyoruz. 😍\n\n` +
+               `Merhaba sevgili takipçilerimiz! Bugün size Kuzey Kıbrıs'ın en samimi, en huzurlu köşelerinden biri olan ${propertyLocation}'da yer alan sıcacık bir ${isRent ? 'kiralık' : ''} ${typeText.toLowerCase()} fırsatını tanıtmak istiyoruz. 😍\n\n` +
                `✨ Neden Burayı Çok Seveceksiniz?\n` +
                `👉 Tam ${roomsText || 'Geniş Yaşam Alanı'} ferahlığı\n` +
                `👉 Metraj Konforu: ${sqmText || 'Belirtilmedi'} kullanım alanı\n` +
-               `👉 Güvenli Tapu: ${titleType} güvencesiyle içiniz rahat\n` +
+               (isRent
+                 ? `👉 Kullanım Kolaylığı: ${property.furnished ? 'Taşınmaya hazır, tam mobilyalı!' : 'Kendi tarzınızı yansıtabileceğiniz boş mülk.'}\n`
+                 : `👉 Güvenli Tapu: ${titleType} güvencesiyle içiniz rahat\n`) +
                `👉 Lokasyon Dostu: Alışveriş noktalarına, kafelere ve masmavi plajlara çok yakın!\n\n` +
-               `💰 Fiyat: ${priceText} (Hızlı karar veren fırsat sahibi olur!)\n\n` +
+               `💰 Fiyat: ${priceText}${isRent ? ' / Aylık' : ''} (Hızlı karar veren fırsat sahibi olur!)\n\n` +
                `Her sabah eşsiz Kıbrıs havasına gözlerinizi açacağınız, sevdiklerinizle huzurlu anılar biriktireceğiniz muhteşem bir konsepte sahip.\n\n` +
                `Kahvemizi içmeye ve bu güzel mülkün tüm detaylarını yüz yüze konuşmaya bekliyoruz! 😊☕️\n\n` +
                `💬 Hemen DM atın ya da bizi arayın:\n` +
                `📞 Cep: ${contactPhone}\n` +
                `👤 Danışmanınız: ${brokerName}\n` +
                `🏢 Emlak Ağı: ${brandName}\n\n` +
-               `#kibrisvizyon #keyifliyasam #kibrissatilikdaire #lookpriceemlak #huzurluyasam #kibristaevsahibiol #homedesign`;
+               `${friendlyHashtags}`;
     }
   };
 
@@ -393,7 +418,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillStyle = selectedTheme === 'minimal_carbon' ? '#09090b' : '#ffffff';
       ctx.font = 'bold 15px system-ui, sans-serif';
       ctx.letterSpacing = '1px';
-      ctx.fillText("SATILIK / KİRALIK LİSTE BEDELİ", 110, priceBlockY + 40);
+      ctx.fillText(property.listing_intent === 'rent' ? "AYLIK KİRA BEDELİ" : "LİSTE SATIŞ BEDELİ", 110, priceBlockY + 40);
 
       ctx.font = '900 45px system-ui, sans-serif';
       ctx.fillText(priceText, 110, priceBlockY + 84);
@@ -406,7 +431,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       let specString = ``;
       if (property.square_meters) specString += `📐 ${property.square_meters} m² Net  •  `;
       if (property.room_count) specString += `🛏️ ${property.room_count} Oda  •  `;
-      specString += `📜 ${titleType}`;
+      if (isRent) {
+        specString += property.furnished ? `🛋️ Tam Eşyalı` : `📦 Eşyasız Portföy`;
+      } else {
+        specString += `📜 ${titleType}`;
+      }
       ctx.fillText(specString, 80, specY);
 
       // Footer
@@ -581,7 +610,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     
                     {/* Floating Price Plate */}
                     <div className="absolute bottom-2 right-2 bg-slate-950/90 text-white px-3 py-1 rounded-lg border border-slate-700 shadow-lg text-right">
-                      <span className="block text-[6px] text-slate-400 font-extrabold uppercase">SATIŞ BEDELİ</span>
+                      <span className="block text-[6px] text-slate-400 font-extrabold uppercase">
+                        {property.listing_intent === 'rent' ? 'KİRA BEDELİ' : 'SATIŞ BEDELİ'}
+                      </span>
                       <span className="text-xs font-black text-emerald-400">{priceText}</span>
                     </div>
                   </div>
@@ -608,7 +639,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     {propertyTitle}
                   </h4>
                   <p className={`text-[9.5px] font-semibold mt-1 tracking-tight truncate ${themeConfig.textBody}`}>
-                    {roomsText ? `🛌 ${roomsText} • ` : ''}📜 {titleType} {property.kktc_region ? `• 🌍 ${property.kktc_region}` : ''}
+                    {roomsText ? `🛌 ${roomsText} • ` : ''}
+                    {isRent 
+                      ? `${property.furnished ? '🛋️ Tam Eşyalı' : '🔑 Boş'} • ⏱️ Yıllık Sözleşme` 
+                      : `📜 ${titleType}`}
+                    {property.kktc_region ? ` • 🌍 ${property.kktc_region}` : ''}
                   </p>
                 </div>
 

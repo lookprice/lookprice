@@ -755,7 +755,7 @@ export const ModernPortfolioLayout: React.FC<ModernPortfolioLayoutProps> = ({
                                   <span>{lang === "tr" ? "Net:" : "Net:"} <span className="text-slate-900 font-black">{p.sector_data.square_meters} m²</span></span>
                                 </div>
                               ) : null}
-                              {p.sector_data?.kktc_title_type ? (
+                              {p.sector_data?.kktc_title_type && p.sector_data?.listing_intent !== 'rent' ? (
                                 <div className="flex items-center gap-1 col-span-2 text-[9px] truncate">
                                   <span className="text-amber-500 font-extrabold text-xs">📜</span>
                                   <span className="truncate">{lang === "tr" ? "Koçan:" : "Deed:"} <span className="text-slate-900 font-black">{p.sector_data.kktc_title_type}</span></span>

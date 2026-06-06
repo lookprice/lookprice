@@ -250,7 +250,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </span>
               </div>
             ) : null}
-            {product.sector_data?.kktc_title_type ? (
+            {product.sector_data?.kktc_title_type && product.sector_data?.listing_intent !== 'rent' ? (
               <div className="flex items-center gap-1.5 col-span-2 border-t border-slate-100 pt-1.5 mt-0.5 min-w-0" title={product.sector_data.kktc_title_type}>
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
                 <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Koçan:' : 'Title:'}</span>
