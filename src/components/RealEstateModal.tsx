@@ -147,7 +147,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         price: 0,
         currency: 'GBP',
         type: 'residence',
+        subtype: '',
         listing_intent: 'sale',
+        deposit: 0,
+        billing_period: 'monthly',
         status: 'active',
         location: '',
         description: '',
@@ -639,18 +642,20 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">
-                  Brüt Alan (m²) {formData.sqm_gross ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.sqm_gross))})` : ''}
-                </label>
-                <input
-                  type="number"
-                  placeholder="Brüt m²"
-                  className="w-full p-3 border rounded-xl text-sm font-medium"
-                  value={formData.sqm_gross || ''}
-                  onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
-                />
-              </div>
+              {formData.listing_intent !== 'rent' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">
+                    Brüt Alan (m²) {formData.sqm_gross ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.sqm_gross))})` : ''}
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Brüt m²"
+                    className="w-full p-3 border rounded-xl text-sm font-medium"
+                    value={formData.sqm_gross || ''}
+                    onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Oda Sayısı</label>

@@ -1902,7 +1902,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   <span className="text-slate-500 font-medium">Metrekare (Net):</span>
                   <span className="text-slate-900 font-extrabold">{propertyToPrint.square_meters ? `${formatNumberVal(propertyToPrint.square_meters)} m²` : 'Belirtilmedi'}</span>
                 </div>
-                {propertyToPrint.sqm_gross && (
+                {propertyToPrint.sqm_gross && propertyToPrint.listing_intent !== 'rent' && (
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Metrekare (Brüt):</span>
                     <span className="text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.sqm_gross)} m²</span>
@@ -1969,6 +1969,29 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Koçan Türü (Tapu):</span>
                     <span className="text-slate-900 font-extrabold text-amber-800">{propertyToPrint.kktc_title_type}</span>
+                  </div>
+                )}
+                {propertyToPrint.subtype && (
+                  <div className="flex justify-between border-b border-slate-100 pb-1">
+                    <span className="text-slate-500 font-medium">Alt Tip:</span>
+                    <span className="text-slate-900 font-extrabold text-slate-800">{propertyToPrint.subtype}</span>
+                  </div>
+                )}
+                {propertyToPrint.listing_intent === 'rent' && propertyToPrint.deposit !== undefined && (
+                  <div className="flex justify-between border-b border-slate-100 pb-1">
+                    <span className="text-slate-500 font-medium">Depozito Tutarı:</span>
+                    <span className="text-slate-900 font-extrabold text-indigo-700">
+                      {propertyToPrint.currency === 'GBP' ? '£' : propertyToPrint.currency === 'USD' ? '$' : propertyToPrint.currency === 'EUR' ? '€' : '₺'}
+                      {formatNumberVal(propertyToPrint.deposit)}
+                    </span>
+                  </div>
+                )}
+                {propertyToPrint.listing_intent === 'rent' && propertyToPrint.billing_period && (
+                  <div className="flex justify-between border-b border-slate-100 pb-1">
+                    <span className="text-slate-500 font-medium">Ödeme Periyodu:</span>
+                    <span className="text-slate-900 font-extrabold text-indigo-700">
+                      {propertyToPrint.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}
+                    </span>
                   </div>
                 )}
                 {propertyToPrint.listing_intent === 'rent' && (

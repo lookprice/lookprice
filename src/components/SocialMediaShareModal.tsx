@@ -93,9 +93,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
           textTitle: 'text-amber-900 font-extrabold',
           textBody: 'text-stone-700',
           accentBorder: 'border-orange-500/20',
-          pillBg: 'bg-orange-500/10 text-orange-850 border-orange-500/10',
+          pillBg: 'bg-orange-500/10 text-orange-950 border-orange-500/10',
           priceBg: 'bg-gradient-to-r from-orange-600 to-amber-700 text-white',
-          footerBg: 'bg-stone-50 border-t border-stone-200'
+          footerBg: 'bg-orange-100 border-t border-orange-200'
         };
       case 'modern_indigo':
         return {
@@ -139,10 +139,13 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         return `🌟 PRESTİJ VE LÜKS BİR ARADA! 🌟\n\n` +
                `Kuzey Kıbrıs emlak pazarının parlayan yıldızı ${propertyLocation} bölgesinde, elit standartlarda ve eşsiz konfor donanımlarıyla süslenmiş yeni bir portföy ile karşınızdayız.\n\n` +
                `🏡 Mülk Detayları:\n` +
+               `• Alt Tip: ${property.subtype || typeText}\n` +
                `• Tip: ${typeText} / ${roomsText || 'Geniş Yerleşim'}\n` +
                `• Metrekare: ${sqmText || 'Belirtilmedi'}\n` +
                (isRent 
-                 ? `• Eşya Durumu: ${property.furnished ? 'A-Z Tam Teşekküllü Eşyalı' : 'Eşyasız (Zevkinize Uygun Tasarım)'}\n`
+                 ? `• Eşya Durumu: ${property.furnished ? 'A-Z Tam Teşekküllü Eşyalı' : 'Eşyasız (Zevkinize Uygun Tasarım)'}\n` +
+                   `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Özel Görüşülecek'}\n` +
+                   `• Ödeme Periyodu: ${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}\n`
                  : `• Tapu Durumu: ${titleType}\n`) +
                `• Bölge: ${regionText}\n\n` +
                `💰 ${priceLabel}: ${priceText}\n\n` +
@@ -164,7 +167,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         return `📈 KAÇIRILMAYACAK SEÇKİN FIRSAT! 📈\n\n` +
                `LookPrice Çok Şubeli Ağ Veri Analizlerimize göre, ${propertyLocation} bölgesinde emsallere kıyasla mükemmel fiyat-fayda rasyosu sunan üst seviye portföyümüz ${statusAction}.\n\n` +
                `🎯 Finansal & Yapısal Özet:\n` +
+               `• Alt Tip: ${property.subtype || typeText}\n` +
                `• Değer Raporu: Bölgesel ortalamalara göre oldukça avantajlı\n` +
+               (isRent ? `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}\n• Ödeme Periyodu: ${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}\n` : '') +
                `${amortSentence}\n` +
                `• Kapalı Alan Raporu: ${sqmText || 'Belirtilmedi'} (${roomsText})\n` +
                `• Konum Kusursuzluğu: Ana arterlere, denize ve lüks marina hattına yürüme mesafesinde\n` +
@@ -186,10 +191,13 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         return `🔑 Hayalinizdeki Kıbrıs Yaşamına İlk Adımı Atın! 🔑\n\n` +
                `Merhaba sevgili takipçilerimiz! Bugün size Kuzey Kıbrıs'ın en samimi, en huzurlu köşelerinden biri olan ${propertyLocation}'da yer alan sıcacık bir ${isRent ? 'kiralık' : ''} ${typeText.toLowerCase()} fırsatını tanıtmak istiyoruz. 😍\n\n` +
                `✨ Neden Burayı Çok Seveceksiniz?\n` +
+               `👉 Alt Tip: ${property.subtype || typeText} ayrıcalığı\n` +
                `👉 Tam ${roomsText || 'Geniş Yaşam Alanı'} ferahlığı\n` +
                `👉 Metraj Konforu: ${sqmText || 'Belirtilmedi'} kullanım alanı\n` +
                (isRent
-                 ? `👉 Kullanım Kolaylığı: ${property.furnished ? 'Taşınmaya hazır, tam mobilyalı!' : 'Kendi tarzınızı yansıtabileceğiniz boş mülk.'}\n`
+                 ? `👉 Kullanım Kolaylığı: ${property.furnished ? 'Taşınmaya hazır, tam mobilyalı!' : 'Kendi tarzınızı yansıtabileceğiniz boş mülk.'}\n` +
+                   `👉 Depozito Koşulu: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)} depozitolu` : 'Görüşülecek'}\n` +
+                   `👉 Ödeme Kolaylığı: ${property.billing_period === 'yearly' ? 'Yıllık peşin periyot' : 'Aylık ödemeli periyot'}\n`
                  : `👉 Güvenli Tapu: ${titleType} güvencesiyle içiniz rahat\n`) +
                `👉 Lokasyon Dostu: Alışveriş noktalarına, kafelere ve masmavi plajlara çok yakın!\n\n` +
                `💰 Fiyat: ${priceText}${isRent ? ' / Aylık' : ''} (Hızlı karar veren fırsat sahibi olur!)\n\n` +
@@ -429,10 +437,17 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.font = '800 20px system-ui, sans-serif';
 
       let specString = ``;
+      if (property.subtype) specString += `🏠 ${property.subtype}  •  `;
       if (property.square_meters) specString += `📐 ${property.square_meters} m² Net  •  `;
       if (property.room_count) specString += `🛏️ ${property.room_count} Oda  •  `;
       if (isRent) {
-        specString += property.furnished ? `🛋️ Tam Eşyalı` : `📦 Eşyasız Portföy`;
+        specString += property.furnished ? `🛋️ Eşyalı` : `📦 Eşyasız`;
+        if (property.deposit !== undefined && property.deposit > 0) {
+          specString += `  •  💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}`;
+        }
+        if (property.billing_period) {
+          specString += ` (${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'})`;
+        }
       } else {
         specString += `📜 ${titleType}`;
       }
@@ -447,7 +462,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.lineTo(width - 80, footerY - 20);
       ctx.stroke();
 
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#c2410c' : '#a1a1aa';
+      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#a1a1aa';
       ctx.font = 'bold 13px system-ui, sans-serif';
       ctx.fillText(`PORTFÖY SORUMLUSU: ${property.responsible_agent || 'LOOKPRICE DANISMANI'}`, 80, footerY + 15);
       
@@ -620,15 +635,24 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
                 {/* Specs Box */}
                 <div className="px-4 mt-2">
-                  <div className="flex gap-1 flex-wrap select-none">
+                  <div className="flex gap-1 flex-wrap select-none font-sans">
                     <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
                       {categoryLabelForPreview(property.type)}
                     </span>
+                    {property.subtype && (
+                      <span className="text-[8.5px] font-bold px-2 py-0.5 rounded-md border uppercase text-indigo-600 bg-indigo-50/70 border-indigo-200">
+                        🏠 {property.subtype}
+                      </span>
+                    )}
                     <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
                       📍 {propertyLocation}
                     </span>
                     {property.square_meters && (
-                      <span className={`text-[8.5px] font-semibold px-2 py-0.5 rounded-md border text-slate-300 border-slate-700/55`}>
+                      <span className={`text-[8.5px] font-semibold px-2 py-0.5 rounded-md border ${
+                        selectedTheme === 'cyprus_warm' 
+                          ? 'text-orange-950 border-orange-200 bg-orange-100/30' 
+                          : 'text-slate-300 border-slate-700/55'
+                      }`}>
                         📐 {property.square_meters} m²
                       </span>
                     )}
@@ -641,7 +665,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   <p className={`text-[9.5px] font-semibold mt-1 tracking-tight truncate ${themeConfig.textBody}`}>
                     {roomsText ? `🛌 ${roomsText} • ` : ''}
                     {isRent 
-                      ? `${property.furnished ? '🛋️ Tam Eşyalı' : '🔑 Boş'} • ⏱️ Yıllık Sözleşme` 
+                      ? `${property.furnished ? '🛋️ Eşyalı' : '🔑 Boş'} • ${property.deposit ? `💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}` : 'Depozitosuz'} • ⏱️ ${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}` 
                       : `📜 ${titleType}`}
                     {property.kktc_region ? ` • 🌍 ${property.kktc_region}` : ''}
                   </p>
@@ -649,20 +673,34 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
                 {/* Callout box for Vertical Ratio */}
                 {selectedRatio === 'story' && (
-                  <div className="px-4 py-3 mx-4 my-2 rounded-xl bg-amber-500/10 border border-amber-550/25 text-center flex-col justify-center items-center">
-                    <span className="text-[10px] font-black text-amber-300 block mb-0.5 uppercase tracking-widest">👑 EN POPÜLER LOKASYON</span>
-                    <p className="text-[9px] text-zinc-300 max-w-[200px] mx-auto">Kıbrıs'ın değer kazanan emsalsiz bölgesinde lüks yaşam standartları!</p>
+                  <div className={`px-4 py-3 mx-4 my-2 rounded-xl text-center flex flex-col justify-center items-center border ${
+                    selectedTheme === 'cyprus_warm'
+                      ? 'bg-orange-100/30 border-orange-200/50'
+                      : 'bg-amber-500/10 border-amber-550/25'
+                  }`}>
+                    <span className={`text-[10px] font-black block mb-0.5 uppercase tracking-widest ${
+                      selectedTheme === 'cyprus_warm' ? 'text-orange-950' : 'text-amber-300'
+                    }`}>👑 EN POPÜLER LOKASYON</span>
+                    <p className={`text-[9px] max-w-[200px] mx-auto ${
+                      selectedTheme === 'cyprus_warm' ? 'text-stone-850 font-semibold' : 'text-zinc-300'
+                    }`}>Kıbrıs'ın değer kazanan emsalsiz bölgesinde lüks yaşam standartları!</p>
                   </div>
                 )}
 
                 {/* Footer with responsible broker */}
-                <div className="mt-auto px-4 py-3 flex justify-between items-center border-t border-slate-800/80 bg-black/30 text-[8.5px]">
+                <div className={`mt-auto px-4 py-3 flex justify-between items-center text-[8.5px] ${themeConfig.footerBg}`}>
                   <div className="truncate max-w-[150px]">
-                    <span className="block text-[6px] text-zinc-500 uppercase leading-none">PORTFÖY DANIŞMANI</span>
-                    <strong className="text-zinc-200 mt-0.5 block truncate uppercase">{property.responsible_agent || 'LOOKPRICE EXPERT'}</strong>
+                    <span className={`block text-[6.5px] uppercase leading-none ${
+                      selectedTheme === 'cyprus_warm' ? 'text-orange-950 font-black' : 'text-zinc-500'
+                    }`}>PORTFÖY DANIŞMANI</span>
+                    <strong className={`mt-0.5 block truncate uppercase ${
+                      selectedTheme === 'cyprus_warm' ? 'text-orange-950 font-black' : 'text-zinc-200'
+                    }`}>{property.responsible_agent || 'LOOKPRICE EXPERT'}</strong>
                   </div>
                   <div className="text-right">
-                    <span className="text-zinc-400 block tracking-wider font-mono font-bold leading-none">{branding?.phone || 'LOOKPRICE.ME'}</span>
+                    <span className={`block tracking-wider font-mono font-black leading-none ${
+                      selectedTheme === 'cyprus_warm' ? 'text-orange-950' : 'text-zinc-400'
+                    }`}>{branding?.phone || 'LOOKPRICE.ME'}</span>
                   </div>
                 </div>
 

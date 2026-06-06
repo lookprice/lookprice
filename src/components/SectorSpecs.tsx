@@ -148,6 +148,17 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
         </div>
       )}
 
+      {data.subtype && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ALT TİP" : "SUBTYPE"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.subtype}
+          </p>
+        </div>
+      )}
+
       {data.square_meters && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
@@ -158,7 +169,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
         </div>
       )}
-      {data.sqm_gross && (
+      {data.sqm_gross && data.listing_intent !== 'rent' && (
         <div className="p-4 bg-emerald-55/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "BRÜT METREKARE" : "GROSS AREA"}
@@ -168,13 +179,13 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
         </div>
       )}
-      {data.rooms && category !== "land" && (
+      {(data.room_count || data.rooms) && category !== "land" && (
         <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
           <p className="text-[8px] font-black text-emerald-500 tracking-widest mb-1 uppercase">
             {lang === "tr" ? "ODA SAYISI" : "ROOM COUNT"}
           </p>
           <p className="text-sm font-black text-emerald-950 transition-colors uppercase">
-            {data.rooms}
+            {data.room_count || data.rooms}
           </p>
         </div>
       )}
@@ -208,6 +219,33 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
         </div>
       )}
+
+      {data.listing_intent === "rent" && data.deposit !== undefined && (
+        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 group hover:border-amber-300 transition-all">
+          <p className="text-[8px] font-black text-amber-600 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "DEPOZİTO TUTARI" : "DEPOSIT AMOUNT"}
+          </p>
+          <p className="text-sm font-black text-amber-950 transition-colors uppercase">
+            {data.deposit > 0 ? (
+              `${data.currency === 'GBP' ? '£' : data.currency === 'USD' ? '$' : data.currency === 'EUR' ? '€' : '₺'}${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(data.deposit)}`
+            ) : (
+              lang === "tr" ? "Depozito Yok" : "No Deposit"
+            )}
+          </p>
+        </div>
+      )}
+
+      {data.listing_intent === "rent" && data.billing_period && (
+        <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 group hover:border-sky-300 transition-all">
+          <p className="text-[8px] font-black text-sky-600 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ÖDEME PERİYODU" : "PAYMENT PERIOD"}
+          </p>
+          <p className="text-sm font-black text-sky-950 transition-colors uppercase">
+            {data.billing_period === 'yearly' ? (lang === "tr" ? 'Yıllık' : 'Yearly') : (lang === "tr" ? 'Aylık' : 'Monthly')}
+          </p>
+        </div>
+      )}
+
       {data.building_age && category !== "land" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
