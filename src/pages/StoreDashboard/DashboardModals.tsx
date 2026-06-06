@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ShippingSlip from "../../components/ShippingSlip";
+import { MultiImageUploader } from "../../components/MultiImageUploader";
 
 interface DashboardModalsProps {
   // Common
@@ -178,6 +179,15 @@ export const DashboardModals = (props: DashboardModalsProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [compSearch, setCompSearch] = useState("");
   const [prodSearch, setProdSearch] = useState("");
+
+  const [productImageUrl, setProductImageUrl] = useState("");
+  React.useEffect(() => {
+    if (showProductModal) {
+      setProductImageUrl(editingProduct?.image_url || "");
+    } else {
+      setProductImageUrl("");
+    }
+  }, [showProductModal, editingProduct]);
 
   return (
     <AnimatePresence>
@@ -2048,15 +2058,43 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   />
                 </div>
 
-                <div className="space-y-1.5 col-span-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">{isTr ? 'Ürün Görseli (Eşel URL Adresi)' : 'Product Image URL'}</label>
-                  <input
-                    type="text"
-                    name="image_url"
-                    placeholder="https://example.com/image.jpg"
-                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-semibold text-slate-750"
-                    defaultValue={editingProduct?.image_url || ""}
-                  />
+                <div className="space-y-1.5 col-span-2 bg-slate-50 p-4 rounded-3xl border border-slate-150">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    {isTr ? 'Ürün Görseli (Canlı Fotoğraf veya URL)' : 'Product Image (Live Photo or URL)'}
+                  </label>
+                  
+                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                    {/* Image Preview */}
+                    <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm bg-cover bg-center">
+                      {productImageUrl ? (
+                        <img src={productImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-bold">{isTr ? 'Görsel Yok' : 'Blank'}</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 w-full space-y-2">
+                      <input
+                        type="text"
+                        name="image_url"
+                        placeholder="https://example.com/image.jpg"
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-all font-semibold text-xs text-slate-750"
+                        value={productImageUrl}
+                        onChange={(e) => setProductImageUrl(e.target.value)}
+                      />
+                      
+                      <div className="pt-1">
+                        <MultiImageUploader 
+                          onImagesUploaded={(urls) => {
+                            if (urls && urls.length > 0) {
+                              setProductImageUrl(urls[0]);
+                            }
+                          }} 
+                          lang={lang} 
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 col-span-2">

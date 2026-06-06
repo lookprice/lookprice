@@ -600,6 +600,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
+      { id: "quotations", label: t.quotations, icon: FileCheck },
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
       { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },

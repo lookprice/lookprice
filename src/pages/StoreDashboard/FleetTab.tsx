@@ -3698,8 +3698,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t.uploadFile}</label>
-                  <div className="flex items-center gap-2">
-                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-400 cursor-pointer transition-colors">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-200 rounded-lg hover:border-indigo-450 cursor-pointer transition-colors">
                       <Upload className="w-5 h-5 text-gray-400" />
                       <span className="text-sm text-gray-600">
                         {documentFile ? documentFile.name : t.selectFile}
@@ -3707,6 +3707,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       <input 
                         type="file" 
                         className="hidden" 
+                        onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    <label className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer transition-colors active:scale-95 shrink-0">
+                      <Camera className="w-5 h-5" />
+                      <span className="text-sm font-bold">{lang === 'tr' ? 'Foto Çek 📸' : 'Take Photo 📸'}</span>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        capture="environment"
                         onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
                       />
                     </label>
@@ -3911,6 +3922,38 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       <Upload className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-600">{t.selectFile}</span>
                     </label>
+
+                    {/* Maintenance camera capture */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            const res = await api.uploadFile(formData);
+                            if (res.url) {
+                              setMaintenanceFormData({ ...maintenanceFormData, invoice_url: res.url });
+                            }
+                          } catch (err) {
+                            console.error('Upload failed:', err);
+                            alert(t.uploadError);
+                          }
+                        }
+                      }}
+                      className="hidden"
+                      id="maintenance-camera-upload"
+                    />
+                    <label
+                      htmlFor="maintenance-camera-upload"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer transition-colors active:scale-95"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span className="text-sm font-bold">{lang === 'tr' ? 'Foto Çek 📸' : 'Take Photo 📸'}</span>
+                    </label>
                     {maintenanceFormData.invoice_url && (
                       <div className="flex items-center gap-2 text-green-600 text-xs font-medium">
                         <CheckCircle2 className="w-4 h-4" />
@@ -4091,6 +4134,23 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                       >
                         <Upload className="w-4 h-4 text-gray-500" />
                         <span className="text-sm font-medium text-gray-600">{t.selectFile}</span>
+                      </label>
+
+                      {/* Driver camera capture input */}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => setDriverFile(e.target.files?.[0] || null)}
+                        className="hidden"
+                        id="driver-camera-upload"
+                      />
+                      <label
+                        htmlFor="driver-camera-upload"
+                        className="flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer transition-colors active:scale-95 shadow-sm"
+                      >
+                        <Camera className="w-4 h-4" />
+                        <span className="text-sm font-bold">{lang === 'tr' ? 'Foto Çek 📸' : 'Take Photo 📸'}</span>
                       </label>
                       {driverFile && (
                         <div className="flex items-center gap-2 text-green-600 text-xs font-medium">
