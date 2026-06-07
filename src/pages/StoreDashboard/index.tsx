@@ -556,9 +556,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const isPortfolio = branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
+  const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
   const isRealEstate = branding?.store_type === 'real_estate' || branding?.page_layout_settings?.sector === 'real_estate';
-  const isAutomotive = branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive';
+  const isAutomotive = branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive';
 
   useEffect(() => {
     if (isPortfolio && (['products', 'pos', 'fast-pos', 'sales_invoices', 'procurements', 'purchase_invoices', 'stock_transfer', 'service'].includes(activeTab))) {

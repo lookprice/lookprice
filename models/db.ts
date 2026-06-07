@@ -669,6 +669,7 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS about_text TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES stores(id) ON DELETE SET NULL;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS store_type TEXT DEFAULT 'product';
+       ALTER TABLE stores ADD COLUMN IF NOT EXISTS sub_sector TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS payment_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS amazon_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS n11_settings JSONB DEFAULT '{}';

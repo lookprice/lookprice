@@ -30,7 +30,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
 
-type CategoryFilter = "all" | "vehicle" | "real_estate" | "product";
+type CategoryFilter = "all" | "vehicle" | "real_estate";
 
 export const Marketplace = () => {
   const navigate = useNavigate();
@@ -39,6 +39,7 @@ export const Marketplace = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
+  const [activeSubSector, setActiveSubSector] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
   
@@ -85,13 +86,13 @@ export const Marketplace = () => {
       type: "real_estate"
     },
     {
-      image: "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=1200&q=80",
-      title: "Zamanın Ötesinde Bir Başyapıt",
-      subtitle: "HAUTE-HORLOGERIE SINIRLI SAYI SAATLER",
-      description: "Dünya mirası butik markaların özel koleksiyoncu serisi mekanik saatlerini ve nadide aksesuarlarını keşfedin.",
-      badge: "Grand Boutique",
-      accent: "from-purple-500 to-pink-500",
-      type: "product"
+      image: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1200&q=80",
+      title: "Özgürlüğün İki Tekerlekli Hali",
+      subtitle: "ULTRA PRESTİJLİ CHOPPER & RACING MOTOSİKLETLER",
+      description: "Akdeniz'in en seçkin motorlu taşıt mağazalarından özel seri cruiser, chopper ve yüksek performanslı motosikletler.",
+      badge: "Prestige Cycle",
+      accent: "from-blue-500 to-indigo-505",
+      type: "vehicle"
     }
   ];
 
@@ -161,16 +162,25 @@ export const Marketplace = () => {
     .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (activeCategory !== "vehicle" && activeCategory !== "all") {
+      setActiveSubSector("all");
+    }
+  }, [activeCategory]);
+
   // Filter & Sort Logic
   const filteredListings = listings
     .filter(item => {
+      // Exclude products from enrakipsiz portal
+      if (item.listing_type === "product") return false;
       const matchesCategory = activeCategory === "all" || item.listing_type === activeCategory;
+      const matchesSubSector = activeSubSector === "all" || (item.listing_type === "vehicle" && item.sub_sector === activeSubSector);
       const matchesSearch = 
         (item.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.brand || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.store_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.category || "").toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesSubSector && matchesSearch;
     })
     .sort((a, b) => {
       if (sortBy === "price_asc") {
@@ -187,10 +197,9 @@ export const Marketplace = () => {
 
   // Calculate statistics for the badges
   const stats = {
-    total: listings.length,
+    total: listings.filter(l => l.listing_type !== "product").length,
     vehicles: listings.filter(l => l.listing_type === "vehicle").length,
     properties: listings.filter(l => l.listing_type === "real_estate").length,
-    products: listings.filter(l => l.listing_type === "product").length,
   };
 
   return (
@@ -416,48 +425,80 @@ export const Marketplace = () => {
             </div>
 
             {/* Category Pills and Counts */}
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800/80 pt-5">
-              <div className="flex flex-wrap gap-2.5">
-                {[
-                  { value: "all", label: "Tüm İlanlar", icon: Filter, count: stats.total },
-                  { value: "vehicle", label: "Oto Galeri", icon: Car, count: stats.vehicles },
-                  { value: "real_estate", label: "Emlak", icon: Home, count: stats.properties },
-                  { value: "product", label: "Alışveriş (Ürünler)", icon: Package, count: stats.products }
-                ].map((pill) => {
-                  const Icon = pill.icon;
-                  const isActive = activeCategory === pill.value;
-                  return (
-                    <button
-                      key={pill.value}
-                      onClick={() => setActiveCategory(pill.value as CategoryFilter)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all hover:scale-[1.02] ${
-                        isActive 
-                          ? "bg-slate-200 text-slate-950 shadow-md shadow-white/5" 
-                          : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{pill.label}</span>
-                      <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                        isActive ? "bg-slate-950/10 text-slate-950" : "bg-slate-800 text-slate-500"
-                      }`}>
-                        {pill.count}
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="flex flex-col gap-4 border-t border-slate-800/80 pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-2.5">
+                  {[
+                    { value: "all", label: "Tüm İlanlar", icon: Filter, count: stats.total },
+                    { value: "vehicle", label: "Oto Galeri", icon: Car, count: stats.vehicles },
+                    { value: "real_estate", label: "Emlak", icon: Home, count: stats.properties }
+                  ].map((pill) => {
+                    const Icon = pill.icon;
+                    const isActive = activeCategory === pill.value;
+                    return (
+                      <button
+                        key={pill.value}
+                        onClick={() => setActiveCategory(pill.value as CategoryFilter)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all hover:scale-[1.02] ${
+                          isActive 
+                            ? "bg-slate-200 text-slate-950 shadow-md shadow-white/5" 
+                            : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{pill.label}</span>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                          isActive ? "bg-slate-950/10 text-slate-950" : "bg-slate-800 text-slate-500"
+                        }`}>
+                          {pill.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Verified Count Banner */}
+                <div className="text-xs text-slate-400 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl px-4 py-2.5 flex items-center gap-2.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="font-medium">
+                    Mağazalarımızdan doğrudan online satın alma veya rezervasyon garantisi verilmektedir.
+                  </span>
+                </div>
               </div>
 
-              {/* Verified Count Banner */}
-              <div className="text-xs text-slate-400 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl px-4 py-2.5 flex items-center gap-2.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="font-medium">
-                  Mağazalarımızdan doğrudan online satın alma veya rezervasyon garantisi verilmektedir.
-                </span>
-              </div>
+              {/* Sub-Sector Filter Row for Vehicles */}
+              {(activeCategory === "all" || activeCategory === "vehicle") && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-800/50 pt-4">
+                  <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider mr-1">Vasıta Türü:</span>
+                  {[
+                    { value: "all", label: "Tümü" },
+                    { value: "car", label: "Otomobil & Hafif Ticari" },
+                    { value: "motorcycle", label: "Motosiklet" },
+                    { value: "marine", label: "Deniz Taşıtları" },
+                    { value: "construction", label: "İş Makineleri" },
+                    { value: "agricultural", label: "Tarım Makineleri" },
+                    { value: "other", label: "Diğer Taşıtlar" }
+                  ].map((sub) => {
+                    const isSubActive = activeSubSector === sub.value;
+                    return (
+                      <button
+                        key={sub.value}
+                        onClick={() => setActiveSubSector(sub.value)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-tight transition-all hover:scale-[1.02] ${
+                          isSubActive
+                            ? "bg-rose-500 text-white border border-rose-500 shadow-sm shadow-rose-950/15"
+                            : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                        }`}
+                      >
+                        {sub.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           </div>

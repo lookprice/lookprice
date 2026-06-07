@@ -298,21 +298,6 @@ router.get("/enrakipsiz/portal", async (req, res) => {
 // Public: Mega Portal Marketplace combined listings
 router.get("/marketplace/listings", async (req, res) => {
   try {
-    let productsList: any[] = [];
-    try {
-      const productsRes = await pool.query(`
-        SELECT p.id, p.store_id, p.name, p.description, p.price, p.currency, p.image_url, p.category, p.brand, COALESCE(p.created_at, p.updated_at, CURRENT_TIMESTAMP) AS created_at, s.name as store_name, s.slug as store_slug
-        FROM products p 
-        JOIN stores s ON p.store_id = s.id
-        WHERE (p.is_web_sale = true OR p.is_web_sale IS NULL)
-        ORDER BY COALESCE(p.created_at, p.updated_at, CURRENT_TIMESTAMP) DESC
-        LIMIT 100
-      `);
-      productsList = productsRes.rows || [];
-    } catch (error: any) {
-      console.error("Marketplace products query soft-failed:", error);
-    }
-
     let vehiclesList: any[] = [];
     try {
       // Self-heal vehicles schema if is_on_enrakipsiz is missing
@@ -322,7 +307,7 @@ router.get("/marketplace/listings", async (req, res) => {
       const vehicleFilter = hasEnrakipsizVehicles.rows.length > 0 ? "AND v.is_on_enrakipsiz = true" : "";
 
       const vehiclesRes = await pool.query(`
-        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug
+        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
         FROM vehicles v
         JOIN stores s ON v.store_id = s.id
         WHERE v.status <> 'sold' ${vehicleFilter}
@@ -334,7 +319,7 @@ router.get("/marketplace/listings", async (req, res) => {
       console.warn("Marketplace vehicles queries had an issue. Retrying with simple select fallback:", error);
       try {
         const fallbackRes = await pool.query(`
-          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug
+          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
           FROM vehicles v
           JOIN stores s ON v.store_id = s.id
           LIMIT 100
@@ -384,29 +369,12 @@ router.get("/marketplace/listings", async (req, res) => {
 
     const allListings: any[] = [];
 
-    productsList.forEach((p: any) => {
-      allListings.push({
-        id: `p_${p.id}`,
-        db_id: p.id,
-        listing_type: 'product',
-        title: p.name,
-        price: p.price,
-        currency: p.currency,
-        image_url: p.image_url,
-        images: p.image_url ? [p.image_url] : [],
-        store_name: p.store_name,
-        store_slug: p.store_slug,
-        category: p.category,
-        brand: p.brand,
-        created_at: p.created_at
-      });
-    });
-
     vehiclesList.forEach((v: any) => {
       allListings.push({
         id: `v_${v.db_id}`,
         db_id: v.db_id,
         listing_type: 'vehicle',
+        sub_sector: v.store_sub_sector,
         title: `${v.brand} ${v.model} (${v.year})`,
         price: v.selling_price || 0,
         currency: v.currency,
