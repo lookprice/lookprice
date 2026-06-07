@@ -562,14 +562,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   useEffect(() => {
     if (isPortfolio && (['products', 'pos', 'fast-pos', 'sales_invoices', 'procurements', 'purchase_invoices', 'stock_transfer', 'service'].includes(activeTab))) {
-      setActiveTab('real_estate');
+      if (isAutomotive && !isRealEstate) {
+        setActiveTab('fleet');
+      } else {
+        setActiveTab('real_estate');
+      }
     }
-  }, [isPortfolio, activeTab, setActiveTab]);
+  }, [isPortfolio, isAutomotive, isRealEstate, activeTab, setActiveTab]);
 
   const navItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
-      { id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home },
-      { id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet },
+      ...(isRealEstate ? [{ id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home }] : []),
+      ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
     ]},
     { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
       { id: "companies", label: t.companies, icon: Store },
@@ -577,7 +581,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "team", title: isTr ? "Personel & Şube" : "Staff & Branches", items: [
       { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
-      { id: "authority_transfer", label: isTr ? "Yetki Devri (Tapu)" : "Authority Transfer", icon: Briefcase },
+      ...(isRealEstate ? [{ id: "authority_transfer", label: isTr ? "Yetki Devri (Tapu)" : "Authority Transfer", icon: Briefcase }] : []),
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },

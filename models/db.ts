@@ -1414,6 +1414,66 @@ export async function initDb() {
     `);
     console.log("Foreign key cascades checked.");
 
+    // Performance optimizations and structural self-heals at startup
+    console.log("Applying database optimizations and index schema upgrades...");
+    await client.query(`
+      -- Add missing columns to avoid runtime alterations in public endpoints
+      ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;
+      ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;
+      
+      -- Ensure enrakipsiz tables exist
+      CREATE TABLE IF NOT EXISTS enrakipsiz_settings (
+        id INT PRIMARY KEY,
+        portal_title TEXT,
+        portal_description TEXT,
+        announcement TEXT,
+        primary_color TEXT DEFAULT '#4f46e5',
+        footer_text TEXT
+      );
+      CREATE TABLE IF NOT EXISTS enrakipsiz_slides (
+        id SERIAL PRIMARY KEY,
+        image_url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        subtitle TEXT NOT NULL,
+        description TEXT,
+        badge TEXT,
+        accent TEXT DEFAULT 'from-indigo-500 to-purple-500',
+        type TEXT,
+        link_url TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS enrakipsiz_ads (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        broker TEXT,
+        description TEXT,
+        profit_badge TEXT,
+        action_text TEXT DEFAULT 'Anında Başvur',
+        link_url TEXT,
+        media_type TEXT DEFAULT 'image',
+        media_url TEXT,
+        position TEXT DEFAULT 'middle',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Index creations for dramatic speedups (scale-friendly index-only/index-scan lookups)
+      CREATE INDEX IF NOT EXISTS idx_stores_slug_lower ON stores (LOWER(slug));
+      CREATE INDEX IF NOT EXISTS idx_stores_parent_id ON stores (parent_id);
+      CREATE INDEX IF NOT EXISTS idx_products_store_id ON products (store_id);
+      CREATE INDEX IF NOT EXISTS idx_vehicles_store_id ON vehicles (store_id);
+      CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles (status);
+      CREATE INDEX IF NOT EXISTS idx_vehicles_is_on_enrakipsiz ON vehicles (is_on_enrakipsiz);
+      CREATE INDEX IF NOT EXISTS idx_real_estate_properties_store_id ON real_estate_properties (store_id);
+      CREATE INDEX IF NOT EXISTS idx_real_estate_properties_status ON real_estate_properties (status);
+      CREATE INDEX IF NOT EXISTS idx_real_estate_properties_is_on_enrakipsiz ON real_estate_properties (is_on_enrakipsiz);
+      CREATE INDEX IF NOT EXISTS idx_blog_posts_store_id ON blog_posts (store_id);
+      CREATE INDEX IF NOT EXISTS idx_consultants_store_id ON consultants (store_id);
+      CREATE INDEX IF NOT EXISTS idx_radar_news_store_id ON radar_news (store_id);
+    `);
+    console.log("Database optimizations and indexes applied successfully.");
+
     // Seed Super Admin if not exists
     console.log("Seeding super admin...");
     const adminEmail = "admin@pricecheck.com";

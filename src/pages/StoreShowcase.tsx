@@ -2782,7 +2782,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     );
   }
 
-  const isPortfolioOverride = (store as any)?.store_type === "portfolio";
+  const isPortfolioOverride =
+    (store as any)?.store_type === "portfolio" ||
+    (store as any)?.store_type === "real_estate" ||
+    (store as any)?.store_type === "motor_vehicle";
   if (isPortfolioOverride) {
     return (
       <ErrorBoundary lang={lang}>
