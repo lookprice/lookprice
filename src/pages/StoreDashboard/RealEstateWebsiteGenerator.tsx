@@ -347,6 +347,12 @@ export const RealEstateWebsiteGenerator = ({
       enabled: true,
     },
     {
+      id: "financing",
+      label: lang === "tr" ? "Kredi Hesaplama" : "Loan Calculator",
+      icon: Newspaper,
+      enabled: true,
+    },
+    {
       id: "team",
       label: lang === "tr" ? "Yönetim & Kadro" : "Team & Staff",
       icon: Users,

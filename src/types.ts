@@ -45,6 +45,7 @@ export interface Product {
   shipping_profile_id?: string;
   reference_no?: string;
   location?: string;
+  address?: string;
   created_at: string;
   updated_at: string;
 }
@@ -99,6 +100,8 @@ export interface Store {
   instagram_url?: string;
   facebook_url?: string;
   twitter_url?: string;
+  youtube_url?: string;
+  linkedin_url?: string;
   whatsapp_number?: string;
   brand_label?: string;
   category_label?: string;
@@ -317,6 +320,9 @@ export interface Vehicle {
   expenses?: string | { id: string; name: string; amount: number; currency: string; date: string }[];
   target_profit_margin?: number;
   description?: string;
+  market_story?: string;
+  technical_description?: string;
+  is_trade_in_available?: boolean;
   images?: string[];
   is_on_enrakipsiz?: boolean;
   virtual_tour_url?: string;

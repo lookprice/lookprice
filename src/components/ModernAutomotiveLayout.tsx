@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Map,
   Layout,
@@ -36,6 +37,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   const { lang } = useLanguage();
   const [blogs, setBlogs] = useState<any[]>([]);
   const [selectedBlogPost, setSelectedBlogPost] = useState<any>(null);
+  const [activeContentMap, setActiveContentMap] = useState<{ title: string; content: string } | null>(null);
 
   // Active filters states
   const [activeBrand, setActiveBrand] = useState<string>("all");
@@ -240,8 +242,14 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   const isSectionEnabled = (sectionId: string) => {
     if (!layoutConfig.sections || layoutConfig.sections.length === 0) return true;
     const section = layoutConfig.sections.find((s: any) => s.id === sectionId);
-    return section ? section.enabled : true;
+    return section !== undefined ? section.enabled : false;
   };
+
+  const [visibleCount, setVisibleCount] = useState(layoutConfig.count || 6);
+
+  useEffect(() => {
+    setVisibleCount(layoutConfig.count || 6);
+  }, [layoutConfig.count]);
 
   const handleLinkClick = (e: React.MouseEvent, link: any) => {
     // Standard link click handler
@@ -439,7 +447,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                 </div>
               ) : (
                 <div className={`grid gap-10 ${layoutConfig.grid === 'masonry' ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-                  {filteredProducts.slice(0, layoutConfig.count || 6).map((p, i) => {
+                  {filteredProducts.slice(0, visibleCount).map((p, i) => {
                     const priceStr = formatPrice(p.price, store?.currency || p.currency);
                     return (
                       <div
@@ -505,12 +513,28 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                   })}
                 </div>
               )}
+              
+              {filteredProducts.length > visibleCount && (
+                <div className="mt-16 flex justify-center">
+                  <button 
+                    onClick={() => setVisibleCount(prev => prev + 12)}
+                    className="px-8 py-3 bg-amber-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/20 hover:-translate-y-1"
+                  >
+                    {lang === "tr" ? "Daha Fazla Göster" : "Load More"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* Regional Radar Section */}
           {isSectionEnabled("news") && radarNews && radarNews.length > 0 && (
-            <RadarShowcaseSlider radarNews={radarNews} lang={lang} theme="light" />
+            <RadarShowcaseSlider 
+              radarNews={radarNews} 
+              lang={lang} 
+              theme="light" 
+              sector="automotive"
+            />
           )}
 
           {/* Blog Section */}
@@ -652,13 +676,13 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
               </div>
             )}
 
-            {layoutConfig.policyLinks && layoutConfig.policyLinks.length > 0 && (
+            {layoutConfig.corporateLinks && layoutConfig.corporateLinks.length > 0 && (
               <div className="space-y-6 flex-1">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</h4>
                 <ul className="space-y-4 text-sm font-bold text-slate-400">
-                  {layoutConfig.policyLinks.map((link: any, idx: number) => (
-                    <li key={idx} onClick={() => setActiveContentMap({ title: link.title, content: link.content })} className="hover:text-amber-400 cursor-pointer transition-colors">{link.title}</li>
-                  ))}
+                  {layoutConfig.corporateLinks.map((link: any, idx: number) => (
+                    <li key={idx} onClick={() => setActiveContentMap({ title: link.label, content: link.content })} className="hover:text-amber-400 cursor-pointer transition-colors">{link.label}</li>
+                   ))}
                 </ul>
               </div>
             )}
@@ -679,6 +703,43 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* Content Modal for Quick/Corporate Links */}
+      <AnimatePresence>
+        {activeContentMap && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200"
+            >
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{activeContentMap.title}</h3>
+                <button 
+                  onClick={() => setActiveContentMap(null)}
+                  className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-slate-500" />
+                </button>
+              </div>
+              <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <div className="prose prose-slate max-w-none text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                  {activeContentMap.content}
+                </div>
+              </div>
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button 
+                  onClick={() => setActiveContentMap(null)}
+                  className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors"
+                >
+                  {lang === 'tr' ? 'Kapat' : 'Close'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <BlogShowcaseModal
         isOpen={!!selectedBlogPost}

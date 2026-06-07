@@ -14,7 +14,9 @@ import {
   Link2,
   ShoppingBag,
   ShieldCheck,
-  Map as MapIcon
+  Map as MapIcon,
+  Car,
+  RefreshCw,
 } from "lucide-react";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { api } from "../services/api";
@@ -557,6 +559,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             />
           </div>
 
+          {(product as any).market_story && (
+            <div className="mb-10 p-6 bg-blue-50/30 rounded-3xl border border-blue-100/50">
+              <h4 className="text-[10px] font-semibold text-blue-600 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                <Car className="w-3 h-3" />
+                {lang === "tr" ? "PAZAR HİKAYESİ" : "MARKET STORY"}
+              </h4>
+              <p className="text-slate-700 leading-relaxed text-sm font-medium">
+                {(product as any).market_story}
+              </p>
+            </div>
+          )}
+
+          {(product as any).technical_description && (
+            <div className="mb-10 p-6 bg-slate-50/50 rounded-3xl border border-slate-200/50">
+              <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.3em] mb-4">
+                {lang === "tr" ? "TEKNİK İLAN AÇIKLAMASI" : "TECHNICAL DESCRIPTION"}
+              </h4>
+              <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-wrap">
+                {(product as any).technical_description}
+              </p>
+            </div>
+          )}
+
           <SectorSpecs
             sector={
               product?.type === "vehicle"
@@ -565,7 +590,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   ? "real_estate"
                   : sector
             }
-            data={product.sector_data}
+            data={{
+              ...product.sector_data,
+              mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage,
+            }}
             category={product.category}
             name={product.name}
             description={product.description}
@@ -631,32 +659,55 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" ||
           product.type === "vehicle" ||
           product.type === "real_estate" ? (
-            <button
-              onClick={() => {
-                const phone = store?.whatsapp_number || store?.phone;
-                if (phone) {
-                  window.open(
-                    `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} ilanı hakkında bilgi almak istiyorum.`)}`,
-                    "_blank",
-                  );
-                } else {
-                  alert(
-                    lang === "tr"
-                      ? "İletişim numarası bulunamadı."
-                      : "No contact number found.",
-                  );
-                }
-              }}
-              type="button"
-              className="w-full py-4 text-white rounded-[2rem] font-semibold text-lg transition-all shadow-lg flex items-center justify-center gap-4 group active:scale-95"
-              style={{
-                backgroundColor: primaryColor,
-                boxShadow: `0 20px 40px -10px ${primaryColor}60`,
-              }}
-            >
-              <MessageCircle className="w-7 h-7 group-hover:scale-110 transition-transform" />
-              {lang === "tr" ? "WhatsApp ile Bilgi Al" : "Inquire via WhatsApp"}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  const phone = store?.whatsapp_number || store?.phone;
+                  if (phone) {
+                    window.open(
+                      `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} ilanı hakkında bilgi almak istiyorum.`)}`,
+                      "_blank",
+                    );
+                  } else {
+                    alert(lang === "tr" ? "İletişim numarası bulunamadı." : "No contact number found.");
+                  }
+                }}
+                type="button"
+                className="w-full py-4 text-white rounded-[2rem] font-semibold text-lg transition-all shadow-lg flex items-center justify-center gap-4 group active:scale-95"
+                style={{
+                  backgroundColor: "#25D366",
+                  boxShadow: `0 20px 40px -10px #25D36660`,
+                }}
+              >
+                <div className="p-1 px-1.5 bg-white/20 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg>
+                </div>
+                {lang === "tr" ? "WhatsApp ile Bilgi Al" : "Inquire via WhatsApp"}
+              </button>
+
+              {(product as any).is_trade_in_available && (
+                <button
+                  onClick={() => {
+                    const phone = store?.whatsapp_number || store?.phone;
+                    if (phone) {
+                      window.open(
+                        `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} aracınız için Takas Teklifi göndermek istiyorum. Kendi aracımın bilgileri ve görselleri şu şekildedir: `)}`,
+                        "_blank",
+                      );
+                    }
+                  }}
+                  type="button"
+                  className="w-full py-4 text-white rounded-[2rem] font-semibold text-lg transition-all shadow-lg flex items-center justify-center gap-4 group active:scale-95"
+                  style={{
+                    backgroundColor: "#2563eb",
+                    boxShadow: `0 20px 40px -10px #2563eb60`,
+                  }}
+                >
+                  <RefreshCw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
+                  {lang === "tr" ? "Takas Teklifini Hemen Gönder" : "Send Trade-in Offer Now"}
+                </button>
+              )}
+            </div>
           ) : (
             <button
               disabled={

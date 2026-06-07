@@ -83,6 +83,16 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
         </div>
       )}
+      {data.mileage !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+            {lang === "tr" ? "KİLOMETRE" : "MILEAGE"}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
+            {Number(data.mileage).toLocaleString()} KM
+          </p>
+        </div>
+      )}
       {data.acceleration && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
           <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">

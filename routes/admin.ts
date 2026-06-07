@@ -104,6 +104,12 @@ router.post("/stores/:id/delete", async (req: any, res) => {
     await pool.query("DELETE FROM tickets WHERE store_id = $1", [id]);
     await pool.query("DELETE FROM users WHERE store_id = $1", [id]);
     await pool.query("DELETE FROM products WHERE store_id = $1", [id]);
+    await pool.query("DELETE FROM real_estate_properties WHERE store_id = $1", [id]).catch(() => {});
+    await pool.query("DELETE FROM real_estate WHERE store_id = $1", [id]).catch(() => {});
+    await pool.query("DELETE FROM vehicles WHERE store_id = $1", [id]).catch(() => {});
+    await pool.query("DELETE FROM radar_news WHERE store_id = $1", [id]).catch(() => {});
+    await pool.query("DELETE FROM consultants WHERE store_id = $1", [id]).catch(() => {});
+    await pool.query("DELETE FROM blog_posts WHERE store_id = $1", [id]).catch(() => {});
     await pool.query("DELETE FROM stores WHERE id = $1", [id]);
     await pool.query("COMMIT");
     

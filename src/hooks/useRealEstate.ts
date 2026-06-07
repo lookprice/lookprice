@@ -41,7 +41,7 @@ export const useRealEstate = (storeId?: number) => {
   
   const deleteProperty = async (id: number) => {
     try {
-      await api.deleteProperty(id);
+      await api.deleteProperty(id, storeId);
       await fetchProperties();
     } catch (error) {
       console.error('Error deleting property:', error);

@@ -191,7 +191,7 @@ export const api = {
   getProperties: (storeId?: number) => api.get(`/api/real-estate/properties${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addProperty: (data: any) => api.post(`/api/real-estate/properties`, data),
   updateProperty: (id: number, data: any) => api.put(`/api/real-estate/properties/${id}`, data),
-  deleteProperty: (id: number) => api.delete(`/api/real-estate/properties/${id}`),
+  deleteProperty: (id: number, storeId?: number) => api.delete(`/api/real-estate/properties/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   transferPropertyAuthority: (id: number, data: { authorized_branch_id: number; responsible_consultant_id: number }) => api.post(`/api/real-estate/properties/${id}/transfer-authority`, data),
   analyzePortfolio: (storeId?: number) => api.post(`/api/real-estate/properties/analyze${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   createTask: (data: { property_id?: number; task_type: string; description: string; due_date?: string }, storeId?: number) => api.post(`/api/real-estate/properties/tasks${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),

@@ -136,14 +136,14 @@ router.get("/stores/:slug/radar-news", async (req, res) => {
     const storeId = storeRes.rows[0].id;
     const storeType = storeRes.rows[0].store_type;
 
-    // Logic: Return store specific and globally published radar news
+    // Logic: Return store specific and globally published radar news matching store sector
     const query = `
       SELECT DISTINCT * FROM radar_news 
       WHERE (store_id = $1 AND published_on_store = TRUE)
-      OR (published_on_enrakipsiz = TRUE)
+      OR (published_on_enrakipsiz = TRUE AND sector = $2)
       ORDER BY created_at DESC
     `;
-    const params = [storeId];
+    const params = [storeId, storeType || 'real_estate'];
 
     const result = await pool.query(query, params);
     res.json(result.rows);

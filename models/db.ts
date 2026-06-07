@@ -170,10 +170,13 @@ export async function initDb() {
         date TEXT,
         tags JSONB DEFAULT '[]',
         intensity TEXT,
+        sector TEXT DEFAULT 'real_estate',
         published_on_store BOOLEAN DEFAULT FALSE,
         published_on_enrakipsiz BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE radar_news ADD COLUMN IF NOT EXISTS sector TEXT DEFAULT 'real_estate';
 
       CREATE TABLE IF NOT EXISTS scan_logs (
         id SERIAL PRIMARY KEY,

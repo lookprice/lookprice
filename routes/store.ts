@@ -2283,11 +2283,20 @@ router.post("/products/bulk-delete", async (req: any, res) => {
 
 router.delete("/products/:id", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+    const requestedStoreId = req.query.storeId || req.user.store_id;
+    const storeId = req.user.role === "superadmin" ? requestedStoreId : req.user.store_id;
+
     if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
     const { id } = req.params;
-    await pool.query("DELETE FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    let result;
+    if (req.user.role === "superadmin") {
+      result = await pool.query("DELETE FROM products WHERE id = $1 RETURNING *", [id]);
+    } else {
+      result = await pool.query("DELETE FROM products WHERE id = $1 AND (store_id = $2 OR store_id IN (SELECT id FROM stores WHERE parent_id = $2)) RETURNING *", [id, storeId]);
+    }
+
+    if (result.rowCount === 0) return res.status(404).json({ error: "Product not found or unauthorized" });
 
     // Log the action
     await logAction(

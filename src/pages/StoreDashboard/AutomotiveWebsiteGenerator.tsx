@@ -251,37 +251,32 @@ export const AutomotiveWebsiteGenerator = ({
   const [quickLinks, setQuickLinks] = useState<
     { label: string; url: string; content?: string; type?: "url" | "content" }[]
   >([
-    { label: "Mülklerimiz", url: "#portfolio", type: "url" },
-    { label: "Bölgelerimiz", url: "#", type: "url" },
+    { label: lang === "tr" ? "Araçlarımız" : "Our Vehicles", url: "#portfolio", type: "url" },
+    { label: lang === "tr" ? "Hizmetlerimiz" : "Our Services", url: "#", type: "url" },
     {
-      label: "Biz Kimiz?",
+      label: lang === "tr" ? "Biz Kimiz?" : "Who We Are",
       url: "",
       type: "content",
-      content:
-        "Biz LookPrice Master ekibi olarak yatırımlarınıza değer katıyoruz.",
+      content: lang === "tr" 
+        ? "Biz LookPrice Master ekibi olarak araç yatırımlarınıza değer katıyoruz."
+        : "As the LookPrice Master team, we add value to your vehicle investments.",
     },
-    { label: "İletişim", url: "#contact", type: "url" },
+    { label: lang === "tr" ? "İletişim" : "Contact", url: "#contact", type: "url" },
   ]);
   const [corporateLinks, setCorporateLinks] = useState<
     { label: string; url: string; content?: string; type?: "url" | "content" }[]
   >([
     {
-      label: "Gizlilik Politikası",
+      label: lang === "tr" ? "Gizlilik Politikası" : "Privacy Policy",
       url: "",
       type: "content",
-      content: "KVKK ve Gizlilik Politikası şartnameleri...",
+      content: lang === "tr" ? "KVKK ve Gizlilik Politikası şartnameleri..." : "Privacy policy terms...",
     },
     {
-      label: "Kullanım Koşulları",
+      label: lang === "tr" ? "Kullanım Koşulları" : "Terms of Use",
       url: "",
       type: "content",
-      content: "Sitemizi kullanım koşulları...",
-    },
-    {
-      label: "KVKK Aydınlatma",
-      url: "",
-      type: "content",
-      content: "KVKK aydınlatma metni...",
+      content: lang === "tr" ? "Sitemizi kullanım koşulları..." : "Site terms of use...",
     },
   ]);
 
@@ -381,31 +376,31 @@ export const AutomotiveWebsiteGenerator = ({
     hero: {
       title:
         lang === "tr"
-          ? "Kuzey Kıbrıs'ın En Seçkin Portföyü"
-          : "North Cyprus' Most Exclusive Portfolio",
+          ? "Kuzey Kıbrıs'ın En Seçkin Araç Portföyü"
+          : "North Cyprus' Most Exclusive Car Portfolio",
       subtitle:
         lang === "tr"
-          ? "Yatırım hayallerinizi gerçeğe dönüştüren profesyonel gayrimenkul çözümleri."
-          : "Professional real estate solutions turning your investment dreams into reality.",
+          ? "Prestijli otomobiller ve güvenilir motorlu taşıt çözümleri."
+          : "Professional automotive solutions and prestigious vehicle collections.",
       bgImage:
-        "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2000",
+        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=2000&q=80",
     },
     stats: [
       {
         value: "500+",
-        label: lang === "tr" ? "Mutlu Müşteri" : "Happy Clients",
+        label: lang === "tr" ? "Mutlu Sürücü" : "Happy Drivers",
       },
       {
         value: "1.2B₺",
-        label: lang === "tr" ? "Yönetilen Varlık" : "Assets Managed",
+        label: lang === "tr" ? "İşlem Hacmi" : "Transaction Volume",
       },
       {
-        value: "12",
-        label: lang === "tr" ? "Yıl Tecrübe" : "Years Experience",
+        value: "15+",
+        label: lang === "tr" ? "Yıllık Güven" : "Years of Trust",
       },
-      { value: "24", label: lang === "tr" ? "Aktif İlan" : "Active Listings" },
+      { value: "50+", label: lang === "tr" ? "Aktif Araç" : "Active Vehicles" },
     ],
-    trustSlogan: lang === "tr" ? "10 Yıldır Güvenle" : "Trusted for 10 Years",
+    trustSlogan: lang === "tr" ? "Hız ve Karakter" : "Speed and Character",
   });
 
   const phases = [

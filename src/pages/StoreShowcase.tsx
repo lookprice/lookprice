@@ -2120,7 +2120,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         setProducts(
           productsRes.filter((p: Product) => p.is_web_sale !== false),
         );
-        setRadarNews(Array.isArray(radarNewsRes) ? radarNewsRes : []);
+        
+        // Filter radar news by sector
+        const currentSector = storeRes.store_type === 'motor_vehicle' ? 'automotive' : 'real_estate';
+        const filteredNews = Array.isArray(radarNewsRes) 
+          ? radarNewsRes.filter((n: any) => {
+              // If news has no sector, show it everywhere (general news)
+              if (!n.sector) return true;
+              return n.sector === currentSector;
+            })
+          : [];
+        setRadarNews(filteredNews);
 
         // If we have a barcode in the URL and haven't selected a product yet, try to find it
         if (urlBarcode) {

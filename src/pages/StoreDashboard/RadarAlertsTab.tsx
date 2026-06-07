@@ -289,7 +289,8 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
         date: newsItem.date,
         tags: newsItem.tags,
         published_on_store: newPublishedOnStore,
-        published_on_enrakipsiz: newPublishedOnEnrakipsiz
+        published_on_enrakipsiz: newPublishedOnEnrakipsiz,
+        sector: isAuto ? 'motor_vehicle' : 'real_estate'
       });
 
       setNewsFeed(prev => prev.map(n => n.id === newsId ? { 
@@ -365,7 +366,8 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
               tags: item.tags,
               intensity: item.intensity,
               published_on_store: false,
-              published_on_enrakipsiz: false
+              published_on_enrakipsiz: false,
+              sector: isAuto ? 'motor_vehicle' : 'real_estate'
             });
           } catch (dbErr) {
             console.error("Failed to pin scanned development:", dbErr);

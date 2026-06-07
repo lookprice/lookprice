@@ -34,12 +34,20 @@ interface RadarShowcaseSliderProps {
   radarNews: RadarNewsItem[];
   lang?: string;
   theme?: "light" | "dark";
+  title?: string;
+  subtitle?: string;
+  subBadge?: string;
+  sector?: "automotive" | "real_estate" | string;
 }
 
 export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
   radarNews = [],
   lang = "tr",
   theme = "light",
+  title,
+  subtitle,
+  subBadge,
+  sector = "real_estate",
 }) => {
   const [viewMode, setViewMode] = useState<"banner" | "list">("banner");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -48,6 +56,24 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isDark = theme === "dark";
+
+  const isAutomotive = sector === "automotive";
+
+  const defaultTitle = isAutomotive
+    ? (lang === "tr" ? "Otomotiv Dünyasından Gelişmeler" : "Automotive World Updates")
+    : (lang === "tr" ? "İmar & Bölgesel Gelişmeler" : "Legal & Regional Alerts");
+
+  const defaultSubtitle = isAutomotive
+    ? (lang === "tr" ? "Sektörel Takip ve Analizler" : "Industry Insights & Analysis")
+    : (lang === "tr" ? "Mevzuat ve İmar Takip" : "Zoning Tracking");
+
+  const defaultSubBadge = isAutomotive
+    ? (lang === "tr" ? "CANLI OTOMOTİV RADARI" : "LIVE AUTOMOTIVE RADAR")
+    : (lang === "tr" ? "BÖLGESEL CANLI RADAR" : "LIVE REGIONAL RADAR");
+
+  const displayTitle = title || defaultTitle;
+  const displaySubtitle = subtitle || defaultSubtitle;
+  const displaySubBadge = subBadge || defaultSubBadge;
 
   // Dynamic fallback image selector based on keywords to prevent empty boxes and look ultra professional!
   const getNewsImage = (item: RadarNewsItem): string => {
@@ -197,15 +223,15 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded ${isDark ? "bg-indigo-500/10 text-indigo-400" : "bg-indigo-50 text-indigo-600"}`}>
-                🔥 {lang === "tr" ? "BÖLGESEL CANLI RADAR" : "LIVE REGIONAL RADAR"}
+                🔥 {displaySubBadge}
               </span>
               <span className={`text-[10px] font-bold ${isDark ? "text-emerald-400" : "text-emerald-600"} flex items-center gap-1`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {lang === "tr" ? "Mevzuat ve İmar Takip" : "Zoning Tracking"}
+                {displaySubtitle}
               </span>
             </div>
             <h3 className={`text-lg font-black tracking-tight mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>
-              {lang === "tr" ? "İmar & Bölgesel Gelişmeler" : "Legal & Regional Alerts"}
+              {displayTitle}
             </h3>
           </div>
         </div>

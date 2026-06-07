@@ -96,6 +96,9 @@ interface Vehicle {
   expenses?: string | { id: string; name: string; amount: number; currency: string; date: string }[];
   target_profit_margin?: number;
   description?: string;
+  market_story?: string;
+  technical_description?: string;
+  is_trade_in_available?: boolean;
   images?: string[];
   is_on_enrakipsiz?: boolean;
   virtual_tour_url?: string;
@@ -458,6 +461,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     expenses: '[]',
     target_profit_margin: 0,
     description: '',
+    market_story: '',
+    technical_description: '',
+    is_trade_in_available: false,
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
@@ -595,7 +601,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         images: [],
         virtual_tour_url: '',
         ai_tour_enabled: false,
-        is_on_enrakipsiz: false
+        is_on_enrakipsiz: false,
+        market_story: '',
+        technical_description: '',
+        is_trade_in_available: false
       });
       alert(t.successSaved);
     } catch (error) {
@@ -2401,7 +2410,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         >
                           <option value="gasoline">Benzin</option>
                           <option value="diesel">Dizel</option>
-                          <option value="hybrid">Hibrit</option>
+                          <option value="gasoline_hybrid">Benzin / Hibrit</option>
+                          <option value="diesel_hybrid">Dizel / Hibrit</option>
                           <option value="electric">Elektrik</option>
                           <option value="lpg">LPG</option>
                         </select>
@@ -2547,11 +2557,59 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     </div>
                   </div>
 
-                  {/* SECTION 4: MALIYET VE KARLILIK (CONFIDENTIAL) */}
+                  {/* SECTION 4: MARKET STORY & TECH DESC */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-bold text-blue-700 tracking-wider uppercase border-l-4 border-blue-600 pl-2.5">
+                        4. İlan Detayları & Portföy Hikayesi
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500">Takas Kabul Ediyor Musunuz?</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, is_trade_in_available: !prev.is_trade_in_available }))}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.is_trade_in_available ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.is_trade_in_available ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                          Pazar Hikayesi (Müşteri için Etkileyici Anlatım)
+                          <div className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded border border-blue-100">B2C</div>
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={formData.market_story || ''}
+                          onChange={(e) => setFormData({ ...formData, market_story: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm leading-relaxed"
+                          placeholder="Aracın geçmişi, neden bu aracın tercih edilmesi gerektiği ve kullanıcı bazlı avantajlı yönlerinden bahsedin..."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-700">
+                          Teknik İlan Açıklaması (Detaylı Donanım/Bakım Verisi)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={formData.technical_description || ''}
+                          onChange={(e) => setFormData({ ...formData, technical_description: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm leading-relaxed"
+                          placeholder="Bakım aralıkları, yapılan yetkili servis işlemleri, ekstra opsiyonlar ve teknik verileri buraya giriniz..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECTION 5: MALIYET VE KARLILIK (CONFIDENTIAL) */}
                   <div className="space-y-4">
                     <h4 className="text-sm font-bold text-indigo-700 tracking-wider uppercase border-l-4 border-indigo-600 pl-2.5 flex items-center gap-1.5">
                       <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                      4. Maliyet ve Karlılık Defteri (Sadece Galericiler Tarafından Görülür)
+                      5. Maliyet ve Karlılık Defteri (Sadece Galericiler Tarafından Görülür)
                     </h4>
                     
                     <div className="bg-indigo-50/40 p-5 rounded-3xl border border-indigo-100 space-y-6">

@@ -10,6 +10,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 (async () => {
   try {
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS description TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS market_story TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS technical_description TEXT;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_trade_in_available BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS images TEXT[];`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS virtual_tour_url TEXT;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS ai_tour_enabled BOOLEAN DEFAULT FALSE;`);
@@ -97,7 +100,7 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
   const { 
     plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
     package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
+    description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
   } = req.body;
   const storeId = req.body.store_id || req.user.store_id;
 
@@ -106,9 +109,9 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
       `INSERT INTO vehicles (
         store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
         package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-        description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
+        description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35) RETURNING *`,
       [
         storeId, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status || 'active',
         package_name, transmission, fuel_type, color, body_type, 
@@ -117,6 +120,9 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
         typeof expenses === 'string' ? expenses : JSON.stringify(expenses || []), 
         target_profit_margin || 0,
         description || '',
+        market_story || '',
+        technical_description || '',
+        !!is_trade_in_available,
         images || [],
         virtual_tour_url || '',
         !!ai_tour_enabled,
@@ -143,7 +149,7 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
   const { 
     plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
     package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-    description, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
+    description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
   } = req.body;
 
   try {
@@ -152,10 +158,11 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
        SET plate = $1, brand = $2, model = $3, year = $4, type = $5, chassis_number = $6, engine_number = $7, current_mileage = $8, status = $9, selling_price = $10, currency = $11,
            package_name = $12, transmission = $13, fuel_type = $14, color = $15, body_type = $16, 
            paint_report = $17, tramer_amount = $18, tramer_currency = $19, buying_price = $20, expenses = $21, target_profit_margin = $22,
-           description = $23, images = $24, virtual_tour_url = $25, ai_tour_enabled = $26,
-           seller_type = $27, is_verified = $28, verification_status = $29, is_on_enrakipsiz = $30,
-           buying_currency = $31, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $32 RETURNING *`,
+           description = $23, market_story = $24, technical_description = $25, is_trade_in_available = $26,
+           images = $27, virtual_tour_url = $28, ai_tour_enabled = $29,
+           seller_type = $30, is_verified = $31, verification_status = $32, is_on_enrakipsiz = $33,
+           buying_currency = $34, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $35 RETURNING *`,
       [
         plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
         package_name, transmission, fuel_type, color, body_type, 
@@ -164,6 +171,9 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
         typeof expenses === 'string' ? expenses : JSON.stringify(expenses || []), 
         target_profit_margin || 0,
         description || '',
+        market_story || '',
+        technical_description || '',
+        !!is_trade_in_available,
         images || [],
         virtual_tour_url || '',
         !!ai_tour_enabled,
@@ -188,23 +198,20 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
 // Delete a vehicle
 router.delete('/vehicles/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  try {
-    const result = await pool.query('DELETE FROM vehicles WHERE id = $1 RETURNING *', [id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Vehicle not found' });
-    res.json({ message: 'Vehicle deleted successfully' });
-  } catch (error) {
-    console.error("Error updating vehicle:", error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  const storeId = req.query.store_id || req.user.store_id;
 
-router.delete('/vehicles/:id', authenticate, async (req: any, res) => {
-  const { id } = req.params;
   try {
-    await pool.query('DELETE FROM vehicles WHERE id = $1', [id]);
-    res.status(204).send();
+    let result;
+    if (req.user.role === 'superadmin') {
+      result = await pool.query('DELETE FROM vehicles WHERE id = $1 RETURNING *', [id]);
+    } else {
+      result = await pool.query('DELETE FROM vehicles WHERE id = $1 AND store_id = $2 RETURNING *', [id, storeId]);
+    }
+
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Vehicle not found or unauthorized' });
+    res.json({ message: 'Vehicle deleted successfully', deleted: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting vehicle:', error);
+    console.error("Error deleting vehicle:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -437,14 +437,25 @@ router.delete('/properties/:id', authenticate, async (req: any, res) => {
   const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
 
   try {
-    const result = await pool.query(
-      `DELETE FROM real_estate_properties WHERE id = $1 AND store_id = $2`,
-      [id, storeId]
-    );
+    let result;
+    if (req.user.role === 'superadmin') {
+      result = await pool.query(
+        `DELETE FROM real_estate_properties WHERE id = $1 RETURNING *`,
+        [id]
+      );
+    } else {
+      result = await pool.query(
+        `DELETE FROM real_estate_properties 
+         WHERE id = $1 AND (store_id = $2 OR store_id IN (SELECT id FROM stores WHERE parent_id = $2))
+         RETURNING *`,
+        [id, storeId]
+      );
+    }
+    
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Property not found' });
     }
-    res.json({ message: 'Property deleted' });
+    res.json({ message: 'Property deleted', deleted: result.rows[0] });
   } catch (error) {
     console.error('Error deleting property:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -544,8 +555,8 @@ router.post('/news', authenticate, async (req: any, res) => {
 
 // Update or publish a radar news item with upsert on store_id + title
 router.post('/radar-news/publish', authenticate, async (req: any, res) => {
-const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
-  const { title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity } = req.body;
+  const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
+  const { title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity, sector } = req.body;
 
   try {
     const existing = await pool.query(
@@ -557,15 +568,15 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
     if (existing.rows.length > 0) {
       result = await pool.query(
         `UPDATE radar_news 
-         SET summary = $1, source = $2, image_url = $3, date = $4, tags = $5, published_on_store = $6, published_on_enrakipsiz = $7, intensity = $8
-         WHERE id = $9 RETURNING *`,
-        [summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', existing.rows[0].id]
+         SET summary = $1, source = $2, image_url = $3, date = $4, tags = $5, published_on_store = $6, published_on_enrakipsiz = $7, intensity = $8, sector = $9
+         WHERE id = $10 RETURNING *`,
+        [summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', sector || 'real_estate', existing.rows[0].id]
       );
     } else {
       result = await pool.query(
-        `INSERT INTO radar_news (store_id, title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-        [storeId, title, summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal']
+        `INSERT INTO radar_news (store_id, title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity, sector)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        [storeId, title, summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', sector || 'real_estate']
       );
     }
     res.json(result.rows[0]);
