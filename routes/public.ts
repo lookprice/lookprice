@@ -607,22 +607,63 @@ router.get("/store/:slug/products", async (req, res) => {
   let allListings: any[] = [ ...productsRes.rows.map((p: any) => ({ ...p, type: 'product' })) ];
 
   vehiclesRes.rows.forEach((v: any) => {
+    let vehicleImages: string[] = [];
+    if (v.images) {
+      if (Array.isArray(v.images)) {
+        vehicleImages = v.images;
+      } else if (typeof v.images === "string") {
+        try {
+          vehicleImages = JSON.parse(v.images);
+        } catch (e) {
+          vehicleImages = [];
+        }
+      }
+    }
+    const coverImage = (vehicleImages && vehicleImages.length > 0) ? vehicleImages[0] : null;
+
     allListings.push({
       id: `v_${v.id}`,
       db_id: v.id,
       store_id: v.store_id,
       type: 'vehicle',
       name: `${v.brand} ${v.model} (${v.year})`,
-      description: `Şasi: ${v.chassis_number}, Tip: ${v.type}, KM: ${v.current_mileage}`,
+      description: `Şasi: ${v.chassis_number || ""}, Tip: ${v.type || ""}, KM: ${v.current_mileage || 0}`,
       price: v.selling_price || 0,
       currency: v.currency || 'TRY',
       stock_quantity: 1,
       category: "Araç İlanları",
       brand: v.brand,
+      model: v.model,
+      year: v.year,
+      transmission: v.transmission,
+      fuel: v.fuel_type,
       branch_name: v.branch_name,
       branch_slug: v.branch_slug,
-      image_url: null,
-      sector_data: { hp: null, engine: null, transmission: null, fuel: null }
+      image_url: coverImage,
+      images: vehicleImages,
+      sector_data: { 
+        brand: v.brand,
+        model: v.model,
+        year: v.year,
+        transmission: v.transmission,
+        fuel: v.fuel_type || (v as any).fuel,
+        color: v.color,
+        body_type: v.body_type,
+        current_mileage: v.current_mileage,
+        plate: v.plate,
+        package_name: v.package_name,
+        paint_report: v.paint_report,
+        tramer_amount: v.tramer_amount,
+        tramer_currency: v.tramer_currency,
+        chassis_number: v.chassis_number,
+        engine_number: v.engine_number,
+        virtual_tour_url: v.virtual_tour_url,
+        ai_tour_enabled: v.ai_tour_enabled,
+        seller_type: v.seller_type,
+        is_verified: v.is_verified,
+        verification_status: v.verification_status,
+        images: vehicleImages
+      }
     });
   });
 

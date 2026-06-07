@@ -2061,6 +2061,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         if (typeof storeRes.page_layout === "string" && storeRes.page_layout) {
           try {
             const parsed = JSON.parse(storeRes.page_layout);
+            storeRes.page_layout_full = parsed;
             const defaultSectionIds = ['hero', 'search', 'stats', 'portfolio', 'news', 'blog', 'team', 'map'];
             if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
               if (Array.isArray(parsed.sections)) {

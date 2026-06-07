@@ -116,6 +116,7 @@ export interface Store {
     pre_info?: LegalPage;
   };
   page_layout?: any[];
+  page_layout_full?: any;
   page_layout_settings?: {
     show_announcement?: boolean;
     show_stories?: boolean;

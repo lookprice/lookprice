@@ -195,8 +195,8 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   };
 
   const layoutConfig = React.useMemo(() => {
-    if (!store.page_layout) return { sections: [], grid: 'standard', count: 6, banners: [] };
-    let layout = store.page_layout;
+    let layout = (store as any).page_layout_full || store.page_layout;
+    if (!layout) return { sections: [], grid: 'standard', count: 6, banners: [] };
     if (typeof layout === "string") {
       try {
         layout = JSON.parse(layout);
@@ -218,7 +218,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
       quickLinks: l.quickLinks || [],
       corporateLinks: l.corporateLinks || []
     };
-  }, [store.page_layout]);
+  }, [store.page_layout_full, store.page_layout]);
 
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
