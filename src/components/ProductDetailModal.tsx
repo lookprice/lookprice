@@ -593,6 +593,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             data={{
               ...product.sector_data,
               mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage,
+              paint_report: (product as any).paint_report || (product.sector_data as any)?.paint_report,
+              is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
             }}
             category={product.category}
             name={product.name}
@@ -691,7 +693,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     const phone = store?.whatsapp_number || store?.phone;
                     if (phone) {
                       window.open(
-                        `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} aracınız için Takas Teklifi göndermek istiyorum. Kendi aracımın bilgileri ve görselleri şu şekildedir: `)}`,
+                        `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} aracınız için Takas Teklifi göndermek istiyorum. \n\nLütfen aracımın bilgilerini ve görsellerini buradan size iletiyorum: `)}`,
                         "_blank",
                       );
                     }

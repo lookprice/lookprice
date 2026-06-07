@@ -2792,7 +2792,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     (store as any)?.sector === "real_estate" ||
     (store as any)?.sector === "automotive";
   if (isPortfolioOverride) {
-    const isAutoStore = (store as any)?.store_type === 'motor_vehicle' || (store as any)?.page_layout_settings?.sector === 'automotive' || (store as any)?.sector === 'automotive';
+    const isAutoStore = (store as any)?.store_type === 'motor_vehicle' || (store as any)?.store_type === 'automotive' || (store as any)?.page_layout_settings?.sector === 'automotive' || (store as any)?.sector === 'automotive';
     return (
       <ErrorBoundary lang={lang}>
         <div className="relative min-h-screen bg-slate-50 overflow-x-hidden font-sans">

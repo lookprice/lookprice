@@ -642,7 +642,7 @@ router.get("/store/:slug/products", async (req, res) => {
       store_id: v.store_id,
       type: 'vehicle',
       name: `${v.brand} ${v.model} (${v.year})`,
-      description: `Şasi: ${v.chassis_number || ""}, Tip: ${v.type || ""}, KM: ${v.current_mileage || 0}`,
+      description: v.description || `Şasi: ${v.chassis_number || ""}, Tip: ${v.type || ""}, KM: ${v.current_mileage || 0}`,
       price: v.selling_price || 0,
       currency: v.currency || 'TRY',
       stock_quantity: 1,
@@ -677,6 +677,9 @@ router.get("/store/:slug/products", async (req, res) => {
         seller_type: v.seller_type,
         is_verified: v.is_verified,
         verification_status: v.verification_status,
+        is_trade_in_available: v.is_trade_in_available,
+        technical_description: v.technical_description,
+        market_story: v.market_story,
         images: vehicleImages
       }
     });

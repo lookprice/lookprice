@@ -41,6 +41,29 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
     return { tr: "İmarlı (Arsa Vasıflı)", en: "Zoned (Building Land)" };
   };
 
+  const getFuelLabel = (fuel: string) => {
+    const labels: any = {
+      gasoline: { tr: 'Benzin', en: 'Gasoline' },
+      diesel: { tr: 'Dizel', en: 'Diesel' },
+      lpg: { tr: 'LPG', en: 'LPG' },
+      hybrid: { tr: 'Hibrit', en: 'Hybrid' },
+      gasoline_hybrid: { tr: 'Hibrit (Benzin)', en: 'Hybrid (Gasoline)' },
+      diesel_hybrid: { tr: 'Hibrit (Dizel)', en: 'Hybrid (Diesel)' },
+      electric: { tr: 'Elektrik', en: 'Electric' }
+    };
+    return labels[fuel]?.[lang] || fuel;
+  };
+
+  const getTransmissionLabel = (val: string) => {
+    const labels: any = {
+      manual: { tr: 'Manuel', en: 'Manual' },
+      automatic: { tr: 'Otomatik', en: 'Automatic' },
+      semi_automatic: { tr: 'Yarı Otomatik', en: 'Semi-Auto' },
+      dual_clutch: { tr: 'Çift Kavrama', en: 'Dual Clutch' }
+    };
+    return labels[val]?.[lang] || val;
+  };
+
   const renderAutomotive = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {data.hp && (
@@ -69,7 +92,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
             {lang === "tr" ? "ŞANZIMAN" : "TRANSMISSION"}
           </p>
           <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
-            {data.transmission}
+            {getTransmissionLabel(data.transmission)}
           </p>
         </div>
       )}
@@ -79,8 +102,21 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
             {lang === "tr" ? "YAKIT" : "FUEL"}
           </p>
           <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
-            {data.fuel}
+            {getFuelLabel(data.fuel)}
           </p>
+        </div>
+      )}
+      {data.is_trade_in_available !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-500/20 transition-all">
+          <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
+            {lang === "tr" ? "TAKAS" : "TRADE-IN"}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${data.is_trade_in_available ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
+              {data.is_trade_in_available ? (lang === "tr" ? "KABUL EDİLİYOR" : "ACCEPTED") : (lang === "tr" ? "YOK" : "NONE")}
+            </p>
+          </div>
         </div>
       )}
       {data.mileage !== undefined && (
@@ -91,6 +127,52 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           <p className="text-sm font-semibold text-slate-900 group-hover:text-amber-600 transition-colors uppercase">
             {Number(data.mileage).toLocaleString()} KM
           </p>
+        </div>
+      )}
+      {data.paint_report && (
+        <div className="col-span-full mt-4">
+          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            {lang === "tr" ? "EKSPERTİZ / KAPORTA DURUMU" : "EXPERTISE / BODY CONDITION"}
+          </h5>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2">
+            {(() => {
+              const report = typeof data.paint_report === 'string' ? JSON.parse(data.paint_report) : data.paint_report;
+              const partsDefinition = [
+                { id: 'hood', label: lang === 'tr' ? 'Kaput' : 'Hood' },
+                { id: 'roof', label: lang === 'tr' ? 'Tavan' : 'Roof' },
+                { id: 'trunk', label: lang === 'tr' ? 'Bagaj' : 'Trunk' },
+                { id: 'fender_fl', label: lang === 'tr' ? 'Sol Ön Çam.' : 'Front-Left Fender' },
+                { id: 'fender_fr', label: lang === 'tr' ? 'Sağ Ön Çam.' : 'Front-Right Fender' },
+                { id: 'door_fl', label: lang === 'tr' ? 'Sol Ön Kapı' : 'Front-Left Door' },
+                { id: 'door_fr', label: lang === 'tr' ? 'Sağ Ön Kapı' : 'Front-Right Door' },
+                { id: 'door_rl', label: lang === 'tr' ? 'Sol Arka Kapı' : 'Rear-Left Door' },
+                { id: 'door_rr', label: lang === 'tr' ? 'Sağ Arka Kapı' : 'Rear-Right Door' },
+                { id: 'fender_rl', label: lang === 'tr' ? 'Sol Arka Çam.' : 'Rear-Left Fender' },
+                { id: 'fender_rr', label: lang === 'tr' ? 'Sağ Arka Çam.' : 'Rear-Right Fender' }
+              ];
+
+              return partsDefinition.map(p => {
+                const status = report[p.id] || 'original';
+                const statusLabels: any = {
+                  original: { tr: 'Orijinal', en: 'Original', color: 'bg-emerald-500' },
+                  painted: { tr: 'Boyalı', en: 'Painted', color: 'bg-amber-500' },
+                  replaced: { tr: 'Değişen', en: 'Replaced', color: 'bg-rose-500' }
+                };
+                const label = statusLabels[status] || statusLabels.original;
+
+                return (
+                  <div key={p.id} className="p-2.5 bg-white border border-slate-100 rounded-xl flex flex-col gap-1 shadow-sm">
+                    <span className="text-[9px] font-bold text-slate-500 truncate">{p.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${label.color}`} />
+                      <span className="text-[10px] font-black uppercase text-slate-700">{lang === 'tr' ? label.tr : label.en}</span>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
         </div>
       )}
       {data.acceleration && (

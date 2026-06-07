@@ -76,89 +76,42 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
   const displaySubBadge = subBadge || defaultSubBadge;
 
   // Dynamic fallback image selector based on keywords to prevent empty boxes and look ultra professional!
-  const getNewsImage = (item: RadarNewsItem): string => {
-    if (!item) return "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80";
+  const getNewsImage = (item: RadarNewsItem): string | null => {
+    if (!item) return null;
     if (item.image_url && item.image_url.trim().length > 10) return item.image_url;
     if (item.imageUrl && item.imageUrl.trim().length > 10) return item.imageUrl;
 
     const query = ((item.title || "") + " " + (item.summary || "")).toLowerCase();
 
-    // 1. Finance & Credit
-    if (
-      query.includes("kredi") ||
-      query.includes("faiz") ||
-      query.includes("finans") ||
-      query.includes("bank") ||
-      query.includes("para") ||
-      query.includes("sponsor") ||
-      query.includes("loan") ||
-      query.includes("finance") ||
-      query.includes("mortgage") ||
-      query.includes("vade")
-    ) {
-      return "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80";
+    // If no good match, return null to show branded placeholder
+    return null;
+  };
+
+  const NewsMedia: React.FC<{ item: RadarNewsItem; className?: string }> = ({ item, className }) => {
+    const imageUrl = getNewsImage(item);
+    
+    if (!imageUrl) {
+      return (
+        <div className={`${className} flex flex-col items-center justify-center p-6 text-center ${isDark ? 'bg-slate-900' : 'bg-slate-100'}`}>
+           <div className="mb-3 p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-500/20">
+             <Sparkles className="w-8 h-8 text-white" />
+           </div>
+           <h3 className={`text-xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>LookPrice News</h3>
+           <p className={`mt-2 text-[10px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+             {lang === 'tr' ? 'Canlı Haber Akışı' : 'Live News Stream'}
+           </p>
+        </div>
+      );
     }
 
-    // 2. Legal, Law & Zoning
-    if (
-      query.includes("imar") ||
-      query.includes("mevzuat") ||
-      query.includes("yasa") ||
-      query.includes("kanun") ||
-      query.includes("belediye") ||
-      query.includes("karar") ||
-      query.includes("tapu") ||
-      query.includes("legal") ||
-      query.includes("law") ||
-      query.includes("zoning") ||
-      query.includes("hukuk")
-    ) {
-      return "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80";
-    }
-
-    // 3. Real Estate, Villa, Property, Land
-    if (
-      query.includes("villa") ||
-      query.includes("konut") ||
-      query.includes("apartman") ||
-      query.includes("mülk") ||
-      query.includes("bina") ||
-      query.includes("daire") ||
-      query.includes("arsa") ||
-      query.includes("arazi") ||
-      query.includes("property") ||
-      query.includes("real estate") ||
-      query.includes("house") ||
-      query.includes("şantiye") ||
-      query.includes("proje")
-    ) {
-      return "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80";
-    }
-
-    // 4. Tech & AI Radar
-    if (
-      query.includes("radar") ||
-      query.includes("ai") ||
-      query.includes("akıllı") ||
-      query.includes("teknoloji") ||
-      query.includes("analiz") ||
-      query.includes("veri") ||
-      query.includes("cyber") ||
-      query.includes("smart")
-    ) {
-      return "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80";
-    }
-
-    // Rotative Fallback based on item index or title length
-    const idNum = typeof item.id === "number" ? item.id : (item.title?.length || 0);
-    const fallbacks = [
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
-    ];
-
-    return fallbacks[idNum % fallbacks.length];
+    return (
+      <img 
+        src={imageUrl} 
+        alt={item?.title || "LookPrice News"} 
+        className={className}
+        referrerPolicy="no-referrer"
+      />
+    );
   };
 
   // Normalize tags helper
@@ -278,11 +231,9 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[220px]">
             {/* Visual block */}
             <div className="lg:col-span-4 relative rounded-2xl overflow-hidden shadow-md group aspect-[16/10] lg:aspect-auto">
-              <img 
-                src={getNewsImage(currentNews)} 
-                alt={currentNews?.title || "LookPrice News"} 
+              <NewsMedia 
+                item={currentNews} 
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-[4s]"
-                referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
               
@@ -491,11 +442,9 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
             >
               {/* Header block with image or banner */}
               <div className="h-52 w-full relative overflow-hidden bg-slate-100 flex-shrink-0 border-b border-slate-100/10">
-                <img 
-                  src={getNewsImage(selectedItem)} 
-                  alt={selectedItem.title} 
+                <NewsMedia 
+                  item={selectedItem} 
                   className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
                 />
                 <div className={`absolute inset-0 bg-gradient-to-t ${isDark ? "from-slate-950 via-slate-950/45" : "from-white via-white/45"} to-transparent`} />
                 

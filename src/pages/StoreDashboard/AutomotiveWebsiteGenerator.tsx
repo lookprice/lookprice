@@ -251,17 +251,17 @@ export const AutomotiveWebsiteGenerator = ({
   const [quickLinks, setQuickLinks] = useState<
     { label: string; url: string; content?: string; type?: "url" | "content" }[]
   >([
-    { label: lang === "tr" ? "Araçlarımız" : "Our Vehicles", url: "#portfolio", type: "url" },
-    { label: lang === "tr" ? "Hizmetlerimiz" : "Our Services", url: "#", type: "url" },
+    { label: lang === "tr" ? "Araç Galerimiz" : "Our Car Gallery", url: "#portfolio", type: "url" },
+    { label: lang === "tr" ? "Ekspertiz Hizmetleri" : "Expertise Services", url: "#", type: "url" },
     {
       label: lang === "tr" ? "Biz Kimiz?" : "Who We Are",
       url: "",
       type: "content",
       content: lang === "tr" 
-        ? "Biz LookPrice Master ekibi olarak araç yatırımlarınıza değer katıyoruz."
-        : "As the LookPrice Master team, we add value to your vehicle investments.",
+        ? "Biz LookPrice Master ekibi olarak araç yatırımlarınıza değer katıyoruz. Profesyonel kadromuzla yanınızdayız."
+        : "As the LookPrice Master team, we add value to your vehicle investments with our professional staff.",
     },
-    { label: lang === "tr" ? "İletişim" : "Contact", url: "#contact", type: "url" },
+    { label: lang === "tr" ? "Takas Başvurusu" : "Trade-in Application", url: "#contact", type: "url" },
   ]);
   const [corporateLinks, setCorporateLinks] = useState<
     { label: string; url: string; content?: string; type?: "url" | "content" }[]
@@ -837,21 +837,26 @@ export const AutomotiveWebsiteGenerator = ({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (uploadEvent) => {
-                              const b64 = uploadEvent.target?.result as string;
-                              setBanners((prev) => [...prev, b64]);
-                              if (banners.length === 0) {
-                                setContent((prev) => ({
-                                  ...prev,
-                                  hero: { ...prev.hero, bgImage: b64 },
-                                }));
+                            try {
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              const uploadRes = await api.upload("/api/upload", formData);
+                              if (uploadRes && uploadRes.url) {
+                                setBanners((prev) => [...prev, uploadRes.url]);
+                                if (!banners || banners.length === 0) {
+                                  setContent((prev) => ({
+                                    ...prev,
+                                    hero: { ...prev.hero, bgImage: uploadRes.url },
+                                  }));
+                                }
                               }
-                            };
-                            reader.readAsDataURL(file);
+                            } catch (error) {
+                              console.error("Upload error:", error);
+                              alert(lang === "tr" ? "Yükleme başarısız." : "Upload failed.");
+                            }
                           }
                         }}
                       />
