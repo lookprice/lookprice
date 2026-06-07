@@ -55,7 +55,7 @@ const getLabels = (labels: any): string[] => {
 };
 
 const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
-  const isPortfolio = storeType === "portfolio" || sector === "real_estate" || sector === "automotive";
+  const isPortfolio = storeType === "real_estate" || storeType === "motor_vehicle" || sector === "real_estate" || sector === "automotive";
   const decimals = isPortfolio ? 0 : 2;
   return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
 };
@@ -360,7 +360,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
 
           {/* View Mode Switcher Moved and Refined */}
-          {store?.store_type === "portfolio" &&
+          {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") &&
             product.type === "real_estate" && (
               <div className="absolute top-6 right-16 z-30 transition-all duration-500">
                 <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
@@ -383,7 +383,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               </div>
             )}
-          {store?.store_type === "portfolio" &&
+          {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") &&
           activeViewMode === "tourMap" &&
           product.type === "real_estate" ? (
              <PropertyMapTour 
@@ -574,7 +574,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             description={product.description}
           />
 
-          {((store?.store_type === "portfolio" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (
+          {((store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (
             <ListingFinancingCalculator
               price={convertedPrice}
               currency={store?.currency || product?.currency || 'TRY'}
@@ -583,7 +583,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             />
           )}
 
-          <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'portfolio'} />
+          <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle'} />
 
           {branchStocks.length > 0 && (
             <div className="mt-10 mb-10">
@@ -631,7 +631,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
           )}
 
-          {store?.store_type === "portfolio" ||
+          {store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" ||
           product.type === "vehicle" ||
           product.type === "real_estate" ? (
             <button

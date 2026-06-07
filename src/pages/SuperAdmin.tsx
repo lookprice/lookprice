@@ -252,7 +252,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     language: "tr",
     plan: "free" as const,
     parent_id: "" as string | number,
-    store_type: "product" as "product" | "portfolio"
+    store_type: "product" as "product" | "real_estate" | "motor_vehicle",
+    sub_sector: undefined as 'car' | 'motorcycle' | 'marine' | 'construction' | 'agricultural' | 'other' | undefined
   });
 
   const planLimits = {
@@ -327,7 +328,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         language: "tr",
         plan: "free",
         parent_id: "",
-        store_type: "product"
+        store_type: "product",
+        sub_sector: undefined
       });
       fetchData();
     } catch (error) {
@@ -1473,16 +1475,33 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     placeholder={st.passwordNote}
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 space-y-4">
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mağaza Türü / Sektörü</label>
                   <select 
                     className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                     value={editingStore.store_type || "product"} 
-                    onChange={e => setEditingStore({...editingStore, store_type: e.target.value})}
+                    onChange={e => setEditingStore({...editingStore, store_type: e.target.value as any})}
                   >
                     <option value="product">Ürün & Perakende (Standart Satış)</option>
-                    <option value="portfolio">Portföy & İlan (Emlak & Oto Galeri)</option>
+                    <option value="real_estate">Emlak (Gayrimenkul)</option>
+                    <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
                   </select>
+
+                  {editingStore.store_type === 'motor_vehicle' && (
+                    <select 
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                      value={editingStore.sub_sector || ""} 
+                      onChange={e => setEditingStore({...editingStore, sub_sector: e.target.value as any})}
+                    >
+                      <option value="">Kategori Seçiniz</option>
+                      <option value="car">Otomobil & Hafif Ticari</option>
+                      <option value="motorcycle">Motosiklet</option>
+                      <option value="marine">Deniz Taşıtları</option>
+                      <option value="construction">İş Makineleri</option>
+                      <option value="agricultural">Tarım Makineleri</option>
+                      <option value="other">Diğer Motorlu Taşıtlar</option>
+                    </select>
+                  )}
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Üst Mağaza (Şube ise)</label>
@@ -1683,12 +1702,32 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     <select 
                       className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
                       value={newStore.store_type} 
-                      onChange={e => setNewStore({...newStore, store_type: e.target.value as "product" | "portfolio"})}
+                      onChange={e => setNewStore({...newStore, store_type: e.target.value as any})}
                     >
                       <option value="product">Ürün & Perakende (Standart Satış)</option>
-                      <option value="portfolio">Portföy & İlan (Emlak & Oto Galeri)</option>
+                      <option value="real_estate">Emlak (Gayrimenkul)</option>
+                      <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
                     </select>
                   </div>
+                  
+                  {newStore.store_type === 'motor_vehicle' && (
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700">Taşıt Kategorisi</label>
+                        <select 
+                          className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                          value={newStore.sub_sector || ""} 
+                          onChange={e => setNewStore({...newStore, sub_sector: e.target.value as any})}
+                        >
+                          <option value="">Kategori Seçiniz</option>
+                          <option value="car">Otomobil & Hafif Ticari</option>
+                          <option value="motorcycle">Motosiklet</option>
+                          <option value="marine">Deniz Taşıtları</option>
+                          <option value="construction">İş Makineleri</option>
+                          <option value="agricultural">Tarım Makineleri</option>
+                          <option value="other">Diğer Motorlu Taşıtlar</option>
+                        </select>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.adminAccount}</h3>

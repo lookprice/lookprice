@@ -28,6 +28,8 @@ interface SidebarProps {
   publicUrl: string;
   scanUrl: string;
   isPortfolio: boolean;
+  isRealEstate: boolean;
+  isAutomotive: boolean;
   onLogout: () => void;
   setShowQrModal: (show: boolean) => void;
   sidebarOpen: boolean;
@@ -46,6 +48,8 @@ export const DashboardSidebar = ({
   publicUrl,
   scanUrl,
   isPortfolio,
+  isRealEstate,
+  isAutomotive,
   onLogout,
   setShowQrModal,
   sidebarOpen,

@@ -110,7 +110,7 @@ const getLabels = (labels: any): string[] => {
 };
 
 const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
-  const isPortfolio = storeType === "portfolio" || sector === "real_estate" || sector === "automotive";
+  const isPortfolio = storeType === "real_estate" || storeType === "motor_vehicle" || sector === "real_estate" || sector === "automotive";
   const decimals = isPortfolio ? 0 : 2;
   return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
 };
@@ -1323,7 +1323,7 @@ const ProductDetailModal_Deprecated: React.FC<{
           </div>
 
           {/* View Mode Switcher Moved and Refined */}
-          {store?.store_type === "portfolio" &&
+          {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") &&
             product.type === "real_estate" && (
               <div className="absolute top-6 right-6 z-30 transition-all duration-500">
                 <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
@@ -1346,7 +1346,7 @@ const ProductDetailModal_Deprecated: React.FC<{
                 </div>
               </div>
             )}
-          {store?.store_type === "portfolio" &&
+          {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") &&
           activeViewMode === "tourMap" &&
           product.type === "real_estate" ? (
              <PropertyMapTour 
@@ -1537,7 +1537,7 @@ const ProductDetailModal_Deprecated: React.FC<{
             description={product.description}
           />
 
-          {((store?.store_type === "portfolio" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (
+          {((store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (
             <ListingFinancingCalculator
               price={convertedPrice}
               currency={store?.currency || product?.currency || 'TRY'}
@@ -1546,7 +1546,7 @@ const ProductDetailModal_Deprecated: React.FC<{
             />
           )}
 
-          <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'portfolio'} />
+          <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle'} />
 
           {branchStocks.length > 0 && (
             <div className="mt-10 mb-10">
@@ -1594,7 +1594,7 @@ const ProductDetailModal_Deprecated: React.FC<{
             </div>
           )}
 
-          {store?.store_type === "portfolio" ||
+          {store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" ||
           product.type === "vehicle" ||
           product.type === "real_estate" ? (
             <button
@@ -1855,7 +1855,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   // Portfolio-specific filter states
   const [portfolioType, setPortfolioType] = useState<
-    "all" | "real_estate" | "vehicle"
+    "all" | "real_estate" | "car" | "motorcycle" | "marine" | "construction" | "agricultural" | "other"
   >("all");
   const [portfolioMinPrice, setPortfolioMinPrice] = useState("");
   const [portfolioMaxPrice, setPortfolioMaxPrice] = useState("");
@@ -1995,7 +1995,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   }, []);
 
   const formatPrice = (price: number, currency?: string) => {
-    const isPortfolio = store?.store_type === "portfolio" || store?.sector === "real_estate" || store?.sector === "automotive" || layoutSettings?.sector === "real_estate" || layoutSettings?.sector === "automotive";
+    const isPortfolio = (store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") || store?.sector === "real_estate" || store?.sector === "automotive" || layoutSettings?.sector === "real_estate" || layoutSettings?.sector === "automotive";
     const decimals = isPortfolio ? 0 : 2;
     return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || store?.currency || "TRY"}`;
   };
@@ -2393,14 +2393,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       // Portfolio fields filter
       let matchesPortfolioType = true;
       if (
-        store?.store_type === "portfolio" ||
+        store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" ||
         p.type === "real_estate" ||
         p.type === "vehicle"
       ) {
         if (portfolioType === "real_estate") {
           matchesPortfolioType = p.type === "real_estate";
-        } else if (portfolioType === "vehicle") {
-          matchesPortfolioType = p.type === "vehicle";
+        } else if (portfolioType !== "all") {
+          // If a specific sub-category (other than all/real_estate) is selected
+          matchesPortfolioType = p.sector_data?.sub_sector === portfolioType;
         }
       }
 
@@ -3014,7 +3015,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                   </span>
                 </button>
               )}
-              {store?.store_type !== "portfolio" && (
+              {store?.store_type !== "real_estate" && store?.store_type !== "motor_vehicle" && (
                 <button
                   onClick={() => setIsBasketOpen(true)}
                   className="relative p-2.5 hover:bg-gray-100 rounded-lg transition-all active:scale-95 group"
@@ -3375,7 +3376,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             >
               {/* Search Bar & Filters */}
               <div className="mb-12">
-                {store?.store_type === "portfolio" && (
+                {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") && (
                   <div className="bg-slate-50/50 rounded-3xl p-6 md:p-8 border border-slate-100 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
                     <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
                       <Filter className="w-4 h-4 text-indigo-600" />
@@ -3404,10 +3405,23 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             <option value="real_estate">
                               {lang === "tr" ? "Gayrimenkul" : "Real Estate"}
                             </option>
-                            <option value="vehicle">
-                              {lang === "tr"
-                                ? "Oto Galeri / Vasıta"
-                                : "Automotive / Vehicles"}
+                            <option value="car">
+                              {lang === "tr" ? "Otomobil & Hafif Ticari" : "Car & Light Commercial"}
+                            </option>
+                            <option value="motorcycle">
+                              {lang === "tr" ? "Motosiklet" : "Motorcycle"}
+                            </option>
+                            <option value="marine">
+                              {lang === "tr" ? "Deniz Taşıtları" : "Marine"}
+                            </option>
+                            <option value="construction">
+                              {lang === "tr" ? "İş Makineleri" : "Construction Equipment"}
+                            </option>
+                            <option value="agricultural">
+                              {lang === "tr" ? "Tarım Makineleri" : "Agricultural Equipment"}
+                            </option>
+                            <option value="other">
+                              {lang === "tr" ? "Diğer" : "Other"}
                             </option>
                           </select>
                           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -3453,7 +3467,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         </label>
                         <div className="relative">
                           <select
-                            disabled={portfolioType === "vehicle"}
+                            disabled={portfolioType !== "all" && portfolioType !== "real_estate"}
                             value={portfolioRooms}
                             onChange={(e) => setPortfolioRooms(e.target.value)}
                             className="w-full bg-white border border-slate-200/80 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-700 focus:border-indigo-500 outline-none appearance-none shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3480,7 +3494,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         <div className="relative">
                           <input
                             type="number"
-                            disabled={portfolioType === "vehicle"}
+                            disabled={portfolioType !== "all" && portfolioType !== "real_estate"}
                             placeholder="m²"
                             value={portfolioMinM2}
                             onChange={(e) => setPortfolioMinM2(e.target.value)}
@@ -4143,14 +4157,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                         <Package className="w-12 h-12 text-gray-200" />
                       </div>
                       <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                        {store?.store_type === "portfolio"
+                        {store?.store_type === "real_estate" || store?.store_type === "motor_vehicle"
                           ? lang === "tr"
                             ? "İlan bulunamadı"
                             : "No listings found"
                           : t.dashboard.noProductsFound}
                       </h3>
                       <p className="text-gray-400 font-medium max-w-xs">
-                        {store?.store_type === "portfolio"
+                        {store?.store_type === "real_estate" || store?.store_type === "motor_vehicle"
                           ? lang === "tr"
                             ? "Arama kriterlerinize uygun ilan veya portföy bulunmuyor."
                             : "No listings or portfolios match your search criteria."
@@ -5141,7 +5155,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 </div>
                 <p className="text-gray-500 text-lg font-medium max-w-md leading-relaxed mb-10">
                   {store?.description ||
-                    (store?.store_type === "portfolio"
+                    (store?.store_type === "real_estate" || store?.store_type === "motor_vehicle"
                       ? lang === "tr"
                         ? "En seçkin gayrimenkul ve araç ilanlarını en avantajlı fırsatlarla sizlere sunuyoruz. Müşteri memnuniyeti önceliğimizdir."
                         : "We provide the most exclusive real estate and vehicle listings with premium opportunities. Customer satisfaction is our priority."
@@ -7014,7 +7028,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             >
               {lang === "tr" ? "Hakkımızda" : "About Us"}
             </a>
-            {store?.store_type !== "portfolio" && (
+            {store?.store_type !== "real_estate" && store?.store_type !== "motor_vehicle" && (
               <>
                 <a
                   href={`/api/public/store/${store?.slug}/return-policy`}

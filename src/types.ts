@@ -86,7 +86,8 @@ export interface Store {
   address: string;
   phone: string;
   email: string;
-  store_type?: 'product' | 'portfolio';
+  store_type?: 'product' | 'real_estate' | 'motor_vehicle';
+  sub_sector?: 'car' | 'motorcycle' | 'marine' | 'construction' | 'agricultural' | 'other';
   sector?: string;
   emails?: string[];
   phones?: string[];
