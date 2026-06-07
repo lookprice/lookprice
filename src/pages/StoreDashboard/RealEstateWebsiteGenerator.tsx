@@ -75,6 +75,10 @@ export const RealEstateWebsiteGenerator = ({
             if (res.logo_url) setLogoUrl(res.logo_url);
             if (res.favicon_url) setFaviconUrl(res.favicon_url);
 
+            if (res.slogan) {
+              setContent((prev) => ({ ...prev, trustSlogan: res.slogan }));
+            }
+
             if (res.page_layout) {
               let layout = res.page_layout;
               if (typeof layout === "string") {

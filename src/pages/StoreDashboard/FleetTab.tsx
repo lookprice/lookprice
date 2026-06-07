@@ -1146,7 +1146,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                             images: vehicle.images || [],
                             virtual_tour_url: vehicle.virtual_tour_url || '',
                             ai_tour_enabled: !!vehicle.ai_tour_enabled,
-                            is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz
+                            is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
+                            market_story: vehicle.market_story || '',
+                            technical_description: vehicle.technical_description || '',
+                            is_trade_in_available: !!vehicle.is_trade_in_available
                           });
                           setShowAddModal(true);
                         }}

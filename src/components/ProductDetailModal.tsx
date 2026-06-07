@@ -559,25 +559,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             />
           </div>
 
-          {(product as any).market_story && (
+          {((product as any).market_story || (product.sector_data as any)?.market_story) && (
             <div className="mb-10 p-6 bg-blue-50/30 rounded-3xl border border-blue-100/50">
               <h4 className="text-[10px] font-semibold text-blue-600 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
                 <Car className="w-3 h-3" />
                 {lang === "tr" ? "PAZAR HİKAYESİ" : "MARKET STORY"}
               </h4>
               <p className="text-slate-700 leading-relaxed text-sm font-medium">
-                {(product as any).market_story}
+                {(product as any).market_story || (product.sector_data as any)?.market_story}
               </p>
             </div>
           )}
 
-          {(product as any).technical_description && (
+          {((product as any).technical_description || (product.sector_data as any)?.technical_description) && (
             <div className="mb-10 p-6 bg-slate-50/50 rounded-3xl border border-slate-200/50">
               <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.3em] mb-4">
                 {lang === "tr" ? "TEKNİK İLAN AÇIKLAMASI" : "TECHNICAL DESCRIPTION"}
               </h4>
               <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-wrap">
-                {(product as any).technical_description}
+                {(product as any).technical_description || (product.sector_data as any)?.technical_description}
               </p>
             </div>
           )}

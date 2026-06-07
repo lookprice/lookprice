@@ -670,7 +670,24 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
                 <ul className="space-y-4 text-sm font-bold text-slate-400">
                   {layoutConfig.quickLinks.map((link: any, idx: number) => (
-                    <li key={idx} onClick={() => setActiveContentMap({ title: link.label, content: link.content })} className="hover:text-amber-400 cursor-pointer transition-colors">{link.label}</li>
+                    <li 
+                      key={idx} 
+                      onClick={() => {
+                        if (link.type === 'url' || (link.url && link.url.length > 0)) {
+                          if (link.url.startsWith('#')) {
+                            const el = document.querySelector(link.url);
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          } else {
+                            window.open(link.url, '_blank');
+                          }
+                        } else {
+                          setActiveContentMap({ title: link.label, content: link.content });
+                        }
+                      }} 
+                      className="hover:text-amber-400 cursor-pointer transition-colors"
+                    >
+                      {link.label}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -681,7 +698,24 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</h4>
                 <ul className="space-y-4 text-sm font-bold text-slate-400">
                   {layoutConfig.corporateLinks.map((link: any, idx: number) => (
-                    <li key={idx} onClick={() => setActiveContentMap({ title: link.label, content: link.content })} className="hover:text-amber-400 cursor-pointer transition-colors">{link.label}</li>
+                    <li 
+                      key={idx} 
+                      onClick={() => {
+                        if (link.type === 'url' || (link.url && link.url.length > 0)) {
+                          if (link.url.startsWith('#')) {
+                            const el = document.querySelector(link.url);
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          } else {
+                            window.open(link.url, '_blank');
+                          }
+                        } else {
+                          setActiveContentMap({ title: link.label, content: link.content });
+                        }
+                      }} 
+                      className="hover:text-amber-400 cursor-pointer transition-colors"
+                    >
+                      {link.label}
+                    </li>
                    ))}
                 </ul>
               </div>
