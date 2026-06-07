@@ -71,7 +71,8 @@ import {
 import { api } from "../services/api";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
-import { ModernPortfolioLayout } from "../components/ModernPortfolioLayout";
+import { ModernRealEstateLayout } from "../components/ModernRealEstateLayout";
+import { ModernAutomotiveLayout } from "../components/ModernAutomotiveLayout";
 import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
 
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -2787,15 +2788,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     (store as any)?.store_type === "real_estate" ||
     (store as any)?.store_type === "motor_vehicle";
   if (isPortfolioOverride) {
+    const isAutoStore = (store as any)?.store_type === 'motor_vehicle' || (store as any)?.page_layout_settings?.sector === 'automotive' || (store as any)?.sector === 'automotive';
     return (
       <ErrorBoundary lang={lang}>
         <div className="relative min-h-screen bg-slate-50 overflow-x-hidden font-sans">
-          <ModernPortfolioLayout
-            store={store}
-            products={products}
-            radarNews={radarNews}
-            onViewProduct={(p) => setSelectedProduct(p)}
-          />
+          {isAutoStore ? (
+            <ModernAutomotiveLayout
+              store={store}
+              products={products}
+              radarNews={radarNews}
+              onViewProduct={(p) => setSelectedProduct(p)}
+            />
+          ) : (
+            <ModernRealEstateLayout
+              store={store}
+              products={products}
+              radarNews={radarNews}
+              onViewProduct={(p) => setSelectedProduct(p)}
+            />
+          )}
 
           <AnimatePresence>
             {selectedProduct && (

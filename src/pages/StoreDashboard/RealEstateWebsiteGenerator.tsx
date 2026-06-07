@@ -48,7 +48,7 @@ interface WebContent {
   trustSlogan: string;
 }
 
-export const PortfolioWebsiteGenerator = ({
+export const RealEstateWebsiteGenerator = ({
   storeId,
 }: {
   storeId?: number;
@@ -62,7 +62,7 @@ export const PortfolioWebsiteGenerator = ({
   const [logoUrl, setLogoUrl] = useState("");
   const [faviconUrl, setFaviconUrl] = useState("");
 
-  const isAutomotive = originalBranding?.store_type === 'motor_vehicle' || originalBranding?.page_layout_settings?.sector === 'automotive';
+  const isAutomotive = false;
 
   useEffect(() => {
     if (storeId) {

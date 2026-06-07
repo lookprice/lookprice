@@ -63,7 +63,8 @@ const ProductsTab = React.lazy(() => import("./ProductsTab"));
 const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
 const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
 const PortfolioNotificationsTab = React.lazy(() => import("./PortfolioNotificationsTab").then(m => ({ default: m.PortfolioNotificationsTab })));
-const PortfolioWebsiteGeneratorTab = React.lazy(() => import("./PortfolioWebsiteGenerator").then(m => ({ default: m.PortfolioWebsiteGenerator })));
+const RealEstateWebsiteGeneratorTab = React.lazy(() => import("./RealEstateWebsiteGenerator").then(m => ({ default: m.RealEstateWebsiteGenerator })));
+const AutomotiveWebsiteGeneratorTab = React.lazy(() => import("./AutomotiveWebsiteGenerator").then(m => ({ default: m.AutomotiveWebsiteGenerator })));
 const TeamCrmTab = React.lazy(() => import("./TeamCrmTab").then(m => ({ default: m.TeamCrmTab })));
 const QuotationsTab = React.lazy(() => import("./QuotationsTab"));
 const CompaniesTab = React.lazy(() => import("./CompaniesTab"));
@@ -557,7 +558,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
-  const isRealEstate = branding?.store_type === 'real_estate' || branding?.page_layout_settings?.sector === 'real_estate';
+  const isRealEstate = branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate';
   const isAutomotive = branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive';
 
   useEffect(() => {
@@ -589,7 +590,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
       { id: "analytics", label: t.analytics, icon: LayoutDashboard },
-      { id: "radar_alerts", label: isTr ? "İmar & Haber Radarı" : "Radar & Alerts", icon: Radar },
+      { id: "radar_alerts", label: isTr ? (isAutomotive ? "Motorlu Taşıtlar & Haber Radarı" : "İmar & Haber Radarı") : "Radar & Alerts", icon: Radar },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
       { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
@@ -905,7 +906,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <PortfolioNotificationsTab analytics={analytics} />
               )}
               {activeTab === "website-generator" && (
-                <PortfolioWebsiteGeneratorTab storeId={currentStoreId!} />
+                isAutomotive ? (
+                  <AutomotiveWebsiteGeneratorTab storeId={currentStoreId!} />
+                ) : (
+                  <RealEstateWebsiteGeneratorTab storeId={currentStoreId!} />
+                )
               )}
               {activeTab === "team-crm" && (
                 <TeamCrmTab storeId={currentStoreId!} />

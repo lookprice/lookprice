@@ -1,0 +1,661 @@
+import React, { useState, useEffect } from "react";
+import {
+  Map,
+  Layout,
+  ArrowRight,
+  Check,
+  SlidersHorizontal,
+  Users,
+  MapPin,
+  X,
+} from "lucide-react";
+import { Store, Product } from "../types";
+import { useLanguage } from "../contexts/LanguageContext";
+import { api } from "../services/api";
+import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
+import { BlogShowcaseModal } from "./BlogShowcaseModal";
+
+interface ModernAutomotiveLayoutProps {
+  store: Store;
+  products: Product[];
+  radarNews?: any[];
+  onViewProduct: (product: Product) => void;
+}
+
+export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
+  store,
+  products,
+  radarNews = [],
+  onViewProduct,
+}) => {
+  const { lang } = useLanguage();
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [selectedBlogPost, setSelectedBlogPost] = useState<any>(null);
+
+  // Active filters states
+  const [activeBrand, setActiveBrand] = useState<string>("all");
+  const [activeModel, setActiveModel] = useState<string>("all");
+  const [activeBudget, setActiveBudget] = useState<string>("all");
+  const [activeYear, setActiveYear] = useState<string>("all");
+
+  // Pending filter states
+  const [pendingBrand, setPendingBrand] = useState<string>("all");
+  const [pendingModel, setPendingModel] = useState<string>("all");
+  const [pendingBudget, setPendingBudget] = useState<string>("all");
+  const [pendingYear, setPendingYear] = useState<string>("all");
+
+  // Filter options derived from vehicle product list
+  const brands = React.useMemo(() => {
+    const list = products.map(p => {
+      return p.brand || p.sector_data?.brand || (p as any).brand;
+    }).filter(Boolean);
+    return Array.from(new Set(list));
+  }, [products]);
+
+  const models = React.useMemo(() => {
+    const list = products.map(p => {
+      return p.sector_data?.model || (p as any).model;
+    }).filter(Boolean);
+    return Array.from(new Set(list));
+  }, [products]);
+
+  const yearsOptions = React.useMemo(() => {
+    const list = products.map(p => {
+      return (p.sector_data?.year || (p as any).year || "").toString();
+    }).filter(Boolean);
+    return Array.from(new Set(list)).sort((a: any, b: any) => Number(b) - Number(a));
+  }, [products]);
+
+  const budgetSpecs = React.useMemo(() => {
+    const maxVal = Math.max(...products.map(p => p.price || 0), 0);
+    const isLiraScale = maxVal > 1500000;
+    
+    if (isLiraScale) {
+      return {
+        isLira: true,
+        ranges: [
+          { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+          { value: "0-1000000", label: "1.0M TL Altı" },
+          { value: "1000000-2000000", label: "1.0M - 2.0M TL" },
+          { value: "2000000-4000000", label: "2.0M - 4.0M TL" },
+          { value: "4000000-8000000", label: "4.0M - 8.0M TL" },
+          { value: "8000000+", label: "8.0M TL Üstü" },
+        ]
+      };
+    } else {
+      return {
+        isLira: false,
+        ranges: [
+          { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+          { value: "0-30000", label: lang === "tr" ? "€30,000 Altı" : "Under €30k" },
+          { value: "30000-60000", label: "€30k - €60k" },
+          { value: "60000-120000", label: "€60k - €120k" },
+          { value: "120000-250000", label: "€120k - €250k" },
+          { value: "250000+", label: lang === "tr" ? "€250,000 Üstü" : "Over €250k" },
+        ]
+      };
+    }
+  }, [products, lang]);
+
+  // Filter implementation
+  const filteredProducts = React.useMemo(() => {
+    return products.filter(p => {
+      // 1. Brand match
+      if (activeBrand !== "all") {
+        const pBrand = p.sector_data?.brand || (p as any).brand || "";
+        if (pBrand.toLowerCase() !== activeBrand.toLowerCase()) {
+          return false;
+        }
+      }
+      // 2. Model match
+      if (activeModel !== "all") {
+        const pModel = p.sector_data?.model || (p as any).model || "";
+        if (pModel.toLowerCase() !== activeModel.toLowerCase()) {
+          return false;
+        }
+      }
+      // 3. Year match
+      if (activeYear !== "all") {
+        const pYear = (p.sector_data?.year || (p as any).year || "").toString();
+        if (pYear !== activeYear) {
+          return false;
+        }
+      }
+      // 4. Budget match
+      if (activeBudget !== "all") {
+        const price = p.price;
+        if (activeBudget.endsWith("+")) {
+          const limit = Number(activeBudget.replace("+", ""));
+          if (price < limit) return false;
+        } else {
+          const [min, max] = activeBudget.split("-").map(Number);
+          if (price < min || price > max) return false;
+        }
+      }
+      return true;
+    });
+  }, [products, activeBrand, activeModel, activeYear, activeBudget]);
+
+  const handleSearchTrigger = () => {
+    setActiveBrand(pendingBrand);
+    setActiveModel(pendingModel);
+    setActiveBudget(pendingBudget);
+    setActiveYear(pendingYear);
+    
+    setTimeout(() => {
+      const el = document.getElementById("listings-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
+  };
+
+  useEffect(() => {
+    if (store.slug) {
+      api
+        .getPublicBlogPosts(store.slug)
+        .then((res) => {
+          if (Array.isArray(res)) {
+            setBlogs(res.slice(0, 3));
+          }
+        })
+        .catch(console.error);
+    }
+  }, [store.slug]);
+
+  const team = store.consultants && store.consultants.length > 0 
+    ? store.consultants.map(c => ({
+        id: c.id?.toString() || c.name,
+        name: c.name,
+        role: c.role || "Satış Temsilcisi",
+        image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
+      }))
+    : [
+    {
+      id: "1",
+      name: store.name || "Mağaza Yöneticisi",
+      role: "Genel Müdür",
+      image:
+        "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
+    },
+  ];
+
+  const content = {
+    hero: {
+      title: store.name?.toUpperCase() || (lang === "tr" ? "SEÇKİN TAŞIT PORTFÖYÜ" : "ELITE AUTOMOTIVE PORTFOLIO"),
+      subtitle: store.description || (lang === "tr" ? "Lüks araç ve prestijli motorlu taşıt portföyleriyle güvendesiniz." : "Delightful range of select luxury and condition-focused vehicles."),
+      bgImage: ((store as any).page_layout && typeof (store as any).page_layout === 'object' && !Array.isArray((store as any).page_layout) && ((store as any).page_layout as any).hero_image_url) || store.hero_image_url || "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=2000&q=80",
+    },
+    stats: [
+      { value: "1.2B₺", label: lang === "tr" ? "İşlem Hacmi" : "Transaction Volume" },
+      { value: products.length.toString(), label: lang === "tr" ? "Aktif Araç" : "Active Vehicles" },
+      { value: "15+", label: lang === "tr" ? "Yıllık Güven" : "Years of Trust" },
+    ],
+    trustSlogan: (store as any).slogan || (lang === "tr" ? "PRESTİJ VE GÜVEN" : "PRESTIGE & CONFIDENCE"),
+  };
+
+  const layoutConfig = React.useMemo(() => {
+    if (!store.page_layout) return { sections: [], grid: 'standard', count: 6, banners: [] };
+    let layout = store.page_layout;
+    if (typeof layout === "string") {
+      try {
+        layout = JSON.parse(layout);
+      } catch (e) {
+        return { sections: [], grid: 'standard', count: 6, banners: [] };
+      }
+    }
+    
+    if (Array.isArray(layout)) {
+      return { sections: layout, grid: 'standard', count: 6, banners: [] };
+    }
+    
+    const l = layout as any;
+    return {
+      sections: l.sections || [],
+      grid: l.grid || 'standard',
+      count: l.count || 6,
+      banners: l.banners || [],
+      quickLinks: l.quickLinks || [],
+      corporateLinks: l.corporateLinks || []
+    };
+  }, [store.page_layout]);
+
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+
+  useEffect(() => {
+    const banners = layoutConfig.banners;
+    if (banners && banners.length > 1) {
+      const interval = setInterval(() => {
+        setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [layoutConfig.banners]);
+
+  const isSectionEnabled = (sectionId: string) => {
+    if (!layoutConfig.sections || layoutConfig.sections.length === 0) return true;
+    const section = layoutConfig.sections.find((s: any) => s.id === sectionId);
+    return section ? section.enabled : true;
+  };
+
+  const handleLinkClick = (e: React.MouseEvent, link: any) => {
+    // Standard link click handler
+  };
+
+  const formatPrice = (value: number, curr?: string) => {
+    const symbol = curr === "EUR" ? "€" : curr === "USD" ? "$" : curr === "TRY" ? "₺" : "£";
+    return `${symbol}${Number(value).toLocaleString()}`;
+  };
+
+  return (
+    <div className="flex-1 bg-white overflow-hidden min-h-screen relative w-full font-sans">
+      {/* Top Navbar */}
+      <div className="absolute top-0 left-0 w-full z-40 bg-transparent flex items-center justify-between p-6">
+        <div className="flex items-center gap-3">
+          {store.logo_url ? (
+            <img src={store.logo_url} className="h-12 md:h-16 max-w-[240px] md:max-w-[300px] object-contain drop-shadow" alt={store.name} />
+          ) : (
+            <div className="h-10 w-10 md:h-12 md:w-12 bg-white/90 backdrop-blur rounded-xl flex items-center justify-center shadow-lg">
+              <Layout className="h-5 w-5 md:h-6 md:w-6 text-indigo-600" />
+            </div>
+          )}
+          {!store.logo_url && <span className="text-white font-black uppercase tracking-widest text-sm md:text-base drop-shadow-md">{store.name}</span>}
+        </div>
+        <div className="hidden md:flex items-center gap-6">
+          <a href="#portfolio" className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'PRESTİJLİ GALERİ' : 'PRESTIGE GALLERY'}</a>
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer ml-2">MENU</div>
+        </div>
+        <div className="md:hidden">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer">MENU</div>
+        </div>
+      </div>
+
+      {/* Hero Container */}
+      {isSectionEnabled("hero") && (
+        <div className="h-[450px] relative flex flex-col items-center justify-center p-12 text-center w-full">
+          {(!layoutConfig.banners || layoutConfig.banners.length === 0) ? (
+            <div
+              className="absolute inset-0 transition-opacity duration-1000"
+              style={{
+                backgroundImage: `url(${content.hero.bgImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            ></div>
+          ) : (
+            layoutConfig.banners.map((bannerUrl: string, idx: number) => (
+              <div
+                key={idx}
+                className={`absolute inset-0 transition-opacity duration-1000 ${activeBannerIndex === idx ? 'opacity-100' : 'opacity-0'}`}
+                style={{
+                  backgroundImage: `url(${bannerUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              ></div>
+            ))
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/35 to-white/95"></div>
+
+          <div className="relative z-10 space-y-6 max-w-2xl transform translate-y-4">
+            <div className="inline-flex items-center gap-2 bg-indigo-600/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-indigo-400/30">
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-[12px] font-black text-emerald-300 uppercase tracking-widest">
+                {content.trustSlogan}
+              </span>
+            </div>
+            <h1 className="text-5xl font-black text-white uppercase tracking-tighter leading-[0.9] drop-shadow-2xl">
+              {content.hero.title}
+            </h1>
+            <p className="text-white text-lg font-bold max-w-lg mx-auto leading-relaxed italic drop-shadow-sm">
+              "{content.hero.subtitle}"
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto w-full px-4 lg:px-8 pb-32">
+        {/* Advanced Search Strip for Automotive */}
+        {isSectionEnabled("search") && (
+          <div className="-mt-12 relative z-30 w-full mb-24">
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-2xl grid grid-cols-1 md:grid-cols-4 gap-6">
+              {["BRAND", "MODEL", "BUDGET", "YEAR"].map((filt, idx) => {
+                let displayTitle = filt;
+                let value = "all";
+                let onChange = (v: string) => {};
+                let options: { value: string; label: string }[] = [];
+
+                if (filt === "BRAND") {
+                  displayTitle = lang === "tr" ? "MARKA" : "BRAND";
+                  value = pendingBrand;
+                  onChange = setPendingBrand;
+                  options = [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...brands.map(v => ({ value: String(v), label: String(v) }))
+                  ];
+                } else if (filt === "MODEL") {
+                  displayTitle = lang === "tr" ? "MODEL" : "MODEL";
+                  value = pendingModel;
+                  onChange = setPendingModel;
+                  options = [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...models.map(v => ({ value: String(v), label: String(v) }))
+                  ];
+                } else if (filt === "BUDGET") {
+                  displayTitle = lang === "tr" ? "BÜTÇE" : "BUDGET";
+                  value = pendingBudget;
+                  onChange = setPendingBudget;
+                  options = budgetSpecs.ranges;
+                } else if (filt === "YEAR") {
+                  displayTitle = lang === "tr" ? "MODEL YILI" : "YEAR";
+                  value = pendingYear;
+                  onChange = setPendingYear;
+                  options = [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...yearsOptions.map(v => ({ value: String(v), label: String(v) }))
+                  ];
+                }
+
+                return (
+                  <div
+                    key={filt}
+                    className={`group relative ${idx < 3 ? "md:border-r border-slate-200" : ""} px-2 flex flex-col justify-center`}
+                  >
+                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
+                      {displayTitle}
+                    </p>
+                    <div className="relative flex items-center justify-between pr-4">
+                      <select
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                      >
+                        {options.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-amber-500 transition-colors pointer-events-none" />
+                    </div>
+                  </div>
+                );
+              })}
+              <button 
+                onClick={handleSearchTrigger}
+                className="col-span-1 md:col-span-4 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] mt-2 hover:bg-amber-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
+              >
+                {lang === "tr" ? "HAYALİNDEKİ ARACI BUL" : "FIND YOUR VEHICLE"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-32">
+          {/* Stats */}
+          {isSectionEnabled("stats") && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 border-y border-slate-200 py-12">
+              {content.stats.map((st, i) => (
+                <div key={i} className="text-center group">
+                  <p className="text-5xl font-black text-slate-900 mb-2 group-hover:scale-110 transition-transform">
+                    {st.value}
+                  </p>
+                  <div className="h-1 w-8 bg-amber-500 mx-auto mb-4 rounded-full"></div>
+                  <p className="text-[12px] font-black text-slate-400 uppercase tracking-widest">
+                    {st.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Portfolio Grid Selector */}
+          {isSectionEnabled("portfolio") && (
+            <div id="listings-section" className="space-y-12">
+              <div className="flex flex-col md:flex-row md:items-end justify-between border-b-2 border-slate-100 pb-8 gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">
+                    {lang === "tr" ? "GALERİMİZ VE ARAÇLARIMIZ" : "OUR VEHICLES"}
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <div className="h-1 w-12 bg-amber-500 rounded-full"></div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
+                      {lang === "tr" ? "PRESTİJLİ MOTORLU TAŞITLAR" : "SELECT AUTO COLLECTION"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {filteredProducts.length === 0 ? (
+                <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[3rem] bg-slate-50/50">
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
+                    {lang === "tr" ? "Aramanıza uygun araç bulunamadı." : "No matching vehicles found."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                  {filteredProducts.slice(0, layoutConfig.count || 6).map((p, i) => {
+                    const priceStr = formatPrice(p.price, store?.currency || p.currency);
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => onViewProduct(p)}
+                        className="group bg-white rounded-[3rem] overflow-hidden border border-slate-100 hover:border-slate-200 hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.06)] transition-all duration-500 cursor-pointer flex flex-col justify-between"
+                      >
+                        <div className="relative aspect-[16/11] overflow-hidden">
+                          <div
+                            className="h-full w-full bg-cover bg-center transition-transform duration-[2s] group-hover:scale-110"
+                            style={{
+                              backgroundImage: `url(${p.image_url || "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1000"})`,
+                            }}
+                          ></div>
+                          <div className="absolute top-6 left-6 flex gap-2">
+                            <span className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-slate-900 uppercase tracking-widest shadow-sm">
+                              {p.sector_data?.year || (p as any).year || "2024"} MODEL
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-8 space-y-3 px-6 pb-8">
+                          <div className="flex items-center justify-between gap-2 text-[10px] font-black tracking-wider uppercase text-slate-400">
+                            <span className="font-mono text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 font-bold">
+                              #{p.reference_no || p.id}
+                            </span>
+                            <span>
+                              {p.sector_data?.brand || (p as any).brand || "CAR"}
+                            </span>
+                          </div>
+
+                          <h4 className="text-[14px] md:text-[15px] font-extrabold tracking-tight text-slate-900 uppercase group-hover:text-amber-500 transition-colors leading-snug line-clamp-2 min-h-[40px] flex items-center">
+                            {p.name}
+                          </h4>
+
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-100/80">
+                            <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
+                            <span className="truncate">
+                              {p.location || (lang === 'tr' ? 'Lefkoşa' : 'Nicosia')}
+                            </span>
+                          </div>
+
+                          {/* Vehicle Specific Details row */}
+                          <div className="flex flex-wrap gap-2 py-1.5 border-y border-slate-100 text-[10px] font-bold text-slate-600">
+                            {(p.sector_data?.brand || (p as any).brand) && (
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">🚗 {p.sector_data?.brand || (p as any).brand}</span>
+                            )}
+                            {(p.sector_data?.model || (p as any).model) && (
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚙️ {p.sector_data?.model || (p as any).model}</span>
+                            )}
+                            {(p.sector_data?.transmission || (p as any).transmission) && (
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚡ {p.sector_data?.transmission || (p as any).transmission}</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2">
+                             <p className="text-xl font-black text-amber-600 tracking-tight">
+                                {priceStr}
+                             </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Regional Radar Section */}
+          {isSectionEnabled("news") && radarNews && radarNews.length > 0 && (
+            <RadarShowcaseSlider radarNews={radarNews} lang={lang} theme="light" />
+          )}
+
+          {/* Blog Section */}
+          {isSectionEnabled("blog") && (
+            <div className="space-y-12">
+              <div className="flex flex-col md:flex-row md:items-end justify-between border-b-2 border-slate-100 pb-8 gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">
+                    {lang === "tr" ? "BLOG YAZILARIMIZ" : "OUR BLOG"}
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <div className="h-1 w-12 bg-amber-500 rounded-full"></div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
+                      {lang === "tr" ? "Otomotiv Gelişmeleri" : "Auto Industry Insights"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {blogs.map((blog, i) => (
+                  <div
+                    key={i}
+                    onClick={() => setSelectedBlogPost(blog)}
+                    className="group cursor-pointer space-y-4"
+                  >
+                    <div className="aspect-video bg-slate-100 rounded-3xl overflow-hidden relative">
+                      <img
+                        src={blog.cover_image || "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=600&q=80"}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        alt={blog.title}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {new Date(blog.created_at || "").toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+                      </p>
+                      <h4 className="text-lg font-black text-slate-900 group-hover:text-amber-500 transition-colors uppercase tracking-tight leading-snug line-clamp-2">
+                        {blog.title}
+                      </h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Team Segment */}
+          {isSectionEnabled("team") && (
+            <div className="space-y-16">
+              <div className="text-center space-y-4 max-w-2xl mx-auto">
+                <div className="h-1 w-16 bg-amber-500 mx-auto"></div>
+                <h3 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                  {lang === "tr" ? "HIZMET VE GÜVEN" : "SERVICE & CONFIDENCE"}
+                </h3>
+                <p className="text-base font-bold text-slate-500 leading-relaxed">
+                  {lang === "tr"
+                    ? "Satış temsilcilerimizle hayalinizdeki araca güvenli yoldan ulaşın."
+                    : "Enabling you to reach your select condition vehicle with complete safety."}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {team.map((tm, idx) => (
+                  <div key={idx} className="group cursor-pointer">
+                    <div className="aspect-[3/4] bg-slate-100 rounded-[3rem] overflow-hidden relative shadow-xl hover:-translate-y-4 transition-all duration-700">
+                      <img
+                        src={tm.image}
+                        className="h-full w-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-700 scale-105"
+                        alt={tm.name}
+                      />
+                    </div>
+                    <div className="mt-8 text-center space-y-2">
+                      <p className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                        {tm.name}
+                      </p>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        {tm.role}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-slate-900 pt-24 pb-12 text-white mt-32">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-12 sm:gap-8 pb-16 border-b border-slate-800 items-start">
+            <div className="col-span-1 md:col-span-1 flex flex-col justify-center min-h-[140px] h-full">
+              {store.logo_url ? (
+                <img src={store.logo_url} className="h-28 md:h-36 lg:h-40 w-auto max-w-full object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle self-start" alt={store.name} />
+              ) : (
+                <h2 className="text-3xl font-black italic tracking-tighter uppercase text-white">{store.name}</h2>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'SOSYAL MEDYA' : 'SOCIAL MEDIA'}</h4>
+              <div className="flex gap-4 pt-2 flex-wrap">
+                {store.instagram_url && (
+                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-705 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
+                    IG
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-6 flex-1">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
+              <ul className="space-y-4 text-sm font-bold text-slate-400">
+                <li className="hover:text-amber-400 cursor-pointer transition-colors">Araçlarımız</li>
+                <li className="hover:text-amber-400 cursor-pointer transition-colors">Hakkımızda</li>
+                <li className="hover:text-amber-400 cursor-pointer transition-colors">İletişim</li>
+              </ul>
+            </div>
+
+            <div className="space-y-6 flex-1">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</h4>
+              <ul className="space-y-4 text-sm font-bold text-slate-400">
+                <li className="hover:text-amber-400 cursor-pointer transition-colors">Gizlilik Politikası</li>
+                <li className="hover:text-amber-400 cursor-pointer transition-colors">Kullanım Şartları</li>
+              </ul>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'İletişim' : 'Contact'}</h4>
+              <div className="space-y-4 text-sm font-bold text-slate-400">
+                {store.address && <p>{store.address}</p>}
+                <p>T: {store.phone}</p>
+                <p>E: {store.email}</p>
+              </div>
+            </div>
+          </div>
+          <div className="pt-12 flex flex-col md:flex-row justify-between items-center gap-6">
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest text-center">
+              © {new Date().getFullYear()} {store.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
+            </p>
+          </div>
+        </div>
+      </footer>
+
+      <BlogShowcaseModal
+        isOpen={!!selectedBlogPost}
+        onClose={() => setSelectedBlogPost(null)}
+        blog={selectedBlogPost}
+        lang={lang}
+      />
+    </div>
+  );
+};
