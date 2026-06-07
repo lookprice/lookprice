@@ -593,7 +593,7 @@ router.get("/store/:slug/products", async (req, res) => {
     FROM vehicles v 
     JOIN stores s ON v.store_id = s.id
     WHERE (v.store_id = $1 OR s.parent_id = $1) 
-    AND v.status = 'for_sale'
+    AND v.status IN ('active', 'for_sale')
   `, [store.id]);
 
   const realEstateRes = await pool.query(`
@@ -801,7 +801,7 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       FROM vehicles v 
       JOIN stores s ON v.store_id = s.id
       WHERE (v.store_id = $1 OR s.parent_id = $1) 
-      AND v.status = 'for_sale'
+      AND v.status IN ('active', 'for_sale')
     `, [store.id]);
 
     const realEstateRes = await pool.query(`

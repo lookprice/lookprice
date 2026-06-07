@@ -2058,34 +2058,24 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         if (storeRes.error) throw new Error(storeRes.error);
         if (productsRes.error) throw new Error(productsRes.error);
 
-        if (typeof storeRes.page_layout === "string" && storeRes.page_layout) {
+        let parsedLayout = storeRes.page_layout;
+        if (typeof parsedLayout === "string" && parsedLayout) {
           try {
-            const parsed = JSON.parse(storeRes.page_layout);
-            storeRes.page_layout_full = parsed;
-            const defaultSectionIds = ['hero', 'search', 'stats', 'portfolio', 'news', 'blog', 'team', 'map'];
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-              if (Array.isArray(parsed.sections)) {
-                const parsedSectionsList = parsed.sections;
-                const finalSections = [];
-                for (const defId of defaultSectionIds) {
-                  const saved = parsedSectionsList.find((s: any) => (s.id || s.type) === defId);
-                  const isEnabled = saved ? saved.enabled !== false : true;
-                  if (isEnabled) {
-                    finalSections.push({
-                      id: defId,
-                      type: defId,
-                      enabled: true
-                    });
-                  }
-                }
-                storeRes.page_layout = finalSections;
-              } else {
-                storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
-              }
-            } else if (Array.isArray(parsed)) {
+            parsedLayout = JSON.parse(parsedLayout);
+          } catch (e) {
+            parsedLayout = null;
+          }
+        }
+
+        if (parsedLayout) {
+          storeRes.page_layout_full = parsedLayout;
+          const defaultSectionIds = ['hero', 'search', 'stats', 'portfolio', 'news', 'blog', 'team', 'map'];
+          if (parsedLayout && typeof parsedLayout === "object" && !Array.isArray(parsedLayout)) {
+            if (Array.isArray(parsedLayout.sections)) {
+              const parsedSectionsList = parsedLayout.sections;
               const finalSections = [];
               for (const defId of defaultSectionIds) {
-                const saved = parsed.find((s: any) => (s.id || s.type) === defId);
+                const saved = parsedSectionsList.find((s: any) => (s.id || s.type) === defId);
                 const isEnabled = saved ? saved.enabled !== false : true;
                 if (isEnabled) {
                   finalSections.push({
@@ -2099,9 +2089,25 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             } else {
               storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
             }
-          } catch (e) {
-            storeRes.page_layout = [];
+          } else if (Array.isArray(parsedLayout)) {
+            const finalSections = [];
+            for (const defId of defaultSectionIds) {
+              const saved = parsedLayout.find((s: any) => (s.id || s.type) === defId);
+              const isEnabled = saved ? saved.enabled !== false : true;
+              if (isEnabled) {
+                finalSections.push({
+                  id: defId,
+                  type: defId,
+                  enabled: true
+                });
+              }
+            }
+            storeRes.page_layout = finalSections;
+          } else {
+            storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
           }
+        } else {
+          storeRes.page_layout = [];
         }
 
         if (typeof storeRes.menu_links === "string") {
@@ -2787,7 +2793,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const isPortfolioOverride =
     (store as any)?.store_type === "portfolio" ||
     (store as any)?.store_type === "real_estate" ||
-    (store as any)?.store_type === "motor_vehicle";
+    (store as any)?.store_type === "motor_vehicle" ||
+    (store as any)?.store_type === "automotive" ||
+    (store as any)?.sector === "real_estate" ||
+    (store as any)?.sector === "automotive";
   if (isPortfolioOverride) {
     const isAutoStore = (store as any)?.store_type === 'motor_vehicle' || (store as any)?.page_layout_settings?.sector === 'automotive' || (store as any)?.sector === 'automotive';
     return (

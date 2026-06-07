@@ -1586,9 +1586,14 @@ router.get("/analytics", async (req: any, res) => {
     let strategicInsights: any[] = [];
 
     try {
-      // 1. Total and status counts of properties
+      // 1. Total and status counts of properties and vehicles combined!
       const propertyStatsRes = await pool.query(
         "SELECT status, COUNT(*)::INT as count FROM real_estate_properties WHERE store_id = $1 GROUP BY status",
+        [storeId]
+      );
+
+      const vehicleStatsRes = await pool.query(
+        "SELECT status, COUNT(*)::INT as count FROM vehicles WHERE store_id = $1 GROUP BY status",
         [storeId]
       );
       
@@ -1596,13 +1601,25 @@ router.get("/analytics", async (req: any, res) => {
         const count = row.count || 0;
         totalProperties += count;
         if (row.status === 'active') {
-          activeListings = count;
-          statusCounts.active = count;
+          activeListings += count;
+          statusCounts.active += count;
         } else if (row.status === 'optioned') {
-          statusCounts.optioned = count;
-        } else if (row.status === 'sold_or_rented') {
-          completedDeals = count;
-          statusCounts.sold_or_rented = count;
+          statusCounts.optioned += count;
+        } else if (row.status === 'sold_or_rented' || row.status === 'sold' || row.status === 'rented') {
+          completedDeals += count;
+          statusCounts.sold_or_rented += count;
+        }
+      });
+
+      vehicleStatsRes.rows.forEach((row: any) => {
+        const count = row.count || 0;
+        totalProperties += count;
+        if (row.status === 'active' || row.status === 'for_sale') {
+          activeListings += count;
+          statusCounts.active += count;
+        } else if (row.status === 'sold') {
+          completedDeals += count;
+          statusCounts.sold_or_rented += count;
         }
       });
 
@@ -1612,7 +1629,7 @@ router.get("/analytics", async (req: any, res) => {
          FROM property_tasks pt
          JOIN real_estate_properties rp ON pt.property_id = rp.id
          WHERE rp.store_id = $1 AND pt.status = 'pending'`,
-        [storeId]
+         [storeId]
       );
       pendingTasks = pendingTasksRes.rows[0]?.count || 0;
 
@@ -1690,11 +1707,19 @@ router.get("/analytics", async (req: any, res) => {
         [storeId]
       );
       const unverifiedCount = unverifiedRes.rows[0]?.count || 0;
-      if (unverifiedCount > 0) {
+
+      const unverifiedVehiclesRes = await pool.query(
+        `SELECT COUNT(*)::INT as count FROM vehicles WHERE store_id = $1 AND is_verified = FALSE`,
+        [storeId]
+      );
+      const unverifiedVehiclesCount = unverifiedVehiclesRes.rows[0]?.count || 0;
+      const totalUnverified = unverifiedCount + unverifiedVehiclesCount;
+
+      if (totalUnverified > 0) {
         portfolioAlerts.push({
           id: 'alert_unverified',
           type: 'warning',
-          message: `${unverifiedCount} adet imza/yetki belgesi doğrulanmamış ilan var. Güvenlik ve mevzuat gereği belgeleri doğrulayın.`,
+          message: `${totalUnverified} adet belgesi/detayı doğrulanmamış ilan var. Güvenlik ve mevzuat gereği ilan belgelerini doğrulayın.`,
           timestamp: 'Dün'
         });
       }
@@ -1705,7 +1730,7 @@ router.get("/analytics", async (req: any, res) => {
           id: 'ins_1',
           type: 'opportunity',
           title: 'Fiyat Optimizasyonu',
-          description: 'Portföyünüzde aktif durumdaki mülkleriniz için kiralama/satış hızı düşük görünüyor. Belirli mülklerde %5 revizyon önerilir.',
+          description: 'Portföyünüzde aktif durumdaki ilanlarınız için kiralama/satış hızı düşük görünüyor. Belirli mülk/araç fiyatlarında %5 revizyon önerilir.',
           action: 'Fiyatları İncele'
         });
       }
@@ -1714,7 +1739,7 @@ router.get("/analytics", async (req: any, res) => {
         id: 'ins_2',
         type: 'growth',
         title: 'Bölgesel Talep Artışı',
-        description: 'Bölgenizdeki 2+1 ve 3+1 daire kategorisi aramalarında son 30 günde %20 artış gözlemlendi. Bu alanda yeni portföy edinin.',
+        description: 'Bölgenizdeki arama trendlerinde son 30 günde %20 artış gözlemlendi. Bu alanda yeni portföy ve araç edinin.',
         action: 'Portföy Ekle'
       });
 

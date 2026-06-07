@@ -386,6 +386,26 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     }
   };
 
+  const handleDeleteRegistrationRequest = async (id: number) => {
+    if (!confirm(lang === 'tr' ? "Bu başvuruyu tamamen silmek istediğinize emin misiniz?" : "Are you sure you want to delete this registration request?")) return;
+    try {
+      await api.deleteRegistrationRequest(id);
+      fetchData();
+    } catch (error) {
+      alert(lang === 'tr' ? "Silme işlemi sırasında hata oluştu" : "Error during deletion");
+    }
+  };
+
+  const handleDeleteLead = async (id: number) => {
+    if (!confirm(lang === 'tr' ? "Bu talebi tamamen silmek istediğinize emin misiniz?" : "Are you sure you want to delete this lead request?")) return;
+    try {
+      await api.deleteLead(id);
+      fetchData();
+    } catch (error) {
+      alert(lang === 'tr' ? "Silme işlemi sırasında hata oluştu" : "Error during deletion");
+    }
+  };
+
 
   return (
     <ErrorBoundary lang={lang}>
@@ -824,22 +844,31 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {r.status === 'pending' && (
-                            <div className="flex justify-end space-x-2">
-                              <button 
-                                onClick={() => handleApproveRegistration(r.id)}
-                                className="bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold text-[10px] hover:bg-green-700 transition-all"
-                              >
-                                Onayla
-                              </button>
-                              <button 
-                                onClick={() => handleRejectRegistration(r.id)}
-                                className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg font-bold text-[10px] hover:bg-red-100 transition-all"
-                              >
-                                Reddet
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex justify-end items-center space-x-2">
+                            {r.status === 'pending' && (
+                              <>
+                                <button 
+                                  onClick={() => handleApproveRegistration(r.id)}
+                                  className="bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold text-[10px] hover:bg-green-700 transition-all"
+                                >
+                                  Onayla
+                                </button>
+                                <button 
+                                  onClick={() => handleRejectRegistration(r.id)}
+                                  className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg font-bold text-[10px] hover:bg-red-100 transition-all"
+                                >
+                                  Reddet
+                                </button>
+                              </>
+                            )}
+                            <button 
+                              onClick={() => handleDeleteRegistrationRequest(r.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              title="Başvuruyu Sil"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -904,12 +933,22 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                         lead.probability > 70 ? 'text-red-600' : lead.probability > 40 ? 'text-orange-600' : 'text-blue-600'
                       }`}>{lead.probability}%</span>
                     </div>
-                    <button 
-                      onClick={() => setSelectedLead(lead)}
-                      className="p-2 bg-gray-50 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button 
+                        onClick={() => handleDeleteLead(lead.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        title="Talebi Sil"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => setSelectedLead(lead)}
+                        className="p-2 bg-gray-50 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        title={st.viewDetails || "Detaylar"}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

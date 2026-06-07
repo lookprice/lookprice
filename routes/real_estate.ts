@@ -590,7 +590,17 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
   }
 });
 
-// GET /transactions - Fetch portfolio financials
+// DELETE /radar-news - Clear all radar news for the current store
+router.delete('/radar-news', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
+  try {
+    await pool.query("DELETE FROM radar_news WHERE store_id = $1", [storeId]);
+    res.json({ success: true, message: "Radar news successfully cleared in DB." });
+  } catch (error: any) {
+    console.error("Clear radar news error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 router.get('/transactions', authenticate, async (req: any, res) => {
 const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   try {

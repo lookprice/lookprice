@@ -916,7 +916,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <TeamCrmTab storeId={currentStoreId!} />
               )}
               {activeTab === "radar_alerts" && (
-                <RadarAlertsTab />
+                <RadarAlertsTab sector={branding?.sector || branding?.store_type} />
               )}
               {activeTab === "authority_transfer" && (
                 <AuthorityTransferTab 

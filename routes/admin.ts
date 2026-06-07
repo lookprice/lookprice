@@ -324,6 +324,15 @@ router.post("/registration-requests/:id/reject", async (req: any, res) => {
   }
 });
 
+router.delete("/registration-requests/:id", async (req: any, res) => {
+  try {
+    await pool.query("DELETE FROM registration_requests WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 async function ensureEnrakipsizTables() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS enrakipsiz_settings (

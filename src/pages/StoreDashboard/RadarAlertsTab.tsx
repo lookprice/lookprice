@@ -47,26 +47,34 @@ interface TagItem {
   matchesCount: number;
 }
 
-export const RadarAlertsTab: React.FC = () => {
+interface RadarAlertsTabProps {
+  sector?: string;
+}
+
+export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
   const { lang } = useLanguage();
   const isTr = lang === "tr";
+  const isAuto = sector === 'automotive' || sector === 'motor_vehicle';
 
-  // State Declarations
-  const [newsTags, setNewsTags] = useState<TagItem[]>([
+  // Dynamic tags
+  const defaultRealEstateTags = [
     { id: '1', name: 'Lefkoşa İmar', value: 'Lefkoşa imar', emailAlert: true, matchesCount: 3 },
     { id: '2', name: 'Girne Marina', value: 'Girne marina', emailAlert: true, matchesCount: 2 },
     { id: '3', name: 'Kıbrıs Faizleri', value: 'faiz oranları', emailAlert: false, matchesCount: 2 },
     { id: '4', name: 'Ercan Teşvikleri', value: 'Ercan charter', emailAlert: true, matchesCount: 1 },
     { id: '5', name: 'İskele Tapu Yasası', value: 'yabancı satın alma', emailAlert: true, matchesCount: 2 }
-  ]);
-  
-  const [selectedNewsTag, setSelectedNewsTag] = useState<string | null>(null);
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagKeyword, setNewTagKeyword] = useState("");
-  const [newTagEmailAlert, setNewTagEmailAlert] = useState(true);
-  
-  const [isScanningNews, setIsScanningNews] = useState(false);
-  const [newsFeed, setNewsFeed] = useState<NewsItem[]>([
+  ];
+
+  const defaultAutomotiveTags = [
+    { id: '1', name: 'Araç İthali & Gümrük', value: 'araç ithalat gümrük meclis', emailAlert: true, matchesCount: 4 },
+    { id: '2', name: 'KKTC Tescil & Devir', value: 'KKTC plaka tescil devir', emailAlert: true, matchesCount: 2 },
+    { id: '3', name: 'Günsel Elektrikli Araç', value: 'Günsel elektrikli araç fabrika', emailAlert: false, matchesCount: 3 },
+    { id: '4', name: 'Elektrikli Otomobil Teşvik', value: 'elektrikli otomobil vergi muafiyeti', emailAlert: true, matchesCount: 1 },
+    { id: '5', name: 'İkinci El Fiyat Endeksi', value: 'Kıbrıs sahibinden araba piyasası', emailAlert: true, matchesCount: 2 }
+  ];
+
+  // Dynamic news feed templates
+  const defaultRealEstateNews = [
     {
       id: 'news-1',
       title: 'Lefkoşa İmar Planı Revizyon Kararı Resmi Gazete\'de!',
@@ -74,7 +82,7 @@ export const RadarAlertsTab: React.FC = () => {
       source: 'Google Alerts (lookpriceAI)',
       date: 'Bugün 10:15',
       tags: ['Lefkoşa imar'],
-      intensity: 'high',
+      intensity: 'high' as const,
       publishedOnStore: false,
       publishedOnEnrakipsiz: true
     },
@@ -85,7 +93,7 @@ export const RadarAlertsTab: React.FC = () => {
       source: 'Resmi Kabine Kararı',
       date: 'Dün 14:30',
       tags: ['Girne marina', 'Lefkoşa imar'],
-      intensity: 'high',
+      intensity: 'high' as const,
       publishedOnStore: true,
       publishedOnEnrakipsiz: false
     },
@@ -96,7 +104,7 @@ export const RadarAlertsTab: React.FC = () => {
       source: 'Kıbrıs Postası',
       date: '2 gün önce',
       tags: ['faiz oranları'],
-      intensity: 'normal',
+      intensity: 'normal' as const,
       publishedOnStore: false,
       publishedOnEnrakipsiz: false
     },
@@ -107,7 +115,7 @@ export const RadarAlertsTab: React.FC = () => {
       source: 'Google Alerts (lookpriceAI)',
       date: '3 gün önce',
       tags: ['Ercan charter'],
-      intensity: 'normal',
+      intensity: 'normal' as const,
       publishedOnStore: false,
       publishedOnEnrakipsiz: true
     },
@@ -118,11 +126,80 @@ export const RadarAlertsTab: React.FC = () => {
       source: 'Resmi Kabine Kararı',
       date: '4 gün önce',
       tags: ['yabancı satın alma'],
-      intensity: 'high',
+      intensity: 'high' as const,
       publishedOnStore: true,
       publishedOnEnrakipsiz: true
     }
-  ]);
+  ];
+
+  const defaultAutomotiveNews = [
+    {
+      id: 'news-1',
+      title: 'KKTC Gümrük Mevzuatında 5 Yaş Sınırı Değişikliği Gündemde!',
+      summary: 'Meclis alt komitesinde lüks ve ticari araçlar için ithalat yaş sınırının 5\'ten 8\'e çıkarılmasına ilişkin yeni bir tüzük tasarısı ele alınıyor.',
+      source: 'Resmi Meclis Kararı',
+      date: 'Bugün 10:15',
+      tags: ['araç ithalat gümrük meclis'],
+      intensity: 'high' as const,
+      publishedOnStore: false,
+      publishedOnEnrakipsiz: true
+    },
+    {
+      id: 'news-2',
+      title: 'Elektrikli Araçlara Özel Seyrüsefer Harç Muafiyeti Devrede!',
+      summary: 'Bakanlar Kurulu kararınca, %100 elektrikli binek araçlar için yıllık seyrüsefer ve ruhsatlandırma harçlarında %80 indirim uygulanacağı açıklandı.',
+      source: 'Resmi Gazete Tescili',
+      date: 'Dün 14:30',
+      tags: ['elektrikli otomobil vergi muafiyeti', 'KKTC plaka tescil devir'],
+      intensity: 'high' as const,
+      publishedOnStore: true,
+      publishedOnEnrakipsiz: false
+    },
+    {
+      id: 'news-3',
+      title: 'Kıbrıs İkinci El Otomotiv Piyasasında GBP Endeksli Daralma!',
+      summary: 'Döviz kurlarındaki dalgalanmalar nedeniyle, özellikle Japon ithal salon araç fiyatlarında son 30 günde %7\'lik bir talep daralması gözlemleniyor.',
+      source: 'Kıbrıs Postası',
+      date: '2 gün önce',
+      tags: ['Kıbrıs sahibinden araba piyasası'],
+      intensity: 'normal' as const,
+      publishedOnStore: false,
+      publishedOnEnrakipsiz: false
+    },
+    {
+      id: 'news-4',
+      title: 'Yerli Otomobil GÜNSEL Üretim Tesisi Yeni Teşvik Paketinden Faydalanacak!',
+      summary: 'Elektrikli araç parça üretimi ve batarya montaj hattı yatırımlarına gelir vergisi muafiyeti ve gümrük vergisi indirimi Resmi Gazete\'de yayımlandı.',
+      source: 'Sanayi ve Enerji Bakanlığı',
+      date: '3 gün önce',
+      tags: ['Günsel elektrikli araç fabrika'],
+      intensity: 'normal' as const,
+      publishedOnStore: false,
+      publishedOnEnrakipsiz: true
+    },
+    {
+      id: 'news-5',
+      title: 'KKTC Karayolları Dairesi Yeni Plaka Tescil Sistemini Duyurdu!',
+      summary: 'Artık tüm devir, plaka basımı ve rehin (banka blokeli) kayıt işlemleri online e-Devlet kapısı üzerinden tescil edilebilecek.',
+      source: 'E-Devlet KKTC',
+      date: '4 gün önce',
+      tags: ['KKTC plaka tescil devir'],
+      intensity: 'high' as const,
+      publishedOnStore: true,
+      publishedOnEnrakipsiz: true
+    }
+  ];
+
+  // State Declarations
+  const [newsTags, setNewsTags] = useState<TagItem[]>(isAuto ? defaultAutomotiveTags : defaultRealEstateTags);
+  
+  const [selectedNewsTag, setSelectedNewsTag] = useState<string | null>(null);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagKeyword, setNewTagKeyword] = useState("");
+  const [newTagEmailAlert, setNewTagEmailAlert] = useState(true);
+  
+  const [isScanningNews, setIsScanningNews] = useState(false);
+  const [newsFeed, setNewsFeed] = useState<NewsItem[]>(isAuto ? defaultAutomotiveNews : defaultRealEstateNews);
 
   // Terminal Logs for Cron Simulator
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
@@ -316,6 +393,21 @@ export const RadarAlertsTab: React.FC = () => {
     }
   };
 
+  const handleClearRadarNews = async () => {
+    if (!confirm(isTr ? "Kayıtlı tüm radar haberlerini ve taranmış gelişmeleri kalıcı olarak silmek ve listeyi sıfırlamak istediğinize emin misiniz?" : "Are you sure you want to permanently delete all radar news?")) return;
+    try {
+      addLog("🗑️ Clearing development logs from database...");
+      await api.deleteRadarNews();
+      setNewsFeed(isAuto ? defaultAutomotiveNews : defaultRealEstateNews);
+      addLog("✅ Radar feed successfully reset to original state.");
+      alert(isTr ? "Mevzuat radarı sıfırlandı ve temizlendi." : "Radar feed successfully reset.");
+    } catch (e) {
+      console.error(e);
+      addLog("❌ Failed to clear database logs.");
+      alert(isTr ? "Hata: Veritabanı temizleme başarısız." : "Error: Failed to clean database.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* HEADER CARD */}
@@ -352,6 +444,13 @@ export const RadarAlertsTab: React.FC = () => {
               <Sparkles className="w-4 h-4 text-amber-300 animate-bounce" />
             )}
             {isScanningNews ? 'AI Tarıyor...' : '⚡ AI Canlı Tara'}
+          </button>
+          
+          <button
+            onClick={handleClearRadarNews}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase shadow-md transition-all border bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 hover:scale-[1.02] active:scale-95 cursor-pointer shadow-rose-100"
+          >
+            🗑️ {isTr ? 'Radar Verilerini Temizle' : 'Clear Radar News'}
           </button>
         </div>
       </div>

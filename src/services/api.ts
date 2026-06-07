@@ -200,6 +200,7 @@ export const api = {
   getPropertyAuditLog: (id: number, storeId?: number) => api.get(`/api/real-estate/properties/${id}/audit-log${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   publishRadarNews: (data: any, storeId?: number) => api.post(`/api/real-estate/radar-news/publish${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   getRadarNews: (storeId?: number) => api.get(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  deleteRadarNews: (storeId?: number) => api.delete(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getPublicRadarNews: (slug: string) => api.get(`/api/public/stores/${slug}/radar-news`),
   getPublicEnrakipsizRadarNews: () => api.get(`/api/public/enrakipsiz/radar-news`),
   getPortfolioTransactions: (storeId?: number) => api.get(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
@@ -243,7 +244,9 @@ export const api = {
   deleteUser: (id: number, storeId?: number) => api.delete(`/api/store/users/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
   getLeads: () => api.get("/api/admin/leads"),
+  deleteLead: (id: number) => api.delete(`/api/admin/leads/${id}`),
   getRegistrationRequests: () => api.get("/api/admin/registration-requests"),
+  deleteRegistrationRequest: (id: number) => api.delete(`/api/admin/registration-requests/${id}`),
   approveRegistration: (id: number) => api.post(`/api/admin/registration-requests/${id}/approve`, {}),
   rejectRegistration: (id: number) => api.post(`/api/admin/registration-requests/${id}/reject`, {}),
   getAdminStats: () => api.get("/api/admin/stats"),
