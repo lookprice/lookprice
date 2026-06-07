@@ -8,6 +8,11 @@ import {
   Users,
   MapPin,
   X,
+  Facebook,
+  Twitter,
+  Instagram,
+  Youtube,
+  Linkedin,
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -433,7 +438,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                <div className={`grid gap-10 ${layoutConfig.grid === 'masonry' ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                   {filteredProducts.slice(0, layoutConfig.count || 6).map((p, i) => {
                     const priceStr = formatPrice(p.price, store?.currency || p.currency);
                     return (
@@ -442,7 +447,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                         onClick={() => onViewProduct(p)}
                         className="group bg-white rounded-[3rem] overflow-hidden border border-slate-100 hover:border-slate-200 hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.06)] transition-all duration-500 cursor-pointer flex flex-col justify-between"
                       >
-                        <div className="relative aspect-[16/11] overflow-hidden">
+                        <div className={`relative overflow-hidden ${layoutConfig.grid === 'masonry' ? (i % 2 === 0 ? 'aspect-[3/4]' : 'aspect-square') : 'aspect-[16/11]'}`}>
                           <div
                             className="h-full w-full bg-cover bg-center transition-transform duration-[2s] group-hover:scale-110"
                             style={{
@@ -608,30 +613,55 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
             <div className="space-y-6">
               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'SOSYAL MEDYA' : 'SOCIAL MEDIA'}</h4>
               <div className="flex gap-4 pt-2 flex-wrap">
+                {store.facebook_url && (
+                  <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
+                    <Facebook className="w-5 h-5" />
+                  </a>
+                )}
+                {store.twitter_url && (
+                  <a href={store.twitter_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
+                    <Twitter className="w-5 h-5" />
+                  </a>
+                )}
                 {store.instagram_url && (
-                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-705 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
-                    IG
+                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                )}
+                {store.youtube_url && (
+                  <a href={store.youtube_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
+                    <Youtube className="w-5 h-5" />
+                  </a>
+                )}
+                {store.linkedin_url && (
+                  <a href={store.linkedin_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
+                    <Linkedin className="w-5 h-5" />
                   </a>
                 )}
               </div>
             </div>
 
-            <div className="space-y-6 flex-1">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
-              <ul className="space-y-4 text-sm font-bold text-slate-400">
-                <li className="hover:text-amber-400 cursor-pointer transition-colors">Araçlarımız</li>
-                <li className="hover:text-amber-400 cursor-pointer transition-colors">Hakkımızda</li>
-                <li className="hover:text-amber-400 cursor-pointer transition-colors">İletişim</li>
-              </ul>
-            </div>
+            {layoutConfig.quickLinks && layoutConfig.quickLinks.length > 0 && (
+              <div className="space-y-6 flex-1">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
+                <ul className="space-y-4 text-sm font-bold text-slate-400">
+                  {layoutConfig.quickLinks.map((link: any, idx: number) => (
+                    <li key={idx} onClick={() => setActiveContentMap({ title: link.label, content: link.content })} className="hover:text-amber-400 cursor-pointer transition-colors">{link.label}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            <div className="space-y-6 flex-1">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</h4>
-              <ul className="space-y-4 text-sm font-bold text-slate-400">
-                <li className="hover:text-amber-400 cursor-pointer transition-colors">Gizlilik Politikası</li>
-                <li className="hover:text-amber-400 cursor-pointer transition-colors">Kullanım Şartları</li>
-              </ul>
-            </div>
+            {layoutConfig.policyLinks && layoutConfig.policyLinks.length > 0 && (
+              <div className="space-y-6 flex-1">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</h4>
+                <ul className="space-y-4 text-sm font-bold text-slate-400">
+                  {layoutConfig.policyLinks.map((link: any, idx: number) => (
+                    <li key={idx} onClick={() => setActiveContentMap({ title: link.title, content: link.content })} className="hover:text-amber-400 cursor-pointer transition-colors">{link.title}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="space-y-6">
               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'İletişim' : 'Contact'}</h4>

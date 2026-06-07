@@ -7,6 +7,7 @@ interface ListingFinancingCalculatorProps {
   currency: string;
   lang: string;
   store: StoreInfo | null;
+  defaultOpen?: boolean;
 }
 
 export const ListingFinancingCalculator: React.FC<ListingFinancingCalculatorProps> = ({
@@ -14,11 +15,12 @@ export const ListingFinancingCalculator: React.FC<ListingFinancingCalculatorProp
   currency,
   lang,
   store,
+  defaultOpen = false,
 }) => {
   const [downpaymentPercent, setDownpaymentPercent] = useState(30);
   const [termMonths, setTermMonths] = useState(36);
   const [selectedBank, setSelectedBank] = useState<string>("Creditwest Bank");
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const activeCurrency = (currency || "GBP").trim().toUpperCase();
 

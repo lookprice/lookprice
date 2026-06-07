@@ -596,13 +596,28 @@ router.get("/store/:slug/products", async (req, res) => {
     AND v.status IN ('active', 'for_sale')
   `, [store.id]);
 
-  const realEstateRes = await pool.query(`
-    SELECT r.*, s.name as branch_name, s.slug as branch_slug 
-    FROM real_estate_properties r 
-    JOIN stores s ON r.store_id = s.id
-    WHERE (r.store_id = $1 OR s.parent_id = $1) 
-    AND r.status IN ('active', 'rented', 'optioned', 'sold')
-  `, [store.id]);
+  let realEstateRes: any = { rows: [] };
+  try {
+    realEstateRes = await pool.query(`
+      SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+      FROM real_estate_properties r 
+      JOIN stores s ON r.store_id = s.id
+      WHERE (r.store_id = $1 OR s.parent_id = $1) 
+      AND r.status IN ('active', 'rented', 'optioned', 'sold')
+    `, [store.id]);
+  } catch (e: any) {
+    try {
+      realEstateRes = await pool.query(`
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+        FROM real_estate r 
+        JOIN stores s ON r.store_id = s.id
+        WHERE (r.store_id = $1 OR s.parent_id = $1) 
+        AND r.status IN ('active', 'rented', 'optioned', 'sold')
+      `, [store.id]);
+    } catch (inner) {
+      console.warn("real_estate queried failed");
+    }
+  }
 
   let allListings: any[] = [ ...productsRes.rows.map((p: any) => ({ ...p, type: 'product' })) ];
 
@@ -804,13 +819,26 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
       AND v.status IN ('active', 'for_sale')
     `, [store.id]);
 
-    const realEstateRes = await pool.query(`
-      SELECT r.*, s.name as branch_name, s.slug as branch_slug 
-      FROM real_estate_properties r 
-      JOIN stores s ON r.store_id = s.id
-      WHERE (r.store_id = $1 OR s.parent_id = $1) 
-      AND r.status IN ('active', 'rented', 'optioned', 'sold')
-    `, [store.id]);
+    let realEstateRes: any = { rows: [] };
+    try {
+      realEstateRes = await pool.query(`
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+        FROM real_estate_properties r 
+        JOIN stores s ON r.store_id = s.id
+        WHERE (r.store_id = $1 OR s.parent_id = $1) 
+        AND r.status IN ('active', 'rented', 'optioned', 'sold')
+      `, [store.id]);
+    } catch (e: any) {
+      try {
+        realEstateRes = await pool.query(`
+          SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+          FROM real_estate r 
+          JOIN stores s ON r.store_id = s.id
+          WHERE (r.store_id = $1 OR s.parent_id = $1) 
+          AND r.status IN ('active', 'rented', 'optioned', 'sold')
+        `, [store.id]);
+      } catch (inner) { }
+    }
 
     let mergedItems: any[] = [];
 

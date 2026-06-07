@@ -2069,40 +2069,24 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
         if (parsedLayout) {
           storeRes.page_layout_full = parsedLayout;
-          const defaultSectionIds = ['hero', 'search', 'stats', 'portfolio', 'news', 'blog', 'team', 'map'];
+          const defaultSectionIds = ['hero', 'search', 'stats', 'portfolio', 'news', 'blog', 'team', 'financing', 'calculator', 'map', 'social'];
+          
           if (parsedLayout && typeof parsedLayout === "object" && !Array.isArray(parsedLayout)) {
             if (Array.isArray(parsedLayout.sections)) {
-              const parsedSectionsList = parsedLayout.sections;
-              const finalSections = [];
-              for (const defId of defaultSectionIds) {
-                const saved = parsedSectionsList.find((s: any) => (s.id || s.type) === defId);
-                const isEnabled = saved ? saved.enabled !== false : true;
-                if (isEnabled) {
-                  finalSections.push({
-                    id: defId,
-                    type: defId,
-                    enabled: true
-                  });
-                }
-              }
-              storeRes.page_layout = finalSections;
+              storeRes.page_layout = parsedLayout.sections.map((s: any) => ({
+                id: s.id || s.type,
+                type: s.type || s.id,
+                enabled: s.enabled !== false
+              }));
             } else {
               storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
             }
           } else if (Array.isArray(parsedLayout)) {
-            const finalSections = [];
-            for (const defId of defaultSectionIds) {
-              const saved = parsedLayout.find((s: any) => (s.id || s.type) === defId);
-              const isEnabled = saved ? saved.enabled !== false : true;
-              if (isEnabled) {
-                finalSections.push({
-                  id: defId,
-                  type: defId,
-                  enabled: true
-                });
-              }
-            }
-            storeRes.page_layout = finalSections;
+            storeRes.page_layout = parsedLayout.map((s: any) => ({
+              id: s.id || s.type,
+              type: s.type || s.id,
+              enabled: s.enabled !== false
+            }));
           } else {
             storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
           }

@@ -360,8 +360,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
 
           {/* View Mode Switcher Moved and Refined */}
-          {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") &&
-            product.type === "real_estate" && (
+          {(product.type === "real_estate" || product.type === "vehicle" || store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") && (
               <div className="absolute top-6 right-16 z-30 transition-all duration-500">
                 <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
                   <button
@@ -383,11 +382,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               </div>
             )}
-          {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") &&
-          activeViewMode === "tourMap" &&
-          product.type === "real_estate" ? (
+          {activeViewMode === "tourMap" ? (
              <PropertyMapTour 
-                location={(product as any).location} 
+                location={(product as any).location || product.sector_data?.location || product.address || store?.address} 
                 property={product} 
                 lang={lang} 
               />
