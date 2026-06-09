@@ -1274,9 +1274,9 @@ const ProductDetailModal_Deprecated: React.FC<{
           <X className="w-5 h-5" />
         </button>
 
-        <div className="w-full md:w-1/2 min-h-[50vh] md:aspect-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500">
+        <div className="w-full md:w-1/2 h-[325px] sm:h-[450px] md:h-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500">
           {/* Share Buttons Overlay */}
-          <div className="absolute top-6 left-6 flex flex-col items-start gap-2 z-20">
+          <div className="absolute top-6 left-6 flex items-center gap-2 z-20">
             <button
               onClick={shareProduct}
               className="p-3 bg-white/95 backdrop-blur-md rounded-xl shadow-lg hover:bg-white transition-all active:scale-90 group border border-slate-200"
@@ -1356,7 +1356,7 @@ const ProductDetailModal_Deprecated: React.FC<{
                 lang={lang} 
               />
           ) : productImages.length > 0 ? (
-            <div className="w-full h-full flex flex-col justify-between bg-white relative p-4 pb-6">
+            <div className="w-full flex-1 flex flex-col justify-between bg-white relative p-3 pb-4 md:p-6 md:pb-8">
               {/* Main Viewport Box */}
               <div
                 className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in"
