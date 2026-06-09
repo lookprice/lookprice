@@ -868,7 +868,8 @@ export const Marketplace = () => {
                 <button 
                   onClick={() => {
                     setSelectedListing(null);
-                    window.open(`https://wa.me/905330000000?text=${encodeURIComponent(`Merhaba, enrakipsiz.com üzerindeki ${selectedListing.title} ilanınız ile ilgileniyorum.`)}`, '_blank');
+                    const refMsg = selectedListing.id ? `(Portföy No: ${selectedListing.id}) ` : '';
+                    window.open(`https://wa.me/905330000000?text=${encodeURIComponent(`Merhaba, enrakipsiz.com üzerindeki ${refMsg}${selectedListing.title} ilanınız ile ilgileniyorum.`)}`, '_blank');
                   }}
                   className="w-full py-3 bg-slate-950 border border-slate-800 hover:bg-slate-850 text-emerald-400 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2"
                 >

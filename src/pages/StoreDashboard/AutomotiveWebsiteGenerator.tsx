@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import JoditEditor from "jodit-react";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import {
   Layout,
   Palette,
@@ -172,6 +173,30 @@ export const AutomotiveWebsiteGenerator = ({
                   }
                   return st;
                 })
+              }));
+
+              // Migration for real estate terms in quick links
+              setQuickLinks(prev => prev.map(link => {
+                if (link.label === "Mülklerimiz" || link.label === "Portföyümüz") return { ...link, label: lang === 'tr' ? "Araçlarımız" : "Our Vehicles" };
+                if (link.label === "Bölgelerimiz") return { ...link, label: lang === 'tr' ? "Şubelerimiz" : "Our Branches" };
+                if (link.content?.includes("gayrimenkul")) {
+                  return { 
+                    ...link, 
+                    content: link.content.replace(/gayrimenkul/gi, lang === 'tr' ? "otomotiv" : "automotive")
+                                       .replace(/mülk/gi, lang === 'tr' ? "araç" : "vehicle")
+                  };
+                }
+                return link;
+              }));
+
+              setCorporateLinks(prev => prev.map(link => {
+                if (link.content?.includes("gayrimenkul")) {
+                  return { 
+                    ...link, 
+                    content: link.content.replace(/gayrimenkul/gi, lang === 'tr' ? "otomotiv" : "automotive")
+                  };
+                }
+                return link;
               }));
             }
           }
@@ -1078,8 +1103,8 @@ export const AutomotiveWebsiteGenerator = ({
                     </p>
                     <p className="text-slate-500 text-[10px] line-clamp-2">
                       {lang === "tr"
-                        ? "Bölgenin en seçkin portföyü. Ekibimizle birlikte güvenli yatırım adımlarını keşfedin."
-                        : "The most exclusive portfolio in the region. Discover safe investment steps with our team."}
+                        ? "Bölgenin en seçkin araç portföyü. Ekibimizle birlikte güvenli alım-satım adımlarını keşfedin."
+                        : "The most exclusive vehicle portfolio in the region. Discover safe trading steps with our team."}
                     </p>
                   </div>
                   <input
@@ -1745,38 +1770,38 @@ export const AutomotiveWebsiteGenerator = ({
                             {
                               title:
                                 lang === "tr"
-                                  ? "Harika Bir Mülk Nasıl Değerlenir?"
-                                  : "How to Value a Great Property?",
+                                  ? "İkinci El Araç Alırken Nelere Dikkat Edilmeli?"
+                                  : "What to Look for When Buying a Used Car?",
                               summary:
                                 lang === "tr"
-                                  ? "Doğru bir değerleme için sektörel tecrübe ve bölge hakimeyi gerekir..."
-                                  : "Industry experience is required for an accurate valuation...",
+                                  ? "Ekspertiz raporundan motor ömrüne kadar dikkat edilmesi gereken kritik noktalar..."
+                                  : "Critical points from expertise reports to engine life...",
                               date: "12 Eki 2026",
-                              img: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=800",
+                              img: "https://images.unsplash.com/photo-1550355291-bbee04a92027?q=80&w=800",
                             },
                             {
                               title:
                                 lang === "tr"
-                                  ? "Geleceğin Yatırım Noktaları"
-                                  : "Future Investment Spots",
+                                  ? "Elektrikli Araçların Geleceği"
+                                  : "The Future of Electric Vehicles",
                               summary:
                                 lang === "tr"
-                                  ? "Yabancı yatırımcıların son dönemde yöneldiği trend lokasyonlar..."
-                                  : "Trending locations foreign investors are turning to lately...",
+                                  ? "Menzil, şarj istasyonları ve yeni nesil batarya teknolojileri hakkında her şey..."
+                                  : "Everything about range, charging stations and next generation battery technologies...",
                               date: "08 Eki 2026",
-                              img: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?q=80&w=800",
+                              img: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=800",
                             },
                             {
                               title:
                                 lang === "tr"
-                                  ? "Ev Sahibi Olacakların Bilmesi Gerekenler"
-                                  : "Things to Know Before Buying",
+                                  ? "Araç Bakımında Yapılan 5 Hata"
+                                  : "5 Mistakes in Car Maintenance",
                               summary:
                                 lang === "tr"
-                                  ? "İlk evinizi alırken hukuksal süreçte eksik adım atmayın..."
-                                  : "Do not miss legal steps when buying your first home...",
+                                  ? "Aracınızın ömrünü uzatmak için uzak durmanız gereken yanlış alışkanlıklar..."
+                                  : "Wrong habits you should avoid to extend the life of your vehicle...",
                               date: "28 Eyl 2026",
-                              img: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=800",
+                              img: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?q=80&w=800",
                             },
                           ]
                       ).map((blog, i) => (
@@ -1987,15 +2012,13 @@ export const AutomotiveWebsiteGenerator = ({
             </div>
 
             <div className="p-0 flex-1 bg-white">
-              <JoditEditor
-                ref={editorRef}
+              <ReactQuill
                 value={
                   (editingLinkInfo.list === "quick"
                     ? quickLinks
                     : corporateLinks)[editingLinkInfo.index].content || ""
                 }
-                config={editorConfig}
-                onBlur={(newContent) => {
+                onChange={(newContent) => {
                   if (editingLinkInfo.list === "quick") {
                     setQuickLinks((prev) =>
                       prev.map((l, i) =>

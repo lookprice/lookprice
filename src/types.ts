@@ -46,6 +46,9 @@ export interface Product {
   reference_no?: string;
   location?: string;
   address?: string;
+  is_trade_in_available?: boolean;
+  market_story?: string;
+  technical_description?: string;
   created_at: string;
   updated_at: string;
 }

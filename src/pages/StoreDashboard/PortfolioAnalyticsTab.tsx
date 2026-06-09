@@ -60,6 +60,16 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
       return analytics.properties.filter((p: any) => p.status === selectedStatus);
   };
 
+  const isAutomotive = 
+    branding?.store_type === 'motor_vehicle' || 
+    branding?.store_type === 'automotive' || 
+    branding?.store_type === 'gallery' || 
+    branding?.store_type === 'car_dealer' ||
+    branding?.page_layout_settings?.sector === 'automotive' ||
+    branding?.page_layout_settings?.template === 'automotive';
+
+  const targetTab = isAutomotive ? 'fleet' : 'real_estate';
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
@@ -73,7 +83,7 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
              <div className="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl space-y-6">
                 <div className="flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-slate-900 capitalize">{selectedStatus} {lang === 'tr' ? 'Mülkler' : 'Properties'}</h3>
+                    <h3 className="text-xl font-bold text-slate-900 capitalize">{selectedStatus} {targetTab === 'fleet' ? (lang === 'tr' ? 'Araçlar' : 'Vehicles') : (lang === 'tr' ? 'Mülkler' : 'Properties')}</h3>
                     <button onClick={() => setSelectedStatus(null)} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 <div className="max-h-96 overflow-y-auto space-y-2">
@@ -82,7 +92,7 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
                             <span className="font-medium text-slate-900">{p.title}</span>
                             <span className="text-indigo-600 font-bold">{p.price}</span>
                         </div>
-                    )) : <p className="text-slate-500">{lang === 'tr' ? 'Bu statüde mülk bulunamadı.' : 'No properties found in this status.'}</p>}
+                    )) : <p className="text-slate-500">{lang === 'tr' ? 'Sonuç bulunamadı.' : 'No results found.'}</p>}
                 </div>
              </div>
           </div>
@@ -121,7 +131,7 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
       {/* Portfolio Stats (Example) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div 
-          onClick={() => onNavigateTab && onNavigateTab('real_estate', 'active')}
+          onClick={() => onNavigateTab && onNavigateTab(targetTab, 'active')}
           className="os-panel p-6 bg-indigo-50 border border-indigo-100/50 shadow-sm cursor-pointer hover:bg-indigo-100/60 hover:-translate-y-0.5 transition-all duration-150 active:scale-[0.99] hover:shadow"
         >
            <p className="text-xs font-bold text-indigo-600 uppercase mb-1">{lang === 'tr' ? 'Aktif İlanlar' : 'Active Listings'}</p>
@@ -137,7 +147,7 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
            <p className="text-3xl font-black text-slate-900 mono-data">{analytics?.completed_deals || 0}</p>
         </div>
         <div 
-          onClick={() => onNavigateTab && onNavigateTab('real_estate')} 
+          onClick={() => onNavigateTab && onNavigateTab(targetTab)} 
           className="os-panel p-6 bg-amber-50 border border-amber-100/50 shadow-sm cursor-pointer hover:bg-amber-100/60 hover:-translate-y-0.5 transition-all duration-150 active:scale-[0.99] hover:shadow"
         >
            <p className="text-xs font-bold text-amber-600 uppercase mb-1">{lang === 'tr' ? 'Bekleyen Görevler' : 'Pending Tasks'}</p>
@@ -152,28 +162,28 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
       {/* Property Status Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <button 
-            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'active')} 
+            onClick={() => onNavigateTab && onNavigateTab(targetTab, 'active')} 
             className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-left hover:bg-blue-100 transition-all hover:-translate-y-0.5"
           >
               <p className="text-[10px] font-bold text-blue-600 uppercase">{lang === 'tr' ? 'Aktif' : 'Active'}</p>
               <p className="text-xl font-black text-slate-900">{analytics?.status_counts?.active || 0}</p>
           </button>
           <button 
-            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'optioned')} 
+            onClick={() => onNavigateTab && onNavigateTab(targetTab, 'optioned')} 
             className="p-4 bg-orange-50 border border-orange-100 rounded-xl text-left hover:bg-orange-100 transition-all hover:-translate-y-0.5"
           >
               <p className="text-[10px] font-bold text-orange-600 uppercase">{lang === 'tr' ? 'Opsiyonlu' : 'Optioned'}</p>
               <p className="text-xl font-black text-slate-900">{analytics?.status_counts?.optioned || 0}</p>
           </button>
           <button 
-            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'sold_or_rented')} 
+            onClick={() => onNavigateTab && onNavigateTab(targetTab, 'sold_or_rented')} 
             className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-left hover:bg-emerald-100 transition-all hover:-translate-y-0.5"
           >
               <p className="text-[10px] font-bold text-emerald-600 uppercase">{lang === 'tr' ? 'Satıldı/Kiralandı' : 'Sold/Rented'}</p>
               <p className="text-xl font-black text-slate-900">{analytics?.status_counts?.sold_or_rented || 0}</p>
           </button>
           <button 
-            onClick={() => onNavigateTab && onNavigateTab('real_estate', 'all')} 
+            onClick={() => onNavigateTab && onNavigateTab(targetTab, 'all')} 
             className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-left hover:bg-slate-100 transition-all hover:-translate-y-0.5"
           >
               <p className="text-[10px] font-bold text-slate-600 uppercase">{lang === 'tr' ? 'Toplam' : 'Total'}</p>

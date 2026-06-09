@@ -1,22 +1,5 @@
-import CustomerScanPage from "./pages/CustomerScan";
-import ForgotPasswordPage from "./pages/ForgotPassword";
-import RegisterPage from "./pages/RegisterPage";
-import ProfilePage from "./pages/ProfilePage";
-import OrderTrackingPage from "./pages/OrderTrackingPage";
-import ReturnExchangePage from "./pages/ReturnExchange";
-import GuestCheckoutPage from "./pages/GuestCheckoutPage";
-import LoginPage from "./pages/Login";
-import ResetPasswordPage from "./pages/ResetPassword";
-import SuperAdminDashboard from "./pages/SuperAdmin";
-import PublicQuotation from "./pages/PublicQuotation";
-import CheckoutStatus from "./pages/CheckoutStatus";
-import DirectCheckoutRedirect from "./pages/DirectCheckoutRedirect";
-import PaymentGatewayPage from "./pages/PaymentGatewayPage";
-import StoreShowcase from "./pages/StoreShowcase";
 import Logo from "./components/Logo";
 import { LandingPage } from "./components/LandingPageNew";
-import { Marketplace } from "./pages/Marketplace";
-import StoreDashboard from "./pages/StoreDashboard/index";
 import Navbar from "./components/Navbar";
 import { User } from "./types";
 import { Toaster } from "sonner";
@@ -26,6 +9,34 @@ import { useLanguage } from "./contexts/LanguageContext";
 import { translations } from "./translations";
 import { useParams } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
+
+// Lazy load pages for optimum initial bundle size and near-instant load speed
+const CustomerScanPage = React.lazy(() => import("./pages/CustomerScan"));
+const ForgotPasswordPage = React.lazy(() => import("./pages/ForgotPassword"));
+const RegisterPage = React.lazy(() => import("./pages/RegisterPage"));
+const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
+const OrderTrackingPage = React.lazy(() => import("./pages/OrderTrackingPage"));
+const ReturnExchangePage = React.lazy(() => import("./pages/ReturnExchange"));
+const GuestCheckoutPage = React.lazy(() => import("./pages/GuestCheckoutPage"));
+const LoginPage = React.lazy(() => import("./pages/Login"));
+const ResetPasswordPage = React.lazy(() => import("./pages/ResetPassword"));
+const SuperAdminDashboard = React.lazy(() => import("./pages/SuperAdmin"));
+const PublicQuotation = React.lazy(() => import("./pages/PublicQuotation"));
+const CheckoutStatus = React.lazy(() => import("./pages/CheckoutStatus"));
+const DirectCheckoutRedirect = React.lazy(() => import("./pages/DirectCheckoutRedirect"));
+const PaymentGatewayPage = React.lazy(() => import("./pages/PaymentGatewayPage"));
+const StoreShowcase = React.lazy(() => import("./pages/StoreShowcase"));
+const Marketplace = React.lazy(() => import("./pages/Marketplace").then(m => ({ default: m.Marketplace })));
+const StoreDashboard = React.lazy(() => import("./pages/StoreDashboard/index"));
+
+const SuspenseLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-slate-50">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm font-semibold text-slate-500 animate-pulse">Yükleniyor...</p>
+    </div>
+  </div>
+);
 
 // --- Types ---
 // User interface is imported from ./types
@@ -135,23 +146,25 @@ export default function App() {
   if (detectedSlug && !location.pathname.startsWith('/api') && !location.pathname.startsWith('/admin')) {
     return (
       <div className="min-h-screen bg-gray-50 font-sans">
-        <Routes>
-          {/* Scan Routes */}
-          <Route path="/scan/:slug?" element={<CustomerScanPage customSlug={detectedSlug || undefined} />} />
-          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/profile" element={<StoreShowcase customSlug={detectedSlug} />} />
-          <Route path="/orders" element={<StoreShowcase customSlug={detectedSlug} />} />
-          <Route path="/return" element={<StoreShowcase customSlug={detectedSlug} />} />
-          <Route path="/checkout/success" element={<CheckoutStatus />} />
-          <Route path="/checkout/cancel" element={<CheckoutStatus />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          <Route path="/s/:slug/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
-          <Route path="/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
-          <Route path="/s/:slug" element={<StoreShowcase customSlug={detectedSlug} />} />
-          <Route path="*" element={<StoreShowcase customSlug={detectedSlug} />} />
-        </Routes>
+        <React.Suspense fallback={<SuspenseLoader />}>
+          <Routes>
+            {/* Scan Routes */}
+            <Route path="/scan/:slug?" element={<CustomerScanPage customSlug={detectedSlug || undefined} />} />
+            <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/profile" element={<StoreShowcase customSlug={detectedSlug} />} />
+            <Route path="/orders" element={<StoreShowcase customSlug={detectedSlug} />} />
+            <Route path="/return" element={<StoreShowcase customSlug={detectedSlug} />} />
+            <Route path="/checkout/success" element={<CheckoutStatus />} />
+            <Route path="/checkout/cancel" element={<CheckoutStatus />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            <Route path="/s/:slug/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
+            <Route path="/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
+            <Route path="/s/:slug" element={<StoreShowcase customSlug={detectedSlug} />} />
+            <Route path="*" element={<StoreShowcase customSlug={detectedSlug} />} />
+          </Routes>
+        </React.Suspense>
       </div>
     );
   }
@@ -159,85 +172,87 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <Toaster position="top-center" richColors />
-      <Routes>
-          {/* Public Routes */}
-          <Route path="/scan/:slug" element={<CustomerScanPage />} />
-          <Route path="/s/:slug" element={<StoreShowcase />} />
-          <Route path="/s/:slug/p/:barcode" element={<StoreShowcase />} />
-          <Route path="/store/:slug" element={<StoreShowcase />} />
-          <Route path="/checkout/success" element={<CheckoutStatus />} />
-          <Route path="/checkout/cancel" element={<CheckoutStatus />} />
-          <Route path="/payment-gateway" element={<PaymentGatewayPage />} />
-          <Route path="/s/:slug/quotation/:id" element={<PublicQuotation />} />
-          <Route path="/quotation/:id" element={<PublicQuotation />} />
-          <Route path="/s/:slug/checkout" element={<GuestCheckoutPage />} />
-          <Route path="/guest-checkout-public" element={<GuestCheckoutPage />} />
-          <Route path="/s/:slug/direct-checkout" element={<DirectCheckoutRedirect />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          
-          {/* Auth Routes */}
-          <Route path="/login" element={
-            token ? (
-              user?.role === 'superadmin' ? <Navigate to="/admin" /> : 
-              user?.store_slug ? <Navigate to={`/dashboard/${user.store_slug}`} /> : <Navigate to="/dashboard" />
-            ) : (
-              <LoginPage onLogin={handleLogin} />
-            )
-          } />
-          <Route path="/register" element={
-            token ? (
-              user?.role === 'superadmin' ? <Navigate to="/admin" /> : 
-              user?.store_slug ? <Navigate to={`/dashboard/${user.store_slug}`} /> : <Navigate to="/dashboard" />
-            ) : (
-              <RegisterPage />
-            )
-          } />
-          <Route path="/profile" element={
-            token ? (
-              <ProfilePage />
-            ) : <Navigate to="/login" />
-          } />
-          <Route path="/s/:slug/profile" element={<StoreShowcase />} />
-          <Route path="/orders" element={
-            token ? (
-              <OrderTrackingPage />
-            ) : <Navigate to="/login" />
-          } />
-          <Route path="/s/:slug/orders" element={<StoreShowcase />} />
-          <Route path="/return" element={
-            token ? (
-              <ReturnExchangePage />
-            ) : <Navigate to="/login" />
-          } />
-          <Route path="/s/:slug/return" element={<StoreShowcase />} />
-          <Route path="/guest-checkout" element={
-            token ? (
-              <GuestCheckoutPage />
-            ) : <Navigate to="/login" />
-          } />
+      <React.Suspense fallback={<SuspenseLoader />}>
+        <Routes>
+            {/* Public Routes */}
+            <Route path="/scan/:slug" element={<CustomerScanPage />} />
+            <Route path="/s/:slug" element={<StoreShowcase />} />
+            <Route path="/s/:slug/p/:barcode" element={<StoreShowcase />} />
+            <Route path="/store/:slug" element={<StoreShowcase />} />
+            <Route path="/checkout/success" element={<CheckoutStatus />} />
+            <Route path="/checkout/cancel" element={<CheckoutStatus />} />
+            <Route path="/payment-gateway" element={<PaymentGatewayPage />} />
+            <Route path="/s/:slug/quotation/:id" element={<PublicQuotation />} />
+            <Route path="/quotation/:id" element={<PublicQuotation />} />
+            <Route path="/s/:slug/checkout" element={<GuestCheckoutPage />} />
+            <Route path="/guest-checkout-public" element={<GuestCheckoutPage />} />
+            <Route path="/s/:slug/direct-checkout" element={<DirectCheckoutRedirect />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            
+            {/* Auth Routes */}
+            <Route path="/login" element={
+              token ? (
+                user?.role === 'superadmin' ? <Navigate to="/admin" /> : 
+                user?.store_slug ? <Navigate to={`/dashboard/${user.store_slug}`} /> : <Navigate to="/dashboard" />
+              ) : (
+                <LoginPage onLogin={handleLogin} />
+              )
+            } />
+            <Route path="/register" element={
+              token ? (
+                user?.role === 'superadmin' ? <Navigate to="/admin" /> : 
+                user?.store_slug ? <Navigate to={`/dashboard/${user.store_slug}`} /> : <Navigate to="/dashboard" />
+              ) : (
+                <RegisterPage />
+              )
+            } />
+            <Route path="/profile" element={
+              token ? (
+                <ProfilePage />
+              ) : <Navigate to="/login" />
+            } />
+            <Route path="/s/:slug/profile" element={<StoreShowcase />} />
+            <Route path="/orders" element={
+              token ? (
+                <OrderTrackingPage />
+              ) : <Navigate to="/login" />
+            } />
+            <Route path="/s/:slug/orders" element={<StoreShowcase />} />
+            <Route path="/return" element={
+              token ? (
+                <ReturnExchangePage />
+              ) : <Navigate to="/login" />
+            } />
+            <Route path="/s/:slug/return" element={<StoreShowcase />} />
+            <Route path="/guest-checkout" element={
+              token ? (
+                <GuestCheckoutPage />
+              ) : <Navigate to="/login" />
+            } />
 
-          {/* Protected Routes */}
-          <Route path="/dashboard/:slug?" element={
-            token && user ? (
-              <StoreDashboard user={user} onLogout={handleLogout} />
-            ) : <Navigate to="/login" />
-          } />
+            {/* Protected Routes */}
+            <Route path="/dashboard/:slug?" element={
+              token && user ? (
+                <StoreDashboard user={user} onLogout={handleLogout} />
+              ) : <Navigate to="/login" />
+            } />
 
-          <Route path="/admin" element={
-            token && user?.role === 'superadmin' ? (
-              <SuperAdminDashboard token={token} onLogout={handleLogout} />
-            ) : <Navigate to="/login" />
-          } />
+            <Route path="/admin" element={
+              token && user?.role === 'superadmin' ? (
+                <SuperAdminDashboard token={token} onLogout={handleLogout} />
+              ) : <Navigate to="/login" />
+            } />
 
-          <Route path="/" element={
-            <LandingPage />
-          } />
-          
-          <Route path="/portal" element={
-            <Marketplace />
-          } />
+            <Route path="/" element={
+              <LandingPage />
+            } />
+            
+            <Route path="/portal" element={
+              <Marketplace />
+            } />
         </Routes>
-      </div>
+      </React.Suspense>
+    </div>
   );
 }

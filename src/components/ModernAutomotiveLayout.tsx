@@ -82,11 +82,11 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
         isLira: true,
         ranges: [
           { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-          { value: "0-1000000", label: "1.0M TL Altı" },
+          { value: "0-1000000", label: lang === "tr" ? "1.0M TL Altı" : "Under 1.0M TL" },
           { value: "1000000-2000000", label: "1.0M - 2.0M TL" },
           { value: "2000000-4000000", label: "2.0M - 4.0M TL" },
           { value: "4000000-8000000", label: "4.0M - 8.0M TL" },
-          { value: "8000000+", label: "8.0M TL Üstü" },
+          { value: "8000000+", label: lang === "tr" ? "8.0M TL Üstü" : "Over 8.0M TL" },
         ]
       };
     } else {
@@ -240,9 +240,16 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   }, [layoutConfig.banners]);
 
   const isSectionEnabled = (sectionId: string) => {
-    if (!layoutConfig.sections || layoutConfig.sections.length === 0) return true;
-    const section = layoutConfig.sections.find((s: any) => s.id === sectionId);
-    return section !== undefined ? section.enabled : false;
+    if (!layoutConfig.sections || !Array.isArray(layoutConfig.sections) || layoutConfig.sections.length === 0) return true;
+    // Flexible matching for news/radar section IDs
+    const section = layoutConfig.sections.find((s: any) => 
+      s.id === sectionId || 
+      s.type === sectionId ||
+      (sectionId === 'news' && (s.id === 'radar' || s.id === 'radarNews' || s.id === 'radar_news' || s.type === 'radar' || s.type === 'radarNews' || s.type === 'radar_news')) ||
+      (sectionId === 'radar' && (s.id === 'news' || s.type === 'news'))
+    );
+    if (section === undefined) return true; // Default to true if not found in custom configuration layout list
+    return section.enabled !== false && section.enabled !== "false";
   };
 
   const [visibleCount, setVisibleCount] = useState(layoutConfig.count || 6);
@@ -498,7 +505,23 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                               <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚙️ {p.sector_data?.model || (p as any).model}</span>
                             )}
                             {(p.sector_data?.transmission || (p as any).transmission) && (
-                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚡ {p.sector_data?.transmission || (p as any).transmission}</span>
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚡ {(() => {
+                                const trans = String(p.sector_data?.transmission || (p as any).transmission).toLowerCase();
+                                if (trans === 'automatic') return lang === 'tr' ? 'Otomatik' : 'Automatic';
+                                if (trans === 'manual') return lang === 'tr' ? 'Manuel' : 'Manual';
+                                if (trans === 'semi-automatic' || trans === 'triptonic') return lang === 'tr' ? 'Yarı-Otomatik' : 'Semi-Automatic';
+                                return trans.toUpperCase();
+                              })()}</span>
+                            )}
+                            {(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel) && (
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⛽ {(() => {
+                                const fuel = String(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel).toLowerCase();
+                                if (fuel === 'gasoline' || fuel === 'petrol') return lang === 'tr' ? 'Benzin' : 'Gasoline';
+                                if (fuel === 'diesel') return lang === 'tr' ? 'Dizel' : 'Diesel';
+                                if (fuel === 'hybrid') return lang === 'tr' ? 'Hibrit' : 'Hybrid';
+                                if (fuel === 'electric') return lang === 'tr' ? 'Elektrikli' : 'Electric';
+                                return fuel.toUpperCase();
+                              })()}</span>
                             )}
                           </div>
 
@@ -669,7 +692,17 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
               <div className="space-y-6 flex-1">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
                 <ul className="space-y-4 text-sm font-bold text-slate-400">
-                  {layoutConfig.quickLinks.map((link: any, idx: number) => (
+                  {layoutConfig.quickLinks.map((link: any, idx: number) => {
+                    // Robust case-insensitive mapping for automotive websites
+                    let label = link.label;
+                    const lowerLabel = (label || "").toLowerCase();
+                    if (lowerLabel.includes("mülklerimiz") || lowerLabel.includes("portföyümüz") || lowerLabel.includes("emlak")) {
+                      label = lang === 'tr' ? "Araçlarımız" : "Our Vehicles";
+                    } else if (lowerLabel.includes("bölgelerimiz")) {
+                      label = lang === 'tr' ? "Şubelerimiz" : "Our Branches";
+                    }
+
+                    return (
                     <li 
                       key={idx} 
                       onClick={() => {
@@ -681,14 +714,15 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                             window.open(link.url, '_blank');
                           }
                         } else {
-                          setActiveContentMap({ title: link.label, content: link.content });
+                          setActiveContentMap({ title: label, content: link.content });
                         }
                       }} 
                       className="hover:text-amber-400 cursor-pointer transition-colors"
                     >
-                      {link.label}
+                      {label}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -758,9 +792,18 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                 </button>
               </div>
               <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                <div className="prose prose-slate max-w-none text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
-                  {activeContentMap.content}
-                </div>
+                <div 
+                  className="prose prose-slate max-w-none text-slate-600 font-medium leading-relaxed
+                    [&_h1]:text-2xl [&_h1]:font-black [&_h1]:mb-4
+                    [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-3 [&_h2]:mt-6
+                    [&_h3]:text-lg [&_h3]:font-bold [&_h3]:mb-2 [&_h3]:mt-4
+                    [&_p]:mb-4 [&_p:last-child]:mb-0
+                    [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4
+                    [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4
+                    [&_a]:text-indigo-600 [&_a]:underline"
+                  style={{ wordBreak: 'break-word' }}
+                  dangerouslySetInnerHTML={{ __html: activeContentMap.content }}
+                />
               </div>
               <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
                 <button 

@@ -299,9 +299,18 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   }, [layoutConfig.banners]);
 
   const isSectionEnabled = (sectionId: string) => {
-    if (!layoutConfig.sections || layoutConfig.sections.length === 0) return true;
-    const section = layoutConfig.sections.find((s: any) => s.id === sectionId);
-    return section !== undefined ? section.enabled : false;
+    if (!layoutConfig.sections || !Array.isArray(layoutConfig.sections) || layoutConfig.sections.length === 0) return true;
+    // Flexible matching for news/radar/financing/calculator section IDs
+    const section = layoutConfig.sections.find((s: any) => 
+      s.id === sectionId || 
+      s.type === sectionId ||
+      (sectionId === 'news' && (s.id === 'radar' || s.id === 'radarNews' || s.id === 'radar_news' || s.type === 'radar' || s.type === 'radarNews' || s.type === 'radar_news')) ||
+      (sectionId === 'radar' && (s.id === 'news' || s.type === 'news')) ||
+      (sectionId === 'financing' && (s.id === 'calculator' || s.type === 'calculator')) ||
+      (sectionId === 'calculator' && (s.id === 'financing' || s.type === 'financing'))
+    );
+    if (section === undefined) return true; // Default to true if not found in custom configuration layout list
+    return section.enabled !== false && section.enabled !== "false";
   };
 
   const [listingTypeFilter, setListingTypeFilter] = useState<'all' | 'sale' | 'rent'>('all');
@@ -960,9 +969,18 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                 </button>
               </div>
               <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                <div className="prose prose-slate max-w-none text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
-                  {activeContentMap.content}
-                </div>
+                <div 
+                  className="prose prose-slate max-w-none text-slate-600 font-medium leading-relaxed
+                    [&_h1]:text-2xl [&_h1]:font-black [&_h1]:mb-4
+                    [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-3 [&_h2]:mt-6
+                    [&_h3]:text-lg [&_h3]:font-bold [&_h3]:mb-2 [&_h3]:mt-4
+                    [&_p]:mb-4 [&_p:last-child]:mb-0
+                    [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4
+                    [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4
+                    [&_a]:text-indigo-600 [&_a]:underline"
+                  style={{ wordBreak: 'break-word' }}
+                  dangerouslySetInnerHTML={{ __html: activeContentMap.content }}
+                />
               </div>
               <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
                 <button 

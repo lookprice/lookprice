@@ -1602,8 +1602,12 @@ const ProductDetailModal_Deprecated: React.FC<{
               onClick={() => {
                 const phone = store?.whatsapp_number || store?.phone;
                 if (phone) {
+                  const message = lang === "tr"
+                    ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
+                    : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
+
                   window.open(
-                    `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} ilanı hakkında bilgi almak istiyorum.`)}`,
+                    `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`,
                     "_blank",
                   );
                 } else {
@@ -2122,12 +2126,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         );
         
         // Filter radar news by sector
-        const currentSector = storeRes.store_type === 'motor_vehicle' ? 'automotive' : 'real_estate';
+        const currentSector = storeRes.store_type === 'motor_vehicle' || storeRes.store_type === 'automotive' ? 'automotive' : 'real_estate';
         const filteredNews = Array.isArray(radarNewsRes) 
           ? radarNewsRes.filter((n: any) => {
               // If news has no sector, show it everywhere (general news)
               if (!n.sector) return true;
-              return n.sector === currentSector;
+              return n.sector === currentSector || 
+                     (currentSector === 'automotive' && n.sector === 'motor_vehicle');
             })
           : [];
         setRadarNews(filteredNews);

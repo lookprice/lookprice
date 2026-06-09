@@ -17,6 +17,7 @@ import {
   Map as MapIcon,
   Car,
   RefreshCw,
+  ArrowDownUp,
 } from "lucide-react";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { api } from "../services/api";
@@ -549,34 +550,63 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             )}
           </div>
 
-          <div className="prose prose-slate max-w-none mb-10 text-slate-700">
-            <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-4">
-              {t.dashboard.description}
-            </h4>
-            <div 
-              className="text-slate-600 leading-relaxed text-base font-medium [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_h1]:text-2xl [&_h2]:text-xl"
-              dangerouslySetInnerHTML={{ __html: product.description ? product.description.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ') : t.dashboard.noProductsDesc }} 
-            />
-          </div>
+          {(product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
+            <div className="mb-8 inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100/50 group hover:bg-emerald-100/50 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <ArrowDownUp className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider leading-none">
+                  {lang === "tr" ? "TAKAS İMKANI" : "TRADE-IN AVAILABLE"}
+                </span>
+                <span className="text-[10px] opacity-70 font-medium">
+                  {lang === "tr" ? "Bu araç için takas teklifleri değerlendirilir." : "Trade-in offers are considered for this vehicle."}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {product.description && 
+            !product.description.startsWith("Şasi:") && 
+            (() => {
+              const desc = product.description.trim().toLowerCase();
+              const story = ((product as any).market_story || (product.sector_data as any)?.market_story || "").trim().toLowerCase();
+              const tech = ((product as any).technical_description || (product.sector_data as any)?.technical_description || "").trim().toLowerCase();
+              return desc !== story && desc !== tech && desc.length > 5;
+            })() && (
+            <div className="prose prose-slate max-w-none mb-10 text-slate-700">
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-4">
+                {t.dashboard.description}
+              </h4>
+              <div 
+                className="text-slate-600 leading-relaxed text-base font-medium [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_h1]:text-2xl [&_h2]:text-xl"
+                dangerouslySetInnerHTML={{ __html: product.description.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ') }} 
+              />
+            </div>
+          )}
 
           {((product as any).market_story || (product.sector_data as any)?.market_story) && (
-            <div className="mb-10 p-6 bg-blue-50/30 rounded-3xl border border-blue-100/50">
-              <h4 className="text-[10px] font-semibold text-blue-600 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-                <Car className="w-3 h-3" />
+            <div className="mb-10 p-8 bg-blue-50/40 rounded-[2.5rem] border border-blue-100/50 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Car className="w-32 h-32 text-blue-600" />
+              </div>
+              <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
+                <span className="w-8 h-[1px] bg-blue-200" />
                 {lang === "tr" ? "PAZAR HİKAYESİ" : "MARKET STORY"}
               </h4>
-              <p className="text-slate-700 leading-relaxed text-sm font-medium">
+              <p className="text-slate-800 leading-relaxed text-base font-medium relative z-10">
                 {(product as any).market_story || (product.sector_data as any)?.market_story}
               </p>
             </div>
           )}
 
           {((product as any).technical_description || (product.sector_data as any)?.technical_description) && (
-            <div className="mb-10 p-6 bg-slate-50/50 rounded-3xl border border-slate-200/50">
-              <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.3em] mb-4">
+            <div className="mb-10 p-8 bg-slate-50/80 rounded-[2.5rem] border border-slate-200/50 shadow-sm relative overflow-hidden group">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
+                <span className="w-8 h-[1px] bg-slate-300" />
                 {lang === "tr" ? "TEKNİK İLAN AÇIKLAMASI" : "TECHNICAL DESCRIPTION"}
               </h4>
-              <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-wrap">
+              <p className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap font-medium">
                 {(product as any).technical_description || (product.sector_data as any)?.technical_description}
               </p>
             </div>
@@ -666,8 +696,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 onClick={() => {
                   const phone = store?.whatsapp_number || store?.phone;
                   if (phone) {
+                    const message = lang === "tr" 
+                      ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
+                      : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
+                    
                     window.open(
-                      `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} ilanı hakkında bilgi almak istiyorum.`)}`,
+                      `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`,
                       "_blank",
                     );
                   } else {
@@ -692,8 +726,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   onClick={() => {
                     const phone = store?.whatsapp_number || store?.phone;
                     if (phone) {
+                      const tradeMessage = lang === "tr"
+                        ? `Merhaba, #${product.id} portföy numaralı ${product.name} aracınız için Takas Teklifi göndermek istiyorum. \n\nLütfen aracımın bilgilerini ve görsellerini buradan size iletiyorum: `
+                        : `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending my vehicle information and photos here: `;
+                      
                       window.open(
-                        `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Merhaba, ${product.name} aracınız için Takas Teklifi göndermek istiyorum. \n\nLütfen aracımın bilgilerini ve görsellerini buradan size iletiyorum: `)}`,
+                        `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(tradeMessage)}`,
                         "_blank",
                       );
                     }

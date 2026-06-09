@@ -37,8 +37,10 @@ import {
   Cpu,
   Image as ImageIcon,
   Shield,
-  FileSignature
+  FileSignature,
+  Share2
 } from 'lucide-react';
+import { AutomotiveSocialMediaShareModal } from '../../components/AutomotiveSocialMediaShareModal';
 import { ImageGallery } from '../../components/ImageGallery';
 import { MultiImageUploader } from '../../components/MultiImageUploader';
 import { AutoContractModal } from '../../components/AutoContractModal';
@@ -189,6 +191,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareVehicle, setShareVehicle] = useState<Vehicle | null>(null);
   const [newExpenseName, setNewExpenseName] = useState('');
   const [newExpenseAmount, setNewExpenseAmount] = useState('');
   const [newExpenseCurrency, setNewExpenseCurrency] = useState('TRY');
@@ -319,6 +323,32 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [processingVehicleMedia, setProcessingVehicleMedia] = useState<string | null>(null); // 'staging' | 'enhance' | 'blur'
   const [vehicleAiNotice, setVehicleAiNotice] = useState<string | null>(null);
 
+  const generateVehicleTitle = (v: any) => {
+    if (!v) return "";
+    const transMap: Record<string, string> = {
+      'manual': 'Manuel',
+      'automatic': 'Otomatik',
+      'semi_automatic': 'Yarı Otomatik',
+      'dual_clutch': 'Çift Kavrama (DCT/DSG)'
+    };
+    const fuelMap: Record<string, string> = {
+      'gasoline': 'Benzin',
+      'diesel': 'Dizel',
+      'gasoline_hybrid': 'Benzin / Hibrit',
+      'diesel_hybrid': 'Dizel / Hibrit',
+      'electric': 'Elektrik',
+      'lpg': 'LPG'
+    };
+
+    const year = v.year ? `${v.year} Model` : "";
+    const trans = transMap[v.transmission] || transMap['manual'];
+    const fuel = fuelMap[v.fuel_type] || fuelMap['gasoline'];
+    const brand = v.brand || "";
+    const model = v.model || "";
+
+    return `${year} ${trans} ${fuel} ${brand} ${model}`.trim();
+  };
+
   const [generatingVehicleTour, setGeneratingVehicleTour] = useState(false);
   const [activeVehicleTourNode, setActiveVehicleTourNode] = useState<any>(null);
   const [vehicleTourBlueprint, setVehicleTourBlueprint] = useState<any>(null);
@@ -347,7 +377,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         lang: 'tr'
       });
       if (res.text) {
-        setFormData(prev => ({ ...prev, description: res.text }));
+        setFormData(prev => ({ 
+          ...prev, 
+          market_story: res.text,
+          technical_description: res.text 
+        }));
         setVehicleAiNotice("✅ Araç portföy hikayesi ve teknik açıklama yapay zeka tarafından başarıyla oluşturuldu!");
         setTimeout(() => setVehicleAiNotice(null), 5000);
       } else if (res.error) {
@@ -1034,8 +1068,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <Car className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-black text-gray-900 text-lg">{vehicle.plate}</p>
-                    <p className="text-xs text-gray-500 font-medium">{vehicle.brand} {vehicle.model}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-black text-gray-900 text-lg">{vehicle.plate}</p>
+                      <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">#{vehicle.id}</span>
+                      <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded">
+                        <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-gray-300'}`} />
+                        <span className={`text-[9px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {vehicle.is_on_enrakipsiz ? 'enrakipsiz: aktif' : 'enrakipsiz: pasif'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium">{generateVehicleTitle(vehicle)}</p>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 items-end">
@@ -1177,8 +1220,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
               <table className="w-full text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Portföy No</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.status}</th>
+                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Enrakipsiz</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.alerts}</th>
                     <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
@@ -1187,6 +1232,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 <tbody className="divide-y divide-gray-50">
                   {paginatedVehicles.map((vehicle) => (
                     <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors group">
+                      <td className="p-4 text-sm font-bold text-gray-900">
+                        #{vehicle.id}
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
@@ -1194,7 +1242,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900">{vehicle.plate}</p>
-                            <p className="text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
+                            <p className="text-xs text-gray-500">{generateVehicleTitle(vehicle)}</p>
                           </div>
                         </div>
                       </td>
@@ -1208,6 +1256,14 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                               {vehicle.selling_price.toLocaleString()} {vehicle.currency}
                             </span>
                           )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-2 h-2 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-gray-300'}`} />
+                          <span className={`text-[10px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-emerald-600' : 'text-gray-400'}`}>
+                            {vehicle.is_on_enrakipsiz ? (lang === 'tr' ? 'Aktif' : 'Active') : (lang === 'tr' ? 'Pasif' : 'Passive')}
+                          </span>
                         </div>
                       </td>
                       <td className="p-4">
@@ -1279,12 +1335,103 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           <button
                             onClick={() => {
                               setSelectedVehicle(vehicle);
+                              setFormData({
+                                plate: vehicle.plate,
+                                brand: vehicle.brand,
+                                model: vehicle.model,
+                                year: vehicle.year,
+                                type: vehicle.type,
+                                chassis_number: vehicle.chassis_number,
+                                engine_number: vehicle.engine_number,
+                                current_mileage: vehicle.current_mileage,
+                                status: vehicle.status,
+                                selling_price: vehicle.selling_price,
+                                currency: vehicle.currency || 'TRY',
+                                package_name: vehicle.package_name || '',
+                                transmission: vehicle.transmission || 'manual',
+                                fuel_type: vehicle.fuel_type || 'gasoline',
+                                color: vehicle.color || '',
+                                body_type: vehicle.body_type || '',
+                                paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
+                                tramer_amount: vehicle.tramer_amount || 0,
+                                tramer_currency: vehicle.tramer_currency || 'TRY',
+                                buying_price: vehicle.buying_price || 0,
+                                buying_currency: vehicle.buying_currency || 'TRY',
+                                expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
+                                target_profit_margin: vehicle.target_profit_margin || 0,
+                                description: vehicle.description || '',
+                                images: vehicle.images || [],
+                                virtual_tour_url: vehicle.virtual_tour_url || '',
+                                ai_tour_enabled: !!vehicle.ai_tour_enabled,
+                                is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
+                                market_story: vehicle.market_story || '',
+                                technical_description: vehicle.technical_description || '',
+                                is_trade_in_available: !!vehicle.is_trade_in_available
+                              });
+                              setShowAddModal(true);
+                            }}
+                            className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                            title="İncele / Detay"
+                            onClick={() => {
+                              setSelectedVehicle(vehicle);
                               fetchVehicleDetails(vehicle);
                               setShowDetailModal(true);
                             }}
-                            className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                           >
                             <Eye className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShareVehicle(vehicle);
+                              setIsShareModalOpen(true);
+                            }}
+                            className="p-2 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                            title="Paylaş"
+                          >
+                            <Share2 className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedVehicle(vehicle);
+                              setFormData({
+                                plate: vehicle.plate,
+                                brand: vehicle.brand,
+                                model: vehicle.model,
+                                year: vehicle.year,
+                                type: vehicle.type,
+                                chassis_number: vehicle.chassis_number,
+                                engine_number: vehicle.engine_number,
+                                current_mileage: vehicle.current_mileage,
+                                status: vehicle.status,
+                                selling_price: vehicle.selling_price,
+                                currency: vehicle.currency || 'TRY',
+                                package_name: vehicle.package_name || '',
+                                transmission: vehicle.transmission || 'manual',
+                                fuel_type: vehicle.fuel_type || 'gasoline',
+                                color: vehicle.color || '',
+                                body_type: vehicle.body_type || '',
+                                paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
+                                tramer_amount: vehicle.tramer_amount || 0,
+                                tramer_currency: vehicle.tramer_currency || 'TRY',
+                                buying_price: vehicle.buying_price || 0,
+                                buying_currency: vehicle.buying_currency || 'TRY',
+                                expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
+                                target_profit_margin: vehicle.target_profit_margin || 0,
+                                description: vehicle.description || '',
+                                images: vehicle.images || [],
+                                virtual_tour_url: vehicle.virtual_tour_url || '',
+                                ai_tour_enabled: !!vehicle.ai_tour_enabled,
+                                is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
+                                market_story: vehicle.market_story || '',
+                                technical_description: vehicle.technical_description || '',
+                                is_trade_in_available: !!vehicle.is_trade_in_available
+                              });
+                              setShowAddModal(true);
+                            }}
+                            className="p-2 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors border border-amber-200/50"
+                            title="Düzenle"
+                          >
+                            <Edit2 className="w-4 h-4 text-amber-600 font-bold" />
                           </button>
                         </div>
                       </td>
@@ -2032,6 +2179,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   expenses: '[]',
                   target_profit_margin: 0,
                   description: '',
+                  market_story: '',
+                  technical_description: '',
+                  is_trade_in_available: false,
                   images: [],
                   virtual_tour_url: '',
                   ai_tour_enabled: false,
@@ -2581,7 +2731,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
                       <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                          Pazar Hikayesi (Müşteri için Etkileyici Anlatım)
+                          Pazar Hikayesi
                           <div className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded border border-blue-100">B2C</div>
                         </label>
                         <textarea
@@ -2750,11 +2900,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                     </div>
                   </div>
 
-                  {/* SECTION 5: LOOKPRICE ELITE AI & LUXURY SHOWCASE SUITE */}
+                  {/* SECTION 6: LOOKPRICE ELITE AI & LUXURY SHOWCASE SUITE */}
                   <div className="space-y-4">
                     <h4 className="text-sm font-bold text-indigo-700 tracking-wider uppercase border-l-4 border-indigo-600 pl-2.5 flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-indigo-600" />
-                      5. LookPrice AI Premium Sunum & Görünüm Paneli
+                      6. LookPrice AI Premium Sunum & Görünüm Paneli
                     </h4>
 
                     {vehicleAiNotice && (
@@ -2795,14 +2945,23 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                         </div>
                       </div>
 
-                      {/* Sub-section 5b: Description Assistant */}
+                      {/* Sub-section 5b: Virtual Tour Integration (If requested) */}
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-indigo-950">Pazar Hikayesi & Teknik İlan Açıklaması</label>
-                        <textarea
-                          placeholder="Aracın yol sürüş kalitesi, kondisyon detayları ve satış sunumunu buraya ekleyin..."
-                          value={formData.description || ''}
-                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          className="w-full p-3.5 bg-white border border-gray-200 rounded-xl min-h-[100px] text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed shadow-xs"
+                        <label className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 cursor-pointer">
+                           <input 
+                             type="checkbox"
+                             checked={!!formData.ai_tour_enabled}
+                             onChange={(e) => setFormData({...formData, ai_tour_enabled: e.target.checked})}
+                             className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                           />
+                           AI Destekli Sanal Tur / Video Entegrasyonu Aktif
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Sanal Tur (Matterport, iGuide vb.) veya Tanıtım Videosu Linki"
+                          value={formData.virtual_tour_url || ''}
+                          onChange={(e) => setFormData({ ...formData, virtual_tour_url: e.target.value })}
+                          className="w-full p-3.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed shadow-xs"
                         />
                       </div>
 
@@ -2852,7 +3011,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-gray-900">{selectedVehicle.plate}</h3>
-                    <p className="text-gray-500">{selectedVehicle.brand} {selectedVehicle.model} ({selectedVehicle.year})</p>
+                    <p className="text-gray-500">{generateVehicleTitle(selectedVehicle)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2884,6 +3043,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           expenses: typeof selectedVehicle.expenses === 'string' ? selectedVehicle.expenses : JSON.stringify(selectedVehicle.expenses || []),
                           target_profit_margin: selectedVehicle.target_profit_margin || 0,
                           description: selectedVehicle.description || '',
+                          market_story: selectedVehicle.market_story || '',
+                          technical_description: selectedVehicle.technical_description || '',
+                          is_trade_in_available: !!selectedVehicle.is_trade_in_available,
                           images: selectedVehicle.images || [],
                           virtual_tour_url: selectedVehicle.virtual_tour_url || '',
                           ai_tour_enabled: !!selectedVehicle.ai_tour_enabled,
@@ -4694,6 +4856,15 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         }}
         vehicle={autoContractVehicle}
         storeName="LookPrice Premium Gallery"
+      />
+      <AutomotiveSocialMediaShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => {
+          setIsShareModalOpen(false);
+          setShareVehicle(null);
+        }}
+        vehicle={shareVehicle}
+        branding={{ store_name: "LookPrice Premium Gallery" }}
       />
     </div>
   );

@@ -5,7 +5,8 @@ import { MultiImageUploader } from './MultiImageUploader';
 import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
 import { contractTemplates } from '../utils/contractTemplates';
-import JoditEditor from 'jodit-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 interface RealEstateModalProps {
   isOpen: boolean;
@@ -873,11 +874,9 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-500">Açıklama (UK ve TR Yatırımcıları için Notlar)</label>
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <JoditEditor
-                ref={joditRef}
+              <ReactQuill
                 value={formData.description || ''}
-                config={joditConfig}
-                onBlur={(newContent) => setFormData(prev => ({...prev, description: newContent}))}
+                onChange={(newContent) => setFormData(prev => ({...prev, description: newContent}))}
               />
             </div>
           </div>

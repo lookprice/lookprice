@@ -191,7 +191,7 @@ router.get("/marketplace/listings", async (req, res) => {
     let vehiclesList: any[] = [];
     try {
       const vehiclesRes = await pool.query(`
-        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
+        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
         FROM vehicles v
         JOIN stores s ON v.store_id = s.id
         WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true)
@@ -203,7 +203,7 @@ router.get("/marketplace/listings", async (req, res) => {
       console.warn("Marketplace vehicles queries had an issue. Retrying with simple select fallback:", error);
       try {
         const fallbackRes = await pool.query(`
-          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
+          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
           FROM vehicles v
           JOIN stores s ON v.store_id = s.id
           LIMIT 100
@@ -245,12 +245,31 @@ router.get("/marketplace/listings", async (req, res) => {
     const allListings: any[] = [];
 
     vehiclesList.forEach((v: any) => {
+      const transMap: Record<string, string> = {
+        'manual': 'Manuel',
+        'automatic': 'Otomatik',
+        'semi_automatic': 'Yarı Otomatik',
+        'dual_clutch': 'Çift Kavrama (DCT/DSG)'
+      };
+      const fuelMap: Record<string, string> = {
+        'gasoline': 'Benzin',
+        'diesel': 'Dizel',
+        'gasoline_hybrid': 'Benzin / Hibrit',
+        'diesel_hybrid': 'Dizel / Hibrit',
+        'electric': 'Elektrik',
+        'lpg': 'LPG'
+      };
+
+      const trans = transMap[v.transmission] || v.transmission || '';
+      const fuel = fuelMap[v.fuel_type] || v.fuel_type || '';
+      const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
+      
       allListings.push({
         id: `v_${v.db_id}`,
         db_id: v.db_id,
         listing_type: 'vehicle',
         sub_sector: v.store_sub_sector,
-        title: `${v.brand} ${v.model} (${v.year})`,
+        title: generatedTitle,
         price: v.selling_price || 0,
         currency: v.currency,
         image_url: v.images && v.images.length > 0 ? v.images[0] : null,
@@ -634,15 +653,34 @@ router.get("/store/:slug/products", async (req, res) => {
         }
       }
     }
+    const transMap: Record<string, string> = {
+      'manual': 'Manuel',
+      'automatic': 'Otomatik',
+      'semi_automatic': 'Yarı Otomatik',
+      'dual_clutch': 'Çift Kavrama (DCT/DSG)'
+    };
+    const fuelMap: Record<string, string> = {
+      'gasoline': 'Benzin',
+      'diesel': 'Dizel',
+      'gasoline_hybrid': 'Benzin / Hibrit',
+      'diesel_hybrid': 'Dizel / Hibrit',
+      'electric': 'Elektrik',
+      'lpg': 'LPG'
+    };
+
+    const trans = transMap[v.transmission] || v.transmission || '';
+    const fuel = fuelMap[v.fuel_type] || v.fuel_type || '';
     const coverImage = (vehicleImages && vehicleImages.length > 0) ? vehicleImages[0] : null;
+
+    const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
 
     allListings.push({
       id: `v_${v.id}`,
       db_id: v.id,
       store_id: v.store_id,
       type: 'vehicle',
-      name: `${v.brand} ${v.model} (${v.year})`,
-      description: v.description || `Şasi: ${v.chassis_number || ""}, Tip: ${v.type || ""}, KM: ${v.current_mileage || 0}`,
+      name: generatedTitle,
+      description: v.market_story || v.description || `Şasi: ${v.chassis_number || ""}, Tip: ${v.type || ""}, KM: ${v.current_mileage || 0}`,
       price: v.selling_price || 0,
       currency: v.currency || 'TRY',
       stock_quantity: 1,
@@ -860,9 +898,28 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
     });
 
     vehiclesRes.rows.forEach(v => {
+      const transMap: Record<string, string> = {
+        'manual': 'Manuel',
+        'automatic': 'Otomatik',
+        'semi_automatic': 'Yarı Otomatik',
+        'dual_clutch': 'Çift Kavrama (DCT/DSG)'
+      };
+      const fuelMap: Record<string, string> = {
+        'gasoline': 'Benzin',
+        'diesel': 'Dizel',
+        'gasoline_hybrid': 'Benzin / Hibrit',
+        'diesel_hybrid': 'Dizel / Hibrit',
+        'electric': 'Elektrik',
+        'lpg': 'LPG'
+      };
+
+      const trans = transMap[v.transmission] || v.transmission || '';
+      const fuel = fuelMap[v.fuel_type] || v.fuel_type || '';
+      const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
+
       mergedItems.push({
         id: `v_${v.id}`,
-        name: `${v.brand} ${v.model} (${v.year})`,
+        name: generatedTitle,
         description: `Model: ${v.model}, Year: ${v.year}, Mileage: ${v.current_mileage} km. Chassis: ${v.chassis_number}`,
         price: Number(v.selling_price) || 0,
         currency: v.currency || 'TRY',

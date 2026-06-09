@@ -273,12 +273,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <span className="text-rose-600 font-extrabold">
                 {lang === "tr" ? "Yıl" : "Year"}
               </span>
-              {product.name.match(/\((\d{4})\)/)?.[1] || "---"}
+              {(product as any).year || product.name.match(/^(\d{4})/)?.[1] || "---"}
             </span>
-            {product.description?.includes("KM:") && (
+            {((product as any).current_mileage || (product.sector_data as any)?.current_mileage) !== undefined && (
               <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
                 <span className="text-sky-600 font-extrabold">KM</span>
-                {product.description.match(/KM:\s*(\d+)/)?.[1] || "---"}
+                {Number((product as any).current_mileage || (product.sector_data as any)?.current_mileage).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
               </span>
             )}
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import JoditEditor from "jodit-react";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import {
   Layout,
   Palette,
@@ -1983,15 +1984,13 @@ export const PortfolioWebsiteGenerator = ({
             </div>
 
             <div className="p-0 flex-1 bg-white">
-              <JoditEditor
-                ref={editorRef}
+              <ReactQuill
                 value={
                   (editingLinkInfo.list === "quick"
                     ? quickLinks
                     : corporateLinks)[editingLinkInfo.index].content || ""
                 }
-                config={editorConfig}
-                onBlur={(newContent) => {
+                onChange={(newContent) => {
                   if (editingLinkInfo.list === "quick") {
                     setQuickLinks((prev) =>
                       prev.map((l, i) =>

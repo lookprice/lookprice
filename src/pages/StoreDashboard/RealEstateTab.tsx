@@ -38,10 +38,10 @@ import {
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
-import { RealEstateModal } from "../../components/RealEstateModal";
-import { LegalContractModal } from "../../components/LegalContractModal";
-import { ArrangeTourModal } from "../../components/ArrangeTourModal";
-import { SocialMediaShareModal } from "../../components/SocialMediaShareModal";
+const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
+const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
+const ArrangeTourModal = React.lazy(() => import("../../components/ArrangeTourModal").then(m => ({ default: m.ArrangeTourModal })));
+const SocialMediaShareModal = React.lazy(() => import("../../components/SocialMediaShareModal").then(m => ({ default: m.SocialMediaShareModal })));
 interface RealEstateTabProps {
   properties: any[];
   loading: boolean;
@@ -1743,73 +1743,88 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       })()}
 
       {/* Real Real Estate Modal component */}
-      <RealEstateModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        property={selectedProperty}
-        storeId={storeId || user?.store_id}
-        userRole={userRole}
-        onSave={async (p) => {
-          try {
-            if (onSave) {
-              await onSave(p);
-              setIsModalOpen(false);
-            }
-          } catch (err: any) {
-            alert("İlan kaydedilirken bir hata oluştu: " + (err.message || err));
-          }
-        }}
-      />
+      {isModalOpen && (
+        <React.Suspense fallback={<div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-semibold text-slate-600">İlan Formu Yükleniyor...</p>
+          </div>
+        </div>}>
+          <RealEstateModal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            property={selectedProperty}
+            storeId={storeId || user?.store_id}
+            userRole={userRole}
+            onSave={async (p) => {
+              try {
+                if (onSave) {
+                  await onSave(p);
+                  setIsModalOpen(false);
+                }
+              } catch (err: any) {
+                alert("İlan kaydedilirken bir hata oluştu: " + (err.message || err));
+              }
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {/* Dynamic Bilingual Legal Contract Generator Modal */}
       {contractProperty && (
-        <LegalContractModal
-          isOpen={isContractModalOpen}
-          onClose={() => {
-            setIsContractModalOpen(false);
-            setContractProperty(null);
-          }}
-          property={contractProperty}
-          branding={branding}
-          onSaveContract={async (contractDoc) => {
-            if (!onSave || !contractProperty) return;
-            const existingDocs = contractProperty.documents || [];
-            const updatedDocs = [...existingDocs.filter((d: any) => d.id !== contractDoc.id), contractDoc];
-            await onSave({
-              ...contractProperty,
-              documents: updatedDocs
-            });
-            setContractProperty(prev => prev ? { ...prev, documents: updatedDocs } : null);
-          }}
-        />
+        <React.Suspense fallback={null}>
+          <LegalContractModal
+            isOpen={isContractModalOpen}
+            onClose={() => {
+              setIsContractModalOpen(false);
+              setContractProperty(null);
+            }}
+            property={contractProperty}
+            branding={branding}
+            onSaveContract={async (contractDoc) => {
+              if (!onSave || !contractProperty) return;
+              const existingDocs = contractProperty.documents || [];
+              const updatedDocs = [...existingDocs.filter((d: any) => d.id !== contractDoc.id), contractDoc];
+              await onSave({
+                ...contractProperty,
+                documents: updatedDocs
+              });
+              setContractProperty(prev => prev ? { ...prev, documents: updatedDocs } : null);
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* Tour Arranger Modal */}
       {isTourModalOpen && activeTourProperty && (
-        <ArrangeTourModal
-          onClose={() => {
-            setIsTourModalOpen(false);
-            setActiveTourProperty(null);
-          }}
-          property={activeTourProperty}
-          onSave={() => {
-            setIsTourModalOpen(false);
-            setActiveTourProperty(null);
-          }}
-        />
+        <React.Suspense fallback={null}>
+          <ArrangeTourModal
+            onClose={() => {
+              setIsTourModalOpen(false);
+              setActiveTourProperty(null);
+            }}
+            property={activeTourProperty}
+            onSave={() => {
+              setIsTourModalOpen(false);
+              setActiveTourProperty(null);
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* Social Media Sharing & Poster Creation Wizard */}
       {isSocialShareModalOpen && socialShareProperty && (
-        <SocialMediaShareModal
-          isOpen={isSocialShareModalOpen}
-          onClose={() => {
-            setIsSocialShareModalOpen(false);
-            setSocialShareProperty(null);
-          }}
-          property={socialShareProperty}
-          branding={branding}
-        />
+        <React.Suspense fallback={null}>
+          <SocialMediaShareModal
+            isOpen={isSocialShareModalOpen}
+            onClose={() => {
+              setIsSocialShareModalOpen(false);
+              setSocialShareProperty(null);
+            }}
+            property={socialShareProperty}
+            branding={branding}
+          />
+        </React.Suspense>
       )}
 
       {/* Real Estate Poster Print Component */}
