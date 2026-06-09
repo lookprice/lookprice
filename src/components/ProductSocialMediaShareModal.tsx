@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { 
   X, 
   Copy, 
@@ -35,6 +36,49 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
   product,
   branding
 }) => {
+  const { slug: urlSlug } = useParams<{ slug?: string }>();
+
+  // Format slug nicely to Turkish title case
+  const formatSlugToTitle = (slugStr: string): string => {
+    if (!slugStr) return "";
+    const lowerSlug = slugStr.toLowerCase().trim();
+    if (lowerSlug === 'gap-bilisim' || lowerSlug === 'gap_bilisim' || lowerSlug === 'gapbilisim') {
+      return 'Gap Bilişim';
+    }
+    if (lowerSlug === 'lookprice') {
+      return 'LookPrice';
+    }
+    return slugStr
+      .split(/[-_]/)
+      .map(word => {
+        if (!word) return "";
+        let firstChar = word.charAt(0);
+        if (firstChar === 'i') firstChar = 'İ';
+        else if (firstChar === 'ı') firstChar = 'I';
+        else if (firstChar === 'ş') firstChar = 'Ş';
+        else if (firstChar === 'ç') firstChar = 'Ç';
+        else if (firstChar === 'ğ') firstChar = 'Ğ';
+        else if (firstChar === 'ü') firstChar = 'Ü';
+        else if (firstChar === 'ö') firstChar = 'Ö';
+        else firstChar = firstChar.toUpperCase();
+        return firstChar + word.slice(1);
+      })
+      .join(" ");
+  };
+
+  const storeName = useMemo(() => {
+    const candidateName = branding?.store_name || branding?.name;
+    const activeSlug = urlSlug || branding?.slug || (branding as any)?.parent_slug;
+    
+    if (!candidateName || candidateName.toLowerCase().trim() === 'lookprice') {
+      if (activeSlug && activeSlug.toLowerCase().trim() !== 'lookprice') {
+        return formatSlugToTitle(activeSlug);
+      }
+      return 'LookPrice Mağazası';
+    }
+    return candidateName;
+  }, [branding, urlSlug]);
+
   const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('sunset_orange');
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('promo');
@@ -132,7 +176,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       case 'neon_cyber':
         return {
           bg: 'bg-gradient-to-br from-zinc-950 via-indigo-950 to-purple-950',
-          textTitle: 'text-cyan-455 font-extrabold',
+          textTitle: 'text-cyan-400 font-extrabold',
           textBody: 'text-cyan-100',
           accentBorder: 'border-cyan-500/30',
           pillBg: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
@@ -156,9 +200,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
   // Dynamic Captions generator (100% Client-side robust copywriting for products)
   const getCaptionText = () => {
-    const storeName = branding?.store_name || branding?.name || 'LookPrice Mağazası';
     const contactPhone = branding?.phone || '+90 (548) 000 0000';
-    const activeHashtags = `#alisveris #kampanya #kampanyaliurunler #kalite #indirim #lookprice #firsat #hediyelik #${productCategory.toLowerCase().replace(/\s+/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/\s+/g, '')}`;
+    const storeHashtag = `#${storeName.toLowerCase().replace(/[^a-z0-0ğüşıöç]/g, '')}`;
+    const activeHashtags = `#alisveris #kampanya #kampanyaliurunler #kalite #indirim #lookprice #firsat #hediyelik #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
 
     switch (selectedTone) {
       case 'luxury':
@@ -167,14 +211,14 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                `🛍️ Ürün Bilgileri ve Özellikleri:\n` +
                `• Ürün Adı: ${productTitle}\n` +
                `• Kategori / Marka: ${productCategory} ${productBrand ? `• ${productBrand}` : ''}\n` +
-               `• Stok Durumu: Sınırlı Stok / Güvenli Teslimat\n` +
+               `• Güvence: %100 Orijinal Ürün & ${storeName} Güvencesi\n` +
                (discountPercentage > 0 ? `• Kampanya Ayrıcalığı: Net %${discountPercentage} Seçkin İndirim Oranı\n` : '') +
                `• Barkod ID: ${product.barcode || 'LP-PROD'}\n\n` +
                `💰 Ayrıcalıklı Liste Satış Bedeli: ${priceText}\n` +
                (oldPriceText ? `❌ Önceki Fiyat: ${oldPriceText}\n` : '') +
                `\nHayatına prestij ve asalet katmak isteyen, detaylardaki mükemmelliği önemseyen tüm seçkin misafirlerimizi mağazamıza davet ediyoruz. İncelemeniz ve dilediğiniz adrese randevulu kurye gönderimleri için bize hemen ulaşabilirsiniz.\n\n` +
                `📞 İletişim Hattı: ${contactPhone}\n` +
-               `🏢 Koleksiyon Sahibi: ${storeName}\n\n` +
+               `🏢 Koleksiyon Sahibi / Mağaza: ${storeName}\n\n` +
                `${activeHashtags}`;
 
       case 'promo':
@@ -185,21 +229,21 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                (productBrand ? `• Marka Kalitesi: ${productBrand}\n` : '') +
                (discountPercentage > 0 ? `🎊 Dev İndirim Oranı: %${discountPercentage} İndirim Fırsatı!\n` : '') +
                `• Barkod / Kod: ${product.barcode || 'LP-PROD'}\n` +
-               `• Güvence: LookPrice 100% Mağaza Orijinallik Garantili\n\n` +
+               `• Güvence: %100 Orijinal Ürün & ${storeName} Güvencesi\n\n` +
                `💰 Şok Liste Fiyatı: ${priceText}\n` +
                (oldPriceText ? `❌ Eski Satış Fiyatı: ${oldPriceText} (Büyük İndirim Yapıldı!)\n` : '') +
                `\nBu bütçe dostu, Premium tasarımı kapınıza kadar ulaştırmak ve hızlı sipariş geçmek için bize hemen DM atabilir veya telefon hattımızdan iletişime geçebilirsiniz. Fırsatı kaçırmayın!\n\n` +
                `📞 Çağrı / WP Destek: ${contactPhone}\n` +
-               `🏪 Mağaza Mağazası: ${storeName}\n\n` +
+               `🏪 LookPrice Satıcı Mağazası: ${storeName}\n\n` +
                `#indirimvar #sezonindirimi #alisveriszamani #firsatfiyat #lookpriceshop ${activeHashtags}`;
 
       case 'friendly':
         return `🌟 Günün Harika Ürünü İle Karşınızdayız! 🌟\n\n` +
-               `Selamlar sevgili LookPrice takipçileri! 😍 Bugün mağazamızın en beğenilen, her köşede tarzınızı ve günlük kullanım konforunuzu tazeleyecek pırıl pırıl bir parçayı sizinle paylaşmak için çok heyecanlıyız: ${productTitle}! ✨\n\n` +
+               `Selamlar sevgili ${storeName} takipçileri! 😍 Bugün mağazamızın en beğenilen, her köşede tarzınızı ve günlük kullanım konforunuzu tazeleyecek pırıl pırıl bir parçayı sizinle paylaşmak için çok heyecanlıyız: ${productTitle}! ✨\n\n` +
                `🌸 Neden Bu Ürüne Bayılacaksınız?\n` +
                `👉 Kalite & Zarafet bir arada: ${productCategory} koleksiyonunun en yeni tarzı\n` +
                (productBrand ? `👉 Güvendiğiniz Marka: ${productBrand} güvencesiyle\n` : '') +
-               (discountPercentage > 0 ? `👉 Çok Özel İndirim: Tam %${discountPercentage} indirim yaptı her bütçeye uygun hale getirdik! 🥳\n` : '') +
+               (discountPercentage > 0 ? `👉 Çok Özel İndirim: Tam %${discountPercentage} indirim yaptık, her bütçeye uygun hale getirdik! 🥳\n` : '') +
                `👉 Tam günlük kullanımınıza, şık sofralarınıza veya sevdiklerinize hediye edilmeye uygun!\n\n` +
                `💰 Yeni Sahibini Bekleyen Fiyat: ${priceText}\n` +
                (oldPriceText ? `👉 Eski fiyata elveda: ${oldPriceText} yerine sadece ${priceText}! 😍\n` : '') +
@@ -274,84 +318,61 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     }
     ctx.stroke();
 
-    // Draw stylish bordering
+    // Draw stylish outer border
     ctx.strokeStyle = selectedTheme === 'luxury_dark' ? '#d97706' : // amber-650
                       selectedTheme === 'sunset_orange' ? '#ffffff' : // white
                       selectedTheme === 'neon_cyber' ? '#06b6d4' : '#e4e4e7'; // cyan
     ctx.lineWidth = 12;
     ctx.strokeRect(30, 30, width - 60, height - 60);
 
-    // Draw Store Branding
-    ctx.fillStyle = (selectedTheme === 'sunset_orange' || selectedTheme === 'minimal_carbon') ? '#ffffff' : '#ffffff';
-    if (selectedTheme === 'luxury_dark') ctx.fillStyle = '#f59e0b';
-    if (selectedTheme === 'neon_cyber') ctx.fillStyle = '#22d3ee';
+    // Draw Store Branding Header inside the Canvas
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.fillRect(30, 30, width - 60, 110);
 
-    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(30, 140);
+    ctx.lineTo(width - 30, 140);
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
+                    selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
+    ctx.font = '900 28px system-ui, sans-serif';
     ctx.letterSpacing = '5px';
-    const brandName = (branding?.store_name || branding?.name || 'LOOKPRICE SHOP').toUpperCase();
-    ctx.fillText(brandName, 80, 95);
+    const brandName = storeName.toUpperCase();
+    ctx.fillText(brandName, 80, 80);
 
-    ctx.fillStyle = '#ffffff';
-    if (selectedTheme === 'sunset_orange') ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    if (selectedTheme === 'luxury_dark') ctx.fillStyle = '#a1a1aa';
-    if (selectedTheme === 'neon_cyber') ctx.fillStyle = '#818cf8';
-
+    ctx.fillStyle = '#a1a1aa';
+    if (selectedTheme === 'sunset_orange') ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
     ctx.font = '800 13px system-ui, sans-serif';
     ctx.letterSpacing = '2px';
-    ctx.fillText("PREMIUM PRODUCT SHOWCASE", 80, 125);
+    ctx.fillText("PREMIUM PRODUCT SHOWCASE", 80, 112);
 
-    // Discount badge on top right if discountPercentage exists
-    if (discountPercentage > 0) {
-      // Draw circular discount sticker or clean tag
-      const stickerX = width - 180;
-      const stickerY = 90;
-      
-      ctx.fillStyle = selectedTheme === 'sunset_orange' ? '#ffffff' : '#e11d48';
-      if (selectedTheme === 'luxury_dark') ctx.fillStyle = '#d97706';
-      if (selectedTheme === 'neon_cyber') ctx.fillStyle = '#06b6d4';
-      
-      ctx.beginPath();
-      ctx.arc(stickerX, stickerY, 55, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Text inside sticker
-      ctx.fillStyle = selectedTheme === 'sunset_orange' ? '#e11d48' : '#ffffff';
-      if (selectedTheme === 'neon_cyber') ctx.fillStyle = '#030712';
-      ctx.textAlign = 'center';
-      
-      ctx.font = 'bold 13px system-ui, sans-serif';
-      ctx.fillText("İNDİRİM", stickerX, stickerY - 12);
-      ctx.font = '900 34px system-ui, sans-serif';
-      ctx.fillText(`%${discountPercentage}`, stickerX, stickerY + 18);
-      ctx.textAlign = 'left';
-    } else {
-      // Draw regular barcode reference badge
-      const refNo = product.barcode || 'PROD-VİTRİN';
-      ctx.fillStyle = selectedTheme === 'sunset_orange' ? 'rgba(255,255,255,0.15)' : '#1e293b';
-      ctx.fillRect(width - 280, 70, 200, 45);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(width - 280, 70, 200, 45);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px monospace';
-      ctx.letterSpacing = '1px';
-      ctx.textAlign = 'center';
-      ctx.fillText(refNo, width - 180, 98);
-      ctx.textAlign = 'left';
-    }
+    // Draw phone top-right text
+    ctx.textAlign = 'right';
+    ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#fbbf24' :
+                    selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
+    ctx.font = 'bold 20px monospace';
+    const contactPhone = branding?.phone || 'LOOKPRICE DESTEK';
+    ctx.fillText(contactPhone, width - 80, 95);
+    ctx.textAlign = 'left'; // Reset
 
     // Main image loading
     const mainImageUrl = productImages[0] || null;
 
     const finalizeDrawAndDownload = (imgElement: HTMLImageElement | null) => {
-      const imgX = 80;
-      const imgY = 160;
-      const imgWidth = width - 160;
-      const imgHeight = selectedRatio === 'square' ? 440 : 800;
+      // Image occupies the whole core region of the card
+      const imgX = 30;
+      const imgY = 140;
+      const imgWidth = width - 60;
+      const imgHeight = selectedRatio === 'square' ? height - 170 : 1210; // story reaches up to 1350
 
-      // Draw shadow/placeholder background
-      ctx.fillStyle = 'rgba(0,0,0,0.2)';
-      ctx.fillRect(imgX, imgY, imgWidth, imgHeight);
+      ctx.save();
+      // Clip image to outer border limits
+      ctx.rect(imgX, imgY, imgWidth, imgHeight);
+      ctx.clip();
 
       if (imgElement) {
         try {
@@ -369,13 +390,6 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
           }
 
           ctx.drawImage(imgElement, sx, sy, sWidth, sHeight, imgX, imgY, imgWidth, imgHeight);
-
-          // Subtle black gradient overlay on the bottom
-          const imgGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 140, imgX, imgY + imgHeight);
-          imgGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-          imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
-          ctx.fillStyle = imgGrad;
-          ctx.fillRect(imgX, imgY + imgHeight - 140, imgWidth, 140);
         } catch (err) {
           drawFallback(imgX, imgY, imgWidth, imgHeight);
         }
@@ -383,131 +397,198 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
         drawFallback(imgX, imgY, imgWidth, imgHeight);
       }
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(imgX, imgY, imgWidth, imgHeight);
+      ctx.restore();
 
-      // --- TEXT CONTENT AREA ---
-      const contentYStart = imgY + imgHeight + 50;
+      // Subtle black gradient overlay on the bottom portion of image
+      const imgGrad = ctx.createLinearGradient(30, imgY + imgHeight - 480, 30, imgY + imgHeight);
+      imgGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      imgGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
+      imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+      ctx.fillStyle = imgGrad;
+      ctx.fillRect(30, imgY + imgHeight - 480, imgWidth, 480);
 
-      // Category / Brand Pill Tags
-      ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
-                      selectedTheme === 'sunset_orange' ? '#ffffff' :
-                      selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
-      ctx.fillRect(80, contentYStart, 160, 36);
+      // Draw floating discount sticker top right if discountPercentage exists
+      if (discountPercentage > 0) {
+        const stickerX = width - 130;
+        const stickerY = 240;
+        
+        ctx.fillStyle = '#e11d48'; // red-650
+        ctx.beginPath();
+        ctx.arc(stickerX, stickerY, 65, 0, Math.PI * 2);
+        ctx.fill();
 
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 15px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(productCategory.toUpperCase().substring(0, 15), 160, contentYStart + 24);
-      ctx.textAlign = 'left';
-
-      if (productBrand) {
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-        ctx.fillRect(255, contentYStart, 180, 36);
-        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-        ctx.strokeRect(255, contentYStart, 180, 36);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 14px system-ui, sans-serif';
-        ctx.fillText(`🏷️ ${productBrand.toUpperCase()}`, 275, contentYStart + 23);
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 16px system-ui, sans-serif';
+        ctx.fillText("İNDİRİM", stickerX, stickerY - 14);
+        ctx.font = '950 38px system-ui, sans-serif';
+        ctx.fillText(`%${discountPercentage}`, stickerX, stickerY + 20);
+        ctx.textAlign = 'left';
       }
 
-      // Title layout
+      // --- TEXT CONTENT GLASS CARD OVERLAY ---
+      const glassX = 70;
+      const glassY = selectedRatio === 'square' ? 680 : 1010;
+      const glassW = width - 140;
+      const glassH = 330;
+
+      // Draw glass card container
+      ctx.fillStyle = 'rgba(8, 11, 22, 0.90)'; // premium slate backdrop
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(glassX, glassY, glassW, glassH, 24) : ctx.rect(glassX, glassY, glassW, glassH);
+      ctx.fill();
+
+      ctx.strokeStyle = selectedTheme === 'luxury_dark' ? 'rgba(217,119,6,0.35)' :
+                        selectedTheme === 'neon_cyber' ? 'rgba(6,182,212,0.4)' : 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Pills starts at X = glassX + 40, Y = glassY + 40
+      const pillY = glassY + 40;
+      ctx.font = 'bold 15px system-ui, sans-serif';
+      const catText = productCategory.toUpperCase().substring(0, 20);
+      const catWidth = ctx.measureText(catText).width + 30;
+
+      // Category Pill
+      ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#d97706' :
+                      selectedTheme === 'neon_cyber' ? '#06b6d4' : '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(glassX + 35, pillY, catWidth, 34, 8) : ctx.rect(glassX + 35, pillY, catWidth, 34);
+      ctx.fill();
+
+      ctx.fillStyle = '#010510';
+      ctx.font = '900 13px system-ui, sans-serif';
+      ctx.fillText(catText, glassX + 50, pillY + 22);
+
+      let nextPillX = glassX + 35 + catWidth + 15;
+
+      // Brand Pill (if exists)
+      if (productBrand) {
+        const brandText = productBrand.toUpperCase();
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        const brandWidth = ctx.measureText(brandText).width + 30;
+
+        ctx.fillStyle = 'rgba(79, 70, 229, 0.15)';
+        ctx.strokeStyle = 'rgba(79, 70, 229, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(nextPillX, pillY, brandWidth, 34, 8) : ctx.rect(nextPillX, pillY, brandWidth, 34);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#818cf8';
+        ctx.fillText(brandText, nextPillX + 15, pillY + 22);
+        nextPillX += brandWidth + 15;
+      }
+
+      // Barcode Pill (replaces stocks)
+      if (product.barcode) {
+        const barText = `KOD: ${product.barcode.toUpperCase()}`;
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        const barWidth = ctx.measureText(barText).width + 30;
+
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(nextPillX, pillY, barWidth, 34, 8) : ctx.rect(nextPillX, pillY, barWidth, 34);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillText(barText, nextPillX + 15, pillY + 22);
+      }
+
+      // Product Title drawing
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 36px system-ui, sans-serif';
-      const titleLines = wrapText(productTitle, width - 160);
-      let titleY = contentYStart + 90;
-      titleLines.forEach((line, index) => {
-        if (index < 2) {
-          ctx.fillText(line, 80, titleY);
-          titleY += 45;
+      ctx.font = '950 30px system-ui, sans-serif';
+      const titleLines = wrapText(productTitle, glassW - 70);
+      let titleYLine = glassY + 115;
+      titleLines.forEach((line, idx) => {
+        if (idx < 2) {
+          ctx.fillText(line, glassX + 35, titleYLine);
+          titleYLine += 42;
         }
       });
 
-      // Price Tag Row
-      const priceBlockY = selectedRatio === 'square' ? height - 200 : height - 380;
-      const priceGradient = ctx.createLinearGradient(80, priceBlockY, width - 80, priceBlockY);
-      
-      if (selectedTheme === 'luxury_dark') {
-        priceGradient.addColorStop(0, '#ca8a04');
-        priceGradient.addColorStop(1, '#eab308');
-      } else if (selectedTheme === 'sunset_orange') {
-        priceGradient.addColorStop(0, '#ffffff');
-        priceGradient.addColorStop(1, '#ffeeed');
-      } else if (selectedTheme === 'neon_cyber') {
-        priceGradient.addColorStop(0, '#4f46e5');
-        priceGradient.addColorStop(1, '#06b6d4');
-      } else {
-        priceGradient.addColorStop(0, '#ffffff');
-        priceGradient.addColorStop(1, '#e4e4e7');
-      }
-      ctx.fillStyle = priceGradient;
-      ctx.fillRect(80, priceBlockY, width - 160, 100);
+      // Price block at bottom of glass block
+      const priceRowY = glassY + 245;
 
-      // Price typography integration
-      ctx.fillStyle = (selectedTheme === 'sunset_orange' || selectedTheme === 'minimal_carbon') ? '#ea580c' : '#ffffff';
-      if (selectedTheme === 'minimal_carbon') ctx.fillStyle = '#111827';
-      
-      ctx.font = 'bold 14px system-ui, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText(discountPercentage > 0 ? "KAMPANYALI LİSTE FİYATI" : "AVANTAJLI SATIŞ FİYATI", 110, priceBlockY + 40);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(glassX + 35, priceRowY - 35);
+      ctx.lineTo(glassX + glassW - 35, priceRowY - 35);
+      ctx.stroke();
 
-      ctx.font = '900 45px system-ui, sans-serif';
-      ctx.fillText(priceText, 110, priceBlockY + 84);
+      ctx.fillStyle = '#a1a1aa';
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.fillText(discountPercentage > 0 ? "KAMPANYALI FİYAT SEÇENEĞİ" : "AVANTAJLI LİSTE FİYATI", glassX + 35, priceRowY - 12);
 
-      // Strikeout original price if discount exists
+      ctx.fillStyle = '#10b981'; // emerald-450
+      ctx.font = '900 36px system-ui, sans-serif';
+      ctx.fillText(priceText, glassX + 35, priceRowY + 28);
+
       if (oldPriceText) {
         ctx.font = 'bold 22px system-ui, sans-serif';
-        ctx.fillStyle = (selectedTheme === 'sunset_orange' || selectedTheme === 'minimal_carbon') ? '#9ca3af' : 'rgba(255,255,255,0.5)';
-        const textWidth = ctx.measureText(oldPriceText).width;
-        
-        const oldPriceX = width - 110 - textWidth;
-        ctx.fillText(oldPriceText, oldPriceX, priceBlockY + 65);
-        
-        // Red diagonal strike line
+        ctx.fillStyle = '#ef4444';
+        const prLabelWidth = ctx.measureText(priceText).width;
+        const oldXLoc = glassX + 35 + prLabelWidth + 30;
+        ctx.fillText(oldPriceText, oldXLoc, priceRowY + 22);
+
+        const oldW = ctx.measureText(oldPriceText).width;
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(oldPriceX - 4, priceBlockY + 58);
-        ctx.lineTo(oldPriceX + textWidth + 4, priceBlockY + 58);
+        ctx.moveTo(oldXLoc - 4, priceRowY + 14);
+        ctx.lineTo(oldXLoc + oldW + 4, priceRowY + 14);
         ctx.stroke();
       }
 
-      // Specs bullet message underneath price
-      const specY = priceBlockY - 60;
-      ctx.fillStyle = '#ffffff';
-      if (selectedTheme === 'sunset_orange') ctx.fillStyle = '#fffbeb';
-      ctx.font = '800 20px system-ui, sans-serif';
-
-      let detailsStr = `🔥 Kampanya Sınırlı Stok!  •  100% Orijinal  •  LookPrice Hızlı Teslimat`;
-      if (product.stock_quantity !== undefined && product.stock_quantity < 10) {
-        detailsStr = `⚠️ Son ${product.stock_quantity} Adet Kaldı!  •  Orijinal Ambalajında  •  LookPrice Mağazası`;
-      }
-      ctx.fillText(detailsStr, 80, specY);
-
-      // Footer brand row
-      const footerY = height - 60;
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(80, footerY - 20);
-      ctx.lineTo(width - 80, footerY - 20);
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
-      if (selectedTheme === 'sunset_orange') ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      if (selectedTheme === 'luxury_dark') ctx.fillStyle = '#a1a1aa';
-      
-      ctx.font = 'bold 13px system-ui, sans-serif';
-      ctx.fillText(`GÜVENLİ MULTI-STATION SİPARİŞİ VE WP DESTEK`, 80, footerY + 15);
-
+      // Guarantee badge on right alignment
       ctx.textAlign = 'right';
-      const footerPhone = branding?.phone ? `WP: ${branding.phone}` : 'LOOKPRICE HIZLI VİTRİN AĞI';
-      ctx.fillText(footerPhone, width - 80, footerY + 15);
-      ctx.textAlign = 'left';
+      ctx.fillStyle = '#f59e0b'; // amber-500
+      ctx.font = 'bold 15px system-ui, sans-serif';
+      ctx.fillText("⭐ %100 SATICI GÜVENCESİ", glassX + glassW - 35, priceRowY + 18);
+      ctx.textAlign = 'left'; // Restore alignment
 
-      // Download trigger
+      // Story Special Callout Box below the visual frame
+      if (selectedRatio === 'story') {
+        const calloutY = 1420;
+        const calloutH = 340;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(80, calloutY, width - 160, calloutH, 20) : ctx.rect(80, calloutY, width - 160, calloutH);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = '900 24px system-ui, sans-serif';
+        ctx.fillText("⭐ %100 ORİJİNAL ÜRÜN GARANTİSİ", width / 2, calloutY + 70);
+
+        ctx.fillStyle = '#e4e4e7';
+        ctx.font = 'semibold 18px system-ui, sans-serif';
+        const strLinesText = [
+          `Bu yüksek tescilli tasarım, orijinal faturası ve ambalajı`,
+          `ile mağazamız güvencesinde kapınıza kadar ulaştırılıyor!`,
+          `Hızlı destek, sipariş ve randevu için bize hemen ulaşın.`
+        ];
+        strLinesText.forEach((lnText, lnIdx) => {
+          ctx.fillText(lnText, width / 2, calloutY + 130 + (lnIdx * 45));
+        });
+        ctx.textAlign = 'left'; // restore
+      }
+
+      // Trigger actual download of canvas
       try {
         const link = document.createElement("a");
         const sanitizedTitle = productTitle.toLowerCase().replace(/\s+/g, '-').substring(0, 20);
@@ -529,7 +610,6 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       ctx.fillStyle = grad;
       ctx.fillRect(x, y, w, h);
 
-      // Abstract grids
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.lineWidth = 3;
       for (let offset = 0; offset < w + h; offset += 50) {
@@ -619,114 +699,110 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
             <div className="flex justify-center items-center py-4">
               <div 
                 ref={previewContainerRef}
-                className={`relative w-full max-w-[340px] rounded-2xl overflow-hidden shadow-xl border-4 ${themeConfig.accentBorder} ${themeConfig.bg} transition-all duration-300 flex flex-col`}
+                className={`relative w-full max-w-[340px] rounded-2xl overflow-hidden shadow-2xl border-4 ${themeConfig.accentBorder} ${themeConfig.bg} transition-all duration-300 flex flex-col`}
                 style={{ aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16' }}
               >
-                {/* Header */}
-                <div className="p-4 flex justify-between items-start z-10">
-                  <div>
-                    <h3 className={`text-sm font-black truncate max-w-[180px] leading-tight select-none uppercase tracking-wider ${themeConfig.textTitle}`}>
-                      {branding?.store_name || branding?.name || 'LOOKPRICE SHOP'}
+                {/* Brand Header (Sits beautifully at the top) */}
+                <div className="p-3 bg-black/45 backdrop-blur-md border-b border-white/10 flex justify-between items-center z-10">
+                  <div className="truncate pr-2">
+                    <h3 className={`text-[11px] font-black tracking-wider uppercase leading-none select-none ${themeConfig.textTitle}`}>
+                      {storeName}
                     </h3>
-                    <p className="text-[7.5px] font-black tracking-wider text-slate-350 uppercase select-none">PREMIUM PRODUCT</p>
-                  </div>
-                  {discountPercentage > 0 ? (
-                    <span className="bg-red-600 text-white font-mono text-[9px] font-black px-2 py-0.5 rounded-full select-none uppercase animate-pulse">
-                      %{discountPercentage} İndirim
+                    <span className="text-[7.5px] font-black tracking-widest text-zinc-400 uppercase mt-0.5 block select-none">
+                      PREMIUM VİTRİN
                     </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] font-mono font-black text-rose-400 bg-rose-500/10 border border-rose-500/25 px-1.5 py-0.5 rounded select-none">
+                      {branding?.phone || 'LOOKPRICE DESTEK'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Main Visual Image centerpiece (Occupies 100% of rest of card height) */}
+                <div className="relative flex-1 w-full bg-slate-900 overflow-hidden flex flex-col justify-end">
+                  {/* Image full bleed background */}
+                  {productImages[0] ? (
+                    <img 
+                      src={productImages[0]} 
+                      alt={productTitle} 
+                      className="absolute inset-0 w-full h-full object-cover select-none"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
-                    <span className="bg-slate-900 border border-slate-700 text-white font-mono text-[8px] font-semibold px-1.5 py-0.5 rounded uppercase select-none">
-                      {product.barcode || 'VİTRİN'}
+                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-800">
+                      <span className="text-4xl mb-1">🎁</span>
+                      <span className="text-[10px] font-bold">Görsel Eklenmemiş</span>
+                    </div>
+                  )}
+
+                  {/* Gradient Overlay for exceptional legibility and contrast */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+
+                  {/* Floating Discount Sticker */}
+                  {discountPercentage > 0 && (
+                    <span className="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-mono text-[9px] font-black px-2.5 py-1 rounded-full select-none uppercase shadow-lg animate-pulse z-20">
+                      %{discountPercentage} Dev İndirim!
                     </span>
                   )}
-                </div>
 
-                {/* Product Image Box */}
-                <div className="px-4 flex-1 flex flex-col justify-center min-h-0">
-                  <div className="relative w-full flex-1 rounded-xl overflow-hidden bg-white/10 border border-white/20 max-h-[160px] lg:max-h-[220px]">
-                    {productImages[0] ? (
-                      <img 
-                        src={productImages[0]} 
-                        alt={productTitle} 
-                        className="w-full h-full object-cover select-none"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                        <span className="text-3xl">🎁</span>
-                        <span className="text-[9px] font-bold mt-1">Görsel Eklenmemiş</span>
-                      </div>
-                    )}
+                  {/* PREMIUM OVERLAY INFO BLOC (Always visible, clean spacing) */}
+                  <div className="relative z-10 p-2.5 m-2.5 bg-slate-950/80 backdrop-blur-md border border-white/10 rounded-xl flex flex-col gap-1.5">
                     
-                    {/* Floating Price Plate */}
-                    <div className="absolute bottom-2 right-2 bg-slate-950/95 text-white px-3 py-1 rounded-lg border border-slate-700 shadow-lg text-right">
-                      {oldPriceText && (
-                        <span className="line-through text-[8.5px] text-red-400 font-extrabold mr-1">{oldPriceText}</span>
+                    {/* Pills row (Category, Brand, Barcode) - NO STOCKS! */}
+                    <div className="flex gap-1 flex-wrap select-none">
+                      <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
+                        {productCategory}
+                      </span>
+                      {productBrand && (
+                        <span className="text-[7.5px] font-bold px-1.5 py-0.5 rounded-md border border-indigo-500/25 bg-indigo-500/10 text-indigo-300 uppercase">
+                          {productBrand}
+                        </span>
                       )}
-                      <span className="text-xs font-black text-emerald-400">{priceText}</span>
+                      {product.barcode && (
+                        <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded-md border border-cyan-500/25 bg-cyan-500/10 text-cyan-300 uppercase">
+                          KOD: {product.barcode}
+                        </span>
+                      )}
                     </div>
+
+                    {/* Product Title */}
+                    <h4 className={`text-[11.5px] leading-snug font-extrabold uppercase line-clamp-2 select-text ${themeConfig.textTitle}`}>
+                      {productTitle}
+                    </h4>
+
+                    {/* Price and Action Section */}
+                    <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/10">
+                      <div>
+                        <span className="block text-[6.5px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                          {discountPercentage > 0 ? "KAMPANYALI SEÇENEK" : "AVANTAJLI LİSTE"}
+                        </span>
+                        <div className="flex items-baseline gap-1.5 leading-none">
+                          <span className="text-xs font-black text-emerald-400">{priceText}</span>
+                          {oldPriceText && (
+                            <span className="line-through text-[8.5px] text-red-500 font-extrabold">{oldPriceText}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Premium Assurance Tag */}
+                      <span className="text-[7.5px] font-extrabold text-[#fbbf24] bg-amber-400/15 border border-amber-400/20 px-1.5 py-0.5 rounded select-none uppercase shrink-0">
+                        %100 ORİJİNAL
+                      </span>
+                    </div>
+
                   </div>
                 </div>
 
-                {/* Specs Box */}
-                <div className="px-4 mt-2 mb-3">
-                  <div className="flex gap-1 flex-wrap select-none font-sans mb-1.5">
-                    <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
-                      {productCategory}
-                    </span>
-                    {productBrand && (
-                      <span className="text-[8.5px] font-bold px-2 py-0.5 rounded-md border uppercase text-indigo-700 bg-indigo-50/70 border-indigo-200">
-                        🏷️ {productBrand}
-                      </span>
-                    )}
-                    {product.stock_quantity !== undefined && (
-                      <span className={`text-[8.5px] font-semibold px-2 py-0.5 rounded-md border ${
-                        selectedTheme === 'sunset_orange' 
-                          ? 'text-white border-white/30 bg-white/10' 
-                          : 'text-slate-300 border-slate-700/55'
-                      }`}>
-                        Stok: {product.stock_quantity} adet
-                      </span>
-                    )}
-                  </div>
-                  
-                  <h4 className={`text-xs tracking-tight leading-snug mt-1 font-extrabold uppercase line-clamp-2 ${themeConfig.textTitle}`}>
-                    {productTitle}
-                  </h4>
-                </div>
-
-                {/* Callout box for Vertical Ratio Story */}
+                {/* Callout box for Vertical Ratio Story - sits beautifully below the centerpiece */}
                 {selectedRatio === 'story' && (
-                  <div className={`px-4 py-3 mx-4 my-2 rounded-xl text-center flex flex-col justify-center items-center border ${
-                    selectedTheme === 'sunset_orange'
-                      ? 'bg-white/10 border-white/20'
-                      : 'bg-indigo-500/10 border-indigo-550/25'
-                  }`}>
-                    <span className={`text-[10px] font-black block mb-0.5 uppercase tracking-widest ${
-                      selectedTheme === 'sunset_orange' ? 'text-white' : 'text-cyan-400'
-                    }`}>⭐ KAMPANYA VE GARANTİ</span>
-                    <p className={`text-[9.5px] max-w-[210px] mx-auto leading-relaxed ${
-                      selectedTheme === 'sunset_orange' ? 'text-orange-50 font-semibold' : 'text-zinc-300'
-                    }`}>Orijinal kutusunda, mağaza garantili ve hızlı kargo ayrılacağıyla hemen satın alabilirsiniz!</p>
+                  <div className="p-3 mx-2.5 mb-2.5 bg-white/5 border border-white/10 rounded-xl text-center flex flex-col justify-center items-center">
+                    <span className="text-[8.5px] font-black tracking-wider text-[#fbbf24] mb-0.5 uppercase">⭐ %100 SATICI GÜVENCESİ</span>
+                    <p className="text-[8.5px] text-slate-350 leading-normal">
+                      Orijinal kutusundaki bu parçaya <strong>{storeName}</strong> ayrıcalığı ve hızlı kargo desteği ile sahip olabilirsiniz!
+                    </p>
                   </div>
                 )}
-
-                {/* Footer with store info */}
-                <div className={`mt-auto px-4 py-3 flex justify-between items-center text-[8.5px] ${themeConfig.footerBg}`}>
-                  <div className="truncate max-w-[150px]">
-                    <span className={`block text-[6.5px] uppercase leading-none ${
-                      selectedTheme === 'sunset_orange' ? 'text-orange-50 font-black' : 'text-zinc-500'
-                    }`}>GÜVENLİ MAĞAZA</span>
-                    <strong className={`mt-0.5 block truncate uppercase ${
-                      selectedTheme === 'sunset_orange' ? 'text-white' : 'text-zinc-200'
-                    }`}>{branding?.store_name || branding?.name || 'LOOKPRICE'}</strong>
-                  </div>
-                  <div className="text-right">
-                    <span className={`block tracking-wider font-mono font-black leading-none ${
-                      selectedTheme === 'sunset_orange' ? 'text-white' : 'text-zinc-400'
-                    }`}>{branding?.phone || 'LOOKPRICE.NET'}</span>
-                  </div>
-                </div>
 
               </div>
             </div>
