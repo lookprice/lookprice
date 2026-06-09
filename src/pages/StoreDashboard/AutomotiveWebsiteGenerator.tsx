@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { LiteRichEditor } from "../../components/LiteRichEditor";
 import {
   Layout,
   Palette,
@@ -2012,7 +2011,7 @@ export const AutomotiveWebsiteGenerator = ({
             </div>
 
             <div className="p-0 flex-1 bg-white">
-              <ReactQuill
+              <LiteRichEditor
                 value={
                   (editingLinkInfo.list === "quick"
                     ? quickLinks
@@ -2037,6 +2036,8 @@ export const AutomotiveWebsiteGenerator = ({
                     );
                   }
                 }}
+                minHeight="400px"
+                placeholder="Sayfa içeriğini buraya giriniz..."
               />
             </div>
 

@@ -1332,54 +1332,21 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           >
                             <FileSignature className="w-4 h-4" />
                           </button>
+                          
+                          {/* İncele / Detay */}
                           <button
-                            onClick={() => {
-                              setSelectedVehicle(vehicle);
-                              setFormData({
-                                plate: vehicle.plate,
-                                brand: vehicle.brand,
-                                model: vehicle.model,
-                                year: vehicle.year,
-                                type: vehicle.type,
-                                chassis_number: vehicle.chassis_number,
-                                engine_number: vehicle.engine_number,
-                                current_mileage: vehicle.current_mileage,
-                                status: vehicle.status,
-                                selling_price: vehicle.selling_price,
-                                currency: vehicle.currency || 'TRY',
-                                package_name: vehicle.package_name || '',
-                                transmission: vehicle.transmission || 'manual',
-                                fuel_type: vehicle.fuel_type || 'gasoline',
-                                color: vehicle.color || '',
-                                body_type: vehicle.body_type || '',
-                                paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
-                                tramer_amount: vehicle.tramer_amount || 0,
-                                tramer_currency: vehicle.tramer_currency || 'TRY',
-                                buying_price: vehicle.buying_price || 0,
-                                buying_currency: vehicle.buying_currency || 'TRY',
-                                expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
-                                target_profit_margin: vehicle.target_profit_margin || 0,
-                                description: vehicle.description || '',
-                                images: vehicle.images || [],
-                                virtual_tour_url: vehicle.virtual_tour_url || '',
-                                ai_tour_enabled: !!vehicle.ai_tour_enabled,
-                                is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
-                                market_story: vehicle.market_story || '',
-                                technical_description: vehicle.technical_description || '',
-                                is_trade_in_available: !!vehicle.is_trade_in_available
-                              });
-                              setShowAddModal(true);
-                            }}
-                            className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                            title="İncele / Detay"
                             onClick={() => {
                               setSelectedVehicle(vehicle);
                               fetchVehicleDetails(vehicle);
                               setShowDetailModal(true);
                             }}
+                            className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                            title="İncele / Detay"
                           >
                             <Eye className="w-5 h-5" />
                           </button>
+
+                          {/* Sosyal Medya Paylaşım */}
                           <button
                             onClick={() => {
                               setShareVehicle(vehicle);
@@ -1390,6 +1357,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                           >
                             <Share2 className="w-5 h-5" />
                           </button>
+
+                          {/* Düzenle */}
                           <button
                             onClick={() => {
                               setSelectedVehicle(vehicle);

@@ -5,8 +5,7 @@ import { MultiImageUploader } from './MultiImageUploader';
 import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
 import { contractTemplates } from '../utils/contractTemplates';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { LiteRichEditor } from './LiteRichEditor';
 
 interface RealEstateModalProps {
   isOpen: boolean;
@@ -874,9 +873,11 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-500">Açıklama (UK ve TR Yatırımcıları için Notlar)</label>
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <ReactQuill
+              <LiteRichEditor
                 value={formData.description || ''}
                 onChange={(newContent) => setFormData(prev => ({...prev, description: newContent}))}
+                placeholder="Mülk inceleme notları ve detaylı açıklamaları buraya yazabilirsiniz..."
+                minHeight="250px"
               />
             </div>
           </div>
