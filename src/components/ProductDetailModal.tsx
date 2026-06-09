@@ -312,7 +312,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         <div className="w-full md:w-1/2 h-[325px] sm:h-[450px] md:h-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500">
           {/* Share Buttons Overlay */}
-          <div className="absolute top-6 left-6 flex items-center gap-2 z-20">
+          <div className="absolute top-6 left-6 flex flex-col items-start gap-2 z-20">
             <button
               onClick={shareProduct}
               type="button"

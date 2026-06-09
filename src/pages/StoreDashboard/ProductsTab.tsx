@@ -37,6 +37,7 @@ import { motion } from "motion/react";
 import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import ProductMovementModal from "../../components/ProductMovementModal";
+import { ProductSocialMediaShareModal } from "../../components/ProductSocialMediaShareModal";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 
@@ -107,6 +108,7 @@ const ProductsTab = ({
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isFindingImages, setIsFindingImages] = useState(false);
+  const [sharingProduct, setSharingProduct] = useState<any>(null);
 
   const handleAutoFindImages = async (params: { productIds?: number[], allMissing?: boolean, id?: number }) => {
     if (isFindingImages) return;
@@ -390,6 +392,14 @@ const ProductsTab = ({
         <ProductMovementModal 
           product={selectedProduct} 
           onClose={() => setSelectedProduct(null)} 
+          branding={branding}
+        />
+      )}
+      {sharingProduct && (
+        <ProductSocialMediaShareModal 
+          isOpen={!!sharingProduct}
+          onClose={() => setSharingProduct(null)}
+          product={sharingProduct}
           branding={branding}
         />
       )}
@@ -948,6 +958,13 @@ const ProductsTab = ({
                             title={t.movementHistory}
                           >
                             <History className="h-4.5 w-4.5" />
+                          </button>
+                          <button 
+                            onClick={() => setSharingProduct(p)}
+                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100 active:scale-90"
+                            title={lang === "tr" ? "Sosyal Medya Afişi" : "Social Media Poster"}
+                          >
+                            <Share2 className="h-4.5 w-4.5" />
                           </button>
                           <button 
                             onClick={() => onEdit(p)}
