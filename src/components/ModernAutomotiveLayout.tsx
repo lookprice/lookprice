@@ -14,12 +14,14 @@ import {
   Instagram,
   Youtube,
   Linkedin,
+  Share2,
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
 import { BlogShowcaseModal } from "./BlogShowcaseModal";
+import { AutomotiveSocialMediaShareModal } from "./AutomotiveSocialMediaShareModal";
 
 interface ModernAutomotiveLayoutProps {
   store: Store;
@@ -34,6 +36,9 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   radarNews = [],
   onViewProduct,
 }) => {
+  // Vehicle-specific share modal state
+  const [shareProduct, setShareProduct] = useState<Product | null>(null);
+
   const { lang } = useLanguage();
   const [blogs, setBlogs] = useState<any[]>([]);
   const [selectedBlogPost, setSelectedBlogPost] = useState<any>(null);
@@ -474,6 +479,18 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                               {p.sector_data?.year || (p as any).year || "2024"} MODEL
                             </span>
                           </div>
+                          <div className="absolute top-6 right-6 z-10">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShareProduct(p);
+                              }}
+                              className="p-2.5 bg-white/95 backdrop-blur-md hover:bg-amber-100 rounded-xl text-slate-800 hover:text-amber-600 transition-all shadow-md active:scale-95 flex items-center justify-center border border-slate-100/50"
+                              title={lang === "tr" ? "Paylaş" : "Share"}
+                            >
+                              <Share2 className="w-4.5 h-4.5" />
+                            </button>
+                          </div>
                         </div>
                         <div className="mt-8 space-y-3 px-6 pb-8">
                           <div className="flex items-center justify-between gap-2 text-[10px] font-black tracking-wider uppercase text-slate-400">
@@ -771,6 +788,15 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
           </div>
         </div>
       </footer>
+
+      {shareProduct && (
+        <AutomotiveSocialMediaShareModal
+          isOpen={!!shareProduct}
+          onClose={() => setShareProduct(null)}
+          vehicle={shareProduct}
+          branding={store}
+        />
+      )}
 
       {/* Content Modal for Quick/Corporate Links */}
       <AnimatePresence>

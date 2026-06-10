@@ -167,14 +167,15 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
   // Dynamic Captions generator (100% Client-side robust copywriting for vehicles)
   const getCaptionText = () => {
     const brandName = storeName;
-    const contactPhone = branding?.phone || '+90 (548) 000 0000';
-    const brokerName = vehicle.responsible_agent || 'LookPrice Otomotiv Danışmanı';
-    const activeHashtags = `#otomotiv #araba #sahibinden #satilikaraba #lookprice #luxurycars #gallerypremium #ikincielyetkili #arabapazari #${vehicle.brand.toLowerCase()} #${vehicle.model.toLowerCase()}`;
+    const contactPhone = branding?.phone || branding?.whatsapp_number || '+90 (548) 000 0000';
+    const brokerName = vehicle.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
+    const storeHastagPart = brandName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '');
+    const activeHashtags = `#otomotiv #araba #sahibinden #satilikaraba #${storeHastagPart} #luxurycars #gallerypremium #ikincielyetkili #arabapazari #${vehicle.brand.toLowerCase()} #${vehicle.model.toLowerCase()}`;
 
     switch (selectedTone) {
       case 'luxury':
         return `⚜️ SEÇKİN BİR SÜRÜŞ COĞRAFYASI: ${vehicle.brand.toUpperCase()} ${vehicle.model.toUpperCase()} ⚜️\n\n` +
-               `Otomotiv dünyasının prestij, estetik ve mühendislik harikasını sunmaktan mutluluk duyarız. LookPrice bünyesinde sergilenen bu özel aracımız, üst düzey konforu ve kusursuz kondisyonuyla yeni sahibini bekliyor.\n\n` +
+               `Otomotiv dünyasının prestij, estetik ve mühendislik harikasını sunmaktan mutluluk duyarız. ${brandName} bünyesinde sergilenen bu özel aracımız, üst düzey konforu ve kusursuz kondisyonuyla yeni sahibini bekliyor.\n\n` +
                `🏎️ Araç Bilgileri ve Donanımı:\n` +
                `• Marka / Model: ${vehicle.brand} ${vehicle.model}\n` +
                `• Model Yılı: ${vehicle.year}\n` +
@@ -320,8 +321,8 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                     selectedTheme === 'sporty_red' ? '#f87171' :
                     selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
     ctx.font = 'bold 20px monospace';
-    const contactPhone = branding?.phone || 'LOOKPRICE DESTEK';
-    ctx.fillText(contactPhone, width - 80, 95);
+    const contactPhoneText = branding?.phone || branding?.whatsapp_number || 'PREMIUM GALERİ';
+    ctx.fillText(contactPhoneText, width - 80, 95);
     ctx.textAlign = 'left'; // Reset
 
     // Load original Image
@@ -395,9 +396,9 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
       // --- TEXT CONTENT GLASS CARD OVERLAY ---
       const glassX = 70;
-      const glassY = selectedRatio === 'square' ? 680 : 1010;
+      const glassY = selectedRatio === 'square' ? 730 : 1085;
       const glassW = width - 140;
-      const glassH = 330;
+      const glassH = 290;
 
       // Draw glass card container
       ctx.fillStyle = 'rgba(8, 11, 22, 0.92)'; // premium slate backdrop
@@ -415,8 +416,8 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Pills starts at X = glassX + 40, Y = glassY + 40
-      const pillY = glassY + 40;
+      // Pills starts at X = glassX + 40, Y = glassY + 30
+      const pillY = glassY + 30;
       ctx.font = 'bold 13px system-ui, sans-serif';
 
       // Year / Model Pill
@@ -487,7 +488,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       ctx.fillStyle = '#ffffff';
       ctx.font = '950 30px system-ui, sans-serif';
       const titleLines = wrapText(vehicleTitle, glassW - 70);
-      let titleYLine = glassY + 115;
+      let titleYLine = glassY + 98;
       titleLines.forEach((line, idx) => {
         if (idx < 2) {
           ctx.fillText(line, glassX + 35, titleYLine);
@@ -496,28 +497,28 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       });
 
       // Price block at bottom of glass block
-      const priceRowY = glassY + 245;
+      const priceRowY = glassY + 225;
 
       ctx.strokeStyle = 'rgba(255,255,255,0.12)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(glassX + 35, priceRowY - 35);
-      ctx.lineTo(glassX + glassW - 35, priceRowY - 35);
+      ctx.moveTo(glassX + 35, priceRowY - 25);
+      ctx.lineTo(glassX + glassW - 35, priceRowY - 25);
       ctx.stroke();
 
       ctx.fillStyle = '#a1a1aa';
       ctx.font = 'bold 12px system-ui, sans-serif';
-      ctx.fillText("GALERİ LİSTE SATIŞ FİYATI", glassX + 35, priceRowY - 12);
+      ctx.fillText("GALERİ LİSTE SATIŞ FİYATI", glassX + 35, priceRowY - 5);
 
       ctx.fillStyle = '#10b981'; // emerald-400
       ctx.font = '900 36px system-ui, sans-serif';
-      ctx.fillText(priceText, glassX + 35, priceRowY + 28);
+      ctx.fillText(priceText, glassX + 35, priceRowY + 35);
 
       // Guarantee badge on right alignment
       ctx.textAlign = 'right';
       ctx.fillStyle = '#fbbf24'; // amber-400
       ctx.font = 'bold 15px system-ui, sans-serif';
-      ctx.fillText("⭐ %100 SATICI GÜVENCESİ", glassX + glassW - 35, priceRowY + 18);
+      ctx.fillText("⭐ %100 SATICI GÜVENCESİ", glassX + glassW - 35, priceRowY + 25);
       ctx.textAlign = 'left'; // Restore alignment
 
       // Story Special Callout Box below the visual frame
@@ -636,10 +637,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 overflow-y-auto font-sans" id="automotive-share-wizard-modal">
-      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row border border-slate-200 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]">
+      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl flex flex-col lg:flex-row border border-slate-200 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto lg:overflow-hidden">
         
         {/* Left Side: Real Real-time Interactive Poster Preview */}
-        <div className="lg:w-1/2 bg-slate-100 p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 overflow-y-auto">
+        <div className="w-full lg:w-1/2 bg-slate-100 p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 lg:overflow-y-auto">
           <div>
             <div className="flex justify-between items-center mb-4">
               <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
@@ -682,7 +683,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                   </div>
                   <div className="text-right shrink-0">
                     <span className="text-[10px] font-mono font-black text-amber-400 bg-amber-500/10 border border-amber-500/25 px-1.5 py-0.5 rounded select-none">
-                      {branding?.phone || 'LOOKPRICE DESTEK'}
+                      {branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}
                     </span>
                   </div>
                 </div>
@@ -756,7 +757,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                       
                       {/* Premium Assurance Tag */}
                       <span className="text-[7.5px] font-extrabold text-[#fbbf24] bg-amber-400/15 border border-amber-400/20 px-1.5 py-0.5 rounded select-none uppercase shrink-0">
-                        EYALET GARANTİLİ
+                        SATIŞ GÜVENCESİ
                       </span>
                     </div>
 
@@ -780,7 +781,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           {/* Controls for Template styles */}
           <div className="mt-4">
             <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">🎨 SEKTÖREL GÖRSEL ŞABLONLAR</span>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <button 
                 onClick={() => setSelectedTheme('luxury_dark')}
                 className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'luxury_dark' ? 'bg-slate-900 border-amber-500 text-white ring-2 ring-amber-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
@@ -832,7 +833,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
         </div>
 
         {/* Right Side: Copywriting Caption */}
-        <div className="lg:w-1/2 p-6 flex flex-col justify-between overflow-y-auto">
+        <div className="w-full lg:w-1/2 p-6 flex flex-col justify-between lg:overflow-y-auto">
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
@@ -853,7 +854,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
             {/* Tone Selector */}
             <div className="mb-4">
               <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">✍️ PAYLAŞIM TEMA & ÜSLUBU</span>
-              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
                 <button 
                   onClick={() => setSelectedTone('luxury')}
                   className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'luxury' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}

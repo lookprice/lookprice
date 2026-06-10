@@ -124,15 +124,16 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
   // Dynamic Captions generator (100% Client-side robust copywriting)
   const getCaptionText = () => {
-    const brandName = branding?.store_name || branding?.name || 'LookPrice Real Estate';
-    const contactPhone = branding?.phone || '+90 (548) 000 0000';
-    const brokerName = property.responsible_agent || 'LookPrice Uzman Portföy Temsilcisi';
+    const brandName = branding?.store_name || branding?.name || 'Seçkin Gayrimenkul';
+    const contactPhone = branding?.phone || branding?.whatsapp_number || '+90 (548) 000 0000';
+    const brokerName = property.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
 
     const priceLabel = isRent ? "Aylık Kira Bedeli" : "Değerleme Fiyatı";
     const statusAction = isRent ? "kiralık olarak sunulmuştur" : "satışa sunulmuştur";
+    const storeHashtag = `#${brandName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
     const mainHashtags = isRent 
-      ? `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibriskiralik #luxurylire #lookprice #realestatepremium #kiralikfirsati`
-      : `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibrisyatirim #luxurylire #lookprice #realestatepremium #yatirimfirsati`;
+      ? `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibriskiralik #luxurylife #realestatepremium #kiralikfirsati ${storeHashtag}`
+      : `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibrisyatirim #luxurylife #realestatepremium #yatirimfirsati ${storeHashtag}`;
 
     switch (selectedTone) {
       case 'luxury':
@@ -165,7 +166,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
           : `• Bölgesel Amortisman Trendi: Çok hızlı geri dönüş rasyosu`;
 
         return `📈 KAÇIRILMAYACAK SEÇKİN FIRSAT! 📈\n\n` +
-               `LookPrice Çok Şubeli Ağ Veri Analizlerimize göre, ${propertyLocation} bölgesinde emsallere kıyasla mükemmel fiyat-fayda rasyosu sunan üst seviye portföyümüz ${statusAction}.\n\n` +
+               `Çok Şubeli Ağ Veri Analizlerimize göre, ${propertyLocation} bölgesinde emsallere kıyasla mükemmel fiyat-fayda rasyosu sunan üst seviye portföyümüz ${statusAction}.\n\n` +
                `🎯 Finansal & Yapısal Özet:\n` +
                `• Alt Tip: ${property.subtype || typeText}\n` +
                `• Değer Raporu: Bölgesel ortalamalara göre oldukça avantajlı\n` +
@@ -178,16 +179,16 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                  : `• Tapu Statüsü: ${titleType} (Sorunsuz devir hazır)\n\n`) +
                `💰 Fırsat Liste Bedeli: ${priceText}${isRent ? ' / Aylık' : ''}\n\n` +
                `${profitSentence}\n\n` +
-               `LookPrice güvencesiyle dosya analizi ve hızlı sözleşme süreçleri için bizimle iletişime geçin.\n\n` +
+               `Seçkin güvencemizle dosya analizi ve hızlı sözleşme süreçleri için bizimle iletişime geçin.\n\n` +
                `📞 Detaylar İçin Arayın: ${contactPhone}\n` +
                `👤 Sorumlu Temsilci: ${brokerName}\n` +
                `🏢 Yetkili Şube: ${brandName}\n\n` +
-               `${isRent ? `#kibrisemlak #kibriskiralik #lookpricecapital #yatirimvizyonu #kibriskiralikdaire #${propertyLocation.toLowerCase()}realestate` : `#kibrisemlak #kibrisyatirim #emlakraporu #lookpricecapital #yatirimvizyonu #kibrissatilik #${propertyLocation.toLowerCase()}realestate`}`;
+               `${isRent ? `#kibrisemlak #kibriskiralik #yatirimvizyonu #kibriskiralikdaire #${propertyLocation.toLowerCase()}realestate` : `#kibrisemlak #kibrisyatirim #emlakraporu #yatirimvizyonu #kibrissatilik #${propertyLocation.toLowerCase()}realestate`}`;
 
       case 'friendly':
         const friendlyHashtags = isRent 
-          ? `#kibrisvizyon #keyifliyasam #kibriskiralikdaire #lookpriceemlak #huzurluyasam #kibristakiralikev #homedesign`
-          : `#kibrisvizyon #keyifliyasam #kibrissatilikdaire #lookpriceemlak #huzurluyasam #kibristaevsahibiol #homedesign`;
+          ? `#kibrisvizyon #keyifliyasam #kibriskiralikdaire #huzurluyasam #kibristakiralikev #homedesign`
+          : `#kibrisvizyon #keyifliyasam #kibrissatilikdaire #huzurluyasam #kibristaevsahibiol #homedesign`;
         return `🔑 Hayalinizdeki Kıbrıs Yaşamına İlk Adımı Atın! 🔑\n\n` +
                `Merhaba sevgili takipçilerimiz! Bugün size Kuzey Kıbrıs'ın en samimi, en huzurlu köşelerinden biri olan ${propertyLocation}'da yer alan sıcacık bir ${isRent ? 'kiralık' : ''} ${typeText.toLowerCase()} fırsatını tanıtmak istiyoruz. 😍\n\n` +
                `✨ Neden Burayı Çok Seveceksiniz?\n` +
@@ -285,7 +286,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
     ctx.font = '900 24px system-ui, sans-serif';
     ctx.letterSpacing = '5px';
-    const brandNameUpper = (branding?.store_name || branding?.name || 'LOOKPRICE').toUpperCase();
+    const brandNameUpper = (branding?.store_name || branding?.name || 'SEÇKİN GALERİ').toUpperCase();
     ctx.fillText(brandNameUpper, 80, 95);
 
     ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
@@ -317,7 +318,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       const imgX = 80;
       const imgY = 160;
       const imgWidth = width - 160;
-      const imgHeight = selectedRatio === 'square' ? 440 : 800;
+      const imgHeight = selectedRatio === 'square' ? 520 : 960;
 
       // Draw shadow background for image path
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.3)';
@@ -464,10 +465,10 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#a1a1aa';
       ctx.font = 'bold 13px system-ui, sans-serif';
-      ctx.fillText(`PORTFÖY SORUMLUSU: ${property.responsible_agent || 'LOOKPRICE DANISMANI'}`, 80, footerY + 15);
+      ctx.fillText(`PORTFÖY SORUMLUSU: ${property.responsible_agent || branding?.owner_name || 'YETKİLİ TEMSİLCİ'}`, 80, footerY + 15);
       
       ctx.textAlign = 'right';
-      const footerPhone = branding?.phone ? `İLETİŞİM: ${branding.phone}` : 'KUZEY KIBRIS ÇOK ŞUBELİ PORTAL AĞI';
+      const footerPhone = branding?.phone || branding?.whatsapp_number ? `İLETİŞİM: ${branding.phone || branding.whatsapp_number}` : 'KUZEY KIBRIS ÇOK ŞUBELİ PORTAL AĞI';
       ctx.fillText(footerPhone, width - 80, footerY + 15);
       ctx.textAlign = 'left';
 
@@ -597,7 +598,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 <div className="p-4 flex justify-between items-start z-10">
                   <div>
                     <h3 className={`text-base font-black truncate max-w-[180px] leading-tight select-none uppercase tracking-wider ${themeConfig.textTitle}`}>
-                      {branding?.store_name || branding?.name || 'LOOKPRICE'}
+                      {branding?.store_name || branding?.name || 'PREMIUM GALERİ'}
                     </h3>
                     <p className="text-[7.5px] font-black tracking-wider text-slate-400 uppercase select-none">PREMIUM ESTATE</p>
                   </div>
@@ -695,12 +696,12 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     }`}>PORTFÖY DANIŞMANI</span>
                     <strong className={`mt-0.5 block truncate uppercase ${
                       selectedTheme === 'cyprus_warm' ? 'text-orange-950 font-black' : 'text-zinc-200'
-                    }`}>{property.responsible_agent || 'LOOKPRICE EXPERT'}</strong>
+                    }`}>{property.responsible_agent || branding?.owner_name || 'PORTFÖY DANIŞMANI'}</strong>
                   </div>
                   <div className="text-right">
                     <span className={`block tracking-wider font-mono font-black leading-none ${
                       selectedTheme === 'cyprus_warm' ? 'text-orange-950' : 'text-zinc-400'
-                    }`}>{branding?.phone || 'LOOKPRICE.ME'}</span>
+                    }`}>{branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}</span>
                   </div>
                 </div>
 

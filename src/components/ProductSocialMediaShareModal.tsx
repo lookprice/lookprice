@@ -200,9 +200,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
   // Dynamic Captions generator (100% Client-side robust copywriting for products)
   const getCaptionText = () => {
-    const contactPhone = branding?.phone || '+90 (548) 000 0000';
-    const storeHashtag = `#${storeName.toLowerCase().replace(/[^a-z0-0ğüşıöç]/g, '')}`;
-    const activeHashtags = `#alisveris #kampanya #kampanyaliurunler #kalite #indirim #lookprice #firsat #hediyelik #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
+    const contactPhone = branding?.phone || branding?.whatsapp_number || '+90 (548) 000 0000';
+    const storeHashtag = `#${storeName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
+    const activeHashtags = `#alisveris #kampanya #kampanyaliurunler #kalite #indirim #firsat #hediyelik #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
 
     switch (selectedTone) {
       case 'luxury':
@@ -234,8 +234,8 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                (oldPriceText ? `❌ Eski Satış Fiyatı: ${oldPriceText} (Büyük İndirim Yapıldı!)\n` : '') +
                `\nBu bütçe dostu, Premium tasarımı kapınıza kadar ulaştırmak ve hızlı sipariş geçmek için bize hemen DM atabilir veya telefon hattımızdan iletişime geçebilirsiniz. Fırsatı kaçırmayın!\n\n` +
                `📞 Çağrı / WP Destek: ${contactPhone}\n` +
-               `🏪 LookPrice Satıcı Mağazası: ${storeName}\n\n` +
-               `#indirimvar #sezonindirimi #alisveriszamani #firsatfiyat #lookpriceshop ${activeHashtags}`;
+               `🏪 Yetkili Satıcı Mağaza: ${storeName}\n\n` +
+               `#indirimvar #sezonindirimi #alisveriszamani #firsatfiyat #alisverisonline ${activeHashtags}`;
 
       case 'friendly':
         return `🌟 Günün Harika Ürünü İle Karşınızdayız! 🌟\n\n` +
@@ -355,8 +355,8 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#fbbf24' :
                     selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
     ctx.font = 'bold 20px monospace';
-    const contactPhone = branding?.phone || 'LOOKPRICE DESTEK';
-    ctx.fillText(contactPhone, width - 80, 95);
+    const contactPhoneText = branding?.phone || branding?.whatsapp_number || 'PREMIUM MAĞAZA';
+    ctx.fillText(contactPhoneText, width - 80, 95);
     ctx.textAlign = 'left'; // Reset
 
     // Main image loading
@@ -432,9 +432,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
       // --- TEXT CONTENT GLASS CARD OVERLAY ---
       const glassX = 70;
-      const glassY = selectedRatio === 'square' ? 680 : 1010;
+      const glassY = selectedRatio === 'square' ? 730 : 1085;
       const glassW = width - 140;
-      const glassH = 330;
+      const glassH = 290;
 
       // Draw glass card container
       ctx.fillStyle = 'rgba(8, 11, 22, 0.90)'; // premium slate backdrop
@@ -447,8 +447,8 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Pills starts at X = glassX + 40, Y = glassY + 40
-      const pillY = glassY + 40;
+      // Pills starts at X = glassX + 40, Y = glassY + 30
+      const pillY = glassY + 30;
       ctx.font = 'bold 15px system-ui, sans-serif';
       const catText = productCategory.toUpperCase().substring(0, 20);
       const catWidth = ctx.measureText(catText).width + 30;
@@ -507,7 +507,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       ctx.fillStyle = '#ffffff';
       ctx.font = '950 30px system-ui, sans-serif';
       const titleLines = wrapText(productTitle, glassW - 70);
-      let titleYLine = glassY + 115;
+      let titleYLine = glassY + 98;
       titleLines.forEach((line, idx) => {
         if (idx < 2) {
           ctx.fillText(line, glassX + 35, titleYLine);
@@ -516,7 +516,38 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       });
 
       // Price block at bottom of glass block
-      const priceRowY = glassY + 245;
+      const priceRowY = glassY + 225;
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(glassX + 35, priceRowY - 25);
+      ctx.lineTo(glassX + glassW - 35, priceRowY - 25);
+      ctx.stroke();
+
+      ctx.fillStyle = '#a1a1aa';
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.fillText(discountPercentage > 0 ? "KAMPANYALI FİYAT SEÇENEĞİ" : "AVANTAJLI LİSTE FİYATI", glassX + 35, priceRowY - 5);
+
+      ctx.fillStyle = '#10b981'; // emerald-450
+      ctx.font = '900 36px system-ui, sans-serif';
+      ctx.fillText(priceText, glassX + 35, priceRowY + 35);
+
+      if (oldPriceText) {
+        ctx.font = 'bold 22px system-ui, sans-serif';
+        ctx.fillStyle = '#ef4444';
+        const prLabelWidth = ctx.measureText(priceText).width;
+        const oldXLoc = glassX + 35 + prLabelWidth + 30;
+        ctx.fillText(oldPriceText, oldXLoc, priceRowY + 22);
+
+        const oldW = ctx.measureText(oldPriceText).width;
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(oldXLoc - 4, priceRowY + 14);
+        ctx.lineTo(oldXLoc + oldW + 4, priceRowY + 14);
+        ctx.stroke();
+      }
 
       ctx.strokeStyle = 'rgba(255,255,255,0.12)';
       ctx.lineWidth = 2;
@@ -714,7 +745,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   </div>
                   <div className="text-right shrink-0">
                     <span className="text-[10px] font-mono font-black text-rose-400 bg-rose-500/10 border border-rose-500/25 px-1.5 py-0.5 rounded select-none">
-                      {branding?.phone || 'LOOKPRICE DESTEK'}
+                      {branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}
                     </span>
                   </div>
                 </div>
@@ -919,7 +950,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 {/* Float copy bar */}
                 <div className="p-3 bg-slate-100 border-t border-slate-200 flex justify-between items-center">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase flex items-center gap-1">
-                    <Award className="w-3.5 h-3.5 text-indigo-600" /> LOOKPRICE AD-WRITER V3
+                    <Award className="w-3.5 h-3.5 text-indigo-600" /> DIGITAL AD-WRITER V3
                   </span>
                   <button 
                     onClick={handleCopyCaption}
