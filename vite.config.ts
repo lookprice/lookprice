@@ -27,20 +27,59 @@ export default defineConfig(({ mode }) => {
           manualChunks: (id) => {
             if (id.includes('node_modules')) {
               if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-                return 'vendor-react';
+                return 'vendor-core';
               }
-              if (id.includes('lucide') || id.includes('motion') || id.includes('recharts')) {
-                return 'vendor-ui';
+              if (id.includes('lucide-react') || id.includes('motion')) {
+                return 'vendor-icons-motion';
               }
-              if (id.includes('xlsx') || id.includes('jspdf') || id.includes('codepage')) {
-                return 'vendor-tools';
+              if (id.includes('recharts') || id.includes('d3')) {
+                return 'vendor-charts';
               }
-              // Let Vite handle other node_modules automatically to avoid circularity
+              if (id.includes('xlsx') || id.includes('jspdf') || id.includes('codepage') || id.includes('pdfkit')) {
+                return 'vendor-documents';
+              }
+              if (id.includes('quagga') || id.includes('html5-qrcode')) {
+                return 'vendor-scanners';
+              }
+            } else if (id.includes('src/')) {
+              // Chunk massive visual engines and settings into isolated page components
+              if (id.includes('StoreShowcase.tsx')) {
+                return 'page-store-showcase';
+              }
+              if (id.includes('SuperAdmin.tsx')) {
+                return 'page-super-admin';
+              }
+              if (id.includes('StoreDashboard/FleetTab.tsx')) {
+                return 'dashboard-fleet';
+              }
+              if (id.includes('StoreDashboard/SettingsTab.tsx')) {
+                return 'dashboard-settings';
+              }
+              if (id.includes('StoreDashboard/RealEstateTab.tsx')) {
+                return 'dashboard-realestate';
+              }
+              if (id.includes('StoreDashboard/DashboardModals.tsx')) {
+                return 'dashboard-modals';
+              }
+              if (id.includes('components/SalesInvoices.tsx')) {
+                return 'comp-sales-invoices';
+              }
+              if (id.includes('components/PurchaseInvoices.tsx')) {
+                return 'comp-purchase-invoices';
+              }
+              if (
+                id.includes('WebsiteGenerator.tsx') ||
+                id.includes('AutomotiveWebsiteGenerator.tsx') ||
+                id.includes('RealEstateWebsiteGenerator.tsx') ||
+                id.includes('PortfolioWebsiteGenerator.tsx')
+              ) {
+                return 'dashboard-generators';
+              }
             }
           },
         },
       },
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 1500,
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
