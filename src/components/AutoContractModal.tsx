@@ -373,7 +373,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
           </div>
 
           <p className="text-[9px] text-slate-500 text-center mt-6">
-            LookPrice Auto Dealer Legal Module • v4 Engine
+            Premium Auto Dealer Legal Module • v4 Engine
           </p>
         </div>
 

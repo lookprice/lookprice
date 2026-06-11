@@ -37,6 +37,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 }) => {
   const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('luxury_dark');
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
+  const [isCollage, setIsCollage] = useState<boolean>(true);
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
@@ -275,90 +276,170 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     }
     ctx.stroke();
 
-    // Draw premium border framing
+    // Dynamic framing closer to edge = 16px instead of 30px to maximize image layout
+    const borderPadding = 16;
     ctx.strokeStyle = selectedTheme === 'luxury_dark' ? '#d97706' : // amber-600
                       selectedTheme === 'cyprus_warm' ? '#ea580c' : // orange-600
                       selectedTheme === 'modern_indigo' ? '#06b6d4' : '#e4e4e7'; // cyan or white
     ctx.lineWidth = 12;
-    ctx.strokeRect(30, 30, width - 60, height - 60);
+    ctx.strokeRect(borderPadding, borderPadding, width - (borderPadding * 2), height - (borderPadding * 2));
 
     // Render title and marketing headers
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
     ctx.font = '900 24px system-ui, sans-serif';
     ctx.letterSpacing = '5px';
-    const brandNameUpper = (branding?.store_name || branding?.name || 'SEÇKİN GALERİ').toUpperCase();
-    ctx.fillText(brandNameUpper, 80, 95);
+    const storeFallbackName = (branding?.store_name || branding?.name || 'SEÇKİN EMLAK');
+    const brandNameUpper = (storeFallbackName.toLowerCase().includes('lookprice') ? 'SEÇKİN EMLAK' : storeFallbackName).toUpperCase();
+    ctx.fillText(brandNameUpper, borderPadding + 50, borderPadding + 65);
 
     ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
                     selectedTheme === 'cyprus_warm' ? '#c2410c' :
                     selectedTheme === 'modern_indigo' ? '#06b6d4' : '#a1a1aa';
     ctx.font = '800 13px system-ui, sans-serif';
     ctx.letterSpacing = '2px';
-    ctx.fillText("PREMIUM REAL ESTATE NETWORK", 80, 125);
+    ctx.fillText("PREMIUM REAL ESTATE NETWORK", borderPadding + 50, borderPadding + 95);
 
     // Reference ID badge on top right
     const refNo = `LP-${property.reference_no || property.id}`;
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#ea580c' : '#1e293b';
-    ctx.fillRect(width - 280, 70, 200, 45);
+    ctx.fillRect(width - borderPadding - 250, borderPadding + 40, 200, 45);
     ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#f97316' : '#d97706';
     ctx.lineWidth = 2;
-    ctx.strokeRect(width - 280, 70, 200, 45);
+    ctx.strokeRect(width - borderPadding - 250, borderPadding + 40, 200, 45);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 15px monospace';
     ctx.letterSpacing = '1px';
     ctx.textAlign = 'center';
-    ctx.fillText(refNo, width - 180, 98);
+    ctx.fillText(refNo, width - borderPadding - 150, borderPadding + 68);
     ctx.textAlign = 'left';
 
-    // Now, load the main image if exists
-    const mainImageUrl = property.images && property.images[0] ? property.images[0] : null;
+    // Image layout logic
+    const imageUrls: string[] = [];
+    if (property.images && property.images[0]) imageUrls.push(property.images[0]);
+    if (isCollage && property.images && property.images[1]) imageUrls.push(property.images[1]);
+    if (isCollage && property.images && property.images[2]) imageUrls.push(property.images[2]);
 
-    const finalizeDrawAndDownload = (imgElement: HTMLImageElement | null) => {
+    const loadImg = (url: string): Promise<HTMLImageElement | null> => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        const cacheBustSep = url.includes('?') ? '&' : '?';
+        img.src = url + cacheBustSep + "lookprice_export_ts=" + Date.now();
+      });
+    };
+
+    const drawFallbackBlock = (x: number, y: number, w: number, h: number, emoji: string) => {
+      ctx.save();
+      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+      grad.addColorStop(0, '#111827');
+      grad.addColorStop(1, '#1f2937');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, w, h);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 2;
+      for (let offset = 0; offset < w + h; offset += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x + offset, y);
+        ctx.lineTo(x, y + offset);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = 'bold 45px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(emoji, x + w/2, y + h/2 + 15);
+      ctx.restore();
+    };
+
+    const wrapText = (text: string, maxWidth: number) => {
+      const words = text.split(" ");
+      const lines = [];
+      let currentLine = words[0];
+
+      for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const widthCheck = ctx.measureText(currentLine + " " + word).width;
+        if (widthCheck < maxWidth) {
+          currentLine += " " + word;
+        } else {
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      lines.push(currentLine);
+      return lines;
+    };
+
+    Promise.all(imageUrls.map(loadImg)).then((loadedImages) => {
+      const imgElement = loadedImages[0];
+      const sideImg1 = loadedImages[1];
+      const sideImg2 = loadedImages[2];
+
       // Set target dimensions & positioning for image box based on aspect ratio
-      const imgX = 80;
-      const imgY = 160;
-      const imgWidth = width - 160;
+      const imgX = borderPadding + 50;
+      const imgY = borderPadding + 130;
+      const imgWidth = width - (borderPadding * 2) - 100;
       const imgHeight = selectedRatio === 'square' ? 520 : 960;
 
       // Draw shadow background for image path
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.3)';
       ctx.fillRect(imgX, imgY, imgWidth, imgHeight);
 
-      if (imgElement) {
-        try {
-          // Draw property image nicely (cover style)
-          const imgAspect = imgElement.width / imgElement.height;
-          const targetAspect = imgWidth / imgHeight;
-
-          let sx = 0, sy = 0, sWidth = imgElement.width, sHeight = imgElement.height;
-
-          if (imgAspect > targetAspect) {
-            // Image is wider than target aspect ratio
-            sWidth = imgElement.height * targetAspect;
-            sx = (imgElement.width - sWidth) / 2;
-          } else {
-            // Image is taller than target aspect ratio
-            sHeight = imgElement.width / targetAspect;
-            sy = (imgElement.height - sHeight) / 2;
+      const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number, emoji: string) => {
+        if (imgPtr) {
+          try {
+            const imgAspect = imgPtr.width / imgPtr.height;
+            const targetAspect = w / h;
+            let sx = 0, sy = 0, sWidth = imgPtr.width, sHeight = imgPtr.height;
+            if (imgAspect > targetAspect) {
+              sWidth = imgPtr.height * targetAspect;
+              sx = (imgPtr.width - sWidth) / 2;
+            } else {
+              sHeight = imgPtr.width / targetAspect;
+              sy = (imgPtr.height - sHeight) / 2;
+            }
+            ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
+          } catch (err) {
+            drawFallbackBlock(x, y, w, h, emoji);
           }
-
-          ctx.drawImage(imgElement, sx, sy, sWidth, sHeight, imgX, imgY, imgWidth, imgHeight);
-
-          // Add a subtle dark gradient overlays on the bottom of the image for premium depth
-          const imgGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 150, imgX, imgY + imgHeight);
-          imgGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-          imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
-          ctx.fillStyle = imgGrad;
-          ctx.fillRect(imgX, imgY + imgHeight - 150, imgWidth, 150);
-
-        } catch (err) {
-          // CORS fallback gradient block
-          drawCorsFallback(imgX, imgY, imgWidth, imgHeight);
+        } else {
+          drawFallbackBlock(x, y, w, h, emoji);
         }
+      };
+
+      ctx.save();
+      ctx.rect(imgX, imgY, imgWidth, imgHeight);
+      ctx.clip();
+
+      if (isCollage && (sideImg1 || sideImg2)) {
+        // Collage grid: Left main image (67%), Right stacked column (33%)
+        const mainW = Math.round(imgWidth * 0.67);
+        const gapSize = 8;
+        const sideXWidth = imgWidth - mainW - gapSize;
+        const sideH = Math.round((imgHeight - gapSize) / 2);
+
+        // Main Left
+        drawSingleImageCover(imgElement, imgX, imgY, mainW, imgHeight, "🏠");
+
+        // Side stacked
+        drawSingleImageCover(sideImg1, imgX + mainW + gapSize, imgY, sideXWidth, sideH, "📸");
+        drawSingleImageCover(sideImg2, imgX + mainW + gapSize, imgY + sideH + gapSize, sideXWidth, sideH, "📸");
       } else {
-        // No image fallback icon block
-        drawCorsFallback(imgX, imgY, imgWidth, imgHeight);
+        // Regular single cover
+        drawSingleImageCover(imgElement, imgX, imgY, imgWidth, imgHeight, "🏠");
       }
+
+      ctx.restore();
+
+      // Subtle black gradient overlays on the bottom of the image for premium depth
+      const imgGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 150, imgX, imgY + imgHeight);
+      imgGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+      ctx.fillStyle = imgGrad;
+      ctx.fillRect(imgX, imgY + imgHeight - 150, imgWidth, 150);
 
       // Draw high resolution elegant frame around image
       ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#fed7aa' : 'rgba(255,255,255,0.15)';
@@ -372,24 +453,24 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
                       selectedTheme === 'cyprus_warm' ? '#ea580c' :
                       selectedTheme === 'modern_indigo' ? '#22d3ee' : '#d4d4d8';
-      ctx.fillRect(80, contentYStart, 160, 36);
+      ctx.fillRect(borderPadding + 50, contentYStart, 160, 36);
 
       ctx.fillStyle = selectedTheme === 'luxury_dark' || selectedTheme === 'modern_indigo' ? '#000000' : '#ffffff';
       ctx.font = 'bold 15px system-ui, sans-serif';
       ctx.textAlign = 'center';
       const categoryLabel = (property.type === 'residence' ? 'KONUT' : property.type === 'commercial' ? 'TİCARİ' : 'ARSA');
-      ctx.fillText(categoryLabel, 160, contentYStart + 24);
+      ctx.fillText(categoryLabel, borderPadding + 130, contentYStart + 24);
       ctx.textAlign = 'left';
 
       // Location badge next to it
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#fff7ed' : 'rgba(255, 255, 255, 0.08)';
-      ctx.fillRect(255, contentYStart, 260, 36);
+      ctx.fillRect(borderPadding + 225, contentYStart, 260, 36);
       ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#ffedd5' : 'rgba(255, 255, 255, 0.15)';
-      ctx.strokeRect(255, contentYStart, 260, 36);
+      ctx.strokeRect(borderPadding + 225, contentYStart, 260, 36);
 
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ffffff';
       ctx.font = 'bold 14px system-ui, sans-serif';
-      ctx.fillText(`📍 ${propertyLocation.toUpperCase()} (${regionText.toUpperCase()})`, 275, contentYStart + 23);
+      ctx.fillText(`📍 ${propertyLocation.toUpperCase()} (${regionText.toUpperCase()})`, borderPadding + 245, contentYStart + 23);
 
       // Dynamic Title
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#292524' : '#ffffff';
@@ -398,7 +479,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       let titleY = contentYStart + 90;
       titleLines.forEach((line, index) => {
         if (index < 2) { // Show max two lines of title
-          ctx.fillText(line, 80, titleY);
+          ctx.fillText(line, borderPadding + 50, titleY);
           titleY += 45;
         }
       });
@@ -421,16 +502,16 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         priceGradient.addColorStop(1, '#e4e4e7');
       }
       ctx.fillStyle = priceGradient;
-      ctx.fillRect(80, priceBlockY, width - 160, 100);
+      ctx.fillRect(borderPadding + 50, priceBlockY, width - (borderPadding * 2) - 100, 100);
 
       // Price text overlay
       ctx.fillStyle = selectedTheme === 'minimal_carbon' ? '#09090b' : '#ffffff';
       ctx.font = 'bold 15px system-ui, sans-serif';
       ctx.letterSpacing = '1px';
-      ctx.fillText(property.listing_intent === 'rent' ? "AYLIK KİRA BEDELİ" : "LİSTE SATIŞ BEDELİ", 110, priceBlockY + 40);
+      ctx.fillText(property.listing_intent === 'rent' ? "AYLIK KİRA BEDELİ" : "LİSTE SATIŞ BEDELİ", borderPadding + 80, priceBlockY + 40);
 
       ctx.font = '900 45px system-ui, sans-serif';
-      ctx.fillText(priceText, 110, priceBlockY + 84);
+      ctx.fillText(priceText, borderPadding + 80, priceBlockY + 84);
 
       // Bullet features badges
       const specY = priceBlockY - 70;
@@ -452,31 +533,33 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       } else {
         specString += `📜 ${titleType}`;
       }
-      ctx.fillText(specString, 80, specY);
+      ctx.fillText(specString, borderPadding + 50, specY);
 
       // Footer
       const footerY = height - 60;
       ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#fed7aa' : 'rgba(255,255,255,0.1)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(80, footerY - 20);
-      ctx.lineTo(width - 80, footerY - 20);
+      ctx.moveTo(borderPadding + 50, footerY - 20);
+      ctx.lineTo(width - borderPadding - 50, footerY - 20);
       ctx.stroke();
 
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#a1a1aa';
       ctx.font = 'bold 13px system-ui, sans-serif';
-      ctx.fillText(`PORTFÖY SORUMLUSU: ${property.responsible_agent || branding?.owner_name || 'YETKİLİ TEMSİLCİ'}`, 80, footerY + 15);
+      ctx.fillText(`PORTFÖY SORUMLUSU: ${property.responsible_agent || branding?.owner_name || 'YETKİLİ TEMSİLCİ'}`, borderPadding + 50, footerY + 15);
       
       ctx.textAlign = 'right';
-      const footerPhone = branding?.phone || branding?.whatsapp_number ? `İLETİŞİM: ${branding.phone || branding.whatsapp_number}` : 'KUZEY KIBRIS ÇOK ŞUBELİ PORTAL AĞI';
-      ctx.fillText(footerPhone, width - 80, footerY + 15);
+      const actualStoreName = branding?.store_name || branding?.name || 'PREMIUM VIP REAL ESTATE';
+      const cleanStoreContact = actualStoreName.toLowerCase().includes('lookprice') ? 'ETKİN DANIŞMAN' : actualStoreName;
+      const footerPhone = branding?.phone || branding?.whatsapp_number ? `İLETİŞİM: ${branding.phone || branding.whatsapp_number}` : `PORTFÖY DANIŞMANI: ${cleanStoreContact}`;
+      ctx.fillText(footerPhone, width - borderPadding - 50, footerY + 15);
       ctx.textAlign = 'left';
 
       // Start the download
       try {
         const link = document.createElement("a");
         const sanitizedTitle = (property.title || 'ilan').toLowerCase().replace(/\s+/g, '-').substring(0, 20);
-        link.download = `lookprice-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
+        link.download = `afis-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
         link.href = canvas.toDataURL("image/png");
         document.body.appendChild(link);
         link.click();
@@ -485,76 +568,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         setRenderError("Kaydetme işlemi sırasında tarayıcı güvenlik kısıtlaması nedeniyle hata oluştu.");
       }
       setIsRendering(false);
-    };
-
-    const drawCorsFallback = (x: number, y: number, w: number, h: number) => {
-      // Create a nice looking mesh pattern
-      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-      grad.addColorStop(0, '#1e293b');
-      grad.addColorStop(1, '#334155');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, y, w, h);
-
-      // Abstract line graphics
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = 3;
-      for (let offset = 0; offset < w + h; offset += 60) {
-        ctx.beginPath();
-        ctx.moveTo(x + offset, y);
-        ctx.lineTo(x, y + offset);
-        ctx.stroke();
-      }
-
-      // Draw stylized building silhouette vector or icon text
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.font = 'bold 100px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText("🏠", x + w/2, y + h/2 + 20);
-
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '800 13px system-ui, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText("PREMIUM PORTFÖY HAFIZASI", x + w/2, y + h/2 + 70);
-      ctx.textAlign = 'left';
-    };
-
-    const wrapText = (text: string, maxWidth: number) => {
-      const words = text.split(" ");
-      const lines = [];
-      let currentLine = words[0];
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const widthCheck = ctx.measureText(currentLine + " " + word).width;
-        if (widthCheck < maxWidth) {
-          currentLine += " " + word;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
-        }
-      }
-      lines.push(currentLine);
-      return lines;
-    };
-
-    if (mainImageUrl) {
-      const img = new Image();
-      // Ensure crossOrigin is configured for fallback safety
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        finalizeDrawAndDownload(img);
-      };
-      img.onerror = () => {
-        // If image loading fails (CORS, invalid URL, offline etc.), finalize with dummy image representation.
-        finalizeDrawAndDownload(null);
-      };
-      
-      // Handle cache-busting securely for AWS/CDN image configurations
-      const cacheBustSep = mainImageUrl.includes('?') ? '&' : '?';
-      img.src = mainImageUrl + cacheBustSep + "lookprice_export_ts=" + Date.now();
-    } else {
-      finalizeDrawAndDownload(null);
-    }
+    });
   };
 
   return (
@@ -566,9 +580,23 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
           <div>
             <div className="flex justify-between items-center mb-4">
               <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
-                <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME
+                <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME (EMLAK)
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                {/* Collage Toggle Mode */}
+                <button
+                  onClick={() => setIsCollage(!isCollage)}
+                  className={`p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 ${
+                    isCollage
+                      ? 'bg-amber-600 text-white border-amber-600 shadow'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  title="Detaylı 3'lü Fotoğraf Kolajı"
+                >
+                  <Grid className="w-3.5 h-3.5" />
+                  {isCollage ? "Kolaj" : "Tek Resim"}
+                </button>
+                <div className="h-5 w-[1px] bg-slate-200" />
                 <button 
                   onClick={() => setSelectedRatio('square')}
                   className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
@@ -598,7 +626,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 <div className="p-4 flex justify-between items-start z-10">
                   <div>
                     <h3 className={`text-base font-black truncate max-w-[180px] leading-tight select-none uppercase tracking-wider ${themeConfig.textTitle}`}>
-                      {branding?.store_name || branding?.name || 'PREMIUM GALERİ'}
+                      {branding?.store_name && !branding.store_name.toLowerCase().includes('lookprice') ? branding.store_name : 'PREMIUM VIP EMLAK'}
                     </h3>
                     <p className="text-[7.5px] font-black tracking-wider text-slate-400 uppercase select-none">PREMIUM ESTATE</p>
                   </div>
@@ -610,18 +638,65 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 {/* Property Image Cover Block */}
                 <div className="px-4 flex-1 flex flex-col justify-center min-h-0">
                   <div className="relative w-full flex-1 rounded-xl overflow-hidden bg-slate-850/50 border border-slate-700 max-h-[160px] lg:max-h-[220px]">
-                    {property.images && property.images[0] ? (
-                      <img 
-                        src={property.images[0]} 
-                        alt={propertyTitle} 
-                        className="w-full h-full object-cover select-none"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                        <span className="text-3xl">🏠</span>
-                        <span className="text-[9px] font-bold mt-1">Görsel Eklenmemiş</span>
+                    {isCollage && property.images && (property.images[1] || property.images[2]) ? (
+                      <div className="absolute inset-0 w-full h-full flex flex-row">
+                        {/* Main Image (67% width) */}
+                        <div className="w-[67%] h-full border-r border-white/10 overflow-hidden relative">
+                          {property.images[0] ? (
+                            <img 
+                              src={property.images[0]} 
+                              alt={propertyTitle} 
+                              className="w-full h-full object-cover select-none"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 bg-slate-800">Ana Görsel</div>
+                          )}
+                        </div>
+
+                        {/* Side stack (33% width) */}
+                        <div className="w-[33%] h-full flex flex-col border-l border-white/10">
+                          <div className="flex-1 border-b border-white/10 overflow-hidden relative">
+                            {property.images[1] ? (
+                              <img 
+                                src={property.images[1]} 
+                                alt="Görsel 2" 
+                                className="w-full h-full object-cover select-none"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-[7px] text-slate-500 bg-slate-850 font-bold">Resim 2</div>
+                            )}
+                          </div>
+                          <div className="flex-1 overflow-hidden relative">
+                            {property.images[2] ? (
+                              <img 
+                                src={property.images[2]} 
+                                alt="Görsel 3" 
+                                className="w-full h-full object-cover select-none"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-[7px] text-slate-500 bg-slate-850 font-bold">Resim 3</div>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      // Regular single image
+                      property.images && property.images[0] ? (
+                        <img 
+                          src={property.images[0]} 
+                          alt={propertyTitle} 
+                          className="w-full h-full object-cover select-none"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                          <span className="text-3xl">🏠</span>
+                          <span className="text-[9px] font-bold mt-1">Görsel Eklenmemiş</span>
+                        </div>
+                      )
                     )}
                     
                     {/* Floating Price Plate */}

@@ -118,9 +118,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const currentTemplate = contractTemplates.find(t => t.id === selectedTemplateId) || contractTemplates[0];
 
   // Dynamic values pulled from store settings / branding
-  const storeNameVal = branding?.store_name || branding?.name || "LookPrice Real Estate";
+  const storeNameVal = branding?.store_name || branding?.name || "Seçkin Emlak";
   const storePhoneVal = branding?.phone || "+90 533 800 00 00";
-  const storeEmailVal = branding?.email || "realestate@lookprice.me";
+  const storeEmailVal = branding?.email || "bilgi@seckinemlak.com";
 
   // Standardized prices: thousands separator with 0 decimal places inside real estate contracts
   const formattedPriceNum = Number(property.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -393,7 +393,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
           </div>
 
           <p className="text-[9px] text-slate-500 text-center mt-6">
-            LookPrice Premium Real Estate Engine • 2026 Legal Sync v4
+            Premium Real Estate Engine • 2026 Legal Sync v4
           </p>
         </div>
 

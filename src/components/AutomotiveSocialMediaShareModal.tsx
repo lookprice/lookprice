@@ -71,17 +71,18 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     const candidateName = branding?.store_name || branding?.name;
     const activeSlug = urlSlug || branding?.slug || (branding as any)?.parent_slug;
     
-    if (!candidateName || candidateName.toLowerCase().trim() === 'lookprice') {
+    if (!candidateName || candidateName.toLowerCase().trim() === 'lookprice' || candidateName.toLowerCase().trim() === 'lookprice premium gallery') {
       if (activeSlug && activeSlug.toLowerCase().trim() !== 'lookprice') {
         return formatSlugToTitle(activeSlug);
       }
-      return 'LookPrice Otomotiv';
+      return 'Seçkin Otomotiv';
     }
     return candidateName;
   }, [branding, urlSlug]);
 
   const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('luxury_dark');
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
+  const [isCollage, setIsCollage] = useState<boolean>(true);
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
@@ -283,22 +284,23 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Draw premium border framing
+    // Dynamic framing closer to edge = 16px instead of 30px to maximize image layout
+    const borderPadding = 16;
     ctx.strokeStyle = selectedTheme === 'luxury_dark' ? '#d97706' : // amber-600
                       selectedTheme === 'sporty_red' ? '#dc2626' : // red-600
                       selectedTheme === 'neon_cyber' ? '#06b6d4' : '#e4e4e7'; // cyan or white/zinc
     ctx.lineWidth = 12;
-    ctx.strokeRect(30, 30, width - 60, height - 60);
+    ctx.strokeRect(borderPadding, borderPadding, width - (borderPadding * 2), height - (borderPadding * 2));
 
     // Draw Store Branding Header inside the Canvas
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.fillRect(30, 30, width - 60, 110);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.fillRect(borderPadding, borderPadding, width - (borderPadding * 2), 100);
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(30, 140);
-    ctx.lineTo(width - 30, 140);
+    ctx.moveTo(borderPadding, borderPadding + 100);
+    ctx.lineTo(width - borderPadding, borderPadding + 100);
     ctx.stroke();
 
     ctx.textAlign = 'left';
@@ -308,12 +310,12 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     ctx.font = '900 28px system-ui, sans-serif';
     ctx.letterSpacing = '5px';
     const brandName = storeName.toUpperCase();
-    ctx.fillText(brandName, 80, 80);
+    ctx.fillText(brandName, borderPadding + 30, borderPadding + 58);
 
     ctx.fillStyle = '#a1a1aa';
     ctx.font = '800 13px system-ui, sans-serif';
     ctx.letterSpacing = '2px';
-    ctx.fillText("PREMIUM GALLERY SHOWCASE", 80, 112);
+    ctx.fillText("PREMIUM GALLERY SHOWCASE", borderPadding + 30, borderPadding + 84);
 
     // Draw phone top-right text
     ctx.textAlign = 'right';
@@ -322,64 +324,141 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                     selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
     ctx.font = 'bold 20px monospace';
     const contactPhoneText = branding?.phone || branding?.whatsapp_number || 'PREMIUM GALERİ';
-    ctx.fillText(contactPhoneText, width - 80, 95);
+    ctx.fillText(contactPhoneText, width - borderPadding - 30, borderPadding + 68);
     ctx.textAlign = 'left'; // Reset
 
-    // Load original Image
-    const mainImageUrl = vehicle.images && vehicle.images[0] ? vehicle.images[0] : null;
+    // Parallel asynchronous loading of images
+    const imageUrls: string[] = [];
+    if (vehicle.images && vehicle.images[0]) imageUrls.push(vehicle.images[0]);
+    if (isCollage && vehicle.images && vehicle.images[1]) imageUrls.push(vehicle.images[1]);
+    if (isCollage && vehicle.images && vehicle.images[2]) imageUrls.push(vehicle.images[2]);
 
-    const finalizeDrawAndDownload = (imgElement: HTMLImageElement | null) => {
-      // Image occupies the whole core region of the card
-      const imgX = 30;
-      const imgY = 140;
-      const imgWidth = width - 60;
-      const imgHeight = selectedRatio === 'square' ? height - 170 : 1210; // story reaches up to 1350
+    const loadImg = (url: string): Promise<HTMLImageElement | null> => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        const cacheBustSep = url.includes('?') ? '&' : '?';
+        img.src = url + cacheBustSep + "lookprice_export_ts=" + Date.now();
+      });
+    };
+
+    const drawFallbackBlock = (x: number, y: number, w: number, h: number, emoji: string) => {
+      ctx.save();
+      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+      grad.addColorStop(0, '#101726');
+      grad.addColorStop(1, '#1b2536');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, w, h);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 2;
+      for (let offset = 0; offset < w + h; offset += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x + offset, y);
+        ctx.lineTo(x, y + offset);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = 'bold 45px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(emoji, x + w/2, y + h/2 + 15);
+      ctx.restore();
+    };
+
+    const wrapText = (text: string, maxWidth: number) => {
+      const words = text.split(" ");
+      const lines = [];
+      let currentLine = words[0];
+
+      for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const widthCheck = ctx.measureText(currentLine + " " + word).width;
+        if (widthCheck < maxWidth) {
+          currentLine += " " + word;
+        } else {
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      lines.push(currentLine);
+      return lines;
+    };
+
+    Promise.all(imageUrls.map(loadImg)).then((loadedImages) => {
+      const imgElement = loadedImages[0];
+      const sideImg1 = loadedImages[1];
+      const sideImg2 = loadedImages[2];
+
+      const imgX = borderPadding;
+      const imgY = borderPadding + 100;
+      const imgWidth = width - (borderPadding * 2);
+      const imgHeight = selectedRatio === 'square' ? height - 130 : 1260; // story reaches up to 1380
+
+      const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number, emoji: string) => {
+        if (imgPtr) {
+          try {
+            const imgAspect = imgPtr.width / imgPtr.height;
+            const targetAspect = w / h;
+            let sx = 0, sy = 0, sWidth = imgPtr.width, sHeight = imgPtr.height;
+            if (imgAspect > targetAspect) {
+              sWidth = imgPtr.height * targetAspect;
+              sx = (imgPtr.width - sWidth) / 2;
+            } else {
+              sHeight = imgPtr.width / targetAspect;
+              sy = (imgPtr.height - sHeight) / 2;
+            }
+            ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
+          } catch (err) {
+            drawFallbackBlock(x, y, w, h, emoji);
+          }
+        } else {
+          drawFallbackBlock(x, y, w, h, emoji);
+        }
+      };
 
       ctx.save();
       // Clip image to outer border limits
       ctx.rect(imgX, imgY, imgWidth, imgHeight);
       ctx.clip();
 
-      if (imgElement) {
-        try {
-          const imgAspect = imgElement.width / imgElement.height;
-          const targetAspect = imgWidth / imgHeight;
+      if (isCollage && (sideImg1 || sideImg2)) {
+        // Collage layout! Left main image 67% width, Right side stacked vertically 33% width
+        const mainW = Math.round(imgWidth * 0.67);
+        const gapSize = 8;
+        const sideXWidth = imgWidth - mainW - gapSize;
+        const sideH = Math.round((imgHeight - gapSize) / 2);
 
-          let sx = 0, sy = 0, sWidth = imgElement.width, sHeight = imgElement.height;
+        // Main Left image
+        drawSingleImageCover(imgElement, imgX, imgY, mainW, imgHeight, "🚗");
 
-          if (imgAspect > targetAspect) {
-            sWidth = imgElement.height * targetAspect;
-            sx = (imgElement.width - sWidth) / 2;
-          } else {
-            sHeight = imgElement.width / targetAspect;
-            sy = (imgElement.height - sHeight) / 2;
-          }
-
-          ctx.drawImage(imgElement, sx, sy, sWidth, sHeight, imgX, imgY, imgWidth, imgHeight);
-        } catch (err) {
-          drawCorsFallback(imgX, imgY, imgWidth, imgHeight);
-        }
+        // Side stacked images
+        drawSingleImageCover(sideImg1, imgX + mainW + gapSize, imgY, sideXWidth, sideH, "📸");
+        drawSingleImageCover(sideImg2, imgX + mainW + gapSize, imgY + sideH + gapSize, sideXWidth, sideH, "📸");
       } else {
-        drawCorsFallback(imgX, imgY, imgWidth, imgHeight);
+        // Regular single cover image
+        drawSingleImageCover(imgElement, imgX, imgY, imgWidth, imgHeight, "🚗");
       }
 
       ctx.restore();
 
       // Subtle black gradient overlay on the bottom portion of image
-      const imgGrad = ctx.createLinearGradient(30, imgY + imgHeight - 480, 30, imgY + imgHeight);
+      const imgGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 480, imgX, imgY + imgHeight);
       imgGrad.addColorStop(0, 'rgba(0,0,0,0)');
       imgGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
       imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
       ctx.fillStyle = imgGrad;
-      ctx.fillRect(30, imgY + imgHeight - 480, imgWidth, 480);
+      ctx.fillRect(imgX, imgY + imgHeight - 480, imgWidth, 480);
 
       // Draw floating luxury sticker top right inside the image block
-      const stickerX = width - 130;
-      const stickerY = 240;
+      const stickerX = width - borderPadding - 100;
+      const stickerY = imgY + 80;
       
       ctx.fillStyle = selectedTheme === 'sporty_red' ? '#ef4444' : selectedTheme === 'luxury_dark' ? '#d97706' : '#0284c7';
       ctx.beginPath();
-      ctx.arc(stickerX, stickerY, 65, 0, Math.PI * 2);
+      ctx.arc(stickerX, stickerY, 55, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = '#ffffff';
@@ -388,16 +467,16 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.font = 'bold 15px system-ui, sans-serif';
-      ctx.fillText(vehicle.is_trade_in_available ? "TAKASLI" : "ORİJİNAL", stickerX, stickerY - 14);
-      ctx.font = '900 34px system-ui, sans-serif';
-      ctx.fillText(vehicle.year ? `${vehicle.year}` : "AUTO", stickerX, stickerY + 20);
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.fillText(vehicle.is_trade_in_available ? "TAKASLI" : "ORİJİNAL", stickerX, stickerY - 10);
+      ctx.font = '900 28px system-ui, sans-serif';
+      ctx.fillText(vehicle.year ? `${vehicle.year}` : "AUTO", stickerX, stickerY + 16);
       ctx.textAlign = 'left';
 
       // --- TEXT CONTENT GLASS CARD OVERLAY ---
-      const glassX = 70;
+      const glassX = borderPadding + 30;
       const glassY = selectedRatio === 'square' ? 730 : 1085;
-      const glassW = width - 140;
+      const glassW = width - (borderPadding * 2) - 60;
       const glassH = 290;
 
       // Draw glass card container
@@ -561,7 +640,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       try {
         const link = document.createElement("a");
         const sanitizedTitle = `${vehicle.brand}-${vehicle.model}`.toLowerCase().replace(/\s+/g, '-').substring(0, 20);
-        link.download = `lookprice-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
+        link.download = `afis-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
         link.href = canvas.toDataURL("image/png");
         document.body.appendChild(link);
         link.click();
@@ -570,69 +649,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
         setRenderError("Kaydetme işlemi sırasında tarayıcı güvenlik kısıtlaması nedeniyle hata oluştu.");
       }
       setIsRendering(false);
-    };
-
-    const drawCorsFallback = (x: number, y: number, w: number, h: number) => {
-      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-      grad.addColorStop(0, '#0f172a');
-      grad.addColorStop(1, '#1e293b');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, y, w, h);
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = 3;
-      for (let offset = 0; offset < w + h; offset += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x + offset, y);
-        ctx.lineTo(x, y + offset);
-        ctx.stroke();
-      }
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.font = 'bold 100px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText("🚗", x + w/2, y + h/2 + 20);
-
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '800 13px system-ui, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText("PREMIUM AUTOMOTIVE SHOWCASE", x + w/2, y + h/2 + 70);
-      ctx.textAlign = 'left';
-    };
-
-    const wrapText = (text: string, maxWidth: number) => {
-      const words = text.split(" ");
-      const lines = [];
-      let currentLine = words[0];
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const widthCheck = ctx.measureText(currentLine + " " + word).width;
-        if (widthCheck < maxWidth) {
-          currentLine += " " + word;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
-        }
-      }
-      lines.push(currentLine);
-      return lines;
-    };
-
-    if (mainImageUrl) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        finalizeDrawAndDownload(img);
-      };
-      img.onerror = () => {
-        finalizeDrawAndDownload(null);
-      };
-      const cacheBustSep = mainImageUrl.includes('?') ? '&' : '?';
-      img.src = mainImageUrl + cacheBustSep + "lookprice_export_ts=" + Date.now();
-    } else {
-      finalizeDrawAndDownload(null);
-    }
+    });
   };
 
   return (
@@ -646,7 +663,21 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
               <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
                 <Sparkles className="w-3.5 h-3.5" /> REELTIME AFİŞ ÖNİZLEME (ARAÇ)
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                {/* Collage Toggle Mode */}
+                <button
+                  onClick={() => setIsCollage(!isCollage)}
+                  className={`p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 ${
+                    isCollage
+                      ? 'bg-amber-600 text-white border-amber-600 shadow'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  title="Detaylı 3'lü Fotoğraf Kolajı"
+                >
+                  <Grid className="w-3.5 h-3.5" />
+                  {isCollage ? "Kolaj" : "Tek Resim"}
+                </button>
+                <div className="h-5 w-[1px] bg-slate-200" />
                 <button 
                   onClick={() => setSelectedRatio('square')}
                   className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
@@ -690,19 +721,66 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
                 {/* Main Visual Image centerpiece (Occupies 100% of rest of card height) */}
                 <div className="relative flex-1 w-full bg-slate-900 overflow-hidden flex flex-col justify-end">
-                  {/* Image full bleed background */}
-                  {vehicle.images && vehicle.images[0] ? (
-                    <img 
-                      src={vehicle.images[0]} 
-                      alt={vehicleTitle} 
-                      className="absolute inset-0 w-full h-full object-cover select-none"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-800">
-                      <span className="text-4xl mb-1">🚗</span>
-                      <span className="text-[10px] font-bold">Görsel Eklenmemiş</span>
+                  {/* Image full bleed background with Collage layout support */}
+                  {isCollage && vehicle.images && (vehicle.images[1] || vehicle.images[2]) ? (
+                    <div className="absolute inset-0 w-full h-full flex flex-row">
+                      {/* Left Side: Main Vehicle Image (67% width) */}
+                      <div className="w-[67%] h-full border-r border-white/10 overflow-hidden relative">
+                        {vehicle.images[0] ? (
+                          <img 
+                            src={vehicle.images[0]} 
+                            alt={vehicleTitle} 
+                            className="w-full h-full object-cover select-none"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-slate-600 bg-slate-800 text-xs">Orijinal</div>
+                        )}
+                      </div>
+                      
+                      {/* Right Side: Stacked secondary pictures (33% width) */}
+                      <div className="w-[33%] h-full flex flex-col border-l border-white/10">
+                        <div className="flex-1 border-b border-white/10 overflow-hidden relative">
+                          {vehicle.images[1] ? (
+                            <img 
+                              src={vehicle.images[1]} 
+                              alt="Görsel 2" 
+                              className="w-full h-full object-cover select-none"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-slate-500 bg-slate-850">Görsel 2</div>
+                          )}
+                        </div>
+                        <div className="flex-1 overflow-hidden relative">
+                          {vehicle.images[2] ? (
+                            <img 
+                              src={vehicle.images[2]} 
+                              alt="Görsel 3" 
+                              className="w-full h-full object-cover select-none"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-slate-500 bg-slate-850">Görsel 3</div>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    // Regular single image
+                    vehicle.images && vehicle.images[0] ? (
+                      <img 
+                        src={vehicle.images[0]} 
+                        alt={vehicleTitle} 
+                        className="absolute inset-0 w-full h-full object-cover select-none"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-800">
+                        <span className="text-4xl mb-1">🚗</span>
+                        <span className="text-[10px] font-bold">Görsel Eklenmemiş</span>
+                      </div>
+                    )
                   )}
 
                   {/* Gradient Overlay for exceptional legibility and contrast */}

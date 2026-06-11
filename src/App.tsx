@@ -51,42 +51,45 @@ export default function App() {
   const location = useLocation();
   const { lang } = useLanguage();
   const [detectedSlug, setDetectedSlug] = useState<string | null>(null);
-  const [isCheckingDomain, setIsCheckingDomain] = useState(true);
+  const [isCheckingDomain, setIsCheckingDomain] = useState(() => {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    if (!hostname) return false;
+    const mainDomains = [
+      "lookprice.net",
+      "www.lookprice.net",
+      "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
+      "ais-pre-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
+      "localhost",
+      "0.0.0.0",
+      "onrender.com"
+    ];
+    const isMainDomain = mainDomains.some(d => hostname.includes(d)) || 
+                        hostname.includes(".run.app") || 
+                        hostname.includes(".google.com") ||
+                        hostname.includes("webcontainer");
+    return !isMainDomain;
+  });
 
   useEffect(() => {
+    if (!isCheckingDomain) return; // Skip if already determined synchronously to be on main domain
+
     const checkDomain = async () => {
       const hostname = window.location.hostname;
-      const mainDomains = [
-        "lookprice.net",
-        "www.lookprice.net",
-        "ais-dev-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
-        "ais-pre-fw5matlno23z7prjfvwxwu-416165499277.europe-west2.run.app",
-        "localhost",
-        "0.0.0.0",
-        "onrender.com"
-      ];
-
-      const isMainDomain = mainDomains.some(d => hostname.includes(d)) || 
-                          hostname.includes(".run.app") || 
-                          hostname.includes(".google.com") ||
-                          hostname.includes("webcontainer");
-      
-      if (!isMainDomain && hostname !== "") {
-        try {
-          const res = await fetch(`/api/public/stores/by-domain?domain=${hostname}`);
-          if (res.ok) {
-            const data = await res.json();
-            setDetectedSlug(data.slug);
-          }
-        } catch (e) {
-          console.error("Domain detection failed", e);
+      try {
+        const res = await fetch(`/api/public/stores/by-domain?domain=${hostname}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDetectedSlug(data.slug);
         }
+      } catch (e) {
+        console.error("Domain detection failed", e);
+      } finally {
+        setIsCheckingDomain(false);
       }
-      setIsCheckingDomain(false);
     };
 
     checkDomain();
-  }, []);
+  }, [isCheckingDomain]);
 
   useEffect(() => {
     document.title = translations[lang].meta.title;

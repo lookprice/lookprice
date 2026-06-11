@@ -74,7 +74,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       if (activeSlug && activeSlug.toLowerCase().trim() !== 'lookprice') {
         return formatSlugToTitle(activeSlug);
       }
-      return 'LookPrice Mağazası';
+      return 'Seçkin Mağaza';
     }
     return candidateName;
   }, [branding, urlSlug]);
@@ -623,7 +623,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       try {
         const link = document.createElement("a");
         const sanitizedTitle = productTitle.toLowerCase().replace(/\s+/g, '-').substring(0, 20);
-        link.download = `lookprice-product-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
+        link.download = `afis-product-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
         link.href = canvas.toDataURL("image/png");
         document.body.appendChild(link);
         link.click();

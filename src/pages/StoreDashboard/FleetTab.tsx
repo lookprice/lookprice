@@ -1093,122 +1093,140 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 py-3 border-y border-gray-50">
-                <div className="space-y-1">
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.alerts}</span>
-                  <div className="flex flex-wrap gap-1">
-                    {allDocuments
-                      .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
-                      .map((d, idx) => (
-                        <div key={idx} className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
-                          {d.type}
-                        </div>
-                      ))
-                    }
-                    {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                        {t.service}
+              <div className="py-2.5 border-y border-gray-50 flex flex-wrap gap-1 items-center justify-between">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.alerts}:</span>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {allDocuments
+                    .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+                    .map((d, idx) => (
+                      <div key={idx} className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
+                        {d.type}
                       </div>
-                    )}
-                    {(() => {
-                      const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicle.id && a.status === 'active');
-                      if (activeAssignment && activeAssignment.driver_id) {
-                        const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
-                        if (driver && (driver.expiring_docs || 0) > 0) {
-                          return (
-                            <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
-                              {t.driverDoc} ({driver.expiring_docs})
-                            </div>
-                          );
-                        }
+                    ))
+                  }
+                  {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
+                      {t.service}
+                    </div>
+                  )}
+                  {(() => {
+                    const activeAssignment = (allAssignments || []).find(a => a.vehicle_id === vehicle.id && a.status === 'active');
+                    if (activeAssignment && activeAssignment.driver_id) {
+                      const driver = (drivers || []).find(d => d.id === activeAssignment.driver_id);
+                      if (driver && (driver.expiring_docs || 0) > 0) {
+                        return (
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
+                            {t.driverDoc} ({driver.expiring_docs})
+                          </div>
+                        );
                       }
-                      return null;
-                    })()}
-                    {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
-                        {t.maintenance}
-                      </div>
-                    )}
-                    {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
-                      <span className="text-[10px] text-green-500 font-bold">{t.noProblem}</span>
-                    )}
-                  </div>
+                    }
+                    return null;
+                  })()}
+                  {((vehicle.maintenance_due || 0) > 0 || (vehicle.current_mileage && (allMaintenance || []).find(m => m.vehicle_id === vehicle.id && m.next_maintenance_mileage && vehicle.current_mileage >= m.next_maintenance_mileage - 1000))) && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
+                      {t.maintenance}
+                    </div>
+                  )}
+                  {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
+                    <span className="text-[10px] text-green-500 font-bold">{t.noProblem}</span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
+              </div>
+
+              {/* Action Buttons Block */}
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2 w-full">
                   <button
                     onClick={() => {
                       setSelectedVehicle(vehicle);
                       fetchVehicleDetails(vehicle);
                       setShowDetailModal(true);
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-blue-100 transition-all active:scale-95"
                   >
                     <Eye className="w-4 h-4" />
                     {t.details}
                   </button>
-                  {!isViewer && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setAutoContractVehicle(vehicle);
-                          setIsAutoContractOpen(true);
-                        }}
-                        className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center"
-                        title="Resmi Sözleşme"
-                      >
-                        <FileSignature className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedVehicle(vehicle);
-                          setFormData({
-                            plate: vehicle.plate,
-                            brand: vehicle.brand,
-                            model: vehicle.model,
-                            year: vehicle.year,
-                            type: vehicle.type,
-                            chassis_number: vehicle.chassis_number,
-                            engine_number: vehicle.engine_number,
-                            current_mileage: vehicle.current_mileage,
-                            status: vehicle.status,
-                            selling_price: vehicle.selling_price,
-                            currency: vehicle.currency || 'TRY',
-                            package_name: vehicle.package_name || '',
-                            transmission: vehicle.transmission || 'manual',
-                            fuel_type: vehicle.fuel_type || 'gasoline',
-                            color: vehicle.color || '',
-                            body_type: vehicle.body_type || '',
-                            paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
-                            tramer_amount: vehicle.tramer_amount || 0,
-                            tramer_currency: vehicle.tramer_currency || 'TRY',
-                            buying_price: vehicle.buying_price || 0,
-                            buying_currency: vehicle.buying_currency || 'TRY',
-                            expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
-                            target_profit_margin: vehicle.target_profit_margin || 0,
-                            description: vehicle.description || '',
-                            images: vehicle.images || [],
-                            virtual_tour_url: vehicle.virtual_tour_url || '',
-                            ai_tour_enabled: !!vehicle.ai_tour_enabled,
-                            is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
-                            market_story: vehicle.market_story || '',
-                            technical_description: vehicle.technical_description || '',
-                            is_trade_in_available: !!vehicle.is_trade_in_available
-                          });
-                          setShowAddModal(true);
-                        }}
-                        className="p-2.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 hover:bg-amber-100 transition-all"
-                      >
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteVehicle(vehicle.id)}
-                        className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-all"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  )}
+
+                  <button
+                    onClick={() => {
+                      setShareVehicle(vehicle);
+                      setIsShareModalOpen(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-indigo-100 active:scale-95"
+                    title="Paylaş"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    {lang === 'tr' ? 'Paylaş' : 'Share'}
+                  </button>
                 </div>
+
+                {!isViewer && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setAutoContractVehicle(vehicle);
+                        setIsAutoContractOpen(true);
+                      }}
+                      className="flex-1 py-2.5 bg-slate-900 border border-slate-950 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-95"
+                      title="Resmi Sözleşme"
+                    >
+                      <FileSignature className="w-4 h-4" />
+                      {lang === 'tr' ? 'Sözleşme' : 'Contract'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedVehicle(vehicle);
+                        setFormData({
+                          plate: vehicle.plate,
+                          brand: vehicle.brand,
+                          model: vehicle.model,
+                          year: vehicle.year,
+                          type: vehicle.type,
+                          chassis_number: vehicle.chassis_number,
+                          engine_number: vehicle.engine_number,
+                          current_mileage: vehicle.current_mileage,
+                          status: vehicle.status,
+                          selling_price: vehicle.selling_price,
+                          currency: vehicle.currency || 'TRY',
+                          package_name: vehicle.package_name || '',
+                          transmission: vehicle.transmission || 'manual',
+                          fuel_type: vehicle.fuel_type || 'gasoline',
+                          color: vehicle.color || '',
+                          body_type: vehicle.body_type || '',
+                          paint_report: typeof vehicle.paint_report === 'string' ? vehicle.paint_report : JSON.stringify(vehicle.paint_report || {}),
+                          tramer_amount: vehicle.tramer_amount || 0,
+                          tramer_currency: vehicle.tramer_currency || 'TRY',
+                          buying_price: vehicle.buying_price || 0,
+                          buying_currency: vehicle.buying_currency || 'TRY',
+                          expenses: typeof vehicle.expenses === 'string' ? vehicle.expenses : JSON.stringify(vehicle.expenses || []),
+                          target_profit_margin: vehicle.target_profit_margin || 0,
+                          description: vehicle.description || '',
+                          images: vehicle.images || [],
+                          virtual_tour_url: vehicle.virtual_tour_url || '',
+                          ai_tour_enabled: !!vehicle.ai_tour_enabled,
+                          is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
+                          market_story: vehicle.market_story || '',
+                          technical_description: vehicle.technical_description || '',
+                          is_trade_in_available: !!vehicle.is_trade_in_available
+                        });
+                        setShowAddModal(true);
+                      }}
+                      className="p-2.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center active:scale-95"
+                      title="Düzenle"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVehicle(vehicle.id)}
+                      className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-all flex items-center justify-center active:scale-95"
+                      title="Sil"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
