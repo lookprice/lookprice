@@ -126,7 +126,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   // Dynamic Captions generator (100% Client-side robust copywriting)
   const getCaptionText = () => {
     const brandName = branding?.store_name || branding?.name || 'Seçkin Gayrimenkul';
-    const contactPhone = branding?.phone || branding?.whatsapp_number || '+90 (548) 000 0000';
+    const contactPhoneText = (branding?.phone || branding?.whatsapp_number) 
+      ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
+      : 'DM yoluyla iletişim kurabilirsiniz.';
     const brokerName = property.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
 
     const priceLabel = isRent ? "Aylık Kira Bedeli" : "Değerleme Fiyatı";
@@ -154,7 +156,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `Sınırları zorlayan mimarisi, lüks kaplama detayları ve yüksek yaşam standartlarıyla bu mülk, ${isRent ? 'prestijli ve konforlu bir Kıbrıs hayatı sunmaktadır.' : 'hem prestijli bir yaşam hem de seçkin bir varlık yatırımı sunmaktadır.'}\n\n` +
                `Detaylı fizibilite dosyası, video turu ve yerinde özel randevulu sunum talepleriniz için bize hemen DM gönderebilir ya da iletişim hattımızdan ulaşabilirsiniz.\n\n` +
                `👤 Danışman: ${brokerName}\n` +
-               `📞 İletişim: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `🏢 Ofis: ${brandName}\n\n` +
                `${mainHashtags}`;
 
@@ -181,7 +183,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `💰 Fırsat Liste Bedeli: ${priceText}${isRent ? ' / Aylık' : ''}\n\n` +
                `${profitSentence}\n\n` +
                `Seçkin güvencemizle dosya analizi ve hızlı sözleşme süreçleri için bizimle iletişime geçin.\n\n` +
-               `📞 Detaylar İçin Arayın: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `👤 Sorumlu Temsilci: ${brokerName}\n` +
                `🏢 Yetkili Şube: ${brandName}\n\n` +
                `${isRent ? `#kibrisemlak #kibriskiralik #yatirimvizyonu #kibriskiralikdaire #${propertyLocation.toLowerCase()}realestate` : `#kibrisemlak #kibrisyatirim #emlakraporu #yatirimvizyonu #kibrissatilik #${propertyLocation.toLowerCase()}realestate`}`;
@@ -206,7 +208,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `Her sabah eşsiz Kıbrıs havasına gözlerinizi açacağınız, sevdiklerinizle huzurlu anılar biriktireceğiniz muhteşem bir konsepte sahip.\n\n` +
                `Kahvemizi içmeye ve bu güzel mülkün tüm detaylarını yüz yüze konuşmaya bekliyoruz! 😊☕️\n\n` +
                `💬 Hemen DM atın ya da bizi arayın:\n` +
-               `📞 Cep: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `👤 Danışmanınız: ${brokerName}\n` +
                `🏢 Emlak Ağı: ${brandName}\n\n` +
                `${friendlyHashtags}`;

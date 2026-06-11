@@ -296,6 +296,22 @@ export interface RealEstateProperty {
   updated_at: string;
 }
 
+export interface Driver {
+  id: number;
+  store_id: number;
+  name: string;
+  license_number: string;
+  license_class: string;
+  blood_type: string;
+  phone: string;
+  email: string;
+  address: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  documents?: { id: number; type: string; url: string; expiry_date?: string }[];
+  expiring_docs?: number;
+}
+
 export interface Vehicle {
   id: number;
   store_id: number;
@@ -384,4 +400,30 @@ export interface VehicleAssignment {
   end_date: string | null;
   start_mileage: number;
   end_mileage: number | null;
+  status: 'active' | 'returned';
+}
+
+export interface VehicleIncident {
+  id: number;
+  vehicle_id: number;
+  type: 'accident' | 'breakdown' | 'theft' | 'other';
+  date: string;
+  description: string;
+  location?: string;
+  is_owner_fault?: boolean;
+  cost: number;
+  currency?: string;
+  status: 'open' | 'closed';
+  report_url: string | null;
+  created_at: string;
+}
+
+export interface VehicleMileage {
+  id: number;
+  vehicle_id: number;
+  date: string;
+  mileage: number;
+  location?: string;
+  notes: string;
+  created_at: string;
 }

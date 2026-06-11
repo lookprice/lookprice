@@ -167,8 +167,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
   // Dynamic Captions generator (100% Client-side robust copywriting for vehicles)
   const getCaptionText = () => {
-    const brandName = storeName;
-    const contactPhone = branding?.phone || branding?.whatsapp_number || '+90 (548) 000 0000';
+    const brandName = storeName || branding?.store_name || branding?.name || 'Seçkin Otomotiv';
+    const contactPhoneText = (branding?.phone || branding?.whatsapp_number) 
+      ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
+      : 'DM yoluyla iletişim kurabilirsiniz.';
     const brokerName = vehicle.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
     const storeHastagPart = brandName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '');
     const activeHashtags = `#otomotiv #araba #sahibinden #satilikaraba #${storeHastagPart} #luxurycars #gallerypremium #ikincielyetkili #arabapazari #${vehicle.brand.toLowerCase()} #${vehicle.model.toLowerCase()}`;
@@ -190,7 +192,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                `Hem şehir içi asaletini yaşamak hem de prestijli yolculukların keyfini sürmek isteyen seçkin müşterilerimiz için tasarlanan bu şaheseri yakından incelemek üzere galerimize davetlisiniz.\n\n` +
                `İletişim hattımız üzerinden detaylı teknik ekspertiz belgesi ve randevu talep edebilirsiniz.\n\n` +
                `👤 Portföy Danışmanı: ${brokerName}\n` +
-               `📞 İletişim: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `🏢 Galeri: ${brandName}\n\n` +
                `${activeHashtags}`;
 
@@ -208,7 +210,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                `• Takas Durumu: ${vehicle.is_trade_in_available ? 'Değerinde araçlar ile takas imkanı mevcuttur' : 'Sadece nakit satış'}\n\n` +
                `💰 Net Satış Bedeli: ${priceText}\n\n` +
                `Araç kozmetik olarak 10/10 seviyesinde olup, tüm periyodik ve ağır bakımları yetkili servis ağı tarafından yeni yapılmıştır. Detaylı şasi kontrolü, motor gücü haritalandırma raporu hazır durumdadır.\n\n` +
-               `📞 Detaylı Bilgi İçin: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `👤 Sorumlu Uzman: ${brokerName}\n` +
                `🏢 Yetkili Şube: ${brandName}\n\n` +
                `#otomotivteknik #performans #ekspertizgarantili #yetkiliserviz #arackondisyonu ${activeHashtags}`;
@@ -225,7 +227,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                `💰 Fiyat: ${priceText} (Fırsat kaçmadan ilk gelen alır!)\n\n` +
                `İçerisinde sigara içilmemiş, döşemelerinde en ufak bir deformasyon olmayan, her kilometresi özenle yapılmış bu yakışıklıyı yakından görüp test etmek isterseniz hemen bir çayımızı içmeye bekliyoruz!\n\n` +
                `💬 DM atarak ya da numaradan bana ulaşabilirsiniz:\n` +
-               `📞 Telefon: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `👤 Araç Sorumlusu: ${brokerName}\n` +
                `🏢 Ofisimiz: ${brandName}\n\n` +
                `${activeHashtags}`;

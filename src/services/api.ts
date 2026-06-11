@@ -345,6 +345,7 @@ export const api = {
   getVehicleMaintenance: (id: number) => api.get(`/api/fleet/vehicles/${id}/maintenance`),
   createVehicleMaintenance: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/maintenance`, data),
   updateVehicleMaintenance: (id: number, data: any) => api.put(`/api/fleet/vehicle-maintenance/${id}`, data),
+  deleteVehicleMaintenance: (id: number) => api.delete(`/api/fleet/vehicle-maintenance/${id}`),
   getVehicleAssignments: (id: number) => api.get(`/api/fleet/vehicles/${id}/assignments`),
   createVehicleAssignment: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/assignments`, data),
   updateVehicleAssignment: (id: number, data: any) => api.put(`/api/fleet/vehicle-assignments/${id}`, data),

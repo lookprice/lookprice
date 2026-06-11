@@ -591,115 +591,117 @@ export const SettingsWebTab = ({
         )}
 
         {/* 2. Logo & Favicon (Compact Side-by-Side) */}
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 flex flex-col">
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-            <ImageIcon className="w-4 h-4 text-amber-500" />
-            {lang === "tr" ? "MARKA KİMLİĞİ" : "BRAND ASSETS"}
-          </h3>
+        {!isPortfolio && (
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 flex flex-col">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-amber-500" />
+              {lang === "tr" ? "MARKA KİMLİĞİ" : "BRAND ASSETS"}
+            </h3>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            {/* Logo Upload */}
-            <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-indigo-400 hover:bg-white transition-all cursor-pointer">
-              {branding?.logo_url ? (
-                <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain mb-1" />
-              ) : (
-                <Plus className="w-6 h-6 text-slate-300" />
-              )}
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">LOGO</span>
-              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onLogoUpload} />
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Logo Upload */}
+              <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-indigo-400 hover:bg-white transition-all cursor-pointer">
+                {branding?.logo_url ? (
+                  <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain mb-1" />
+                ) : (
+                  <Plus className="w-6 h-6 text-slate-300" />
+                )}
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">LOGO</span>
+                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onLogoUpload} />
+              </div>
+
+              {/* Favicon Upload */}
+              <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-amber-400 hover:bg-white transition-all cursor-pointer">
+                {branding?.favicon_url ? (
+                  <img src={branding.favicon_url} alt="Favicon" className="w-10 h-10 object-contain mb-1" />
+                ) : (
+                  <Plus className="w-6 h-6 text-slate-300" />
+                )}
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">FAVICON</span>
+                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onFaviconUpload} />
+              </div>
             </div>
 
-            {/* Favicon Upload */}
-            <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-amber-400 hover:bg-white transition-all cursor-pointer">
-              {branding?.favicon_url ? (
-                <img src={branding.favicon_url} alt="Favicon" className="w-10 h-10 object-contain mb-1" />
-              ) : (
-                <Plus className="w-6 h-6 text-slate-300" />
-              )}
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">FAVICON</span>
-              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onFaviconUpload} />
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
+                <p className="text-[8px] font-black text-slate-400 mb-1">LOGO URL</p>
+                <input
+                  className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono"
+                  value={branding?.logo_url || ""}
+                  onChange={(e) => onBrandingChange("logo_url", e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
+                <p className="text-[8px] font-black text-slate-400 mb-1">FAVICON URL</p>
+                <input
+                  className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono"
+                  value={branding?.favicon_url || ""}
+                  onChange={(e) => onBrandingChange("favicon_url", e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
           </div>
-
-          <div className="space-y-3">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
-              <p className="text-[8px] font-black text-slate-400 mb-1">LOGO URL</p>
-              <input
-                className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono"
-                value={branding?.logo_url || ""}
-                onChange={(e) => onBrandingChange("logo_url", e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
-              <p className="text-[8px] font-black text-slate-400 mb-1">FAVICON URL</p>
-              <input
-                className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono"
-                value={branding?.favicon_url || ""}
-                onChange={(e) => onBrandingChange("favicon_url", e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Banner & Text Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">
-            {lang === "tr" ? "AFİŞ VE BAŞLIKLAR" : "BANNER & TITLES"}
-          </h3>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                  {lang === "tr" ? "MAĞAZA ADI" : "STORE NAME"}
-                </label>
-                <input
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
-                  value={branding?.name || ""}
-                  onChange={(e) => onBrandingChange("name", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                  {lang === "tr" ? "HERO BAŞLIK" : "HERO TITLE"}
-                </label>
-                <input
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
-                  value={branding?.hero_title || ""}
-                  onChange={(e) => onBrandingChange("hero_title", e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="relative group w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center">
-              {branding?.hero_image_url ? (
-                <img
-                  src={branding.hero_image_url}
-                  alt="Banner"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                />
-              ) : (
-                <div className="flex flex-col items-center">
-                  <Upload className="w-6 h-6 text-slate-300 mb-1" />
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">BANNER</span>
+      {!isPortfolio && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">
+              {lang === "tr" ? "AFİŞ VE BAŞLIKLAR" : "BANNER & TITLES"}
+            </h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {lang === "tr" ? "MAĞAZA ADI" : "STORE NAME"}
+                  </label>
+                  <input
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
+                    value={branding?.name || ""}
+                    onChange={(e) => onBrandingChange("name", e.target.value)}
+                  />
                 </div>
-              )}
-              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onBannerUpload} />
-            </div>
-            <input
-              className="w-full px-4 py-2 bg-slate-100/50 border-none rounded-lg text-[10px] font-mono text-slate-400"
-              value={branding?.hero_image_url || ""}
-              onChange={(e) => onBrandingChange("hero_image_url", e.target.value)}
-              placeholder="Banner URL..."
-            />
-          </div>
-        </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {lang === "tr" ? "HERO BAŞLIK" : "HERO TITLE"}
+                  </label>
+                  <input
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
+                    value={branding?.hero_title || ""}
+                    onChange={(e) => onBrandingChange("hero_title", e.target.value)}
+                  />
+                </div>
+              </div>
 
-        {/* Label Customization */}
-        {!isPortfolio && (
+              <div className="relative group w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center">
+                {branding?.hero_image_url ? (
+                  <img
+                    src={branding.hero_image_url}
+                    alt="Banner"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <Upload className="w-6 h-6 text-slate-300 mb-1" />
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">BANNER</span>
+                  </div>
+                )}
+                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onBannerUpload} />
+              </div>
+              <input
+                className="w-full px-4 py-2 bg-slate-100/50 border-none rounded-lg text-[10px] font-mono text-slate-400"
+                value={branding?.hero_image_url || ""}
+                onChange={(e) => onBrandingChange("hero_image_url", e.target.value)}
+                placeholder="Banner URL..."
+              />
+            </div>
+          </div>
+
+          {/* Label Customization */}
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
@@ -775,28 +777,28 @@ export const SettingsWebTab = ({
               </p>
             </div>
           </div>
-        )}
 
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">
-            {lang === "tr" ? "HAKKIMIZDA METNİ" : "ABOUT TEXT"}
-          </h3>
-          <textarea
-            className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
-            value={branding?.about_text || ""}
-            onChange={(e) => onBrandingChange("about_text", e.target.value)}
-            placeholder={lang === "tr" ? "Mağazanız hakkında kısa bir bilgi yazın..." : "Write some info about your store..."}
-          />
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-              {lang === "tr" ? "SAYFA LİNKİ (Google Merchant İçin)" : "PAGE LINK (For Google Merchant)"}
-            </p>
-            <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
-              {window.location.origin}/store/{branding?.slug}/about-us
-            </code>
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">
+              {lang === "tr" ? "HAKKIMIZDA METNİ" : "ABOUT TEXT"}
+            </h3>
+            <textarea
+              className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+              value={branding?.about_text || ""}
+              onChange={(e) => onBrandingChange("about_text", e.target.value)}
+              placeholder={lang === "tr" ? "Mağazanız hakkında kısa bir bilgi yazın..." : "Write some info about your store..."}
+            />
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                {lang === "tr" ? "SAYFA LİNKİ (Google Merchant İçin)" : "PAGE LINK (For Google Merchant)"}
+              </p>
+              <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                {window.location.origin}/store/{branding?.slug}/about-us
+              </code>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Legal Policies Section */}
       {!isPortfolio && (

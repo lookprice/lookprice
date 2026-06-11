@@ -3,36 +3,30 @@ import React, { useState, useEffect, useDeferredValue } from "react";
 import { 
   Plus, 
   Search, 
-  Trash2, 
   FileDown, 
-  Eye, 
-  X, 
-  Save, 
   Calendar, 
-  Building2, 
-  Hash, 
-  Package, 
-  CreditCard, 
-  Percent, 
   FileSpreadsheet, 
   FileText, 
-  CheckCircle2, 
-  Edit, 
   CloudDownload, 
   Printer, 
-  Loader2, 
-  TrendingUp 
+  Loader2 
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
-import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-import { AutocompleteSelect } from "./AutocompleteSelect";
+import { PurchaseInvoiceStats } from "./dashboard/invoices/purchase/PurchaseInvoiceStats";
+import { PurchaseInvoiceTable } from "./dashboard/invoices/purchase/PurchaseInvoiceTable";
+import { PurchaseInvoiceFormModal } from "./dashboard/invoices/purchase/PurchaseInvoiceFormModal";
+import { PurchaseInvoiceDetailsModal } from "./dashboard/invoices/purchase/PurchaseInvoiceDetailsModal";
+import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
+import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
 export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave }: any) {
   const storeId = initialStoreId || currentStoreId;
+  const isTr = lang === 'tr';
+
   const [invoices, setInvoices] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [products, setProducts] = useState([]);
@@ -72,10 +66,6 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [currency, setCurrency] = useState(branding?.default_currency || 'TRY');
   const [exchangeRate, setExchangeRate] = useState("1");
   const [companySearch, setCompanySearch] = useState("");
-  const deferredCompanySearch = useDeferredValue(companySearch);
-  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
-  const [showQuickCompanyModal, setShowQuickCompanyModal] = useState(false);
-  const [quickCompanyForm, setQuickCompanyForm] = useState({ title: "", phone: "", tax_number: "" });
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
   const [quickProductForm, setQuickProductForm] = useState({ 
     name: "", 
@@ -84,16 +74,12 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     tax_rate: String(branding?.default_tax_rate ?? 20),
     currency: branding?.default_currency || 'TRY'
   });
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTaxInclusive, setIsTaxInclusive] = useState(true);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [isExpense, setIsExpense] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState("");
   const [lastEditedId, setLastEditedId] = useState<number | null>(null);
-
-  const isTr = lang === 'tr';
-
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
@@ -105,45 +91,9 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   }, [storeId, activeSearch, startDate, endDate]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setActiveSearch(search);
-    }, 600);
+    const timer = setTimeout(() => setActiveSearch(search), 600);
     return () => clearTimeout(timer);
   }, [search]);
-
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      setActiveSearch(search);
-    }
-  };
-
-  const handleSyncInbox = async () => {
-    setSyncing(true);
-    try {
-      // By default sync last 5 days
-      const end = new Date();
-      const start = new Date();
-      start.setDate(end.getDate() - 30); // Sync last 30 days to catch older invoices with missing ETTNs
-      
-      const s = start.toISOString().split('T')[0];
-      const e = end.toISOString().split('T')[0];
-      
-      const targetStoreId = role === 'superadmin' ? storeId : undefined;
-      const res = await api.syncIncomingEInvoices(s, e, targetStoreId);
-      if (res.error) throw new Error(res.error);
-      
-      const msg = isTr 
-        ? `${res.importedCount} adet yeni e-fatura/e-arşiv sisteme alındı!` 
-        : `${res.importedCount} new e-invoices imported!`;
-      
-      toast.success(msg);
-      await fetchInvoicesData();
-    } catch (error: any) {
-       toast.error(error.message || (isTr ? "Fatura Gelen Kutusu eşitlenemedi" : "Inbox sync failed"));
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string, silent = false) => {
     if (role === 'superadmin' && !storeId) return;
@@ -155,15 +105,11 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         api.getCompanies(false, targetStoreId),
         api.getProducts("", targetStoreId)
       ]);
-      
       setInvoices(Array.isArray(invRes) ? invRes : []);
       setCompanies(Array.isArray(compRes) ? compRes : []);
       setProducts(Array.isArray(prodRes) ? prodRes : []);
     } catch (error) {
       console.error("Error fetching purchase invoices data:", error);
-      setInvoices([]);
-      setCompanies([]);
-      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -172,12 +118,10 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const handleAddProduct = (product: any) => {
     const productCurrency = product.currency || branding?.default_currency || 'TRY';
     const targetCurrency = items.length === 0 ? productCurrency : currency;
-
     if (items.length === 0 && productCurrency !== currency) {
       setCurrency(productCurrency);
       setExchangeRate("1");
     }
-
     setItems((prevItems) => {
       const existingItem = prevItems.find(item => item.product_id === product.id);
       if (existingItem) {
@@ -187,8 +131,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             : item
         );
       } else {
-        const taxRateStr = product.tax_rate !== undefined ? String(Math.floor(Number(product.tax_rate))) : (branding?.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : "20");
-        const taxRate = Number(taxRateStr);
+        const taxRate = Math.floor(Number(product.tax_rate ?? branding?.default_tax_rate ?? 20));
         const kdvDahilPrice = Number(product.cost_price || product.price) || 0;
         let unitPrice = kdvDahilPrice / (1 + taxRate / 100);
 
@@ -196,13 +139,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           const rates = branding?.currency_rates || {};
           const fromRate = rates[productCurrency] || 1;
           const toRate = rates[targetCurrency] || 1;
-          if (targetCurrency === 'TRY') {
-            unitPrice = unitPrice * fromRate;
-          } else if (productCurrency === 'TRY') {
-            unitPrice = unitPrice / toRate;
-          } else {
-            unitPrice = (unitPrice * fromRate) / toRate;
-          }
+          unitPrice = (unitPrice * fromRate) / toRate;
         }
 
         return [...prevItems, {
@@ -211,7 +148,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           barcode: product.barcode,
           quantity: "1",
           unit_price: unitPrice.toFixed(2),
-          tax_rate: taxRateStr
+          tax_rate: String(taxRate)
         }];
       }
     });
@@ -237,36 +174,6 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     setItems(prevItems => prevItems.filter((_, i) => i !== index));
   };
 
-  const calculateTotals = () => {
-    let subtotal = 0;
-    let taxTotal = 0;
-    
-    items.forEach(item => {
-      const qty = Number(String(item.quantity).replace(',', '.')) || 0;
-      const price = Number(String(item.unit_price).replace(',', '.')) || 0;
-      const tax = Number(String(item.tax_rate).replace(',', '.')) || 0;
-      
-      if (isTaxInclusive) {
-        const itemTotalIncl = qty * price;
-        const itemTotalExcl = itemTotalIncl / (1 + (tax / 100));
-        const itemTax = itemTotalIncl - itemTotalExcl;
-        subtotal += itemTotalExcl;
-        taxTotal += itemTax;
-      } else {
-        const itemTotal = qty * price;
-        const itemTax = itemTotal * (tax / 100);
-        subtotal += itemTotal;
-        taxTotal += itemTax;
-      }
-    });
-    
-    return {
-      subtotal: Number(subtotal.toFixed(2)),
-      taxTotal: Number(taxTotal.toFixed(2)),
-      grandTotal: Number((subtotal + taxTotal).toFixed(2))
-    };
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyId) {
@@ -278,87 +185,38 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       return;
     }
 
-    const targetStoreId = role === 'superadmin' ? (storeId || undefined) : undefined;
-    if (role === 'superadmin' && !storeId) {
-      toast.error(isTr ? "Mağaza ID bulunamadı. Lütfen sayfayı yenileyin." : "Store ID not found. Please refresh the page.");
-      return;
-    }
-
-    // Capture state values
-    const currentItems = [...items];
-    const currentCompanyId = companyId;
-    const currentInvoiceNumber = invoiceNumber;
-    const currentWaybillNumber = waybillNumber;
-    const currentInvoiceDate = invoiceDate;
-    const currentNotes = notes;
-    const currentPaymentMethod = paymentMethod;
-    const currentPaymentStatus = paymentStatus;
-    const currentCurrency = currency;
-    const currentExchangeRate = exchangeRate;
-    const currentEditingId = editingInvoiceId;
-
-    if (currentCurrency !== (branding?.default_currency || 'TRY')) {
-      const rate = Number(currentExchangeRate);
-      if (!rate || rate <= 0 || isNaN(rate) || currentExchangeRate === '1') {
-        toast.error(isTr ? "Farklı para birimi için geçerli bir döviz kuru girmelisiniz" : "You must enter a valid exchange rate for a different currency");
-        return;
-      }
-    }
-
-    // Set submitting state and wait for promise
     setIsSubmitting(true);
-
     const savePromise = (async () => {
       try {
         const payload = {
-          storeId: targetStoreId,
-          company_id: currentCompanyId,
-          invoice_number: currentInvoiceNumber,
-          waybill_number: currentWaybillNumber,
-          invoice_date: currentInvoiceDate,
-          notes: currentNotes,
-          items: currentItems.map(item => ({
+          storeId: role === 'superadmin' ? storeId : undefined,
+          company_id: companyId,
+          invoice_number: invoiceNumber,
+          waybill_number: waybillNumber,
+          invoice_date: invoiceDate,
+          notes,
+          items: items.map(item => ({
             ...item,
             quantity: Number(String(item.quantity).replace(',', '.')) || 0,
             unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
             tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
           })),
-          payment_method: currentPaymentMethod,
-          payment_status: currentPaymentStatus,
-          currency: currentCurrency,
-          exchange_rate: Number(currentExchangeRate) || 1,
+          payment_method: paymentMethod,
+          payment_status: paymentStatus,
+          currency,
+          exchange_rate: Number(exchangeRate) || 1,
           is_tax_inclusive: isTaxInclusive,
           is_expense: isExpense,
           expense_category: expenseCategory
         };
 
-        const res = currentEditingId 
-          ? await api.updatePurchaseInvoice(currentEditingId, payload, targetStoreId)
-          : await api.addPurchaseInvoice(payload, targetStoreId);
+        const res = editingInvoiceId 
+          ? await api.updatePurchaseInvoice(editingInvoiceId, payload, payload.storeId)
+          : await api.addPurchaseInvoice(payload, payload.storeId);
 
-        if (res.error) {
-          throw new Error(res.error);
-        }
-
-        // Reset form and close modal AFTER success
+        if (res.error) throw new Error(res.error);
         setShowModal(false);
-        setShowConfirmModal(false);
-        setEditingInvoiceId(null);
-        setCompanyId("");
-        setCompanySearch("");
-        setInvoiceNumber("");
-        setWaybillNumber("");
-        setInvoiceDate(new Date().toISOString().split('T')[0]);
-        setNotes("");
-        setItems([]);
-        setPaymentMethod('term');
-        setPaymentStatus('unpaid');
-        setCurrency(branding?.default_currency || 'TRY');
-        setExchangeRate("1");
-        setIsExpense(false);
-        setExpenseCategory("");
-        
-        setLastEditedId(currentEditingId || res.id);
+        setLastEditedId(editingInvoiceId || res.id);
         await fetchInvoicesData(undefined, undefined, undefined, true);
         if (onSave) await onSave(true);
         return res;
@@ -373,9 +231,9 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       error: (err) => err.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice")
     });
   };
+
   const handleDelete = async (id: number) => {
-    if (!window.confirm(isTr ? "Bu faturayı silmek istediğinize emin misiniz? Stoklar geri alınacaktır." : "Are you sure you want to delete this invoice? Stocks will be reverted.")) return;
-    
+    if (!window.confirm(isTr ? "Bu faturayı silmek istediğinize emin misiniz?" : "Are you sure?")) return;
     try {
       const res = await api.deletePurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
       if (res.error) throw new Error(res.error);
@@ -383,127 +241,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       fetchInvoicesData();
       if (onSave) onSave(true);
     } catch (error: any) {
-      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
-    }
-  };
-
-  const viewDetails = async (invoice: any) => {
-    setSelectedInvoice(invoice);
-    setShowDetailsModal(true);
-    try {
-      const data = await api.getPurchaseInvoice(invoice.id, role === 'superadmin' ? storeId : undefined);
-      if (data.error) throw new Error(data.error);
-      setSelectedInvoice(data);
-      if (data.is_read === false) {
-        await api.markPurchaseInvoiceRead(invoice.id, role === 'superadmin' ? storeId : undefined);
-        fetchInvoicesData();
-      }
-    } catch (error: any) {
-      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
-    }
-  };
-
-  const handleViewHtml = async (id: number) => {
-    try {
-      let reqId = id;
-      // if we are already viewing from details
-      if (!id && selectedInvoice) reqId = selectedInvoice.id;
-      if (!reqId) {
-        toast.error(isTr ? "Fatura seçilemedi." : "Invoice not selected.");
-        return;
-      }
-
-      const inv = invoices.find((i: any) => i.id === reqId);
-      if (inv && inv.is_read === false) {
-         api.markPurchaseInvoiceRead(reqId, role === 'superadmin' ? storeId : undefined).then(() => fetchInvoicesData());
-      }
-
-      const response = await api.getPurchaseInvoiceHtml(reqId);
-      if (response && response.html) {
-        setHtmlPreview(response.html);
-      } else if (response && response.error) {
-        toast.error(response.error);
-      } else {
-        toast.error(isTr ? "HTML verisi boş döndü." : "HTML returned empty.");
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || error.message || (isTr ? "Fatura görseli alınamadı" : "Failed to get invoice image"));
-    }
-  };
-
-  const handleBulkPrint = async () => {
-    const idsToPrint = selectedIds.length > 0 ? selectedIds : filteredInvoices.map((inv: any) => inv.id);
-    if (idsToPrint.length === 0) {
-      toast.error(isTr ? "Yazdırılacak fatura bulunamadı." : "No invoices found to print.");
-      return;
-    }
-    
-    setIsBulkPrinting(true);
-    try {
-      const htmls: string[] = [];
-      for (const id of idsToPrint) {
-        try {
-          const res = await api.getPurchaseInvoiceHtml(id);
-          if (res && res.html) {
-            htmls.push(res.html);
-          }
-        } catch(e) {
-           // ignore missing HTML
-        }
-      }
-      
-      if (htmls.length > 0) {
-        openPrintWindow(htmls);
-      } else {
-        toast.error(isTr ? "Seçilen faturaların E-Fatura verisi bulunamadı." : "No E-Invoice data found for selected invoices.");
-      }
-    } catch(err) {
-      console.error(err);
-      toast.error(isTr ? "Toplu yazdırma hatası" : "Bulk print error");
-    } finally {
-      setIsBulkPrinting(false);
-    }
-  };
-
-  const openPrintWindow = (htmls: string[]) => {
-    let allStyles = "";
-    const bodies = htmls.map(html => {
-       const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
-       allStyles += styleMatches.map(m => m[0]).join('\n') + '\n';
-       const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-       const content = bodyMatch ? bodyMatch[1] : html;
-       return `<div style="page-break-after: always; width: 100%;">${content}</div>`;
-    });
-    
-    const printHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Toplu Yazdırma</title>
-          <meta charset="utf-8">
-          ${allStyles}
-          <style>
-             @media print {
-               @page { margin: 0; }
-               body { margin: 1cm; }
-             }
-          </style>
-        </head>
-        <body>
-          ${bodies.join('')}
-          <script>
-            window.onload = function() {
-              setTimeout(function(){ window.print(); window.close(); }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `;
-    
-    const win = window.open('', '_blank');
-    if (win) {
-       win.document.write(printHtml);
-       win.document.close();
+      toast.error(error.message);
     }
   };
 
@@ -511,11 +249,6 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     try {
       const data = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
       if (data.error) throw new Error(data.error);
-
-      if (data.is_read === false) {
-         api.markPurchaseInvoiceRead(id, role === 'superadmin' ? storeId : undefined).then(() => fetchInvoicesData());
-      }
-      
       setEditingInvoiceId(id);
       setCompanyId(data.company_id);
       setCompanySearch(data.company_name || "");
@@ -527,42 +260,32 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       setPaymentStatus(data.payment_status || 'unpaid');
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
-      const taxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true;
-      setIsTaxInclusive(taxIncl);
+      setIsTaxInclusive(data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true);
       setIsExpense(!!data.is_expense);
       setExpenseCategory(data.expense_category || "");
-      
-      setItems((data.items || []).map((item: any) => {
-        const tr = Number(item.tax_rate) || 0;
-        const up = Number(item.unit_price) || 0;
-        const displayPrice = taxIncl ? (up * (1 + tr / 100)) : up;
-        
-        return {
-          product_id: item.product_id,
-          product_name: item.product_name,
-          barcode: item.barcode,
-          quantity: String(item.quantity || 0),
-          unit_price: String(displayPrice.toFixed(2)),
-          tax_rate: String(item.tax_rate || 0)
-        };
-      }));
+      setItems((data.items || []).map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        barcode: item.barcode,
+        quantity: String(item.quantity || 0),
+        unit_price: String(Number(item.unit_price).toFixed(2)),
+        tax_rate: String(item.tax_rate || 0)
+      })));
       setShowModal(true);
     } catch (error: any) {
-      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+      toast.error(error.message);
     }
   };
 
   const handleUpdateTicariStatus = async (id: number, status: 'APPROVED' | 'REJECTED') => {
-    if (!window.confirm(isTr ? `Bu faturayı ${status === 'APPROVED' ? 'onaylamak' : 'reddetmek'} istediğinize emin misiniz?` : `Are you sure you want to ${status === 'APPROVED' ? 'approve' : 'reject'} this invoice?`)) return;
-    
+    if (!window.confirm(isTr ? `Bu faturayı ${status === 'APPROVED' ? 'onaylamak' : 'reddetmek'} istediğinize emin misiniz?` : `Confirm ${status}?`)) return;
     try {
       const res = await api.updatePurchaseInvoiceTicariStatus(id, status, role === 'superadmin' ? storeId : undefined);
       if (res.error) throw new Error(res.error);
-      
-      toast.success(isTr ? "Fatura durumu güncellendi" : "Invoice status updated");
+      toast.success(isTr ? "Durum güncellendi" : "Status updated");
       await fetchInvoicesData();
     } catch (error: any) {
-      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+      toast.error(error.message);
     }
   };
 
@@ -573,53 +296,27 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       toast.success(isTr ? "Ödeme durumu güncellendi" : "Payment status updated");
       await fetchInvoicesData();
     } catch (error: any) {
-      toast.error(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+      toast.error(error.message);
     }
   };
 
-  const totals = calculateTotals();
+  const totals = calculateInvoiceTotals(items, isTaxInclusive);
 
-  const filteredInvoices = invoices;
-
-  const paginatedInvoices = filteredInvoices.slice(
-    (page - 1) * itemsPerPage,
-    page * itemsPerPage
-  );
-  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
-
-  const totalPurchaseInvoices = filteredInvoices.filter((inv: any) => !inv.is_expense);
-  const totalExpenseInvoices = filteredInvoices.filter((inv: any) => inv.is_expense);
-
-  const totalDeductibleTax = totalPurchaseInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
-  const totalPurchaseAmount = totalPurchaseInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
-  const totalExpenseAmount = totalExpenseInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
-  const totalGrandTotal = filteredInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalDeductibleTax = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.tax_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalPurchaseAmount = invoices.filter((i:any)=>!i.is_expense).reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalExpenseAmount = invoices.filter((i:any)=>i.is_expense).reduce((sum: number, inv: any) => sum + (Number(inv.total_amount || 0) * (Number(inv.exchange_rate) || 1)), 0);
+  const totalGrandTotal = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
   const filteredProducts = products.filter((p: any) => {
-    const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
-    if (searchTerms.length === 0) return true;
-    return searchTerms.every(term => 
-      normalizeSearch(p.name).includes(term) ||
-      (p.barcode || "").toLowerCase().includes(term)
-    );
-  });
-
-  const filteredCompanies = companies.filter((c: any) => {
-    const searchTerms = normalizeSearch(deferredCompanySearch).split(/\s+/).filter(Boolean);
-    if (searchTerms.length === 0) return true;
-    return searchTerms.every(term => 
-      normalizeSearch(c.title).includes(term) ||
-      (c.tax_number && c.tax_number.includes(term))
-    );
+    const term = normalizeSearch(deferredProductSearch);
+    return !term || normalizeSearch(p.name).includes(term) || (p.barcode || "").toLowerCase().includes(term);
   });
 
   const exportToExcel = () => {
-    const data = filteredInvoices.map((inv: any) => ({
+    const data = invoices.map((inv: any) => ({
       [isTr ? 'Tarih' : 'Date']: new Date(inv.invoice_date).toLocaleDateString('tr-TR'),
       [isTr ? 'Fatura No' : 'Invoice No']: inv.invoice_number,
-      [isTr ? 'İrsaliye No' : 'Waybill No']: inv.waybill_number || '',
       [isTr ? 'Satıcı' : 'Supplier']: inv.company_name,
-      [isTr ? 'Vergi No' : 'Tax No']: inv.tax_number || '',
       [isTr ? 'Matrah' : 'Subtotal']: Number(inv.total_amount),
       [isTr ? 'KDV' : 'VAT']: Number(inv.tax_amount),
       [isTr ? 'Toplam' : 'Total']: Number(inv.grand_total),
@@ -631,120 +328,22 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     XLSX.writeFile(wb, `alis_faturalari_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    
-    const fixTr = (text: string) => {
-      if (!text) return "";
-      return text
-        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
-        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
-        .replace(/ş/g, 's').replace(/Ş/g, 'S')
-        .replace(/ı/g, 'i').replace(/İ/g, 'I')
-        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
-        .replace(/ç/g, 'c').replace(/Ç/g, 'C');
-    };
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(79, 70, 229);
-    doc.text(fixTr(isTr ? "Alış Faturaları Raporu" : "Purchase Invoices Report"), 14, 15);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(100);
-    doc.text(`${isTr ? "Tarih:" : "Date:"} ${new Date().toLocaleDateString('tr-TR')}`, 14, 22);
-
-    autoTable(doc, {
-      startY: 28,
-      head: [[
-        fixTr(isTr ? 'Tarih' : 'Date'),
-        fixTr(isTr ? 'Fatura No' : 'Invoice No'),
-        fixTr(isTr ? 'Cari' : 'Company'),
-        fixTr(isTr ? 'Tutar' : 'Amount'),
-        fixTr(isTr ? 'KDV' : 'VAT'),
-        fixTr(isTr ? 'Genel Toplam' : 'Grand Total')
-      ]],
-      body: filteredInvoices.map((inv: any) => [
-        new Date(inv.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US'),
-        inv.invoice_number,
-        fixTr(inv.company_name),
-        `${Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${inv.currency || 'TRY'}`,
-        `${Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${inv.currency || 'TRY'}`,
-        `${Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${inv.currency || 'TRY'}`
-      ]),
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
-      styles: { fontSize: 8, font: "helvetica" }
-    });
-    doc.save(`purchase_invoices_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  const handleQuickCompanySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSyncInbox = async () => {
+    setSyncing(true);
     try {
-      const res = await api.addCompany(quickCompanyForm, role === 'superadmin' ? storeId : undefined);
-      setCompanies([...companies, res]);
-      setCompanyId(res.id);
-      setCompanySearch(res.title);
-      setShowQuickCompanyModal(false);
-      setQuickCompanyForm({ title: "", phone: "", tax_number: "" });
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - 30);
+      const res = await api.syncIncomingEInvoices(start.toISOString().split('T')[0], end.toISOString().split('T')[0], role === 'superadmin' ? storeId : undefined);
+      if (res.error) throw new Error(res.error);
+      toast.success(isTr ? `${res.importedCount} yeni fatura sisteme alındı!` : `${res.importedCount} new invoices imported!`);
+      await fetchInvoicesData();
     } catch (error: any) {
-      alert(error.message || (isTr ? "Hata oluştu" : "An error occurred"));
+       toast.error(error.message);
+    } finally {
+      setSyncing(false);
     }
   };
-
-  const handleQuickProductSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const normalizeText = (text: string) => text ? text.replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i').toLowerCase() : '';
-      const productNameLower = normalizeText(quickProductForm.name);
-      let matchedRule = branding?.category_tax_rules?.find((r: any) => productNameLower.includes(normalizeText(r.category)));
-      
-      let taxRate = branding?.default_tax_rate !== undefined ? Number(branding.default_tax_rate) : 20;
-      let category = '';
-
-      if (matchedRule) {
-        taxRate = matchedRule.taxRate;
-        category = matchedRule.category;
-      } else if (productNameLower.includes('kitap')) {
-        taxRate = 0;
-        category = 'Kitap';
-      }
-
-      const price = Number(quickProductForm.price);
-      const currency = quickProductForm.currency || branding?.default_currency || 'TRY';
-      const price_2 = price / (1 + taxRate / 100);
-
-      const newProduct = await api.addProduct({
-        ...quickProductForm,
-        price,
-        price_2,
-        currency,
-        price_2_currency: currency,
-        tax_rate: taxRate,
-        stock_quantity: 0,
-        status: 'active',
-        is_web_sale: false,
-        category: category
-      }, role === 'superadmin' ? storeId : undefined);
-      
-      setProducts(prev => [...prev, newProduct]);
-      handleAddProduct(newProduct);
-      setShowQuickProductModal(false);
-      setQuickProductForm({ 
-        name: "", 
-        price: "", 
-        barcode: "", 
-        tax_rate: String(branding?.default_tax_rate ?? 20),
-        currency: branding?.default_currency || 'TRY'
-      });
-    } catch (error) {
-      alert(isTr ? "Hata oluştu" : "An error occurred");
-    }
-  };
-
-  if (loading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
 
   return (
     <div className="space-y-6">
@@ -760,57 +359,16 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 rounded-xl">
-            <Percent className="h-6 w-6 text-indigo-600" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
-            <p className="text-xl font-black text-slate-900 tracking-tighter">
-              {totalDeductibleTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
-            </p>
-          </div>
-        </div>
+      <PurchaseInvoiceStats 
+        isTr={isTr}
+        totalDeductibleTax={totalDeductibleTax}
+        totalPurchaseAmount={totalPurchaseAmount}
+        totalExpenseAmount={totalExpenseAmount}
+        totalGrandTotal={totalGrandTotal}
+        branding={branding}
+      />
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 rounded-xl">
-            <TrendingUp className="h-6 w-6 text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
-            <p className="text-xl font-black text-slate-900 tracking-tighter">
-              {totalPurchaseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-rose-50 rounded-xl">
-            <CreditCard className="h-6 w-6 text-rose-600" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{isTr ? "GİDERLER" : "EXPENSES"}</p>
-            <p className="text-xl font-black text-slate-900 tracking-tighter">
-              {totalExpenseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-slate-950 rounded-xl shadow-lg shadow-slate-200">
-            <Package className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
-            <p className="text-xl font-black text-slate-900 tracking-tighter">
-              {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 capitalize">{(branding?.default_currency || 'TRY').substring(0, 3)}</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex-1 flex flex-wrap items-center gap-3 w-full">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -819,19 +377,10 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
               placeholder={isTr ? "Fatura No veya Cari ara..." : "Search invoice no or company..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={handleSearchKeyPress}
               className="w-full pl-10 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
             />
-            <button 
-              onClick={() => setActiveSearch(search)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
-              title={isTr ? "Ara" : "Search"}
-            >
-              <Search className="h-4 w-4" />
-            </button>
           </div>
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-slate-400" />
             <input
               type="date"
               value={startDate}
@@ -852,1250 +401,119 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             <button 
               onClick={handleSyncInbox}
               disabled={syncing}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold transition-all ${syncing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-100'}`}
-              title={isTr ? "Son 3 gündeki GİB Faturalarını Çek" : "Sync GIB Inbox"}
+              className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold transition-all hover:bg-indigo-100 disabled:opacity-50"
             >
-              <CloudDownload className={`h-4 w-4 ${syncing ? 'animate-bounce' : ''}`} />
-              <span className="hidden sm:inline">{isTr ? "Gelen Kutusu" : "Sync Inbox"}</span>
+              <CloudDownload className={`h-4 w-4 inline mr-2 ${syncing ? 'animate-bounce' : ''}`} />
+              {isTr ? "Senkronize Et" : "Sync"}
             </button>
           )}
           <button
-            onClick={handleBulkPrint}
-            disabled={isBulkPrinting || filteredInvoices.length === 0}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold transition-all ${isBulkPrinting ? 'opacity-50 cursor-not-allowed border border-slate-200' : 'hover:bg-slate-200 border border-slate-200'}`}
-            title={isTr ? "Seçili veya listedeki E-Faturaları yazdır" : "Print selected or listed E-invoices"}
-          >
-            {isBulkPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-            <span className="hidden sm:inline">
-              {isTr 
-                ? (selectedIds.length > 0 ? `Yazdır (${selectedIds.length})` : "Toplu Yazdır") 
-                : (selectedIds.length > 0 ? `Print (${selectedIds.length})` : "Bulk Print")
-              }
-            </span>
-          </button>
-          <button
             onClick={exportToExcel}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white text-emerald-600 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors font-bold text-sm"
+            className="p-2 bg-white border border-slate-200 text-emerald-600 rounded-xl hover:bg-slate-50 transition-all"
           >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span className="hidden sm:inline">Excel</span>
-          </button>
-          <button
-            onClick={exportToPDF}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white text-rose-600 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors font-bold text-sm"
-          >
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">PDF</span>
-          </button>
-          <button 
-            onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); }}
-            className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold rounded-xl transition-colors"
-          >
-            {isTr ? "Temizle" : "Clear"}
+            <FileSpreadsheet className="h-5 w-5" />
           </button>
           <button
             onClick={() => {
               setEditingInvoiceId(null);
               setCompanyId("");
-              setCompanySearch("");
-              setInvoiceNumber("");
-              setInvoiceDate(new Date().toISOString().split('T')[0]);
-              setNotes("");
               setItems([]);
-              setPaymentMethod('term');
-              setCurrency(branding?.default_currency || 'TRY');
               setShowModal(true);
             }}
-            className="flex-[2] md:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors shadow-lg font-bold text-sm"
+            className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            {isTr ? "Yeni Alış Faturası" : "New Purchase Invoice"}
+            {isTr ? "Fatura Ekle" : "Add Invoice"}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
-                <th className="p-4 w-10 text-center">
-                  <input 
-                    type="checkbox" 
-                    checked={paginatedInvoices.length > 0 && selectedIds.length === paginatedInvoices.length}
-                    onChange={() => {
-                      if (selectedIds.length === paginatedInvoices.length) {
-                        setSelectedIds([]);
-                      } else {
-                        setSelectedIds(paginatedInvoices.map((inv: any) => inv.id));
-                      }
-                    }}
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                  />
-                </th>
-                <th className="p-4 font-bold">{isTr ? "Tarih" : "Date"}</th>
-                <th className="p-4 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
-                <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>
-                <th className="p-4 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
-                <th className="p-4 font-bold">{isTr ? "Vergi No" : "Tax No"}</th>
-                <th className="p-4 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
-                <th className="p-4 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
-                <th className="p-4 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
-                <th className="p-4 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
-                <th className="p-4 font-bold text-center">{isTr ? "Ödeme" : "Payment"}</th>
-                <th className="p-4 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {paginatedInvoices.map((invoice: any) => (
-                <tr 
-                  key={invoice.id} 
-                  className={`hover:bg-slate-50/50 transition-colors ${
-                    invoice.is_read === false ? 'font-bold bg-indigo-50/30' : ''
-                  } ${
-                    lastEditedId === invoice.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-200' : ''
-                  }`}
-                >
-                  <td className="p-4 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={selectedIds.includes(invoice.id)}
-                      onChange={() => {
-                        setSelectedIds(prev => prev.includes(invoice.id) ? prev.filter(i => i !== invoice.id) : [...prev, invoice.id]);
-                      }}
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
-                    />
-                  </td>
-                  <td className="p-4 text-xs text-slate-600 whitespace-nowrap">
-                    {new Date(invoice.invoice_date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
-                  </td>
-                  <td className="p-4 text-xs font-bold text-slate-900">
-                    {invoice.invoice_number}
-                  </td>
-                  <td className="p-4 text-xs text-slate-500">
-                    {invoice.waybill_number || '-'}
-                  </td>
-                  <td className="p-4 text-xs font-medium text-slate-700">
-                    <div>{invoice.company_name}</div>
-                    {invoice.is_expense && (
-                      <div className="mt-1">
-                        <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
-                          {isTr ? `GİDER: ${invoice.expense_category || 'DİĞER'}` : `EXPENSE: ${invoice.expense_category || 'OTHER'}`}
-                        </span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-4 text-xs text-slate-500">
-                    {invoice.tax_number || '-'}
-                  </td>
-                  <td className="p-4 text-xs text-slate-600 text-right font-medium">
-                    {Number(invoice.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-4 text-xs text-slate-600 text-right font-medium">
-                    {Number(invoice.tax_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-4 text-xs font-bold text-slate-900 text-right">
-                    {Number(invoice.grand_total).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-4 text-xs text-slate-500 text-center font-bold">
-                    {invoice.currency}
-                  </td>
-                  <td className="p-4 text-xs text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <button
-                        onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
-                        className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                          invoice.payment_status === 'paid' 
-                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
-                            : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                        }`}
-                      >
-                        {invoice.payment_status === 'paid' ? (isTr ? 'ÖDENDİ' : 'PAID') : (isTr ? 'VADELİ' : 'UNPAID')}
-                      </button>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase">
-                        {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') :
-                         invoice.payment_method === 'credit_card' ? (isTr ? 'Kredi Kartı' : 'Credit Card') :
-                         invoice.payment_method === 'bank' ? (isTr ? 'Banka' : 'Bank') :
-                         (isTr ? 'Vadeli' : 'Deferred')}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => viewDetails(invoice)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        title={isTr ? "Görüntüle" : "View"}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleViewHtml(invoice.id)}
-                        className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
-                        title={isTr ? "HTML Önizleme" : "HTML Preview"}
-                      >
-                        <FileText className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(invoice.id)}
-                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                        title={isTr ? "Revize Et" : "Revise"}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(invoice.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title={isTr ? "Sil" : "Delete"}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                      {invoice.type === 'TICARIFATURA' && invoice.integration_status === 'RECEIVED' && (
-                        <>
-                          <button
-                            onClick={() => handleUpdateTicariStatus(invoice.id, 'APPROVED')}
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title={isTr ? "Onayla" : "Approve"}
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleUpdateTicariStatus(invoice.id, 'REJECTED')}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title={isTr ? "Reddet" : "Reject"}
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {paginatedInvoices.length === 0 && (
-                <tr>
-                  <td colSpan={11} className="p-8 text-center text-slate-500">
-                    {isTr ? "Fatura bulunamadı." : "No invoices found."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between">
-            <p className="text-xs font-medium text-slate-500">
-              {filteredInvoices.length} {isTr ? 'fatura' : 'invoices'}
-            </p>
-            <div className="flex items-center space-x-3">
-              <button 
-                disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
-              >
-                {isTr ? 'Önceki' : 'Prev'}
-              </button>
-              <div className="text-xs font-bold text-slate-600 tabular-nums">
-                {page} <span className="text-slate-300 mx-1">/</span> {totalPages}
-              </div>
-              <button 
-                disabled={page === totalPages}
-                onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-50 hover:bg-slate-50 transition-all"
-              >
-                {isTr ? 'Sonraki' : 'Next'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <PurchaseInvoiceTable 
+        invoices={invoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+        loading={loading}
+        isTr={isTr}
+        selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
+        lastEditedId={lastEditedId}
+        handleViewDetails={(inv) => { setSelectedInvoice(inv); setShowDetailsModal(true); }}
+        handleEdit={handleEdit}
+        handleDelete={handleDelete}
+        handleUpdateTicariStatus={handleUpdateTicariStatus}
+        handleUpdatePaymentStatus={handleUpdatePaymentStatus}
+        page={page}
+        totalPages={Math.ceil(invoices.length / itemsPerPage)}
+        setPage={setPage}
+      />
 
-      {/* New Invoice Modal */}
-      <AnimatePresence>
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-              onClick={() => setShowModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <FileDown className="h-5 w-5 text-indigo-600" />
-                  {editingInvoiceId 
-                    ? (isTr ? "Fatura Revize Et" : "Revise Invoice")
-                    : (isTr ? "Yeni Alış Faturası" : "New Purchase Invoice")
-                  }
-                </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+      <PurchaseInvoiceFormModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        isTr={isTr}
+        editingInvoiceId={editingInvoiceId}
+        handleSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        companies={companies}
+        companyId={companyId}
+        setCompanyId={setCompanyId}
+        companySearch={companySearch}
+        setCompanySearch={setCompanySearch}
+        invoiceNumber={invoiceNumber}
+        setInvoiceNumber={setInvoiceNumber}
+        waybillNumber={waybillNumber}
+        setWaybillNumber={setWaybillNumber}
+        invoiceDate={invoiceDate}
+        setInvoiceDate={setInvoiceDate}
+        isExpense={isExpense}
+        setIsExpense={setIsExpense}
+        expenseCategory={expenseCategory}
+        setExpenseCategory={setExpenseCategory}
+        isTaxInclusive={isTaxInclusive}
+        setIsTaxInclusive={setIsTaxInclusive}
+        items={items}
+        updateItem={updateItem}
+        removeItem={removeItem}
+        productSearch={productSearch}
+        setProductSearch={setProductSearch}
+        showProductDropdown={showProductDropdown}
+        setShowProductDropdown={setShowProductDropdown}
+        filteredProducts={filteredProducts}
+        handleAddProduct={handleAddProduct}
+        setShowQuickProductModal={setShowQuickProductModal}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={setPaymentMethod}
+        currency={currency}
+        setCurrency={setCurrency}
+        exchangeRate={exchangeRate}
+        setExchangeRate={setExchangeRate}
+        notes={notes}
+        setNotes={setNotes}
+        totals={totals}
+        branding={branding}
+      />
 
-              <div className="p-6 overflow-y-auto flex-1">
-                <form id="invoice-form" onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-1.5 relative">
-                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-slate-400" />
-                        {isTr ? "Cari (Tedarikçi)" : "Company (Supplier)"} *
-                      </label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <input
-                          type="text"
-                          required
-                          placeholder={isTr ? "Cari ara..." : "Search company..."}
-                          value={companySearch}
-                          onChange={(e) => {
-                            setCompanySearch(e.target.value);
-                            setShowCompanyDropdown(true);
-                            if (!e.target.value) setCompanyId("");
-                          }}
-                          onFocus={() => setShowCompanyDropdown(true)}
-                          className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                        />
-                        {showCompanyDropdown && companySearch && (
-                          <div className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                            {filteredCompanies.map((c: any) => (
-                              <button
-                                key={c.id}
-                                type="button"
-                                onClick={() => {
-                                  setCompanyId(c.id);
-                                  setCompanySearch(c.title);
-                                  setShowCompanyDropdown(false);
-                                }}
-                                className="w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col"
-                              >
-                                <span className="font-medium text-slate-900">{c.title}</span>
-                                {c.tax_number && <span className="text-xs text-slate-500">{c.tax_number}</span>}
-                              </button>
-                            ))}
-                            {filteredCompanies.length === 0 && (
-                              <div className="p-4 text-center">
-                                <p className="text-sm text-slate-500 mb-2">{isTr ? "Cari bulunamadı" : "Company not found"}</p>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setQuickCompanyForm(prev => ({ ...prev, title: companySearch }));
-                                    setShowQuickCompanyModal(true);
-                                    setShowCompanyDropdown(false);
-                                  }}
-                                  className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center gap-1 w-full"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                  {isTr ? "Yeni Cari Ekle" : "Add New Company"}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                        <Hash className="h-4 w-4 text-slate-400" />
-                        {isTr ? "Fatura No" : "Invoice No"} *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={invoiceNumber}
-                        onChange={(e) => setInvoiceNumber(e.target.value)}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-slate-400" />
-                        {isTr ? "İrsaliye No" : "Waybill No"}
-                      </label>
-                      <input
-                        type="text"
-                        value={waybillNumber}
-                        onChange={(e) => setWaybillNumber(e.target.value)}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-slate-400" />
-                        {isTr ? "Fatura Tarihi" : "Invoice Date"} *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={invoiceDate}
-                        onChange={(e) => setInvoiceDate(e.target.value)}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                        <Percent className="h-4 w-4 text-slate-400" />
-                        {isTr ? "Para Birimi" : "Currency"} *
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          value={currency}
-                          onChange={(e) => {
-                            setCurrency(e.target.value);
-                            if (e.target.value === (branding?.default_currency || 'TRY')) {
-                              setExchangeRate("1");
-                            }
-                          }}
-                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                        >
-                          <option value="TRY">TRY</option>
-                          <option value="USD">USD</option>
-                          <option value="EUR">EUR</option>
-                          <option value="GBP">GBP</option>
-                        </select>
-                        {currency !== (branding?.default_currency || 'TRY') && (
-                          <input
-                            type="text"
-                            placeholder={isTr ? "Kur" : "Rate"}
-                            value={exchangeRate}
-                            onChange={(e) => setExchangeRate(e.target.value.replace(',', '.'))}
-                            className="w-24 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
+      <PurchaseInvoiceDetailsModal 
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        invoice={selectedInvoice}
+        isTr={isTr}
+      />
 
-                  <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <input
-                          id="is_expense_toggle"
-                          type="checkbox"
-                          checked={isExpense}
-                          onChange={(e) => setIsExpense(e.target.checked)}
-                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                        />
-                        <label htmlFor="is_expense_toggle" className="text-sm font-bold text-slate-700 cursor-pointer">
-                          {isTr ? "Gider/Masraf Faturası" : "Expense Invoice"}
-                        </label>
-                      </div>
-                      {isExpense && (
-                        <div className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
-                          {isTr ? "STOKLARI ETKİLEMEZ" : "NO STOCK IMPACT"}
-                        </div>
-                      )}
-                    </div>
-                    {isExpense && (
-                      <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                        <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">{isTr ? "Gider Türü" : "Expense Type"}</label>
-                        <select
-                          value={expenseCategory}
-                          onChange={(e) => setExpenseCategory(e.target.value)}
-                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm"
-                        >
-                          <option value="">{isTr ? "Tür Seçin..." : "Select Type..."}</option>
-                          <option value="mutfak">{isTr ? "Mutfak / Gıda" : "Kitchen / Food"}</option>
-                          <option value="temizlik">{isTr ? "Temizlik Malzemesi" : "Cleaning Supplies"}</option>
-                          <option value="elektrik">{isTr ? "Elektrik" : "Electricity"}</option>
-                          <option value="su">{isTr ? "Su" : "Water"}</option>
-                          <option value="dogalgaz">{isTr ? "Doğalgaz" : "Natural Gas"}</option>
-                          <option value="internet">{isTr ? "İnternet / Telefon" : "Internet / Phone"}</option>
-                          <option value="kira">{isTr ? "Kira" : "Rent"}</option>
-                          <option value="personel">{isTr ? "Personel Gideri" : "Staff Expense"}</option>
-                          <option value="kargo">{isTr ? "Kargo / Lojistik" : "Shipping / Logistics"}</option>
-                          <option value="diger">{isTr ? "Diğer" : "Other"}</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                        <Package className="h-4 w-4 text-indigo-600" />
-                        {isTr ? "Ürünler" : "Products"}
-                      </h4>
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                        <input
-                          id="is_tax_inclusive_purchase"
-                          type="checkbox"
-                          checked={isTaxInclusive}
-                          onChange={(e) => setIsTaxInclusive(e.target.checked)}
-                          className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                        />
-                        <label htmlFor="is_tax_inclusive_purchase" className="text-[11px] font-bold text-slate-600 cursor-pointer">
-                          {isTr ? "Fiyatlara KDV Dahil" : "Prices Include VAT"}
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder={isTr ? "Ürün ara ve ekle..." : "Search and add product..."}
-                        value={productSearch}
-                        onChange={(e) => {
-                          setProductSearch(e.target.value);
-                          setShowProductDropdown(true);
-                        }}
-                        onFocus={() => setShowProductDropdown(true)}
-                        className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                      />
-                      {showProductDropdown && productSearch && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                          {filteredProducts.map((p: any) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => handleAddProduct(p)}
-                              className="w-full text-left px-4 py-2 hover:bg-slate-50 flex justify-between items-center"
-                            >
-                              <div>
-                                <div className="font-medium text-slate-900">{p.name}</div>
-                                <div className="text-xs text-slate-500">{p.barcode}</div>
-                              </div>
-                              <div className="text-sm font-medium text-indigo-600">
-                                {Number(p.price).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: p.currency || 'TRY' })}
-                              </div>
-                            </button>
-                          ))}
-                          {filteredProducts.length === 0 && (
-                            <div className="p-4 text-center">
-                              <p className="text-sm text-slate-500 mb-2">{isTr ? "Ürün bulunamadı" : "Product not found"}</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setQuickProductForm(prev => ({ ...prev, name: productSearch }));
-                                  setShowQuickProductModal(true);
-                                  setShowProductDropdown(false);
-                                }}
-                                className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center gap-1 w-full"
-                              >
-                                <Plus className="h-4 w-4" />
-                                {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {items.length > 0 && (
-                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                        {/* Desktop Table View */}
-                        <div className="hidden md:block border border-slate-200 rounded-xl overflow-hidden">
-                          <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="p-3 text-xs font-medium text-slate-500 uppercase">{isTr ? "Ürün" : "Product"}</th>
-                                <th className="p-3 text-xs font-medium text-slate-500 uppercase w-24 text-center">{isTr ? "Adet" : "Qty"}</th>
-                                <th className="p-3 text-xs font-medium text-slate-500 uppercase w-36">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
-                                <th className="p-3 text-xs font-medium text-slate-500 uppercase w-24">{isTr ? "KDV %" : "VAT %"}</th>
-                                <th className="p-3 text-xs font-medium text-slate-500 uppercase w-36 text-right">{isTr ? "Toplam" : "Total"}</th>
-                                <th className="p-3 w-10"></th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {items.map((item, index) => (
-                                <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="p-3">
-                                    <div className="font-medium text-sm text-slate-900">{item.product_name}</div>
-                                    <input
-                                      type="text"
-                                      value={item.barcode || ''}
-                                      onChange={(e) => updateItem(index, 'barcode', e.target.value)}
-                                      className="w-full mt-1.5 px-2 py-1 text-xs text-slate-500 rounded border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                      placeholder={isTr ? "Barkod" : "Barcode"}
-                                    />
-                                  </td>
-                                  <td className="p-3">
-                                    <input
-                                      type="text"
-                                      inputMode="numeric"
-                                      value={item.quantity}
-                                      onKeyDown={(e) => {
-                                        if (e.key === '.' || e.key === ',') e.preventDefault();
-                                      }}
-                                      onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                                      onFocus={(e) => e.target.select()}
-                                      className="w-full px-2 py-1.5 text-sm text-center rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                                    />
-                                  </td>
-                                  <td className="p-3">
-                                    <div className="relative">
-                                      <input
-                                        type="text"
-                                        value={item.unit_price}
-                                        onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
-                                        onFocus={(e) => e.target.select()}
-                                        className="w-full pl-2 pr-8 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                                      />
-                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currency?.slice(0, 3)}</span>
-                                    </div>
-                                  </td>
-                                  <td className="p-3">
-                                    <div className="relative">
-                                      <input
-                                        type="text"
-                                        list="tax-rates"
-                                        value={Math.floor(Number(item.tax_rate) || 0)}
-                                        onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
-                                        onFocus={(e) => e.target.select()}
-                                        className="w-[8ch] px-2 py-1.5 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                                      />
-                                      <datalist id="tax-rates">
-                                        <option value="0" />
-                                        <option value="1" />
-                                        <option value="10" />
-                                        <option value="20" />
-                                      </datalist>
-                                    </div>
-                                  </td>
-                                  <td className="p-3 text-right text-sm font-bold text-slate-900">
-                                    {(isTaxInclusive 
-                                      ? (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.')))
-                                      : (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100)
-                                    ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
-                                  </td>
-                                  <td className="p-3 text-right">
-                                    <button
-                                      type="button"
-                                      onClick={() => removeItem(index)}
-                                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Mobile Card View */}
-                        <div className="md:hidden space-y-3">
-                          {items.map((item, index) => (
-                            <div key={index} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 relative overflow-hidden">
-                              <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
-                              <div className="flex justify-between items-start gap-4">
-                                <div className="flex-1">
-                                  <h5 className="font-bold text-slate-900 leading-tight">{item.product_name}</h5>
-                                  <input
-                                    type="text"
-                                    value={item.barcode || ''}
-                                    onChange={(e) => updateItem(index, 'barcode', e.target.value)}
-                                    className="w-full mt-1.5 px-2 py-1 text-xs text-slate-500 rounded border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    placeholder={isTr ? "Barkod" : "Barcode"}
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeItem(index)}
-                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </button>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Miktar" : "Quantity"}</label>
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={item.quantity}
-                                    onKeyDown={(e) => {
-                                      if (e.key === '.' || e.key === ',') e.preventDefault();
-                                    }}
-                                    onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                                    onFocus={(e) => e.target.select()}
-                                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Birim Fiyat" : "Unit Price"}</label>
-                                  <div className="relative">
-                                    <input
-                                      type="text"
-                                      value={item.unit_price}
-                                      onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
-                                      onFocus={(e) => e.target.select()}
-                                      className="w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
-                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currency?.slice(0, 3)}</span>
-                                  </div>
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "KDV Oranı" : "VAT Rate"}</label>
-                                  <input
-                                    type="text"
-                                    list="tax-rates-mobile"
-                                    value={Math.floor(Number(item.tax_rate) || 0)}
-                                    onChange={(e) => updateItem(index, 'tax_rate', e.target.value)}
-                                    onFocus={(e) => e.target.select()}
-                                    className="w-[8ch] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                  />
-                                  <datalist id="tax-rates-mobile">
-                                    <option value="0" />
-                                    <option value="1" />
-                                    <option value="10" />
-                                    <option value="20" />
-                                  </datalist>
-                                </div>
-                                <div className="space-y-1 gap-1 flex flex-col justify-end items-end">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isTr ? "Satır Toplamı" : "Line Total"}</label>
-                                  <div className="text-lg font-black text-indigo-600">
-                                    {(isTaxInclusive 
-                                      ? (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.')))
-                                      : (Number(String(item.quantity).replace(',', '.')) * Number(String(item.unit_price).replace(',', '.'))) * (1 + Number(String(item.tax_rate).replace(',', '.')) / 100)
-                                    ).toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col md:flex-row gap-6">
-                    <div className="flex-1 space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                            {isTr ? "Ödeme Yöntemi" : "Payment Method"}
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => { setPaymentMethod('term'); setPaymentStatus('unpaid'); }}
-                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                paymentMethod === 'term' 
-                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isTr ? "Vadeli" : "Term"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setPaymentMethod('cash'); setPaymentStatus('paid'); }}
-                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                paymentMethod === 'cash' 
-                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isTr ? "Nakit" : "Cash"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setPaymentMethod('credit_card'); setPaymentStatus('paid'); }}
-                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                paymentMethod === 'credit_card' 
-                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isTr ? "Kredi Kartı" : "Credit Card"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setPaymentMethod('bank'); setPaymentStatus('paid'); }}
-                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                paymentMethod === 'bank' 
-                                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-600' 
-                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isTr ? "Banka / EFT" : "Bank Transfer"}
-                            </button>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                            {isTr ? "Ödeme Durumu" : "Payment Status"}
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setPaymentStatus('paid')}
-                              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                paymentStatus === 'paid' 
-                                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
-                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isTr ? "ÖDENDİ" : "PAID"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPaymentStatus('unpaid')}
-                              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                paymentStatus === 'unpaid' 
-                                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-200' 
-                                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isTr ? "ÖDENMEDİ" : "UNPAID"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                          {isTr ? "Notlar" : "Notes"}
-                        </label>
-                        <textarea
-                          value={notes}
-                          onChange={(e) => setNotes(e.target.value)}
-                          rows={2}
-                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="w-full md:w-64 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                      <div className="flex justify-between text-sm text-slate-600">
-                        <span>{isTr ? "Ara Toplam:" : "Subtotal:"}</span>
-                        <span className="font-medium">{totals.subtotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-slate-600">
-                        <span>{isTr ? "KDV Toplam:" : "VAT Total:"}</span>
-                        <span className="font-medium">{totals.taxTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}</span>
-                      </div>
-                      <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-                        <span className="font-bold text-slate-900">{isTr ? "Genel Toplam:" : "Grand Total:"}</span>
-                        <span className="font-bold text-indigo-600 text-lg">{totals.grandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency: currency })}</span>
-                      </div>
-                    </div>
-                  </div>
-                </form>
-              </div>
-
-              <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-xl transition-colors"
-                >
-                  {isTr ? "İptal" : "Cancel"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!companyId) {
-                      alert(isTr ? "Lütfen bir cari seçin" : "Please select a company");
-                      return;
-                    }
-                    if (items.length === 0) {
-                      alert(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
-                      return;
-                    }
-                    setShowConfirmModal(true);
-                  }}
-                  className="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm flex items-center gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  {editingInvoiceId ? (isTr ? "Güncelle" : "Update") : (isTr ? "Kaydet" : "Save")}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Confirmation Modal */}
-      <AnimatePresence>
-        {showConfirmModal && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-              onClick={() => setShowConfirmModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-white rounded-2xl shadow-xl p-6"
-            >
-              <h3 className="text-lg font-bold text-slate-900 mb-4">
-                {isTr ? "Faturayı Onaylıyor musunuz?" : "Confirm Invoice?"}
-              </h3>
-              <p className="text-slate-600 mb-6">
-                {isTr 
-                  ? `FATURA PARA BİRİMİNİZ = ${currency?.slice(0, 3)}. Bu para birimi ile kaydetmeyi onaylıyor musunuz?` 
-                  : `INVOICE CURRENCY = ${currency?.slice(0, 3)}. Do you confirm saving with this currency?`}
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50"
-                >
-                  {isTr ? "Vazgeç" : "Cancel"}
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="px-6 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  {editingInvoiceId ? (isTr ? "Evet, Güncelle" : "Yes, Update") : (isTr ? "Evet, Onaylıyorum" : "Yes, I Confirm")}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Details Modal */}
-      <AnimatePresence>
-        {showDetailsModal && selectedInvoice && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-auto overflow-hidden border border-slate-200"
-            >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Fatura Detayı' : 'Invoice Details'}</h3>
-                  {selectedInvoice?.ettn && (
-                    <button
-                      onClick={() => handleViewHtml(selectedInvoice.id)}
-                      className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <FileText className="h-4 w-4" />
-                      {isTr ? 'Orijinal Faturayı Göster' : 'View Original Invoice'}
-                    </button>
-                  )}
-                </div>
-                <button 
-                  onClick={() => setShowDetailsModal(false)} 
-                  className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
-                >
-                  <X className="h-5 w-5 text-slate-400" />
-                </button>
-              </div>
-              
-              <div className="p-6 max-h-[75vh] overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                  <div className="space-y-2">
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Tedarikçi' : 'Supplier'}</p>
-                    <p className="text-lg font-bold text-slate-900">{selectedInvoice.company_name}</p>
-                    {selectedInvoice.is_expense && (
-                      <div className="mt-1">
-                        <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-black uppercase tracking-wider">
-                          {isTr ? `GİDER: ${selectedInvoice.expense_category || 'DİĞER'}` : `EXPENSE: ${selectedInvoice.expense_category || 'OTHER'}`}
-                        </span>
-                      </div>
-                    )}
-                    <p className="text-sm text-slate-500">{selectedInvoice.company_address}</p>
-                    <p className="text-sm text-slate-500">{selectedInvoice.company_phone}</p>
-                    <p className="text-sm text-slate-500">{selectedInvoice.tax_number}</p>
-                  </div>
-                  <div className="space-y-2 text-right">
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Bilgileri' : 'Invoice Info'}</p>
-                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Fatura No:' : 'Inv No:'}</span> {selectedInvoice.invoice_number}</p>
-                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Tarih:' : 'Date:'}</span> {new Date(selectedInvoice.invoice_date).toLocaleDateString('tr-TR')}</p>
-                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {selectedInvoice.currency} {selectedInvoice.exchange_rate !== 1 && `(Kur: ${selectedInvoice.exchange_rate})`}</p>
-                    <p className="text-sm text-slate-600"><span className="font-bold">{isTr ? 'Ödeme:' : 'Payment:'}</span> {selectedInvoice.payment_method}</p>
-                  </div>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{isTr ? 'Ürün' : 'Product'}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'Miktar' : 'Qty'}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Toplam' : 'Total'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {(selectedInvoice.items || []).map((item: any, idx: number) => (
-                        <tr key={idx}>
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-medium text-slate-900">{item.product_name}</div>
-                            <div className="text-xs text-slate-400">{item.barcode}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                            {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedInvoice.currency}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 text-center">%{item.tax_rate}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-slate-900 text-right">
-                            {(Number(item.total_price) + Number(item.tax_amount)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedInvoice.currency}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex flex-col md:flex-row justify-between gap-8">
-                  <div className="flex-1">
-                    {selectedInvoice.notes && (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-2">{isTr ? 'NOTLAR' : 'NOTES'}</p>
-                        <p className="text-sm text-slate-700">{selectedInvoice.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="w-full md:w-64 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">{isTr ? 'Ara Toplam' : 'Subtotal'}</span>
-                      <span className="font-medium">{Number(selectedInvoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedInvoice.currency}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
-                      <span className="font-medium">{Number(selectedInvoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedInvoice.currency}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold border-t border-slate-200 pt-2">
-                      <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
-                      <span className="text-indigo-600">{Number(selectedInvoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedInvoice.currency}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      {/* Quick Add Company Modal */}
-      <AnimatePresence>
-        {showQuickCompanyModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-              onClick={() => setShowQuickCompanyModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-indigo-600" />
-                  {isTr ? "Hızlı Cari Ekle" : "Quick Add Company"}
-                </h3>
-                <button
-                  onClick={() => setShowQuickCompanyModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <form onSubmit={handleQuickCompanySubmit} className="p-6 space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Firma Ünvanı" : "Company Title"} *</label>
-                  <input
-                    type="text"
-                    required
-                    value={quickCompanyForm.title}
-                    onChange={(e) => setQuickCompanyForm({ ...quickCompanyForm, title: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Telefon" : "Phone"}</label>
-                  <input
-                    type="text"
-                    value={quickCompanyForm.phone}
-                    onChange={(e) => setQuickCompanyForm({ ...quickCompanyForm, phone: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Vergi No" : "Tax Number"}</label>
-                  <input
-                    type="text"
-                    value={quickCompanyForm.tax_number}
-                    onChange={(e) => setQuickCompanyForm({ ...quickCompanyForm, tax_number: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickCompanyModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                  >
-                    {isTr ? "İptal" : "Cancel"}
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors"
-                  >
-                    {isTr ? "Kaydet" : "Save"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Quick Add Product Modal */}
-      <AnimatePresence>
-        {showQuickProductModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-              onClick={() => setShowQuickProductModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Package className="h-5 w-5 text-indigo-600" />
-                  {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
-                </h3>
-                <button
-                  onClick={() => setShowQuickProductModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <form onSubmit={handleQuickProductSubmit} className="p-6 space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Ürün Adı" : "Product Name"} *</label>
-                  <input
-                    type="text"
-                    required
-                    value={quickProductForm.name}
-                    onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Barkod" : "Barcode"}</label>
-                  <input
-                    type="text"
-                    value={quickProductForm.barcode}
-                    onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
-                    maxLength={14}
-                    className="w-[22ch] px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "KDV %" : "Tax %"}</label>
-                  <input
-                    type="number"
-                    value={quickProductForm.tax_rate}
-                    onChange={(e) => setQuickProductForm({ ...quickProductForm, tax_rate: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Alış Fiyatı" : "Purchase Price"} *</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required
-                      value={quickProductForm.price}
-                      onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
-                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    />
-                    <select
-                      value={quickProductForm.currency}
-                      onChange={(e) => setQuickProductForm({ ...quickProductForm, currency: e.target.value })}
-                      className="w-24 px-2 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-bold"
-                    >
-                      <option value="TRY">TL</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickProductModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                  >
-                    {isTr ? "İptal" : "Cancel"}
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors"
-                  >
-                    {isTr ? "Kaydet" : "Save"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* HTML Preview Modal */}
-      <AnimatePresence>
-        {htmlPreview && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden relative border border-slate-200"
-            >
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="text-xl font-bold text-slate-900">{isTr ? 'Orijinal Fatura Görüntüsü' : 'Original Invoice View'}</h3>
-                <button 
-                  onClick={() => setHtmlPreview(null)} 
-                  className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
-                >
-                  <X className="h-5 w-5 text-slate-500" />
-                </button>
-              </div>
-              <div className="flex-1 bg-white relative w-full h-full overflow-hidden">
-                <iframe srcDoc={htmlPreview} className="w-full h-full border-0" sandbox="allow-same-origin" />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <QuickProductModal 
+        isOpen={showQuickProductModal}
+        onClose={() => setShowQuickProductModal(false)}
+        isTr={isTr}
+        quickProductForm={quickProductForm}
+        setQuickProductForm={setQuickProductForm}
+        handleQuickProductSubmit={async (e) => {
+           e.preventDefault();
+           try {
+             const res = await api.addProduct({ ...quickProductForm, stock_quantity: 0, status: 'active' }, role === 'superadmin' ? storeId : undefined);
+             setProducts(p => [...p, res]);
+             handleAddProduct(res);
+             setShowQuickProductModal(false);
+           } catch(err) { toast.error("Hata"); }
+        }}
+      />
     </div>
   );
 }

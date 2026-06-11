@@ -200,7 +200,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
   // Dynamic Captions generator (100% Client-side robust copywriting for products)
   const getCaptionText = () => {
-    const contactPhone = branding?.phone || branding?.whatsapp_number || '+90 (548) 000 0000';
+    const contactPhoneText = (branding?.phone || branding?.whatsapp_number) 
+      ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
+      : 'DM yoluyla iletişim kurabilirsiniz.';
     const storeHashtag = `#${storeName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
     const activeHashtags = `#alisveris #kampanya #kampanyaliurunler #kalite #indirim #firsat #hediyelik #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
 
@@ -217,7 +219,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                `💰 Ayrıcalıklı Liste Satış Bedeli: ${priceText}\n` +
                (oldPriceText ? `❌ Önceki Fiyat: ${oldPriceText}\n` : '') +
                `\nHayatına prestij ve asalet katmak isteyen, detaylardaki mükemmelliği önemseyen tüm seçkin misafirlerimizi mağazamıza davet ediyoruz. İncelemeniz ve dilediğiniz adrese randevulu kurye gönderimleri için bize hemen ulaşabilirsiniz.\n\n` +
-               `📞 İletişim Hattı: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `🏢 Koleksiyon Sahibi / Mağaza: ${storeName}\n\n` +
                `${activeHashtags}`;
 
@@ -233,7 +235,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                `💰 Şok Liste Fiyatı: ${priceText}\n` +
                (oldPriceText ? `❌ Eski Satış Fiyatı: ${oldPriceText} (Büyük İndirim Yapıldı!)\n` : '') +
                `\nBu bütçe dostu, Premium tasarımı kapınıza kadar ulaştırmak ve hızlı sipariş geçmek için bize hemen DM atabilir veya telefon hattımızdan iletişime geçebilirsiniz. Fırsatı kaçırmayın!\n\n` +
-               `📞 Çağrı / WP Destek: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `🏪 Yetkili Satıcı Mağaza: ${storeName}\n\n` +
                `#indirimvar #sezonindirimi #alisveriszamani #firsatfiyat #alisverisonline ${activeHashtags}`;
 
@@ -249,7 +251,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                (oldPriceText ? `👉 Eski fiyata elveda: ${oldPriceText} yerine sadece ${priceText}! 😍\n` : '') +
                `\nEv sahipliği yapmak, detaylı sormak ya da bir Türk kahvemizi içerken ürünü yakından incelemek için bizimle hemen iletişime geçin. Sizler için mağazamızda özenle paketlemek için hazırız!\n\n` +
                `💬 DM üzerinden veya buraya yazarak bana anında ulaşabilirsiniz:\n` +
-               `📞 Telefon/WhatsApp: ${contactPhone}\n` +
+               `📞 ${contactPhoneText}\n` +
                `🛍️ Güvenli Mağaza: ${storeName}\n\n` +
                `${activeHashtags}`;
     }
