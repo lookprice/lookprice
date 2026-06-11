@@ -1,62 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Car,
-  Plus,
-  FileText,
-  Wrench,
-  UserCheck,
-  History,
-  AlertTriangle,
-  Download,
-  CheckCircle2,
-  X,
-  FileSignature,
-  Eye,
-  Edit2,
-  Trash2,
-  MoreVertical,
-  Share2,
-  Search,
-  Filter,
-  AlertCircle,
-  Sparkles,
+import { 
+  Car, 
+  UserCheck, 
+  Wrench, 
+  ClipboardList, 
+  History, 
+  AlertTriangle, 
   ShieldCheck,
-  RefreshCw,
-  ClipboardList,
+  Search,
+  Plus,
+  Download,
+  Filter,
+  MoreVertical,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  Camera,
+  RefreshCw,
+  X,
+  PlusCircle,
+  FileText,
+  CheckCircle2
 } from 'lucide-react';
-import { AutomotiveSocialMediaShareModal } from '../../components/AutomotiveSocialMediaShareModal';
-import { AutoContractModal } from '../../components/AutoContractModal';
-
-import { AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { api } from '../../services/api';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
-import { translations } from '../../translations';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { 
-  Vehicle, 
-  Driver, 
-  VehicleDocument, 
-  VehicleMaintenance, 
-  VehicleAssignment, 
-  VehicleMileage, 
-  VehicleIncident 
-} from '../../types';
+import { translations } from '../../translations';
+import { Vehicle, Driver, VehicleDocument, VehicleAssignment, VehicleMaintenance, VehicleMileage, VehicleIncident } from '../../types';
 import { FleetStats } from '../../components/dashboard/fleet/FleetStats';
 import { FleetMainTabContent } from '../../components/dashboard/fleet/FleetMainTabContent';
 import { VehicleFormModal } from '../../components/dashboard/fleet/VehicleFormModal';
 import { VehicleDetailModal } from '../../components/dashboard/fleet/VehicleDetailModal';
+import { DriverFormModal } from '../../components/dashboard/fleet/DriverFormModal';
+import { MaintenanceFormModal } from '../../components/dashboard/fleet/MaintenanceFormModal';
+import { AssignmentFormModal } from '../../components/dashboard/fleet/AssignmentFormModal';
+import { MileageFormModal } from '../../components/dashboard/fleet/MileageFormModal';
+import { IncidentFormModal } from '../../components/dashboard/fleet/IncidentFormModal';
+import { DocumentFormModal } from '../../components/dashboard/fleet/DocumentFormModal';
+import { AutoContractModal } from '../../components/AutoContractModal';
+import { AutomotiveSocialMediaShareModal } from '../../components/AutomotiveSocialMediaShareModal';
 
 interface FleetTabProps {
   storeId: number;
   isViewer?: boolean;
+  branding?: any;
 }
 
-const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
+const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -110,13 +104,19 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
 
   // Action Modal States
-  const [showDocumentModal, setShowDocumentModal] = useState(false);
-  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
-  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
-  const [showMileageModal, setShowMileageModal] = useState(false);
-  const [showIncidentModal, setShowIncidentModal] = useState(false);
-  const [showDriverModal, setShowDriverModal] = useState(false);
+  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+  const [showAddMaintenanceModal, setShowAddMaintenanceModal] = useState(false);
+  const [showAddAssignmentModal, setShowAddAssignmentModal] = useState(false);
+  const [showAddMileageModal, setShowAddMileageModal] = useState(false);
+  const [showAddIncidentModal, setShowAddIncidentModal] = useState(false);
   const [showAddDriverModal, setShowAddDriverModal] = useState(false);
+
+  const [driverFormData, setDriverFormData] = useState<any>({ name: '', phone: '', email: '', status: 'active' });
+  const [maintenanceFormData, setMaintenanceFormData] = useState<any>({ type: '', date: '', status: 'planned', cost: 0, currency: 'TRY' });
+  const [assignmentFormData, setAssignmentFormData] = useState<any>({ user_email: '', start_date: '', start_mileage: 0 });
+  const [mileageFormData, setMileageFormData] = useState<any>({ date: '', mileage: 0 });
+  const [incidentFormData, setIncidentFormData] = useState<any>({ type: '', date: '', description: '', cost: 0 });
+  const [documentFormData, setDocumentFormData] = useState<any>({ type: '', expiry_date: '', document_number: '' });
 
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [editingDocument, setEditingDocument] = useState<VehicleDocument | null>(null);
@@ -176,24 +176,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
 
-  const [documentFormData, setDocumentFormData] = useState<any>({ 
-    type: 'registration', 
-    status: 'valid',
-    is_recurring: false,
-    recurrence_period: '1 year'
-  });
-  const [maintenanceFormData, setMaintenanceFormData] = useState<Partial<VehicleMaintenance>>({ type: 'routine', status: 'planned' } as any);
-  const [assignmentFormData, setAssignmentFormData] = useState<Partial<VehicleAssignment>>({ 
-    status: 'active',
-    start_date: new Date().toISOString().split('T')[0]
-  } as any);
-  const [mileageFormData, setMileageFormData] = useState<Partial<VehicleMileage>>({});
-  const [incidentFormData, setIncidentFormData] = useState<Partial<VehicleIncident>>({ type: 'accident', status: 'open' });
-  const [driverFormData, setDriverFormData] = useState<Partial<Driver>>({ status: 'active' });
-
   // AI & Luxury Presentation States
   const [generatingVehicleDesc, setGeneratingVehicleDesc] = useState(false);
-  const [processingVehicleMedia, setProcessingVehicleMedia] = useState<string | null>(null);
   const [vehicleAiNotice, setVehicleAiNotice] = useState<string | null>(null);
 
   const handleGenerateVehicleDesc = async () => {
@@ -463,6 +447,110 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
     }
   };
 
+  const handleCreateDriver = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.createDriver({ ...driverFormData, store_id: storeId });
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setDrivers([...(drivers || []), res]);
+      setShowAddDriverModal(false);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleCreateMaintenance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { vehicle_id, ...rest } = maintenanceFormData;
+      const res = await api.createVehicleMaintenance(vehicle_id, rest);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setAllMaintenance([...(allMaintenance || []), res]);
+      setShowAddMaintenanceModal(false);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleCreateAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { vehicle_id, ...rest } = assignmentFormData;
+      const res = await api.createVehicleAssignment(vehicle_id, rest);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setAllAssignments([...(allAssignments || []), res]);
+      setShowAddAssignmentModal(false);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleCreateMileage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { vehicle_id, ...rest } = mileageFormData;
+      const res = await api.createVehicleMileage(vehicle_id, rest);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setAllMileage([...(allMileage || []), res]);
+      setShowAddMileageModal(false);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleCreateIncident = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { vehicle_id, ...rest } = incidentFormData;
+      const res = await api.createVehicleIncident(vehicle_id, rest);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setAllIncidents([...(allIncidents || []), res]);
+      setShowAddIncidentModal(false);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleCreateDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { vehicle_id, ...rest } = documentFormData;
+      const res = await api.createVehicleDocument(vehicle_id, rest);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      setAllDocuments([...(allDocuments || []), res]);
+      setShowAddDocumentModal(false);
+    } catch (error) {
+      alert(t.errorOccurred);
+    }
+  };
+
+  const handleSubmitDriver = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedDriver) {
+      // Update logic if needed
+    } else {
+      await handleCreateDriver(e);
+    }
+  };
+
   const handleUpdateVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVehicle) return;
@@ -537,7 +625,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
       next_maintenance_date: m.next_maintenance_date ? m.next_maintenance_date.split('T')[0] : '',
       next_maintenance_mileage: m.next_maintenance_mileage
     } as any);
-    setShowMaintenanceModal(true);
+    setShowAddMaintenanceModal(true);
   };
 
   const handleDeleteDriver = async (id: number) => {
@@ -679,6 +767,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
         handleDeleteDocument={handleDeleteDocument}
         setAutoContractVehicle={setAutoContractVehicle}
         setIsAutoContractOpen={setIsAutoContractOpen}
+        setShowAddMaintenanceModal={setShowAddMaintenanceModal}
+        setShowAddAssignmentModal={setShowAddAssignmentModal}
+        setShowAddMileageModal={setShowAddMileageModal}
+        setShowAddIncidentModal={setShowAddIncidentModal}
+        setShowAddDocumentModal={setShowAddDocumentModal}
       />
     );
   };
@@ -822,7 +915,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           setAutoContractVehicle(null);
         }}
         vehicle={autoContractVehicle}
-        storeName="LookPrice Premium Gallery"
+        storeName={branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Otomotiv" : "Premium Automotive")}
       />
       <AutomotiveSocialMediaShareModal
         isOpen={isShareModalOpen}
@@ -831,7 +924,66 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer }) => {
           setShareVehicle(null);
         }}
         vehicle={shareVehicle}
-        branding={{ store_name: "LookPrice Premium Gallery" }}
+        branding={branding}
+      />
+
+      <DriverFormModal
+        isOpen={showAddDriverModal}
+        onClose={() => setShowAddDriverModal(false)}
+        lang={lang}
+        formData={driverFormData}
+        setFormData={setDriverFormData}
+        handleSubmit={handleSubmitDriver}
+      />
+
+      <MaintenanceFormModal
+        isOpen={showAddMaintenanceModal}
+        onClose={() => setShowAddMaintenanceModal(false)}
+        lang={lang}
+        formData={maintenanceFormData}
+        setFormData={setMaintenanceFormData}
+        handleSubmit={handleCreateMaintenance}
+        vehicles={vehicles || []}
+      />
+
+      <AssignmentFormModal
+        isOpen={showAddAssignmentModal}
+        onClose={() => setShowAddAssignmentModal(false)}
+        lang={lang}
+        formData={assignmentFormData}
+        setFormData={setAssignmentFormData}
+        handleSubmit={handleCreateAssignment}
+        vehicles={vehicles || []}
+      />
+
+      <MileageFormModal
+        isOpen={showAddMileageModal}
+        onClose={() => setShowAddMileageModal(false)}
+        lang={lang}
+        formData={mileageFormData}
+        setFormData={setMileageFormData}
+        handleSubmit={handleCreateMileage}
+        vehicles={vehicles || []}
+      />
+
+      <IncidentFormModal
+        isOpen={showAddIncidentModal}
+        onClose={() => setShowAddIncidentModal(false)}
+        lang={lang}
+        formData={incidentFormData}
+        setFormData={setIncidentFormData}
+        handleSubmit={handleCreateIncident}
+        vehicles={vehicles || []}
+      />
+
+      <DocumentFormModal
+        isOpen={showAddDocumentModal}
+        onClose={() => setShowAddDocumentModal(false)}
+        lang={lang}
+        formData={documentFormData}
+        setFormData={setDocumentFormData}
+        handleSubmit={handleCreateDocument}
+        vehicles={vehicles || []}
       />
     </div>
   );

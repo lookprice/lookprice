@@ -741,7 +741,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 />
               )}
               {activeTab === "fleet" && (
-                <FleetTab storeId={currentStoreId!} isViewer={isViewer} />
+                <FleetTab storeId={currentStoreId!} isViewer={isViewer} branding={branding} />
               )}
               {activeTab === "analytics" && (
                 isPortfolio ? (

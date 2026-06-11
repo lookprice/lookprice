@@ -174,25 +174,27 @@ export const AutomotiveWebsiteGenerator = ({
                 })
               }));
 
-              // Migration for real estate terms in quick links
+              // Migration for real estate terms and platform names in quick links
               setQuickLinks(prev => prev.map(link => {
                 if (link.label === "Mülklerimiz" || link.label === "Portföyümüz") return { ...link, label: lang === 'tr' ? "Araçlarımız" : "Our Vehicles" };
                 if (link.label === "Bölgelerimiz") return { ...link, label: lang === 'tr' ? "Şubelerimiz" : "Our Branches" };
-                if (link.content?.includes("gayrimenkul")) {
+                if (link.content?.includes("gayrimenkul") || link.content?.includes("LookPrice")) {
                   return { 
                     ...link, 
                     content: link.content.replace(/gayrimenkul/gi, lang === 'tr' ? "otomotiv" : "automotive")
                                        .replace(/mülk/gi, lang === 'tr' ? "araç" : "vehicle")
+                                       .replace(/LookPrice/gi, res.store_name || res.name || (lang === 'tr' ? "Seçkin Otomotiv" : "Premium Automotive"))
                   };
                 }
                 return link;
               }));
 
               setCorporateLinks(prev => prev.map(link => {
-                if (link.content?.includes("gayrimenkul")) {
+                if (link.content?.includes("gayrimenkul") || link.content?.includes("LookPrice")) {
                   return { 
                     ...link, 
                     content: link.content.replace(/gayrimenkul/gi, lang === 'tr' ? "otomotiv" : "automotive")
+                                       .replace(/LookPrice/gi, res.store_name || res.name || (lang === 'tr' ? "Seçkin Otomotiv" : "Premium Automotive"))
                   };
                 }
                 return link;
@@ -286,8 +288,8 @@ export const AutomotiveWebsiteGenerator = ({
       url: "",
       type: "content",
       content: lang === "tr" 
-        ? "Biz LookPrice Master ekibi olarak araç yatırımlarınıza değer katıyoruz. Profesyonel kadromuzla yanınızdayız."
-        : "As the LookPrice Master team, we add value to your vehicle investments with our professional staff.",
+        ? "Biz Seçkin Otomotiv ekibi olarak araç yatırımlarınıza değer katıyoruz. Profesyonel kadromuzla yanınızdayız."
+        : "As the Seçkin Otomotiv team, we add value to your vehicle investments with our professional staff.",
     },
     { label: lang === "tr" ? "Takas Başvurusu" : "Trade-in Application", url: "#contact", type: "url" },
   ]);
@@ -468,8 +470,8 @@ export const AutomotiveWebsiteGenerator = ({
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1 uppercase">
               {lang === "tr"
-                ? "MAESTRO PORTFÖY ENGINE"
-                : "MAESTRO PORTFOLIO ENGINE"}
+                ? `${originalBranding?.store_name || originalBranding?.name || "SEÇKİN OTOMOTİV"} PORTFÖY ENGINE`
+                : `${originalBranding?.store_name || originalBranding?.name || "PREMIUM AUTOMOTIVE"} PORTFOLIO ENGINE`}
             </h2>
             <p className="text-[11px] font-bold text-indigo-500 uppercase tracking-[0.3em] leading-none">
               {lang === "tr"
@@ -1336,7 +1338,7 @@ export const AutomotiveWebsiteGenerator = ({
                 <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
                   Tüm fazlar tamamlandı. Sitenizi yayınladığınızda{" "}
                   <strong className="text-white">
-                    LookPrice Master Portföy
+                    {originalBranding?.store_name || originalBranding?.name || "Seçkin Otomotiv"} Portföy
                   </strong>{" "}
                   gücüyle yayına girecektir.
                   {useCustomDomain
@@ -1523,8 +1525,8 @@ export const AutomotiveWebsiteGenerator = ({
                           <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                             {lang === "tr"
-                              ? "LookPrice Entegre Veri Akışı"
-                              : "LookPrice Integrated Data Feed"}
+                              ? `${originalBranding?.store_name || originalBranding?.name || "Seçkin Otomotiv"} Entegre Veri Akışı`
+                              : `${originalBranding?.store_name || originalBranding?.name || "Premium Automotive"} Integrated Data Feed`}
                           </p>
                         </div>
                       </div>
@@ -1906,7 +1908,7 @@ export const AutomotiveWebsiteGenerator = ({
                         />
                       ) : (
                         <h2 className="text-3xl font-black italic tracking-tighter uppercase">
-                          {originalBranding?.name || "MAESTRO"}
+                          {originalBranding?.store_name || originalBranding?.name || "SEÇKİN OTOMOTİV"}
                         </h2>
                       )}
                       
@@ -1961,7 +1963,7 @@ export const AutomotiveWebsiteGenerator = ({
                   <div className="pt-8 flex justify-between items-center gap-6">
                     <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest break-words w-1/2">
                       © {new Date().getFullYear()}{" "}
-                      {originalBranding?.name || "MAESTRO"}.{" "}
+                      {originalBranding?.store_name || originalBranding?.name || "SEÇKİN OTOMOTİV"}.{" "}
                       {lang === "tr"
                         ? "TÜM HAKLARI SAKLIDIR."
                         : "ALL RIGHTS RESERVED."}

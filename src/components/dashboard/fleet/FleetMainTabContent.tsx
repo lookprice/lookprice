@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import { VehicleTable } from './VehicleTable';
 import { DriversSection } from './DriversSection';
 import { MaintenanceTab } from './MaintenanceTab';
@@ -52,6 +53,13 @@ interface FleetMainTabContentProps {
   handleDeleteDocument: (id: number) => void;
   setAutoContractVehicle: (v: Vehicle) => void;
   setIsAutoContractOpen: (val: boolean) => void;
+  
+  // New modal openers
+  setShowAddMaintenanceModal: (val: boolean) => void;
+  setShowAddAssignmentModal: (val: boolean) => void;
+  setShowAddMileageModal: (val: boolean) => void;
+  setShowAddIncidentModal: (val: boolean) => void;
+  setShowAddDocumentModal: (val: boolean) => void;
 }
 
 export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
@@ -96,7 +104,12 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
   handleDeleteIncident,
   handleDeleteDocument,
   setAutoContractVehicle,
-  setIsAutoContractOpen
+  setIsAutoContractOpen,
+  setShowAddMaintenanceModal,
+  setShowAddAssignmentModal,
+  setShowAddMileageModal,
+  setShowAddIncidentModal,
+  setShowAddDocumentModal
 }) => {
   switch (activeTab) {
     case 'vehicles':
@@ -145,66 +158,131 @@ export const FleetMainTabContent: React.FC<FleetMainTabContentProps> = ({
       );
     case 'maintenance':
       return (
-        <MaintenanceTab
-          maintenance={allMaintenance}
-          vehicles={vehicles}
-          t={t}
-          lang={lang}
-          isViewer={isViewer}
-          onEdit={handleEditMaintenance}
-          safeFormatDate={safeFormatDate}
-          getVehiclePlate={getVehiclePlate}
-        />
+        <div className="space-y-6">
+          {!isViewer && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAddMaintenanceModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {lang === 'tr' ? 'Bakım Ekle' : 'Add Maintenance'}
+              </button>
+            </div>
+          )}
+          <MaintenanceTab
+            maintenance={allMaintenance}
+            vehicles={vehicles}
+            t={t}
+            lang={lang}
+            isViewer={isViewer}
+            onEdit={handleEditMaintenance}
+            safeFormatDate={safeFormatDate}
+            getVehiclePlate={getVehiclePlate}
+          />
+        </div>
       );
     case 'assignments':
       return (
-        <AssignmentsTab
-          assignments={allAssignments}
-          vehicles={vehicles}
-          t={t}
-          lang={lang}
-          isViewer={isViewer}
-          onReturn={(a) => handleUpdateAssignment(a.id, 0)} // Placeholder for returning
-          safeFormatDate={safeFormatDate}
-          getVehiclePlate={getVehiclePlate}
-        />
+        <div className="space-y-6">
+          {!isViewer && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAddAssignmentModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {lang === 'tr' ? 'Zimmet Ekle' : 'Add Assignment'}
+              </button>
+            </div>
+          )}
+          <AssignmentsTab
+            assignments={allAssignments}
+            vehicles={vehicles}
+            t={t}
+            lang={lang}
+            isViewer={isViewer}
+            onReturn={(a) => handleUpdateAssignment(a.id, 0)} // Placeholder for returning
+            safeFormatDate={safeFormatDate}
+            getVehiclePlate={getVehiclePlate}
+          />
+        </div>
       );
     case 'mileage':
       return (
-        <MileageTab
-          mileageLogs={allMileageLogs}
-          vehicles={vehicles}
-          t={t}
-          lang={lang}
-          safeFormatDate={safeFormatDate}
-          getVehiclePlate={getVehiclePlate}
-        />
+        <div className="space-y-6">
+          {!isViewer && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAddMileageModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {lang === 'tr' ? 'Kilometre Kaydı' : 'Add Mileage Log'}
+              </button>
+            </div>
+          )}
+          <MileageTab
+            mileageLogs={allMileageLogs}
+            vehicles={vehicles}
+            t={t}
+            lang={lang}
+            safeFormatDate={safeFormatDate}
+            getVehiclePlate={getVehiclePlate}
+          />
+        </div>
       );
     case 'incidents':
       return (
-        <IncidentsTab
-          incidents={allIncidents}
-          vehicles={vehicles}
-          t={t}
-          lang={lang}
-          isViewer={isViewer}
-          onDelete={handleDeleteIncident}
-          safeFormatDate={safeFormatDate}
-          getVehiclePlate={getVehiclePlate}
-        />
+        <div className="space-y-6">
+          {!isViewer && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAddIncidentModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {lang === 'tr' ? 'Olay/Kaza Ekle' : 'Add Incident'}
+              </button>
+            </div>
+          )}
+          <IncidentsTab
+            incidents={allIncidents}
+            vehicles={vehicles}
+            t={t}
+            lang={lang}
+            isViewer={isViewer}
+            onDelete={handleDeleteIncident}
+            safeFormatDate={safeFormatDate}
+            getVehiclePlate={getVehiclePlate}
+          />
+        </div>
       );
     case 'obligations':
       return (
-        <ObligationsTab
-          documents={allDocuments}
-          vehicles={vehicles}
-          t={t}
-          lang={lang}
-          isViewer={isViewer}
-          onDelete={handleDeleteDocument}
-          safeFormatDate={safeFormatDate}
-          getVehiclePlate={getVehiclePlate}
-        />
+        <div className="space-y-6">
+          {!isViewer && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAddDocumentModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {lang === 'tr' ? 'Poliçe/Belge Ekle' : 'Add Policy/Document'}
+              </button>
+            </div>
+          )}
+          <ObligationsTab
+            documents={allDocuments}
+            vehicles={vehicles}
+            t={t}
+            lang={lang}
+            isViewer={isViewer}
+            onDelete={handleDeleteDocument}
+            safeFormatDate={safeFormatDate}
+            getVehiclePlate={getVehiclePlate}
+          />
+        </div>
       );
     default:
       return null;

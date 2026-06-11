@@ -261,8 +261,9 @@ export const RealEstateWebsiteGenerator = ({
       label: "Biz Kimiz?",
       url: "",
       type: "content",
-      content:
-        "Biz LookPrice Master ekibi olarak yatırımlarınıza değer katıyoruz.",
+      content: lang === "tr"
+        ? `Biz ${originalBranding?.store_name || originalBranding?.name || "Seçkin Emlak"} ekibi olarak yatırımlarınıza değer katıyoruz.`
+        : `As the ${originalBranding?.store_name || originalBranding?.name || "Seçkin Emlak"} team, we add value to your investments.`,
     },
     { label: "İletişim", url: "#contact", type: "url" },
   ]);
@@ -455,8 +456,8 @@ export const RealEstateWebsiteGenerator = ({
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1 uppercase">
               {lang === "tr"
-                ? "MAESTRO PORTFÖY ENGINE"
-                : "MAESTRO PORTFOLIO ENGINE"}
+                ? `${originalBranding?.store_name || originalBranding?.name || "SEÇKİN EMLAK"} PORTFÖY ENGINE`
+                : `${originalBranding?.store_name || originalBranding?.name || "EXCLUSIVE PROPERTY"} PORTFOLIO ENGINE`}
             </h2>
             <p className="text-[11px] font-bold text-indigo-500 uppercase tracking-[0.3em] leading-none">
               {lang === "tr"
@@ -1318,7 +1319,7 @@ export const RealEstateWebsiteGenerator = ({
                 <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
                   Tüm fazlar tamamlandı. Sitenizi yayınladığınızda{" "}
                   <strong className="text-white">
-                    LookPrice Master Portföy
+                    {originalBranding?.store_name || originalBranding?.name || "Seçkin Emlak"} Portföy
                   </strong>{" "}
                   gücüyle yayına girecektir.
                   {useCustomDomain
@@ -1505,8 +1506,8 @@ export const RealEstateWebsiteGenerator = ({
                           <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                             {lang === "tr"
-                              ? "LookPrice Entegre Veri Akışı"
-                              : "LookPrice Integrated Data Feed"}
+                              ? `${originalBranding?.store_name || originalBranding?.name || "Seçkin Emlak"} Entegre Veri Akışı`
+                              : `${originalBranding?.store_name || originalBranding?.name || "Premium Property"} Integrated Data Feed`}
                           </p>
                         </div>
                       </div>
@@ -1888,7 +1889,7 @@ export const RealEstateWebsiteGenerator = ({
                         />
                       ) : (
                         <h2 className="text-3xl font-black italic tracking-tighter uppercase">
-                          {originalBranding?.name || "MAESTRO"}
+                          {originalBranding?.store_name || originalBranding?.name || "SEÇKİN EMLAK"}
                         </h2>
                       )}
                       
@@ -1943,7 +1944,7 @@ export const RealEstateWebsiteGenerator = ({
                   <div className="pt-8 flex justify-between items-center gap-6">
                     <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest break-words w-1/2">
                       © {new Date().getFullYear()}{" "}
-                      {originalBranding?.name || "MAESTRO"}.{" "}
+                      {originalBranding?.store_name || originalBranding?.name || "SEÇKİN EMLAK"}.{" "}
                       {lang === "tr"
                         ? "TÜM HAKLARI SAKLIDIR."
                         : "ALL RIGHTS RESERVED."}

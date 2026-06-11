@@ -37,6 +37,8 @@ interface PurchaseInvoiceFormModalProps {
   setIsExpense: (val: boolean) => void;
   expenseCategory: string;
   setExpenseCategory: (val: string) => void;
+  expenseCenter: string;
+  setExpenseCenter: (val: string) => void;
   isTaxInclusive: boolean;
   setIsTaxInclusive: (val: boolean) => void;
   items: any[];
@@ -83,6 +85,8 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
   setIsExpense,
   expenseCategory,
   setExpenseCategory,
+  expenseCenter,
+  setExpenseCenter,
   isTaxInclusive,
   setIsTaxInclusive,
   items,
@@ -182,6 +186,23 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{isTr ? "KALEMLER" : "ITEMS"}</h4>
               <div className="flex items-center gap-4">
+                {isExpense && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={expenseCenter}
+                      onChange={(e) => setExpenseCenter(e.target.value)}
+                      className="text-xs font-bold px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg outline-none"
+                    >
+                      <option value="">{isTr ? "Gider Yeri Seçin" : "Select Expense Center"}</option>
+                      <option value="showroom">Showroom</option>
+                      <option value="service">Servis / Atölye</option>
+                      <option value="office">Ofis / İdari</option>
+                      <option value="marketing">Pazarlama / Reklam</option>
+                      <option value="personnel">Personel</option>
+                      <option value="other">Diğer</option>
+                    </select>
+                  </div>
+                )}
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input 
                     type="checkbox" 

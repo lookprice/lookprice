@@ -128,10 +128,30 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
           {/* Sidebar Info */}
           <div className="w-full lg:w-80 bg-gray-50/50 border-r border-gray-100 p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
             {vehicle.images && vehicle.images.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.vehiclePhotos}</label>
-                <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                  <ImageGallery images={vehicle.images} />
+              <div className="space-y-4">
+                <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white p-1">
+                  <img 
+                    src={vehicle.images[0]} 
+                    alt={vehicle.plate} 
+                    className="w-full aspect-[4/3] object-cover rounded-xl"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none mb-1">Araç Plakası</span>
+                    <span className="text-2xl font-black text-gray-900 tracking-tight">{vehicle.plate}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${getStatusColor(vehicle.status)}`}>
+                      {getStatusText(vehicle.status)}
+                    </span>
+                    {vehicle.type === 'company' && (
+                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                        {t.company}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

@@ -96,6 +96,15 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                        {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') : (isTr ? 'Vadeli' : 'Term')}
                     </p>
                  </div>
+                 {invoice.is_expense && invoice.expense_center && (
+                    <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 col-span-2">
+                       <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 block">{isTr ? "GİDER YERİ" : "EXPENSE CENTER"}</label>
+                       <p className="text-sm font-black text-amber-700 flex items-center gap-2 uppercase">
+                          <CheckCircle2 className="h-4 w-4" />
+                          {invoice.expense_center}
+                       </p>
+                    </div>
+                 )}
               </div>
             </div>
 

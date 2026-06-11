@@ -746,7 +746,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                      : `• Tapu Statüsü: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n`) +
                    `• Isınma ve Donanım: Lüks iklimlendirme sistemleri hazır\n\n` +
                    `📍 Konum: Mağaza, deniz hattı ve sosyal yaşam mekanlarına yürüme mesafesinde.\n\n` +
-                   `📞 LookPrice çok şubeli ağ güvencesiyle detaylı sunum, dosya inceleme ve mülk yerinde sunumu için hemen iletişime geçin.`;
+                   `📞 ${branding?.store_name || branding?.name || 'Seçkin Emlak'} çok şubeli ağ güvencesiyle detaylı sunum, dosya inceleme ve mülk yerinde sunumu için hemen iletişime geçin.`;
           } else if (aiAdPlatform === 'social') {
             return `🔥 Göz Alıcı Yatırım Lokasyonu: Kuzey Kıbrıs / ${matchingProperty.kktc_region || "Girne"} 🔥\n\n` +
                    `Uluslararası standartlarda yaşam sunan ${matchingProperty.location} bölgesindeki bu muhteşem ${matchingProperty.type} ${intentActionMatch}!\n\n` +
@@ -759,7 +759,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                    `💡 Daha fazla bilgi için hemen DM veya profil bağlantımızdan bize ulaşın! ${isRentMatch ? '#kktckiralik #kibriskiralik #realestate #lookpricehub' : '#kktcemlak #kibrisyatirim #realestate #lookpricehub'}`;
           } else {
             return `Merhaba Sayın Yatırımcımız,\n\n` +
-                   `LookPrice Emlak Ağının çok şubeli veri tabanından kriterlerinize özel eşleşen yeni bir ${intentWordMatch} mülk fırsatı kaydoldu:\n\n` +
+                   `${branding?.store_name || branding?.name || 'Seçkin Emlak'} Ağının çok şubeli veri tabanından kriterlerinize özel eşleşen yeni bir ${intentWordMatch} mülk fırsatı kaydoldu:\n\n` +
                    `📌 Bölge: ${matchingProperty.location} (${matchingProperty.kktc_region || 'KKTC'})\n` +
                    `🏡 Mülk Tipi: ${formatNumberVal(matchingProperty.square_meters)} m² Net - ${matchingProperty.room_count} - ${matchingProperty.type}\n` +
                    `💰 ${priceLabelMatch}: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n` +
@@ -895,7 +895,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                             <div className="flex gap-2 justify-end pt-2 border-t border-slate-50">
                               <button
                                 onClick={() => {
-                                  const subject = encodeURIComponent(`LookPrice Yatırım Teklifi - ${matchingProperty.title}`);
+                                  const subject = encodeURIComponent(`${branding?.store_name || branding?.name || 'Seçkin Emlak'} Yatırım Teklifi - ${matchingProperty.title}`);
                                   const body = encodeURIComponent(`Sayın ${buyer.name},\n\nİstemiş olduğunuz kriterlere uyum sağlayan yeni portföyümüzü incelemenize sunmaktan memnuniyet duyarız:\n\nMülk Başlığı: ${matchingProperty.title}\nKonum: ${matchingProperty.location}\nLüks Detay: ${formatNumberVal(matchingProperty.square_meters)} m² / ${matchingProperty.room_count}\n\nDetaylı bilgi için şubemizle iletişime geçebilirsiniz.`);
                                   window.open(`mailto:${buyer.email}?subject=${subject}&body=${body}`, '_blank');
                                 }}
@@ -906,7 +906,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                               </button>
                               <button
                                 onClick={() => {
-                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, LookPrice Emlak ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}`);
+                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, ${branding?.store_name || branding?.name || 'Seçkin Emlak'} ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}`);
                                   window.open(`https://wa.me/${buyer.phone.replace(/\s+/g, '')}?text=${text}`, '_blank');
                                 }}
                                 className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
@@ -980,7 +980,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
                         if (activeDripTemplate === 'intro') {
                           dripSubject = `Özel Keşif Daveti: ${matchingProperty.location} / ${matchingProperty.title}`;
-                          dripBody = `Sayın ${firstBuyerName},\n\nLookPrice portföy havuzuna henüz eklenen ve kriterlerinizle %90+ uyum sağlayan yeni bir fırsatımız var: ${matchingProperty.title}.\n\nMülkün fiziksel sunumundan önce hazırladığımız 3D sanal turumuzla mülk içinde dilediğinizce yürüyebilir, mutfak tezgahı ölçülerini bile alabilirsiniz:\n🔗 Sanal Keşif: ${matchingProperty.virtual_tour_url || 'lookprice-3d-explorer'}\n\nBu özel portföyü ne zaman yerinde görmek istersiniz?`;
+                          dripBody = `Sayın ${firstBuyerName},\n\n${branding?.store_name || branding?.name || 'Seçkin Emlak'} portföy havuzuna henüz eklenen ve kriterlerinizle %90+ uyum sağlayan yeni bir fırsatımız var: ${matchingProperty.title}.\n\nMülkün fiziksel sunumundan önce hazırladığımız 3D sanal turumuzla mülk içinde dilediğinizce yürüyebilir, mutfak tezgahı ölçülerini bile alabilirsiniz:\n🔗 Sanal Keşif: ${matchingProperty.virtual_tour_url || 'lookprice-3d-explorer'}\n\nBu özel portföyü ne zaman yerinde görmek istersiniz?`;
                         } else if (activeDripTemplate === 'pricedrop') {
                           dripSubject = `Fiyat / Kampanya Güncellemesi - Önemli Fırsat`;
                           dripBody = `Değerli ${firstBuyerName},\n\nTakip listenizde yer alan ${matchingProperty.title} mülkü için satıcı ile yürüttüğümüz özel pazarlık neticesinde kısa bir süreliğine özel bir esneklik sağlandı!\n\nYeni Liste Değeri: ${matchingProperty.currency} ${formatNumberVal(cmaElasticityPrice || matchingProperty.price || 0)}\n\nBölgesel CMA rasyolarına göre bu fiyat emsallerden yaklaşık %15 daha avantajlıdır. Fırsatı kaçırmamak adına hemen bir geri dönüş yapmanızı öneririm.`;
@@ -1711,7 +1711,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                             const stepsCompleted = escrowTimeline.filter(s => s.checked).map(s => `[X] ${s.label}`).join("\n");
                             const stepsPending = escrowTimeline.filter(s => !s.checked).map(s => `[ ] ${s.label}`).join("\n");
                             const subject = encodeURIComponent(`GÜVENLİ ESCROW RAPORU: ${matchingProperty.title}`);
-                            const body = encodeURIComponent(`Sayın Temsilci,\n\n${matchingProperty.title} numaralı portföyün kapanış süreçleri ve tapu devir takibi tescil raporu:\n\nTAMAMLANAN ADIMLAR:\n${stepsCompleted}\n\nBEKLEYEN EKSİKLER:\n${stepsPending}\n\nİlgili dosya ve harçların takibini sitemiz üzerinden tamamlayabilirsiniz.\n\nLookPrice Elite Escrow Asistanı.`);
+                            const body = encodeURIComponent(`Sayın Temsilci,\n\n${matchingProperty.title} numaralı portföyün kapanış süreçleri ve tapu devir takibi tescil raporu:\n\nTAMAMLANAN ADIMLAR:\n${stepsCompleted}\n\nBEKLEYEN EKSİKLER:\n${stepsPending}\n\nİlgili dosya ve harçların takibini sitemiz üzerinden tamamlayabilirsiniz.\n\n${branding?.store_name || branding?.name || 'Seçkin Emlak'} Elite Escrow Asistanı.`);
                             window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
                           }}
                           className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10.5px] px-4 py-2 rounded-xl transition-all shadow"
@@ -1852,7 +1852,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             {/* Header */}
             <div className="flex justify-between items-center pb-4 border-b-2 border-slate-950">
               <div>
-                <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">{branding?.store_name || branding?.name || 'LOOKPRICE'}</h1>
+                <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">{branding?.store_name || branding?.name || 'SEÇKİN EMLAK'}</h1>
                 <p className="text-[10px] font-black tracking-widest text-indigo-600 uppercase">PREMIUM REAL ESTATE</p>
               </div>
               <div className="text-right">

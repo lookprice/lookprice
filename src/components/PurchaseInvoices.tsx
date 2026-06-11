@@ -9,8 +9,10 @@ import {
   FileText, 
   CloudDownload, 
   Printer, 
-  Loader2 
+  Loader2,
+  X 
 } from "lucide-react";
+import { motion } from "motion/react";
 import { normalizeSearch } from "../lib/searchUtils";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -33,7 +35,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [htmlPreview, setHtmlPreview] = useState<string | null>(null);
+  const [showHtmlModal, setShowHtmlModal] = useState(false);
+  const [selectedHtml, setSelectedHtml] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
@@ -79,6 +82,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [isExpense, setIsExpense] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState("");
+  const [expenseCenter, setExpenseCenter] = useState("");
   const [lastEditedId, setLastEditedId] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
 
@@ -207,7 +211,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           exchange_rate: Number(exchangeRate) || 1,
           is_tax_inclusive: isTaxInclusive,
           is_expense: isExpense,
-          expense_category: expenseCategory
+          expense_category: expenseCategory,
+          expense_center: expenseCenter
         };
 
         const res = editingInvoiceId 
@@ -263,6 +268,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       setIsTaxInclusive(data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true);
       setIsExpense(!!data.is_expense);
       setExpenseCategory(data.expense_category || "");
+      setExpenseCenter(data.expense_center || "");
       setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,
@@ -342,6 +348,20 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
        toast.error(error.message);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleViewHtml = async (id: number) => {
+    try {
+      const res = await api.getPurchaseInvoiceHtml(id, role === 'superadmin' ? storeId : undefined);
+      if (res.html) {
+        setSelectedHtml(res.html);
+        setShowHtmlModal(true);
+      } else {
+        toast.error(isTr ? "Fatura görseli bulunamadı" : "Invoice image not found");
+      }
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
@@ -467,6 +487,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         setIsExpense={setIsExpense}
         expenseCategory={expenseCategory}
         setExpenseCategory={setExpenseCategory}
+        expenseCenter={expenseCenter}
+        setExpenseCenter={setExpenseCenter}
         isTaxInclusive={isTaxInclusive}
         setIsTaxInclusive={setIsTaxInclusive}
         items={items}
@@ -496,7 +518,41 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         onClose={() => setShowDetailsModal(false)}
         invoice={selectedInvoice}
         isTr={isTr}
+        handleViewHtml={handleViewHtml}
       />
+
+      {showHtmlModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+          >
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-black text-slate-900">{isTr ? "Fatura Önizleme" : "Invoice Preview"}</h3>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    const win = window.open('', '_blank');
+                    win?.document.write(selectedHtml || '');
+                    win?.document.close();
+                  }}
+                  className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  {isTr ? "Yazdır" : "Print"}
+                </button>
+                <button onClick={() => setShowHtmlModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-all">
+                  <X className="h-5 w-5 text-slate-400" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto bg-slate-100 p-8">
+              <div className="bg-white shadow-lg mx-auto w-fit p-1" dangerouslySetInnerHTML={{ __html: selectedHtml || '' }} />
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <QuickProductModal 
         isOpen={showQuickProductModal}

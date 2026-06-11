@@ -423,124 +423,28 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
               </div>
             </div>
 
-            {/* AI Media Section */}
+            {/* Media Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-indigo-700 tracking-wider uppercase border-l-4 border-indigo-600 pl-2.5">
-                  4. Profesyonel Sunum ve AI Medya (Showroom)
+                <h4 className="text-sm font-bold text-blue-700 tracking-wider uppercase border-l-4 border-blue-600 pl-2.5">
+                  4. Araç Görselleri ve Sunum
                 </h4>
-                {vehicleAiNotice && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="px-4 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg text-xs font-bold text-indigo-600 flex items-center gap-2"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                    {vehicleAiNotice}
-                  </motion.div>
-                )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-50/80 p-6 rounded-3xl border border-blue-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <Sparkles className="w-32 h-32 text-indigo-600" />
-                </div>
-
-                <div className="lg:col-span-4 space-y-4 relative z-10">
-                  <div className="aspect-[4/3] bg-white rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden flex flex-col items-center justify-center p-4">
-                    {formData.images && formData.images.length > 0 ? (
-                      <div className="relative w-full h-full group">
-                        <img 
-                          src={formData.images[0]} 
-                          alt="Cover" 
-                          className="w-full h-full object-cover rounded-xl"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                           <Camera className="text-white w-8 h-8" />
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <ImageIconFallback className="w-12 h-12 text-slate-200 mb-2" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase text-center">İlan Kapak Fotoğrafı Henüz Yüklenmedi</p>
-                      </>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={!formData.images?.[0] || !!processingVehicleMedia}
-                      onClick={() => handleAIVirtualStage('modern_luxury')}
-                      className="flex-1 py-3 bg-white border border-indigo-100 hover:border-indigo-600 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    >
-                      {processingVehicleMedia === 'staging' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                      Virtual Stage
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!formData.images?.[0] || !!processingVehicleMedia}
-                      onClick={handleAIEnhanceExposure}
-                      className="flex-1 py-3 bg-white border border-indigo-100 hover:border-indigo-600 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    >
-                      {processingVehicleMedia === 'enhance' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                      AI Optimize
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!formData.images?.[0] || !!processingVehicleMedia}
-                      onClick={handleAIAnonymizePlate}
-                      className="flex-1 py-3 bg-white border border-indigo-100 hover:border-indigo-600 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    >
-                      {processingVehicleMedia === 'blur' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                      Gizlilik Bluru
-                    </button>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-8 flex flex-col justify-between relative z-10">
-                  <div className="space-y-4">
-                    <div className="p-4 bg-white/60 rounded-2xl border border-white/80">
-                      <h5 className="text-[11px] font-black text-indigo-900 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
-                        Galeri Görselleri ({formData.images?.length || 0})
-                      </h5>
-                      <MultiImageUploader
-                        lang={lang}
-                        onImagesUploaded={(urls) => {
-                          const existing = formData.images || [];
-                          setFormData({ ...formData, images: [...existing, ...urls] });
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-indigo-100/50 mt-4 flex items-center justify-between">
-                    <div>
-                      <h6 className="text-[11px] font-black text-indigo-900 uppercase tracking-widest mb-1 flex items-center gap-2">
-                        360 INTERACTIVE AI TOUR
-                      </h6>
-                      <p className="text-[10px] text-slate-400 font-bold max-w-sm">Dış kaporta ve iç kokpit detaylarını interaktif bir sanal tura dönüştürün.</p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={generatingVehicleTour || !formData.images?.[0]}
-                      onClick={handleGenerateVehicle360Tour}
-                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100 flex items-center gap-2"
-                    >
-                      {generatingVehicleTour ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          Hazırlanıyor...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-4 h-4" />
-                          AI 360 Tur Oluştur
-                        </>
-                      )}
-                    </button>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-50/80 p-6 rounded-3xl border border-blue-50 shadow-sm relative overflow-hidden group">
+                <div className="lg:col-span-12 space-y-4 relative z-10">
+                  <div className="p-4 bg-white/60 rounded-2xl border border-white/80">
+                    <h5 className="text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                      Galeri Görselleri ({formData.images?.length || 0})
+                    </h5>
+                    <MultiImageUploader
+                      lang={lang}
+                      onImagesUploaded={(urls) => {
+                        const existing = formData.images || [];
+                        setFormData({ ...formData, images: [...existing, ...urls] });
+                      }}
+                    />
                   </div>
                 </div>
               </div>
