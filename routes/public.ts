@@ -191,7 +191,7 @@ router.get("/marketplace/listings", async (req, res) => {
     let vehiclesList: any[] = [];
     try {
       const vehiclesRes = await pool.query(`
-        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
+        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
         FROM vehicles v
         JOIN stores s ON v.store_id = s.id
         WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true)
@@ -203,7 +203,7 @@ router.get("/marketplace/listings", async (req, res) => {
       console.warn("Marketplace vehicles queries had an issue. Retrying with simple select fallback:", error);
       try {
         const fallbackRes = await pool.query(`
-          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector
+          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
           FROM vehicles v
           JOIN stores s ON v.store_id = s.id
           LIMIT 100
@@ -217,7 +217,7 @@ router.get("/marketplace/listings", async (req, res) => {
     let realEstateList: any[] = [];
     try {
       const realEstateRes = await pool.query(`
-        SELECT r.*, s.name as store_name, s.slug as store_slug
+        SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp
         FROM real_estate_properties r
         JOIN stores s ON r.store_id = s.id
         WHERE r.status <> 'sold' AND (r.is_on_enrakipsiz = true)
@@ -229,7 +229,7 @@ router.get("/marketplace/listings", async (req, res) => {
       console.warn("Table real_estate_properties query soft-failed. Attempting real_estate table name instead...", error);
       try {
         const realEstateRes = await pool.query(`
-          SELECT r.*, s.name as store_name, s.slug as store_slug
+          SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp
           FROM real_estate r
           JOIN stores s ON r.store_id = s.id
           WHERE r.status <> 'sold' AND (r.is_on_enrakipsiz = true)
@@ -276,9 +276,28 @@ router.get("/marketplace/listings", async (req, res) => {
         images: v.images || [],
         store_name: v.store_name,
         store_slug: v.store_slug,
+        store_phone: v.store_phone,
+        store_whatsapp: v.store_whatsapp,
         category: 'Oto Galeri',
         brand: v.brand,
-        created_at: v.created_at || new Date()
+        description: v.description || '',
+        paint_report: v.paint_report,
+        is_trade_in_available: v.is_trade_in_available,
+        created_at: v.created_at || new Date(),
+        sector_data: {
+          hp: v.hp || '',
+          engine: v.engine_number ? 'Mevcut' : '',
+          transmission: v.transmission,
+          fuel: v.fuel_type,
+          is_trade_in_available: v.is_trade_in_available,
+          mileage: v.mileage,
+          paint_report: v.paint_report,
+          package_name: v.package_name,
+          color: v.color,
+          body_type: v.body_type,
+          tramer_amount: v.tramer_amount,
+          tramer_currency: v.tramer_currency
+        }
       });
     });
 
@@ -294,8 +313,11 @@ router.get("/marketplace/listings", async (req, res) => {
         images: r.images || [],
         store_name: r.store_name,
         store_slug: r.store_slug,
+        store_phone: r.store_phone,
+        store_whatsapp: r.store_whatsapp,
         category: 'Emlak',
         brand: r.location,
+        description: r.description || '',
         created_at: r.created_at,
         sector_data: {
           square_meters: r.square_meters,
