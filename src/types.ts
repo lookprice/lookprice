@@ -260,7 +260,13 @@ export interface RealEstateProperty {
   dues_currency?: string; // Aidat para birimi
   country?: 'TR' | 'KKTC'; // Pilot Bölge / Ülke
   kktc_region?: 'Girne' | 'Lefkoşa' | 'Gazimağusa' | 'İskele' | 'Güzelyurt' | 'Lefke'; // KKTC Bölgesi
+  kktc_sub_region?: string; // New: Alt bölge
   kktc_title_type?: 'Türk Koçanı' | 'Eşdeğer Koçan' | 'Tahsis Koçan' | 'Diğer'; // KKTC Koçan Tipi
+  
+  // New Extras fields
+  trafo_bedeli?: boolean; 
+  kdv_status?: 'paid' | 'to_be_paid';
+  cati_terasi?: boolean;
   images?: string[];
   is_on_enrakipsiz?: boolean;
   virtual_tour_url?: string;

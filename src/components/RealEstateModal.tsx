@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, FileText, Upload, Plus, Trash2, Shield, Calendar, Check, Sparkles, Cpu, Eye, Image as ImageIcon, RefreshCw, EyeOff, Camera, Compass } from 'lucide-react';
 import { ImageGallery } from './ImageGallery';
 import { MultiImageUploader } from './MultiImageUploader';
+import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from '../data/realEstateConfig';
 import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
 import { contractTemplates } from '../utils/contractTemplates';
@@ -78,7 +79,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     dues_currency: 'GBP',
     country: 'KKTC', // default to KKTC for pilot region priority
     kktc_region: 'Girne',
+    kktc_sub_region: '',
     kktc_title_type: 'Eşdeğer Koçan',
+    trafo_bedeli: false,
+    kdv_status: 'to_be_paid',
+    cati_terasi: false,
+    is_on_enrakipsiz: true,
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
@@ -111,7 +117,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
       }
     }
     setValidationError(null);
-    onSave(formData as RealEstateProperty);
+
+    const dataToSave = { ...formData };
+
+    onSave(dataToSave as RealEstateProperty);
   };
 
   useEffect(() => {
@@ -145,7 +154,11 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         currency: property.currency || 'GBP',
         country: property.country || 'KKTC',
         kktc_region: property.kktc_region || 'Girne',
+        kktc_sub_region: property.kktc_sub_region || '',
         kktc_title_type: property.kktc_title_type || 'Eşdeğer Koçan',
+        trafo_bedeli: property.trafo_bedeli || false,
+        kdv_status: property.kdv_status || 'to_be_paid',
+        cati_terasi: property.cati_terasi || false,
         subtype: property.subtype || '',
         branch_name: property.branch_name || 'Merkez Ofis',
         authorized_branch_id: property.authorized_branch_id,
@@ -186,7 +199,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         dues_currency: 'GBP',
         country: 'KKTC',
         kktc_region: 'Girne',
+        kktc_sub_region: '',
         kktc_title_type: 'Eşdeğer Koçan',
+        trafo_bedeli: false,
+        kdv_status: 'to_be_paid',
+        cati_terasi: false,
+        is_on_enrakipsiz: true,
         branch_name: 'Merkez Ofis',
         authorized_branch_id: undefined,
         responsible_agent: '',
@@ -266,12 +284,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
              <button
                 type="button"
-                onClick={() => setFormData({...formData, listing_intent: 'sale'})}
+                onClick={() => setFormData({...formData, listing_intent: 'sale', status: 'active'})}
                 className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 font-black transition-all ${formData.listing_intent === 'sale' ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-500'}`}
              >🏠 SATILIK (SALE)</button>
              <button
                 type="button"
-                onClick={() => setFormData({...formData, listing_intent: 'rent'})}
+                onClick={() => setFormData({...formData, listing_intent: 'rent', status: 'rented'})}
                 className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 font-black transition-all ${formData.listing_intent === 'rent' ? 'border-sky-600 bg-sky-50 text-sky-800' : 'border-slate-200 text-slate-500'}`}
              >🔑 KİRALIK (RENT)</button>
           </div>
@@ -316,35 +334,69 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 <p className="text-xs text-indigo-700 font-medium">
                   🌟 <strong>KKTC Pilot Satış Modülü Aktif:</strong> Portföy daha çok Kıbrıs gayrimenkullerinden oluşmaktadır. Bu modül Türkiye ve özellikle Kıbrıs bölgesine yatırım yapan İngiltere (UK) vatandaşlarını çekmek için sterilize edilmiştir.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className={`grid grid-cols-1 ${formData.listing_intent === 'rent' ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4 pt-1`}>
                   <div>
                     <label className="block text-[11px] font-bold text-slate-600 mb-1">KKTC Bölgesi</label>
                     <select
                       className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
                       value={formData.kktc_region}
-                      onChange={(e) => setFormData({ ...formData, kktc_region: e.target.value as any })}
+                      onChange={(e) => setFormData({ ...formData, kktc_region: e.target.value as any, kktc_sub_region: '' })}
                     >
-                      <option value="Girne">Girne (Kyrenia) - Gözde Bölge</option>
-                      <option value="Lefkoşa">Lefkoşa (Nicosia) - Başkent</option>
-                      <option value="Gazimağusa">Gazimağusa (Famagusta) - Liman ve Üniversite</option>
-                      <option value="İskele">İskele (Trikomo) - Yatırım ve Sahil Hattı</option>
-                      <option value="Güzelyurt">Güzelyurt (Morphou)</option>
-                      <option value="Lefke">Lefke (Lefka)</option>
+                      {Object.keys(REAL_ESTATE_REGIONS).map((region) => (
+                        <option key={region} value={region}>{region}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Koçan Tipi (Title Deed status)</label>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Alt Bölge</label>
                     <select
                       className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
-                      value={formData.kktc_title_type}
-                      onChange={(e) => setFormData({ ...formData, kktc_title_type: e.target.value as any })}
+                      value={formData.kktc_sub_region}
+                      onChange={(e) => setFormData({ ...formData, kktc_sub_region: e.target.value })}
                     >
-                      <option value="Türk Koçanı">Türk Koçanı (Pre-74 Turkish Title - En Kıymetli)</option>
-                      <option value="Eşdeğer Koçan">Eşdeğer Koçan (Exchange Title)</option>
-                      <option value="Tahsis Koçan">Tahsis Koçan (Allotted Title)</option>
-                      <option value="Diğer">Diğer / Koçansız</option>
+                      <option value="">Alt bölge seçiniz</option>
+                      {REAL_ESTATE_REGIONS[formData.kktc_region as keyof typeof REAL_ESTATE_REGIONS]?.map((subRegion) => (
+                        <option key={subRegion} value={subRegion}>{subRegion}</option>
+                      ))}
                     </select>
                   </div>
+                  {formData.listing_intent !== 'rent' && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Koçan Tipi</label>
+                      <select
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+                        value={formData.kktc_title_type}
+                        onChange={(e) => setFormData({ ...formData, kktc_title_type: e.target.value as any })}
+                      >
+                        <option value="Türk Koçanı">Türk Koçanı</option>
+                        <option value="Eşdeğer Koçan">Eşdeğer Koçan</option>
+                        <option value="Tahsis Koçan">Tahsis Koçan</option>
+                        <option value="Diğer">Diğer</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                    {formData.listing_intent !== 'rent' && (
+                      <>
+                        <div className="flex items-center gap-2">
+                            <input type="checkbox" checked={formData.trafo_bedeli} onChange={(e) => setFormData({...formData, trafo_bedeli: e.target.checked})} />
+                            <label className="text-xs font-bold text-slate-600">Trafo Bedeli Ödendi</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                              <label className="text-xs font-bold text-slate-600">KDV Durumu:</label>
+                              <select value={formData.kdv_status} onChange={(e) => setFormData({...formData, kdv_status: e.target.value as any})}>
+                                <option value="to_be_paid">Ödenecek</option>
+                                <option value="paid">Ödendi</option>
+                              </select>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={formData.cati_terasi} onChange={(e) => setFormData({...formData, cati_terasi: e.target.checked})} />
+                        <label className="text-xs font-bold text-slate-600">Çatı Terası Var</label>
+                    </div>
                 </div>
               </div>
             ) : (
@@ -423,13 +475,16 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Alt Tip</label>
-                <input
-                  type="text"
-                  placeholder={formData.type === 'residence' ? 'Daire/Villa' : 'Dükkan/Ofis'}
-                  className="w-full p-3 border rounded-xl text-sm font-bold text-slate-700"
+                <select
+                  className="w-full p-3 border rounded-xl text-sm font-bold text-slate-700 bg-white"
                   value={formData.subtype || ''}
                   onChange={(e) => setFormData({...formData, subtype: e.target.value})}
-                />
+                >
+                  <option value="">Alt tip seçiniz</option>
+                  {EMLAK_TIPI_SUB_TIPLERI[formData.type === 'residence' ? 'Konut' : formData.type === 'commercial' ? 'Ticari' : 'Arsa']?.map((st) => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -839,16 +894,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Konum / Lokasyon Açıklaması</label>
-              <input
-                type="text"
-                placeholder={formData.country === 'KKTC' ? 'Örn: Alsancak, Girne / Zeytinlik mevkii' : 'Örn: Bostancı, Kadıköy, İstanbul'}
-                className="w-full p-3 border rounded-xl text-sm font-medium"
-                value={formData.location || ''}
-                onChange={(e) => setFormData({...formData, location: e.target.value})}
-              />
-            </div>
+            {/* Konum alanı kaldırıldı */}
           </div>
 
           {/* Medya ve Fotoğraflar */}

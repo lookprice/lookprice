@@ -75,8 +75,12 @@ export const RealEstateWebsiteGenerator = ({
             if (res.logo_url) setLogoUrl(res.logo_url);
             if (res.favicon_url) setFaviconUrl(res.favicon_url);
 
-            if (res.slogan) {
-              setContent((prev) => ({ ...prev, trustSlogan: res.slogan }));
+            if (res.page_layout_settings?.web_content) {
+              setContent(res.page_layout_settings.web_content);
+            } else {
+              if (res.slogan) {
+                setContent((prev) => ({ ...prev, trustSlogan: res.slogan }));
+              }
             }
 
             if (res.page_layout) {
@@ -224,6 +228,10 @@ export const RealEstateWebsiteGenerator = ({
         logo_url: logoUrl,
         favicon_url: faviconUrl,
         page_layout: updatedLayout,
+        page_layout_settings: {
+          ...originalBranding.page_layout_settings,
+          web_content: content
+        },
         slogan: content.trustSlogan,
         slug: storeSlug,
         custom_domain: useCustomDomain ? customDomain : null,
@@ -562,6 +570,24 @@ export const RealEstateWebsiteGenerator = ({
                         : "Trust Slogan"
                     }
                     className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-indigo-800 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                  />
+                  <input
+                    type="text"
+                    value={content.hero.title}
+                    onChange={(e) =>
+                      setContent({ ...content, hero: { ...content.hero, title: e.target.value } })
+                    }
+                    placeholder={lang === "tr" ? "Karşılama Başlığı" : "Hero Title"}
+                    className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-indigo-800 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                  />
+                  <textarea
+                    value={content.hero.subtitle}
+                    onChange={(e) =>
+                      setContent({ ...content, hero: { ...content.hero, subtitle: e.target.value } })
+                    }
+                    placeholder={lang === "tr" ? "Karşılama Alt Metni" : "Hero Subtitle"}
+                    className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-indigo-800 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                    rows={3}
                   />
                 </div>
               </div>

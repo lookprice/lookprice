@@ -76,6 +76,10 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS deposit NUMERIC DEFAULT 0;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS billing_period TEXT DEFAULT 'monthly';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS subtype TEXT DEFAULT '';`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS kktc_sub_region TEXT DEFAULT '';`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS trafo_bedeli BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS kdv_status TEXT DEFAULT '';`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS cati_terasi BOOLEAN DEFAULT FALSE;`);
 
     // Create Audit Log table
     await pool.query(`
@@ -360,8 +364,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         branch_name, responsible_agent, sharing_scope, reserved_by_branch, reservation_notes,
         authorized_branch_id, responsible_consultant_id, is_verified, documents,
         owner_name, owner_phone, owner_id_number, tour_blueprint, reference_no, listing_intent,
-        deposit, billing_period, subtype
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47) RETURNING *`,
+        deposit, billing_period, subtype, kktc_sub_region, trafo_bedeli, kdv_status, cati_terasi
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51) RETURNING *`,
       [
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -375,7 +379,11 @@ router.post('/properties', authenticate, async (req: any, res) => {
         property.listing_intent || 'sale',
         Number(property.deposit) || 0,
         property.billing_period || 'monthly',
-        property.subtype || ''
+        property.subtype || '',
+        property.kktc_sub_region || '',
+        !!property.trafo_bedeli,
+        property.kdv_status || 'to_be_paid',
+        !!property.cati_terasi
       ]
     );
     res.json(result.rows[0]);
@@ -402,8 +410,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         branch_name = $29, responsible_agent = $30, sharing_scope = $31, reserved_by_branch = $32, reservation_notes = $33, 
         authorized_branch_id = $34, responsible_consultant_id = $35, is_verified = $36, documents = $37,
         owner_name = $38, owner_phone = $39, owner_id_number = $40, tour_blueprint = $41, listing_intent = $42, reference_no = $43,
-        deposit = $44, billing_period = $45, subtype = $46, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $47 AND (store_id = $48 OR authorized_branch_id = $48) RETURNING *`,
+        deposit = $44, billing_period = $45, subtype = $46, kktc_sub_region = $47, trafo_bedeli = $48, kdv_status = $49, cati_terasi = $50, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $51 AND (store_id = $52 OR authorized_branch_id = $52) RETURNING *`,
       [
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -417,6 +425,10 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         Number(property.deposit) || 0,
         property.billing_period || 'monthly',
         property.subtype || '',
+        property.kktc_sub_region || '',
+        !!property.trafo_bedeli,
+        property.kdv_status || 'to_be_paid',
+        !!property.cati_terasi,
         id,
         storeId
       ]
@@ -560,7 +572,13 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
   const targetFilter = filter || "individual (owner)";
 
   try {
-    const prompt = `Search and list the 5 most recent real estate listings from ${targetSource} specifically posted by ${targetFilter} (sahibinden/bireysel) in Northern Cyprus (KKTC).
+    const today = new Date().toISOString().split('T')[0];
+    const prompt = `Search for real estate listings specifically from the URL: https://www.101evler.com/kibris/satilik-konut?owner=by_owner
+    List the 5 most recent individual (sahibinden) real estate listings from Northern Cyprus (KKTC) found on that page.
+    The current date is ${today}.
+    CRITICAL: YOU MUST PROVIDE A DIRECT, FUNCTIONAL URL TO A SPECIFIC PROPERTY LISTING PAGE ON 101evler.com. 
+    DO NOT PROVIDE GENERIC CATEGORY OR SEARCH RESULTS PAGES. 
+    IF YOU CANNOT FIND A DIRECT URL, OMIT THE LISTING.
     For each listing provide:
     - id: unique string
     - title: Listing title in Turkish
@@ -568,13 +586,14 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
     - price: Price value
     - currency: GBP, TRY, or EUR
     - location: Specific location in KKTC (Girne, Lefkoşa, etc.)
-    - owner_name: Name of the individual poster if available (or use a realistic placeholder)
+    - owner_name: Name of the individual poster if available (or use 'Sahibinden')
     - description: Brief summary in Turkish
-    - link: The direct URL to the listing on ${targetSource}
+    - link: The direct URL to the specific property listing page (MUST BE A DIRECT LISTING URL, NOT CATEGORY URL)
     Return as a JSON array of objects.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash", 
+      // Using pro model for better search reasoning
+      model: "gemini-1.5-pro", 
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -587,29 +606,20 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
         const text = response.text.trim();
         const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const leads = JSON.parse(cleanText);
-        return res.json(leads);
+        // Ensure we return an array, even if the model returned an object wrapping the array
+        const result = Array.isArray(leads) ? leads : (leads.leads || leads.data || [leads]);
+        return res.json(result);
       } catch (e) {
         console.error('Failed to parse acquisition radar response:', response.text);
       }
     }
     
-    // Fallback if AI fails or returns invalid JSON
-    res.json([
-      {
-        id: "acq_1",
-        title: "Girne Alsancak'ta Sahibinden Satılık 2+1",
-        type: "Daire",
-        price: 85000,
-        currency: "GBP",
-        location: "Girne, Alsancak",
-        owner_name: "Mehmet K.",
-        description: "Deniz manzaralı, koçanı hazır individual ilan.",
-        link: "https://www.101evler.com/kktc-sahibinden-satilik-emlak-ilanlari"
-      }
-    ]);
+    // Fallback if AI fails or returns invalid JSON (no lead provided)
+    res.json([]);
   } catch (error: any) {
-    console.error('Acquisition Radar error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Acquisition Radar AI failed, returning empty fallback:', error);
+    // Return empty fallback
+    res.json([]);
   }
 });
 

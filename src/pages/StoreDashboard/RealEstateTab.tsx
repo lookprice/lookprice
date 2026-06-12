@@ -1850,11 +1850,11 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   background-color: transparent !important;
                   background: none !important;
                   font-family: inherit !important;
-                  font-size: 11px !important;
-                  line-height: 1.5 !important;
+                  font-size: 9.5px !important;
+                  line-height: 1.4 !important;
                 }
                 .print-description-content p {
-                  margin-bottom: 4px !important;
+                  margin-bottom: 2px !important;
                 }
               }
             `}
@@ -2030,14 +2030,16 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               </div>
             </div>
 
-            {/* Short Marketing Description */}
+            {/* Short Marketing Description - Dual column layout with overflow-hidden to perfectly fit A4 bounds */}
             {propertyToPrint.description && (
-              <div className="my-4 text-[11px] text-slate-700 leading-relaxed font-sans flex-1">
+              <div className="my-3 text-slate-700 leading-normal font-sans flex-1 overflow-hidden max-h-[135px] relative">
                 <span className="block font-black text-slate-900 mb-1 tracking-wider uppercase text-[9px]">AÇIKLAMA VE AYRINTILAR</span>
                 <div 
-                  className="print-description-content text-[11px]"
+                  className="print-description-content text-[9.5px] columns-2 gap-x-6 gap-y-1 leading-relaxed max-h-[110px] overflow-hidden"
+                  style={{ columnFill: 'auto' }}
                   dangerouslySetInnerHTML={{ __html: unescapeEntities(propertyToPrint.description) }}
                 />
+                <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none" />
               </div>
             )}
 

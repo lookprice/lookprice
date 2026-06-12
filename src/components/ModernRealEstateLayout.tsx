@@ -21,6 +21,7 @@ import { api } from "../services/api";
 import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
 import { BlogShowcaseModal } from "./BlogShowcaseModal";
 import { ListingFinancingCalculator } from "./ListingFinancingCalculator";
+import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
 
 interface ModernRealEstateLayoutProps {
   store: Store;
@@ -104,16 +105,31 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   }, [store?.financing_settings, selectedBank, finCurrency]);
 
   // Active filters states
+  const [listingTypeFilter, setListingTypeFilter] = useState<'all' | 'sale' | 'rent'>('all');
   const [activeLocation, setActiveLocation] = useState<string>("all");
+  const [activeSubRegion, setActiveSubRegion] = useState<string>("all");
   const [activeType, setActiveType] = useState<string>("all");
+  const [activeSubType, setActiveSubType] = useState<string>("all");
   const [activeBudget, setActiveBudget] = useState<string>("all");
   const [activeRooms, setActiveRooms] = useState<string>("all");
+  const [activeTrafoBedeli, setActiveTrafoBedeli] = useState<string>("all");
+  const [activeKdvStatus, setActiveKdvStatus] = useState<string>("all");
+  const [activeCatiTerasi, setActiveCatiTerasi] = useState<string>("all");
+  const [activeFurnished, setActiveFurnished] = useState<string>("all");
+  const [activeBillingPeriod, setActiveBillingPeriod] = useState<string>("all");
 
   // Pending filter states
   const [pendingLocation, setPendingLocation] = useState<string>("all");
+  const [pendingSubRegion, setPendingSubRegion] = useState<string>("all");
   const [pendingType, setPendingType] = useState<string>("all");
+  const [pendingSubType, setPendingSubType] = useState<string>("all");
   const [pendingBudget, setPendingBudget] = useState<string>("all");
   const [pendingRooms, setPendingRooms] = useState<string>("all");
+  const [pendingTrafoBedeli, setPendingTrafoBedeli] = useState<string>("all");
+  const [pendingKdvStatus, setPendingKdvStatus] = useState<string>("all");
+  const [pendingCatiTerasi, setPendingCatiTerasi] = useState<string>("all");
+  const [pendingFurnished, setPendingFurnished] = useState<string>("all");
+  const [pendingBillingPeriod, setPendingBillingPeriod] = useState<string>("all");
 
   // Filter options derived from product list
   const locations = React.useMemo(() => {
@@ -169,17 +185,33 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
     return products.filter(p => {
       // 1. Location match
       if (activeLocation !== "all") {
-        const pLoc = p.sector_data?.district || p.sector_data?.city || (p as any).location || "";
+        const pLoc = p.sector_data?.kktc_region || p.sector_data?.city || p.location || "";
         if (pLoc.toLowerCase() !== activeLocation.toLowerCase()) {
           return false;
         }
       }
+      // SubRegion match
+      if (activeSubRegion !== "all") {
+          const pSubLoc = p.sector_data?.kktc_sub_region || p.sector_data?.district || "";
+          if (pSubLoc.toLowerCase() !== activeSubRegion.toLowerCase()) {
+            return false;
+          }
+      }
+      
       // 2. Type match
       if (activeType !== "all") {
         if (p.category !== activeType) {
           return false;
         }
       }
+      // SubType match
+      if (activeSubType !== "all") {
+          const pSub = p.sector_data?.subtype || (p.sector_data as any)?.subtype || "";
+          if (pSub !== activeSubType) {
+              return false;
+          }
+      }
+      
       // 3. Rooms match
       if (activeRooms !== "all") {
         const pRooms = p.sector_data?.rooms?.toString() || "";
@@ -198,15 +230,56 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
           if (price < min || price > max) return false;
         }
       }
+
+      // 5. Trafo Bedeli match (only if not rent filter)
+      if (listingTypeFilter !== 'rent' && activeTrafoBedeli !== "all") {
+        const isPaid = p.sector_data?.trafo_bedeli === true;
+        const targetPaid = activeTrafoBedeli === "paid";
+        if (isPaid !== targetPaid) return false;
+      }
+
+      // 6. KDV Status match (only if not rent filter)
+      if (listingTypeFilter !== 'rent' && activeKdvStatus !== "all") {
+        const status = p.sector_data?.kdv_status || "to_be_paid";
+        if (status !== activeKdvStatus) return false;
+      }
+
+      // 7. Cati Terasi match
+      if (activeCatiTerasi !== "all") {
+        const hasTerrace = p.sector_data?.cati_terasi === true;
+        const targetTerrace = activeCatiTerasi === "yes";
+        if (hasTerrace !== targetTerrace) return false;
+      }
+
+      // 8. Rental Specific - Furnished match
+      if (listingTypeFilter === 'rent' && activeFurnished !== "all") {
+        const isFurnished = p.sector_data?.furnished === true;
+        const targetFurnished = activeFurnished === "furnished";
+        if (isFurnished !== targetFurnished) return false;
+      }
+
+      // 9. Rental Specific - Billing Period match
+      if (listingTypeFilter === 'rent' && activeBillingPeriod !== "all") {
+        const period = p.sector_data?.billing_period || "monthly";
+        if (period !== activeBillingPeriod) return false;
+      }
+
       return true;
     });
-  }, [products, activeLocation, activeType, activeRooms, activeBudget]);
+  }, [products, activeLocation, activeSubRegion, activeType, activeSubType, activeRooms, activeBudget, activeTrafoBedeli, activeKdvStatus, activeCatiTerasi, activeFurnished, activeBillingPeriod, listingTypeFilter]);
 
   const handleSearchTrigger = () => {
     setActiveLocation(pendingLocation);
+    setActiveSubRegion(pendingSubRegion);
     setActiveType(pendingType);
+    setActiveSubType(pendingSubType);
     setActiveBudget(pendingBudget);
     setActiveRooms(pendingRooms);
+    setActiveTrafoBedeli(pendingTrafoBedeli);
+    setActiveKdvStatus(pendingKdvStatus);
+    setActiveCatiTerasi(pendingCatiTerasi);
+    setActiveFurnished(pendingFurnished);
+    setActiveBillingPeriod(pendingBillingPeriod);
     
     setTimeout(() => {
       const el = document.getElementById("listings-section");
@@ -246,18 +319,19 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
     },
   ];
 
+  const webContent = (store as any).page_layout_settings?.web_content;
   const content = {
     hero: {
-      title: store.name?.toUpperCase() || (lang === "tr" ? "YENİ NESİL PORTFÖY" : "NEW GENERATION PORTFOLIO"),
-      subtitle: store.description || (lang === "tr" ? "Yatırım hayallerinizi gerçeğe dönüştüren profesyonel çözümler." : "Professional solutions turning your investment dreams into reality."),
-      bgImage: ((store as any).page_layout && typeof (store as any).page_layout === 'object' && !Array.isArray((store as any).page_layout) && ((store as any).page_layout as any).hero_image_url) || store.hero_image_url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2000",
+      title: webContent?.hero?.title || store.name?.toUpperCase() || (lang === "tr" ? "YENİ NESİL PORTFÖY" : "NEW GENERATION PORTFOLIO"),
+      subtitle: webContent?.hero?.subtitle || store.description || (lang === "tr" ? "Yatırım hayallerinizi gerçeğe dönüştüren profesyonel çözümler." : "Professional solutions turning your investment dreams into reality."),
+      bgImage: webContent?.hero?.bgImage || ((store as any).page_layout && typeof (store as any).page_layout === 'object' && !Array.isArray((store as any).page_layout) && ((store as any).page_layout as any).hero_image_url) || store.hero_image_url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2000",
     },
     stats: [
       { value: "500+", label: lang === "tr" ? "Mutlu Müşteri" : "Happy Clients" },
       { value: products.length.toString(), label: lang === "tr" ? "Aktif İlan" : "Active Listings" },
       { value: "10+", label: lang === "tr" ? "Yıl Tecrübe" : "Years Experience" },
     ],
-    trustSlogan: (store as any).slogan || (lang === "tr" ? "GÜVENLE YÖNETİYORUZ" : "MANAGED WITH TRUST"),
+    trustSlogan: webContent?.trustSlogan || (store as any).slogan || (lang === "tr" ? "GÜVENLE YÖNETİYORUZ" : "MANAGED WITH TRUST"),
   };
 
   const layoutConfig = React.useMemo(() => {
@@ -312,8 +386,6 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
     if (section === undefined) return true; // Default to true if not found in custom configuration layout list
     return section.enabled !== false && section.enabled !== "false";
   };
-
-  const [listingTypeFilter, setListingTypeFilter] = useState<'all' | 'sale' | 'rent'>('all');
   const [visibleCount, setVisibleCount] = useState(layoutConfig.count || 6);
 
   useEffect(() => {
@@ -337,6 +409,10 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [activeContentMap, setActiveContentMap] = useState<{title: string, content: string}|null>(null);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isFinancingOpen, setIsFinancingOpen] = useState(false);
+  const [isFastAccessOpen, setIsFastAccessOpen] = useState(false);
+  const [isCorporateOpen, setIsCorporateOpen] = useState(false);
 
   const handleLinkClick = (e: React.MouseEvent, link: any) => {
     if (link.type === 'content' && link.content) {
@@ -465,84 +541,257 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         {/* Advanced Search Strip */}
         {isSectionEnabled("search") && (
           <div className="-mt-12 relative z-30 w-full mb-24">
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-2xl grid grid-cols-1 md:grid-cols-4 gap-6">
-              {["LOCATION", "TYPE", "BUDGET", "ROOMS"].map((filt, idx) => {
-                let displayTitle = filt;
-                let value = "all";
-                let onChange = (v: string) => {};
-                let options: { value: string; label: string }[] = [];
-
-                if (filt === "LOCATION") {
-                  displayTitle = lang === "tr" ? "LOKASYON" : "LOCATION";
-                  value = pendingLocation;
-                  onChange = setPendingLocation;
-                  options = [
-                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                    ...locations.map(v => ({ value: String(v), label: String(v) }))
-                  ];
-                } else if (filt === "TYPE") {
-                  displayTitle = lang === "tr" ? "TÜR" : "TYPE";
-                  value = pendingType;
-                  onChange = setPendingType;
-                  options = [
-                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                    ...types.map(v => {
-                      let displayLabel = String(v);
-                      if (lang === "tr") {
-                        const vLower = String(v).toLowerCase();
-                        if (vLower === "residence") displayLabel = "Konut";
-                        else if (vLower === "commercial") displayLabel = "Ticari";
-                        else if (vLower === "land") displayLabel = "Arsa";
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden">
+              <div 
+                className="p-6 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors" 
+                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 rounded-xl">
+                    <SlidersHorizontal className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm uppercase tracking-widest text-slate-800 leading-none">
+                      {lang === "tr" ? "DETAYLI ARAMA & FİLTRELER" : "DETAILED SEARCH & FILTERS"}
+                    </h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                      {isFiltersOpen 
+                        ? (lang === "tr" ? "Filtreleri Gizlemek İçin Tıklayın" : "Click to Hide Filters")
+                        : (lang === "tr" ? "Filtreleri Göstermek İçin Tıklayın" : "Click to Show Filters")
                       }
-                      return { value: String(v), label: displayLabel };
-                    })
-                  ];
-                } else if (filt === "BUDGET") {
-                  displayTitle = lang === "tr" ? "BÜTÇE" : "BUDGET";
-                  value = pendingBudget;
-                  onChange = setPendingBudget;
-                  options = budgetSpecs.ranges;
-                } else if (filt === "ROOMS") {
-                  displayTitle = lang === "tr" ? "ODA SAYISI" : "ROOMS";
-                  value = pendingRooms;
-                  onChange = setPendingRooms;
-                  options = [
-                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                    ...roomsOptions.map(v => ({ value: String(v), label: String(v) }))
-                  ];
-                }
-
-                return (
-                  <div
-                    key={filt}
-                    className={`group relative ${idx < 3 ? "md:border-r border-slate-200" : ""} px-2 flex flex-col justify-center`}
-                  >
-                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
-                      {displayTitle}
                     </p>
-                    <div className="relative flex items-center justify-between pr-4">
-                      <select
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                  </div>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 font-bold text-xs transition-transform duration-200" style={{ transform: isFiltersOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                  ▼
+                </div>
+              </div>
+              
+              <div className={`${isFiltersOpen ? "block border-t border-slate-100" : "hidden"} transition-all`}>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+                  {["LOCATION", "TYPE", "BUDGET", "ROOMS"].map((filt, idx) => {
+                    let displayTitle = filt;
+                    let value = "all";
+                    let onChange = (v: string) => {};
+                    let options: { value: string; label: string }[] = [];
+
+                    if (filt === "LOCATION") {
+                      displayTitle = lang === "tr" ? "LOKASYON" : "LOCATION";
+                      value = pendingLocation;
+                      onChange = setPendingLocation;
+                      options = [
+                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                        ...locations.map(v => ({ value: String(v), label: String(v) }))
+                      ];
+                    } else if (filt === "TYPE") {
+                      displayTitle = lang === "tr" ? "TÜR" : "TYPE";
+                      value = pendingType;
+                      onChange = setPendingType;
+                      options = [
+                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                        ...types.map(v => {
+                          let displayLabel = String(v);
+                          if (lang === "tr") {
+                            const vLower = String(v).toLowerCase();
+                            if (vLower === "residence") displayLabel = "Konut";
+                            else if (vLower === "commercial") displayLabel = "Ticari";
+                            else if (vLower === "land") displayLabel = "Arsa";
+                          }
+                          return { value: String(v), label: displayLabel };
+                        })
+                      ];
+                    } else if (filt === "BUDGET") {
+                      displayTitle = lang === "tr" ? "BÜTÇE" : "BUDGET";
+                      value = pendingBudget;
+                      onChange = setPendingBudget;
+                      options = budgetSpecs.ranges;
+                    } else if (filt === "ROOMS") {
+                      displayTitle = lang === "tr" ? "ODA SAYISI" : "ROOMS";
+                      value = pendingRooms;
+                      onChange = setPendingRooms;
+                      options = [
+                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                        ...roomsOptions.map(v => ({ value: String(v), label: String(v) }))
+                      ];
+                    }
+
+                    return (
+                      <div
+                        key={filt}
+                        className={`group relative ${idx < 3 ? "md:border-r border-slate-200" : ""} px-2 flex flex-col justify-center`}
                       >
-                        {options.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                      <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                        <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
+                          {displayTitle}
+                        </p>
+                      {filt === "LOCATION" ? (
+                        <>
+                          <select
+                            value={pendingLocation}
+                            onChange={(e) => { setPendingLocation(e.target.value); setPendingSubRegion("all"); }}
+                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                          >
+                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                             {Object.keys(REAL_ESTATE_REGIONS).map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">ALT BÖLGE</p>
+                          <select
+                            value={pendingSubRegion}
+                            onChange={(e) => setPendingSubRegion(e.target.value)}
+                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                          >
+                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                             {REAL_ESTATE_REGIONS[pendingLocation as keyof typeof REAL_ESTATE_REGIONS]?.map(sr => <option key={sr} value={sr}>{sr}</option>)}
+                          </select>
+                        </>
+                      ) : filt === "TYPE" ? (
+                        <>
+                          <select
+                            value={pendingType}
+                            onChange={(e) => { setPendingType(e.target.value); setPendingSubType("all"); }}
+                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                          >
+                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                             <option value="residence">Konut</option>
+                             <option value="commercial">Ticari</option>
+                             <option value="land">Arsa</option>
+                          </select>
+                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">ALT TİP</p>
+                          <select
+                            value={pendingSubType}
+                            onChange={(e) => setPendingSubType(e.target.value)}
+                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                          >
+                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                             {EMLAK_TIPI_SUB_TIPLERI[pendingType === 'residence' ? 'Konut' : pendingType === 'commercial' ? 'Ticari' : 'Arsa']?.map(st => <option key={st} value={st}>{st}</option>)}
+                          </select>
+                        </>
+                      ) : (
+                        <div className="relative flex items-center justify-between pr-4">
+                          <select
+                            value={value}
+                            onChange={(e) => onChange(e.target.value)}
+                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                          >
+                            {options.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                        </div>
+                      )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Extra filters row within the dropdown */}
+                  <div className="col-span-1 md:col-span-4 border-t border-slate-100 pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {listingTypeFilter === 'rent' ? (
+                      <>
+                        <div className="group relative px-2 flex flex-col justify-center">
+                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
+                            {lang === "tr" ? "EŞYA DURUMU" : "FURNISHED STATUS"}
+                          </p>
+                          <div className="relative flex items-center justify-between pr-4">
+                            <select
+                              value={pendingFurnished}
+                              onChange={(e) => setPendingFurnished(e.target.value)}
+                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                            >
+                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                              <option value="furnished">{lang === "tr" ? "Eşyalı" : "Furnished"}</option>
+                              <option value="unfurnished">{lang === "tr" ? "Eşyasız" : "Unfurnished"}</option>
+                            </select>
+                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                          </div>
+                        </div>
+
+                        <div className="group relative px-2 flex flex-col justify-center md:border-l md:border-slate-200">
+                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
+                            {lang === "tr" ? "ÖDEME PERİYODU" : "BILLING PERIOD"}
+                          </p>
+                          <div className="relative flex items-center justify-between pr-4">
+                            <select
+                              value={pendingBillingPeriod}
+                              onChange={(e) => setPendingBillingPeriod(e.target.value)}
+                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                            >
+                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                              <option value="monthly">{lang === "tr" ? "Aylık" : "Monthly"}</option>
+                              <option value="yearly">{lang === "tr" ? "Yıllık" : "Yearly"}</option>
+                            </select>
+                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="group relative px-2 flex flex-col justify-center">
+                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
+                            {lang === "tr" ? "TRAFO BEDELİ" : "TRANSFORMER FEE"}
+                          </p>
+                          <div className="relative flex items-center justify-between pr-4">
+                            <select
+                              value={pendingTrafoBedeli}
+                              onChange={(e) => setPendingTrafoBedeli(e.target.value)}
+                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                            >
+                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                              <option value="paid">{lang === "tr" ? "Ödendi" : "Paid"}</option>
+                              <option value="not_paid">{lang === "tr" ? "Ödenmedi / Ödenecek" : "Not Paid"}</option>
+                            </select>
+                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                          </div>
+                        </div>
+
+                        <div className="group relative px-2 flex flex-col justify-center md:border-l md:border-slate-200">
+                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
+                            {lang === "tr" ? "KDV DURUMU" : "VAT STATUS"}
+                          </p>
+                          <div className="relative flex items-center justify-between pr-4">
+                            <select
+                              value={pendingKdvStatus}
+                              onChange={(e) => setPendingKdvStatus(e.target.value)}
+                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                            >
+                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                              <option value="paid">{lang === "tr" ? "Ödendi" : "Paid"}</option>
+                              <option value="to_be_paid">{lang === "tr" ? "Ödenecek" : "To Be Paid"}</option>
+                            </select>
+                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="group relative px-2 flex flex-col justify-center md:border-l md:border-slate-200">
+                      <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
+                        {lang === "tr" ? "ÇATI TERASI" : "ROOF TERRACE"}
+                      </p>
+                      <div className="relative flex items-center justify-between pr-4">
+                        <select
+                          value={pendingCatiTerasi}
+                          onChange={(e) => setPendingCatiTerasi(e.target.value)}
+                          className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                        >
+                          <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                          <option value="yes">{lang === "tr" ? "Var" : "Available"}</option>
+                          <option value="no">{lang === "tr" ? "Yok" : "None"}</option>
+                        </select>
+                        <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-              <button 
-                onClick={handleSearchTrigger}
-                className="col-span-1 md:col-span-4 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] mt-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
-              >
-                {lang === "tr" ? "HAYALİNDEKİ MÜLKÜ BUL" : "FIND YOUR DREAM"}
-              </button>
+
+                  <button 
+                    onClick={handleSearchTrigger}
+                    className="col-span-1 md:col-span-4 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] mt-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
+                  >
+                    {lang === "tr" ? "HAYALİNDEKİ MÜLKÜ BUL" : "FIND YOUR DREAM"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -768,26 +1017,44 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
           {/* Real estate Financing Calculator */}
           {isSectionEnabled("financing") && (
-            <div id="financing-section" className="scroll-mt-6 border border-slate-100 rounded-[3rem] p-8 md:p-14 bg-gradient-to-br from-indigo-50/20 via-white to-indigo-50/10 shadow-2xl relative">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                <div className="lg:col-span-5 space-y-6">
-                  <h3 className="text-3xl font-black text-indigo-950 uppercase tracking-tighter leading-none">
+            <div id="financing-section" className="scroll-mt-6 border border-slate-100 rounded-[3rem] bg-gradient-to-br from-indigo-50/20 via-white to-indigo-50/10 shadow-2xl relative overflow-hidden">
+              <div 
+                className="p-8 flex justify-between items-center cursor-pointer border-b border-slate-100/50 hover:bg-slate-50 transition-colors" 
+                onClick={() => setIsFinancingOpen(!isFinancingOpen)}
+              >
+                <div>
+                  <h3 className="text-2xl font-black text-indigo-950 uppercase tracking-tighter leading-none">
                     {lang === "tr" ? "AKILLI KONUT KREDİSİ HESAPLAYICI" : "SMART HOUSING FINANCE CALCULATOR"}
                   </h3>
-                  <p className="text-xs text-slate-500 font-bold leading-relaxed uppercase">
-                    {lang === "tr"
-                      ? "Mülk değerine ve bütçenize göre Kıbrıs'ın saygın bankalarından ön onaylı kredi oranlarını karşılaştırın."
-                      : "Simulate and apply directly to prominent Cypriot banks with pre-calculated rates."}
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                    {isFinancingOpen
+                      ? (lang === "tr" ? "Hesaplayıcıyı Gizlemek İçin Tıklayın" : "Click to Hide Calculator")
+                      : (lang === "tr" ? "Hesaplayıcıyı Açmak İçin Tıklayın" : "Click to Open Calculator")
+                    }
                   </p>
                 </div>
-                <div className="lg:col-span-7">
-                  <ListingFinancingCalculator 
-                    price={products.length > 0 ? products[0].price : 100000} 
-                    currency={store.currency || "TRY"} 
-                    lang={lang} 
-                    store={store} 
-                    defaultOpen={true}
-                  />
+                <div className="h-10 w-10 rounded-full bg-indigo-50/80 flex items-center justify-center text-indigo-600 font-bold text-xs transition-transform duration-200" style={{ transform: isFinancingOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                  ▼
+                </div>
+              </div>
+              <div className={`p-8 md:p-14 ${isFinancingOpen ? 'block' : 'hidden'} transition-all`}>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                  <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+                    <p className="text-xs text-slate-500 font-bold leading-relaxed uppercase">
+                      {lang === "tr"
+                        ? "Mülk değerine ve bütçenize göre Kıbrıs'ın saygın bankalarından ön onaylı kredi oranlarını karşılaştırın."
+                        : "Simulate and apply directly to prominent Cypriot banks with pre-calculated rates."}
+                    </p>
+                  </div>
+                  <div className="lg:col-span-12 xl:col-span-7">
+                    <ListingFinancingCalculator 
+                      price={products.length > 0 ? products[0].price : 100000} 
+                      currency={store.currency || "TRY"} 
+                      lang={lang} 
+                      store={store} 
+                      defaultOpen={true}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -834,56 +1101,72 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
       </div>
 
       {/* Footer */}
-      <footer className="bg-slate-900 pt-24 pb-12 text-white mt-32">
+      <footer className="bg-slate-900 pt-12 pb-8 text-white mt-16">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-12 sm:gap-8 pb-16 border-b border-slate-800 items-start">
-            <div className="col-span-1 md:col-span-1 flex flex-col justify-center min-h-[140px] h-full">
-              {store.logo_url ? (
-                <img src={store.logo_url} className="h-28 md:h-36 lg:h-40 w-auto max-w-full object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle self-start" alt={store.name} />
-              ) : (
-                <h2 className="text-3xl font-black italic tracking-tighter uppercase text-white">{store.name}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 pb-8 border-b border-slate-800 items-start">
+            <div className="col-span-1 md:col-span-2 flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {store.logo_url ? (
+                  <img src={store.logo_url} className="h-16 md:h-20 w-auto max-w-full object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle self-start" alt={store.name} />
+                ) : (
+                  <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">{store.name}</h2>
+                )}
+                {/* Social Media next to logo to avoid vertical stretch */}
+                <div className="flex gap-2 flex-wrap items-center">
+                  {store.facebook_url && (
+                    <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800/50 rounded-lg hover:bg-indigo-600 text-slate-400 hover:text-white transition-all">
+                      <Facebook className="w-4 h-4" />
+                    </a>
+                  )}
+                  {store.instagram_url && (
+                    <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800/50 rounded-lg hover:bg-indigo-600 text-slate-400 hover:text-white transition-all">
+                      <Instagram className="w-4 h-4" />
+                    </a>
+                  )}
+                  {store.twitter_url && (
+                    <a href={store.twitter_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800/50 rounded-lg hover:bg-indigo-600 text-slate-400 hover:text-white transition-all">
+                      <Twitter className="w-4 h-4" />
+                    </a>
+                  )}
+                  {store.youtube_url && (
+                    <a href={store.youtube_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800/50 rounded-lg hover:bg-indigo-600 text-slate-400 hover:text-white transition-all">
+                      <Youtube className="w-4 h-4" />
+                    </a>
+                  )}
+                  {store.linkedin_url && (
+                    <a href={store.linkedin_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800/50 rounded-lg hover:bg-indigo-600 text-slate-400 hover:text-white transition-all">
+                      <Linkedin className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              </div>
+              {store.description && (
+                <p className="text-xs font-bold text-slate-500 leading-relaxed uppercase max-w-md hidden md:block">
+                  {store.description}
+                </p>
               )}
             </div>
 
-            <div className="space-y-6">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'SOSYAL MEDYA' : 'SOCIAL MEDIA'}</h4>
-              <div className="flex gap-4 pt-2 flex-wrap">
-                {store.facebook_url && (
-                  <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
-                    <Facebook className="w-5 h-5" />
-                  </a>
-                )}
-                {store.twitter_url && (
-                  <a href={store.twitter_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
-                    <Twitter className="w-5 h-5" />
-                  </a>
-                )}
-                {store.instagram_url && (
-                  <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
-                    <Instagram className="w-5 h-5" />
-                  </a>
-                )}
-                {store.youtube_url && (
-                  <a href={store.youtube_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
-                    <Youtube className="w-5 h-5" />
-                  </a>
-                )}
-                {store.linkedin_url && (
-                  <a href={store.linkedin_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:scale-105 duration-300">
-                    <Linkedin className="w-5 h-5" />
-                  </a>
-                )}
-              </div>
-            </div>
-
             {layoutConfig.quickLinks && layoutConfig.quickLinks.length > 0 && (
-              <div className="space-y-6 flex-1">
+              <div className="hidden md:block space-y-4">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Hızlı Erişim' : 'Quick Links'}</h4>
-                <ul className="space-y-4 text-sm font-bold text-slate-400">
+                <ul className="space-y-3 text-sm font-bold text-slate-400">
                   {layoutConfig.quickLinks.map((link: any, idx: number) => (
                     <li 
                       key={idx} 
                       onClick={() => {
+                        if (link.label === "İletişim" || link.label === "Contact") {
+                          setActiveContentMap({ 
+                            title: lang === 'tr' ? 'İletişim' : 'Contact', 
+                            content: `<div class="space-y-4 text-slate-700">
+                                        <p><strong>Adres:</strong> ${store.address || 'Belirtilmedi'}</p>
+                                        <p><strong>Telefon:</strong> ${store.phone || ''}</p>
+                                        <p><strong>E-posta:</strong> ${store.email || ''}</p>
+                                      </div>` 
+                          });
+                          setIsContentModalOpen(true);
+                          return;
+                        }
                         if (link.type === 'url' || (link.url && link.url.length > 0)) {
                           if (link.url.startsWith('#')) {
                             const el = document.querySelector(link.url);
@@ -905,9 +1188,9 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
             )}
 
             {layoutConfig.corporateLinks && layoutConfig.corporateLinks.length > 0 && (
-              <div className="space-y-6 flex-1">
+              <div className="hidden md:block space-y-4">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'Kurumsal' : 'Corporate'}</h4>
-                <ul className="space-y-4 text-sm font-bold text-slate-400">
+                <ul className="space-y-3 text-sm font-bold text-slate-400">
                   {layoutConfig.corporateLinks.map((link: any, idx: number) => (
                     <li 
                       key={idx} 
@@ -932,16 +1215,16 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
               </div>
             )}
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{lang === 'tr' ? 'İletişim' : 'Contact'}</h4>
-              <div className="space-y-4 text-sm font-bold text-slate-400">
-                {store.address && <p>{store.address}</p>}
-                <p>T: {store.phone}</p>
-                <p>E: {store.email}</p>
+              <div className="space-y-3 text-sm font-bold text-slate-400">
+                {store.address && <p className="text-xs leading-relaxed">{store.address}</p>}
+                <p className="text-xs">T: {store.phone}</p>
+                <p className="text-xs">E: {store.email}</p>
               </div>
             </div>
           </div>
-          <div className="pt-12 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest text-center">
               © {new Date().getFullYear()} {store.name}. {lang === 'tr' ? 'TÜM HAKLARI SAKLIDIR.' : 'ALL RIGHTS RESERVED.'}
             </p>

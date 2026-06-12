@@ -312,6 +312,52 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
         </div>
       )}
 
+      {data.kktc_sub_region && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ALT BÖLGE" : "SUB-REGION"}
+          </p>
+          <p className="text-sm font-black text-indigo-950 transition-colors uppercase">
+            {data.kktc_sub_region}
+          </p>
+        </div>
+      )}
+
+      {data.trafo_bedeli !== undefined && data.listing_intent !== "rent" && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "TRAFO BEDELİ" : "TRANSFORMER FEE"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.trafo_bedeli ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            <span>{data.trafo_bedeli ? (lang === 'tr' ? 'Ödendi' : 'Paid') : (lang === 'tr' ? 'Ödenmedi / Ödenecek' : 'Not Paid')}</span>
+          </div>
+        </div>
+      )}
+
+      {data.kdv_status && data.listing_intent !== "rent" && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "KDV DURUMU" : "VAT STATUS"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.kdv_status === 'paid' ? (lang === 'tr' ? 'Ödendi' : 'Paid') : (lang === 'tr' ? 'Ödenecek' : 'To Be Paid')}
+          </p>
+        </div>
+      )}
+
+      {data.cati_terasi !== undefined && data.listing_intent !== "rent" && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ÇATI TERASI" : "ROOF TERRACE"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.cati_terasi ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{data.cati_terasi ? (lang === 'tr' ? 'Var' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+          </div>
+        </div>
+      )}
+
       {data.listing_intent === "rent" && data.deposit !== undefined && (
         <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 group hover:border-amber-300 transition-all">
           <p className="text-[8px] font-black text-amber-600 tracking-widest mb-1 uppercase">

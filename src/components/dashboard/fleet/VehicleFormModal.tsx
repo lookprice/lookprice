@@ -14,6 +14,7 @@ import {
 import { motion } from 'motion/react';
 import { Vehicle } from '../../../types';
 import { MultiImageUploader } from '../../MultiImageUploader';
+import { ImageGallery } from '../../ImageGallery';
 
 interface VehicleFormModalProps {
   isOpen: boolean;
@@ -445,6 +446,13 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                         setFormData({ ...formData, images: [...existing, ...urls] });
                       }}
                     />
+                    <div className="mt-4 border-t border-slate-100/80 pt-4">
+                      <ImageGallery
+                        images={formData.images || []}
+                        onChange={(images) => setFormData({ ...formData, images })}
+                        isEditable={true}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

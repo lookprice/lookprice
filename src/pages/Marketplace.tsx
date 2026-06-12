@@ -29,6 +29,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
+import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
 
 type CategoryFilter = "all" | "vehicle" | "real_estate";
 
@@ -42,6 +43,19 @@ export const Marketplace = () => {
   const [activeSubSector, setActiveSubSector] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
+
+  // Active real estate filters states
+  const [reRegion, setReRegion] = useState<string>("all");
+  const [reSubRegion, setReSubRegion] = useState<string>("all");
+  const [reType, setReType] = useState<string>("all");
+  const [reSubType, setReSubType] = useState<string>("all");
+  const [reRooms, setReRooms] = useState<string>("all");
+  const [reTrafoBedeli, setReTrafoBedeli] = useState<string>("all");
+  const [reKdvStatus, setReKdvStatus] = useState<string>("all");
+  const [reCatiTerasi, setReCatiTerasi] = useState<string>("all");
+  const [reListingIntent, setReListingIntent] = useState<string>("all");
+  const [reFurnished, setReFurnished] = useState<string>("all");
+  const [reBillingPeriod, setReBillingPeriod] = useState<string>("all");
   
   // Gallery states
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
@@ -166,7 +180,28 @@ export const Marketplace = () => {
     if (activeCategory !== "vehicle" && activeCategory !== "all") {
       setActiveSubSector("all");
     }
+    if (activeCategory !== "real_estate" && activeCategory !== "all") {
+      setReRegion("all");
+      setReSubRegion("all");
+      setReType("all");
+      setReSubType("all");
+      setReRooms("all");
+      setReTrafoBedeli("all");
+      setReKdvStatus("all");
+      setReCatiTerasi("all");
+      setReListingIntent("all");
+      setReFurnished("all");
+      setReBillingPeriod("all");
+    }
   }, [activeCategory]);
+
+  useEffect(() => {
+    setReSubRegion("all");
+  }, [reRegion]);
+
+  useEffect(() => {
+    setReSubType("all");
+  }, [reType]);
 
   // Filter & Sort Logic
   const filteredListings = listings
@@ -175,6 +210,76 @@ export const Marketplace = () => {
       if (item.listing_type === "product") return false;
       const matchesCategory = activeCategory === "all" || item.listing_type === activeCategory;
       const matchesSubSector = activeSubSector === "all" || (item.listing_type === "vehicle" && item.sub_sector === activeSubSector);
+      
+      // Real Estate sub-filters check
+      if (item.listing_type === "real_estate") {
+        // region
+        if (reRegion !== "all") {
+          const itemRegion = item.sector_data?.kktc_region || item.sector_data?.city || item.location || "";
+          if (itemRegion.toLowerCase() !== reRegion.toLowerCase()) return false;
+        }
+        // subRegion
+        if (reSubRegion !== "all") {
+          const itemSubRegion = item.sector_data?.kktc_sub_region || item.sector_data?.district || "";
+          if (itemSubRegion.toLowerCase() !== reSubRegion.toLowerCase()) return false;
+        }
+        // type
+        if (reType !== "all") {
+          const itemType = item.category || "";
+          if (itemType.toLowerCase() !== reType.toLowerCase()) return false;
+        }
+        // subType
+        if (reSubType !== "all") {
+          const itemSubType = item.sector_data?.subtype || "";
+          if (itemSubType.toLowerCase() !== reSubType.toLowerCase()) return false;
+        }
+        // rooms
+        if (reRooms !== "all") {
+          const itemRooms = String(item.sector_data?.rooms || "");
+          if (reRooms === "5+") {
+            const match = itemRooms.match(/^(\d+)/);
+            const roomsNum = match ? parseInt(match[1]) : 0;
+            if (roomsNum < 5) return false;
+          } else {
+            if (itemRooms !== reRooms) return false;
+          }
+        }
+        // listing_intent
+        const itemIntent = (item.listing_intent || item.sector_data?.listing_intent || "sale").toLowerCase();
+        if (reListingIntent !== "all") {
+          if (itemIntent !== reListingIntent.toLowerCase()) return false;
+        }
+
+        // trafo_bedeli (only for sale)
+        if (itemIntent !== "rent" && reTrafoBedeli !== "all") {
+          const isPaid = item.sector_data?.trafo_bedeli === true;
+          const targetPaid = reTrafoBedeli === "paid";
+          if (isPaid !== targetPaid) return false;
+        }
+        // kdv_status (only for sale)
+        if (itemIntent !== "rent" && reKdvStatus !== "all") {
+          const status = item.sector_data?.kdv_status || "to_be_paid";
+          if (status !== reKdvStatus) return false;
+        }
+        // cati_terasi
+        if (reCatiTerasi !== "all") {
+          const hasTerrace = item.sector_data?.cati_terasi === true;
+          const targetTerrace = reCatiTerasi === "yes";
+          if (hasTerrace !== targetTerrace) return false;
+        }
+        // furnished (only for rent)
+        if (itemIntent === "rent" && reFurnished !== "all") {
+          const isFurnished = item.sector_data?.furnished === true;
+          const targetFurnished = reFurnished === "furnished";
+          if (isFurnished !== targetFurnished) return false;
+        }
+        // billing_period (only for rent)
+        if (itemIntent === "rent" && reBillingPeriod !== "all") {
+          const period = item.sector_data?.billing_period || "monthly";
+          if (period !== reBillingPeriod) return false;
+        }
+      }
+
       const matchesSearch = 
         (item.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.brand || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -497,6 +602,225 @@ export const Marketplace = () => {
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Real Estate Filter Row / Panel */}
+              {(activeCategory === "real_estate") && (
+                <div className="border-t border-slate-800/50 pt-5 mt-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <SlidersHorizontal className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
+                      Detaylı Emlak Filtreleri
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Bölge */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Bölge / Şehir
+                      </label>
+                      <select
+                        value={reRegion}
+                        onChange={(e) => setReRegion(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tüm Bölgeler</option>
+                        {Object.keys(REAL_ESTATE_REGIONS).map((reg) => (
+                          <option key={reg} value={reg}>{reg}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Alt Bölge */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Alt Bölge
+                      </label>
+                      <select
+                        value={reSubRegion}
+                        onChange={(e) => setReSubRegion(e.target.value)}
+                        disabled={reRegion === "all"}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <option value="all">Arama Yapılmadı/Tümü</option>
+                        {reRegion !== "all" &&
+                          REAL_ESTATE_REGIONS[reRegion as keyof typeof REAL_ESTATE_REGIONS]?.map((sub) => (
+                            <option key={sub} value={sub}>{sub}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+
+                    {/* Emlak Tipi */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Emlak Tipi
+                      </label>
+                      <select
+                        value={reType}
+                        onChange={(e) => setReType(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tüm Tip ve Kategoriler</option>
+                        {Object.keys(EMLAK_TIPI_SUB_TIPLERI).map((typ) => (
+                          <option key={typ} value={typ}>{typ}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Alt Tip */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Emlak Alt Tipi
+                      </label>
+                      <select
+                        value={reSubType}
+                        onChange={(e) => setReSubType(e.target.value)}
+                        disabled={reType === "all"}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <option value="all">Tüm Alt Tipler</option>
+                        {reType !== "all" &&
+                          EMLAK_TIPI_SUB_TIPLERI[reType]?.map((sub) => (
+                            <option key={sub} value={sub}>{sub}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+
+                    {/* İlan Tipi (Satılık / Kiralık) */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        İlan Tipi
+                      </label>
+                      <select
+                        value={reListingIntent}
+                        onChange={(e) => {
+                          setReListingIntent(e.target.value);
+                          if (e.target.value === "rent") {
+                            setReTrafoBedeli("all");
+                            setReKdvStatus("all");
+                          } else if (e.target.value === "sale") {
+                            setReFurnished("all");
+                            setReBillingPeriod("all");
+                          }
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü (Satılık/Kiralık)</option>
+                        <option value="sale">Satılık</option>
+                        <option value="rent">Kiralık</option>
+                      </select>
+                    </div>
+
+                    {/* Oda Sayısı */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Oda Sayısı
+                      </label>
+                      <select
+                        value={reRooms}
+                        onChange={(e) => setReRooms(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="1+1">1+1</option>
+                        <option value="2+1">2+1</option>
+                        <option value="3+1">3+1</option>
+                        <option value="4+1">4+1</option>
+                        <option value="5+1">5+1</option>
+                        <option value="5+">5+ Odalı</option>
+                      </select>
+                    </div>
+
+                    {reListingIntent === "rent" ? (
+                      <>
+                        {/* Eşya Durumu */}
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                            Eşya Durumu
+                          </label>
+                          <select
+                            value={reFurnished}
+                            onChange={(e) => setReFurnished(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                          >
+                            <option value="all">Tümü</option>
+                            <option value="furnished">Eşyalı</option>
+                            <option value="unfurnished">Eşyasız</option>
+                          </select>
+                        </div>
+
+                        {/* Ödeme Periyodu */}
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                            Ödeme Periyodu
+                          </label>
+                          <select
+                            value={reBillingPeriod}
+                            onChange={(e) => setReBillingPeriod(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                          >
+                            <option value="all">Tümü</option>
+                            <option value="monthly">Aylık</option>
+                            <option value="yearly">Yıllık</option>
+                          </select>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Trafo Bedeli */}
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                            Trafo Bedeli
+                          </label>
+                          <select
+                            value={reTrafoBedeli}
+                            onChange={(e) => setReTrafoBedeli(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                          >
+                            <option value="all">Tümü</option>
+                            <option value="paid">Ödendi</option>
+                            <option value="not_paid">Ödenmedi / Ödenecek</option>
+                          </select>
+                        </div>
+
+                        {/* KDV Durumu */}
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                            KDV Durumu
+                          </label>
+                          <select
+                            value={reKdvStatus}
+                            onChange={(e) => setReKdvStatus(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                          >
+                            <option value="all">Tümü</option>
+                            <option value="paid">Ödendi</option>
+                            <option value="to_be_paid">Ödenecek</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Çatı Terası */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Çatı Terası
+                      </label>
+                      <select
+                        value={reCatiTerasi}
+                        onChange={(e) => setReCatiTerasi(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="yes">Var</option>
+                        <option value="no">Yok</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

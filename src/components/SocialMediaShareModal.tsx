@@ -286,33 +286,26 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     ctx.lineWidth = 12;
     ctx.strokeRect(borderPadding, borderPadding, width - (borderPadding * 2), height - (borderPadding * 2));
 
-    // Render title and marketing headers
+    // Render minimalist header on a single row Y
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-    ctx.font = '900 24px system-ui, sans-serif';
-    ctx.letterSpacing = '5px';
+    ctx.font = '900 26px system-ui, sans-serif';
+    ctx.letterSpacing = '4px';
     const storeFallbackName = (branding?.store_name || branding?.name || 'SEÇKİN EMLAK');
     const brandNameUpper = (storeFallbackName.toLowerCase().includes('lookprice') ? 'SEÇKİN EMLAK' : storeFallbackName).toUpperCase();
-    ctx.fillText(brandNameUpper, borderPadding + 50, borderPadding + 65);
+    ctx.fillText(brandNameUpper, borderPadding + 50, borderPadding + 69);
 
-    ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
-                    selectedTheme === 'cyprus_warm' ? '#c2410c' :
-                    selectedTheme === 'modern_indigo' ? '#06b6d4' : '#a1a1aa';
-    ctx.font = '800 13px system-ui, sans-serif';
-    ctx.letterSpacing = '2px';
-    ctx.fillText("PREMIUM REAL ESTATE NETWORK", borderPadding + 50, borderPadding + 95);
-
-    // Reference ID badge on top right
+    // Reference ID badge on top right - aligned perfectly to the same row Y!
     const refNo = `LP-${property.reference_no || property.id}`;
-    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#ea580c' : '#1e293b';
-    ctx.fillRect(width - borderPadding - 250, borderPadding + 40, 200, 45);
+    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#ea580c' : '#111827';
+    ctx.fillRect(width - borderPadding - 220, borderPadding + 32, 170, 48);
     ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#f97316' : '#d97706';
     ctx.lineWidth = 2;
-    ctx.strokeRect(width - borderPadding - 250, borderPadding + 40, 200, 45);
+    ctx.strokeRect(width - borderPadding - 220, borderPadding + 32, 170, 48);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 15px monospace';
+    ctx.font = '900 16px monospace';
     ctx.letterSpacing = '1px';
     ctx.textAlign = 'center';
-    ctx.fillText(refNo, width - borderPadding - 150, borderPadding + 68);
+    ctx.fillText(refNo, width - borderPadding - 135, borderPadding + 62);
     ctx.textAlign = 'left';
 
     // Image layout logic
@@ -382,9 +375,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
       // Set target dimensions & positioning for image box based on aspect ratio
       const imgX = borderPadding + 50;
-      const imgY = borderPadding + 130;
+      const imgY = borderPadding + 110;
       const imgWidth = width - (borderPadding * 2) - 100;
-      const imgHeight = selectedRatio === 'square' ? 520 : 960;
+      const imgHeight = selectedRatio === 'square' ? 610 : 1100;
 
       // Draw shadow background for image path
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.3)';
@@ -474,20 +467,25 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.font = 'bold 14px system-ui, sans-serif';
       ctx.fillText(`📍 ${propertyLocation.toUpperCase()} (${regionText.toUpperCase()})`, borderPadding + 245, contentYStart + 23);
 
-      // Dynamic Title
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#292524' : '#ffffff';
-      ctx.font = '900 36px system-ui, sans-serif';
-      const titleLines = wrapText(propertyTitle, width - 160);
-      let titleY = contentYStart + 90;
-      titleLines.forEach((line, index) => {
-        if (index < 2) { // Show max two lines of title
-          ctx.fillText(line, borderPadding + 50, titleY);
-          titleY += 45;
-        }
-      });
+      // Style and draw high resolution callout card for Story vertical ratio
+      if (selectedRatio === 'story') {
+        const cardY = contentYStart + 70;
+        const cardH = 80;
+        ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(234, 88, 12, 0.08)' : 'rgba(245, 158, 11, 0.08)';
+        ctx.fillRect(borderPadding + 50, cardY, width - (borderPadding * 2) - 100, cardH);
+        ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? 'rgba(234, 88, 12, 0.2)' : 'rgba(245, 158, 11, 0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(borderPadding + 50, cardY, width - (borderPadding * 2) - 100, cardH);
+
+        ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ca8a04';
+        ctx.font = '900 16px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("KIBRIS'IN EN SEÇKİN PORTFÖY DEĞERLERİ İLE EŞSİZ YATIRIM FIRSATI!", width / 2, cardY + 46);
+        ctx.textAlign = 'left';
+      }
 
       // Price Tag (Huge accent block)
-      const priceBlockY = selectedRatio === 'square' ? height - 200 : height - 380;
+      const priceBlockY = selectedRatio === 'square' ? 940 : 1660;
       
       const priceGradient = ctx.createLinearGradient(80, priceBlockY, width - 80, priceBlockY);
       if (selectedTheme === 'luxury_dark') {
@@ -516,9 +514,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillText(priceText, borderPadding + 80, priceBlockY + 84);
 
       // Bullet features badges
-      const specY = priceBlockY - 70;
+      const specY = selectedRatio === 'square' ? priceBlockY - 45 : priceBlockY - 90;
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ffffff';
-      ctx.font = '800 20px system-ui, sans-serif';
+      ctx.font = '800 21px system-ui, sans-serif';
 
       let specString = ``;
       if (property.subtype) specString += `🏠 ${property.subtype}  •  `;
@@ -624,22 +622,24 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 style={{ aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16' }}
               >
                 
-                {/* Header */}
-                <div className="p-4 flex justify-between items-start z-10">
-                  <div>
-                    <h3 className={`text-base font-black truncate max-w-[180px] leading-tight select-none uppercase tracking-wider ${themeConfig.textTitle}`}>
+                {/* Minimalist Header */}
+                <div className="px-3.5 py-1.5 flex justify-between items-center z-10 border-b border-white/5 bg-slate-950/15">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                    <h3 className={`text-[10px] font-black truncate max-w-[170px] leading-none select-none uppercase tracking-widest ${themeConfig.textTitle}`}>
                       {branding?.store_name && !branding.store_name.toLowerCase().includes('lookprice') ? branding.store_name : 'PREMIUM VIP EMLAK'}
                     </h3>
-                    <p className="text-[7.5px] font-black tracking-wider text-slate-400 uppercase select-none">PREMIUM ESTATE</p>
                   </div>
-                  <span className="bg-slate-900 border border-slate-700 text-white font-mono text-[8px] font-semibold px-1.5 py-0.5 rounded uppercase select-none">
+                  <span className="bg-slate-900/90 border border-slate-800 text-slate-100 font-mono text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase select-none shrink-0">
                     LP-{property.reference_no || property.id}
                   </span>
                 </div>
 
                 {/* Property Image Cover Block */}
-                <div className="px-4 flex-1 flex flex-col justify-center min-h-0">
-                  <div className="relative w-full flex-1 rounded-xl overflow-hidden bg-slate-850/50 border border-slate-700 max-h-[160px] lg:max-h-[220px]">
+                <div className="px-3 mt-1 flex-1 flex flex-col justify-center min-h-0">
+                  <div className={`relative w-full rounded-xl overflow-hidden bg-slate-850/50 border border-slate-700 transition-all ${
+                    selectedRatio === 'story' ? 'h-[250px] sm:h-[320px]' : 'h-[195px] sm:h-[245px]'
+                  }`}>
                     {isCollage && property.images && (property.images[1] || property.images[2]) ? (
                       <div className="absolute inset-0 w-full h-full flex flex-row">
                         {/* Main Image (67% width) */}
@@ -736,11 +736,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     )}
                   </div>
                   
-                  {/* Real Title Grid */}
-                  <h4 className={`text-sm tracking-tight leading-snug mt-2 font-extrabold uppercase line-clamp-2 ${themeConfig.textTitle}`}>
-                    {propertyTitle}
-                  </h4>
-                  <p className={`text-[9.5px] font-semibold mt-1 tracking-tight truncate ${themeConfig.textBody}`}>
+                  <p className={`text-[10px] font-bold mt-2.5 tracking-tight truncate ${themeConfig.textBody}`}>
                     {roomsText ? `🛌 ${roomsText} • ` : ''}
                     {isRent 
                       ? `${property.furnished ? '🛋️ Eşyalı' : '🔑 Boş'} • ${property.deposit ? `💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}` : 'Depozitosuz'} • ⏱️ ${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}` 
