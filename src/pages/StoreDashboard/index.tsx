@@ -562,7 +562,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const isAutomotive = branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive';
 
   useEffect(() => {
-    if (isPortfolio && (['products', 'pos', 'fast-pos', 'sales_invoices', 'procurements', 'purchase_invoices', 'stock_transfer', 'service'].includes(activeTab))) {
+    if (isPortfolio && (['products', 'pos', 'fast-pos', 'procurements', 'stock_transfer', 'service'].includes(activeTab))) {
       if (isAutomotive && !isRealEstate) {
         setActiveTab('fleet');
       } else {
@@ -576,7 +576,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ...(isRealEstate ? [{ id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home }] : []),
       ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
     ]},
-    { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
+    { type: 'category', key: "finance_operations", title: isTr ? "Finans & Operasyon" : "Finance & Operations", items: [
+      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+      { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
       { id: "companies", label: t.companies, icon: Store },
       { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},

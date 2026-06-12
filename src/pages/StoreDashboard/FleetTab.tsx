@@ -123,14 +123,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
   const [editingMaintenance, setEditingMaintenance] = useState<VehicleMaintenance | null>(null);
   const [editingIncident, setEditingIncident] = useState<VehicleIncident | null>(null);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
-  const [driverFile, setDriverFile] = useState<File | null>(null);
-  const [newDriverDoc, setNewDriverDoc] = useState<any>({
-    type: '',
-    expiry_date: '',
-    is_recurring: false,
-    recurrence_period: '1 year'
-  });
 
   const safeFormatDate = (dateString: string | Date | null | undefined, formatStr = 'dd.MM.yyyy', options?: any) => {
     if (!dateString) return '-';
@@ -216,57 +208,6 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
       console.error(err);
     } finally {
       setGeneratingVehicleDesc(false);
-    }
-  };
-
-  const handleAIVariantStaging = async (style: string) => {
-    setProcessingVehicleMedia('staging');
-    try {
-      const coverUrl = (formData.images && formData.images[0]) || '';
-      const res = await api.post("/api/store/ai-virtual-staging", { imageUrl: coverUrl, style });
-      if (res.stagedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.stagedUrl] }));
-        setVehicleAiNotice(`✅ Aracın ortam kalitesi ve yansımaları "${style.toUpperCase()}" showroom moduna ölçeklendi!`);
-        setTimeout(() => setVehicleAiNotice(null), 6000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setProcessingVehicleMedia(null);
-    }
-  };
-
-  const handleAIEnhanceExposure = async () => {
-    setProcessingVehicleMedia('enhance');
-    try {
-      const coverUrl = (formData.images && formData.images[0]) || '';
-      const res = await api.post("/api/store/ai-image-enhance", { imageUrl: coverUrl });
-      if (res.enhancedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.enhancedUrl] }));
-        setVehicleAiNotice("✅ Aracın parlamaları, gölge dengesi ve ortam ışığı yapay zeka ile optimize edildi!");
-        setTimeout(() => setVehicleAiNotice(null), 6000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setProcessingVehicleMedia(null);
-    }
-  };
-
-  const handleAIAnonymizePlate = async () => {
-    setProcessingVehicleMedia('blur');
-    try {
-      const coverUrl = (formData.images && formData.images[0]) || '';
-      const res = await api.post("/api/store/ai-blur-privacy", { imageUrl: coverUrl, type: 'vehicle' });
-      if (res.anonymizedUrl) {
-        setFormData(prev => ({ ...prev, images: [res.anonymizedUrl] }));
-        setVehicleAiNotice("✅ Araç plaka ve cam yansımalarındaki insan yüzleri yapay zeka ile blurlanarak gizlendi!");
-        setTimeout(() => setVehicleAiNotice(null), 6000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setProcessingVehicleMedia(null);
     }
   };
 
@@ -871,13 +812,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         isTr={lang === 'tr'}
         generatingVehicleDesc={generatingVehicleDesc}
         handleGenerateVehicleDesc={handleGenerateVehicleDesc}
-        processingVehicleMedia={processingVehicleMedia}
         vehicleAiNotice={vehicleAiNotice}
-        handleAIVirtualStage={handleAIVariantStaging}
-        handleAIEnhanceExposure={handleAIEnhanceExposure}
-        handleAIAnonymizePlate={handleAIAnonymizePlate}
-        generatingVehicleTour={false} // Needs to be connected if available
-        handleGenerateVehicle360Tour={() => {}} // Needs to be connected if available
       />
 
       <VehicleDetailModal

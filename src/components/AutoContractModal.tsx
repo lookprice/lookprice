@@ -54,7 +54,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">YETKİLİ GALERİ / DEALER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${storeName}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${storeName.replace(/lookprice/gi, 'Seçkin')}</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ARAÇ SAHİBİ / OWNER</td>
@@ -101,7 +101,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
         <span style="display: block; font-size: 10px; color: #94a3b8;">GALERİ YETKİLİ ADI</span>
       </div>
       <div style="font-size: 14px; font-weight: bold; color: #475569; font-style: italic;">
-        ${storeName}
+        ${storeName.replace(/lookprice/gi, 'Seçkin')}
       </div>
       <div style="font-size: 9px; color: #94a3b8;">Kaşe & Güvenli İmza / Stamp</div>
     </div>
@@ -130,7 +130,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">ARACI GALERİ / DEALER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${storeName}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${storeName.replace(/lookprice/gi, 'Seçkin')}</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ALICI (Müşteri) / INVESTOR</td>
@@ -166,7 +166,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   <div style="margin-top: 45px; display: flex; justify-content: space-between; gap: 40px;">
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center;">
       <span style="font-size: 11px; font-weight: bold; color: #64748b;">ARACI / BROADCAST DEPT</span><br/><br/>
-      <span style="font-weight: bold; color: #475569;">${storeName}</span>
+      <span style="font-weight: bold; color: #475569;">${storeName.replace(/lookprice/gi, 'Seçkin')}</span>
     </div>
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center;">
       <span style="font-size: 11px; font-weight: bold; color: #64748b;">MÜŞTERİ / BUYER</span><br/><br/>

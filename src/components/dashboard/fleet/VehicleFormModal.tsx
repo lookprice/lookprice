@@ -27,13 +27,7 @@ interface VehicleFormModalProps {
   handleSubmit: (e: React.FormEvent) => void;
   generatingVehicleDesc: boolean;
   handleGenerateVehicleDesc: () => void;
-  processingVehicleMedia: string | null;
   vehicleAiNotice: string | null;
-  generatingVehicleTour: boolean;
-  handleAIVirtualStage: (style: string) => void;
-  handleAIEnhanceExposure: () => void;
-  handleAIAnonymizePlate: () => void;
-  handleGenerateVehicle360Tour: () => void;
 }
 
 export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
@@ -48,13 +42,7 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   handleSubmit,
   generatingVehicleDesc,
   handleGenerateVehicleDesc,
-  processingVehicleMedia,
-  vehicleAiNotice,
-  generatingVehicleTour,
-  handleAIVirtualStage,
-  handleAIEnhanceExposure,
-  handleAIAnonymizePlate,
-  handleGenerateVehicle360Tour
+  vehicleAiNotice
 }) => {
   if (!isOpen) return null;
 
@@ -126,6 +114,18 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                 </p>
               </div>
             </div>
+            
+            {vehicleAiNotice && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mx-4 flex-1 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl text-xs font-bold border border-emerald-100 flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                {vehicleAiNotice}
+              </motion.div>
+            )}
+
             <button type="button" onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all">
               <X className="w-6 h-6" />
             </button>
