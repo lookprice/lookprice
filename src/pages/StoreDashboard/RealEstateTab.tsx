@@ -33,11 +33,13 @@ import {
   Scale,
   FileCheck,
   FileText,
-  Cloud
+  Cloud,
+  Radar
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
+import { AcquisitionRadar } from "../../components/AcquisitionRadar";
 const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
 const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
 const ArrangeTourModal = React.lazy(() => import("../../components/ArrangeTourModal").then(m => ({ default: m.ArrangeTourModal })));
@@ -160,6 +162,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [newFeedbackAgent, setNewFeedbackAgent] = useState("");
   const [newFeedbackStatus, setNewFeedbackStatus] = useState("pending");
   const [statusTabFilter, setStatusTabFilter] = useState<'all' | 'sale' | 'rent' | 'optioned' | 'sold'>('all');
+  const [showRadar, setShowRadar] = useState(false);
 
   const uniqueRegions = Array.from(new Set(safeProperties.map(p => p.kktc_region).filter(Boolean))) as string[];
 
@@ -361,6 +364,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             </button>
           )}
           <button
+            onClick={() => setShowRadar(!showRadar)}
+            className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-md active:scale-95 self-start md:self-auto ${showRadar ? 'bg-indigo-900 text-white' : 'bg-white text-indigo-600 border border-indigo-100 hover:bg-slate-50'}`}
+          >
+            <Radar className={`h-4 w-4 ${showRadar ? 'animate-pulse' : ''}`} />
+            {showRadar ? 'Portföy Süzgecine Dön' : 'Bireysel Portföy Radarı (101evler)'}
+          </button>
+          <button
             onClick={() => {
               setSelectedProperty(null);
               setIsModalOpen(true);
@@ -464,7 +474,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         </div>
       </div>
       
-      {loading ? (
+      {showRadar ? (
+        <AcquisitionRadar />
+      ) : loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
           <span className="text-xs text-slate-500 font-bold">Portföy Yükleniyor...</span>

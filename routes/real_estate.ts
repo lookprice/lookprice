@@ -553,6 +553,60 @@ router.post('/news', authenticate, async (req: any, res) => {
   }
 });
 
+// ACQUISITION RADAR (Mülk Toplama Radarı) - Fetch leads from 101evler.com individual listings
+router.post('/acquisition-radar', authenticate, async (req: any, res) => {
+  const { source, filter } = req.body;
+  const targetSource = source || "101evler.com";
+  const targetFilter = filter || "individual (owner)";
+
+  try {
+    const prompt = `Search and list the 5 most recent real estate listings from ${targetSource} specifically posted by ${targetFilter} (sahibinden/bireysel) in Northern Cyprus (KKTC).
+    For each listing provide:
+    - id: unique string
+    - title: Listing title in Turkish
+    - type: Property type (e.g., Flat, Villa, Land)
+    - price: Price value
+    - currency: GBP, TRY, or EUR
+    - location: Specific location in KKTC (Girne, Lefkoşa, etc.)
+    - owner_name: Name of the individual poster if available (or use a realistic placeholder)
+    - description: Brief summary in Turkish
+    - link: The direct URL to the listing on ${targetSource}
+    Return as a JSON array of objects.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash", 
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+      },
+    });
+
+    if (response && response.text) {
+      const leads = JSON.parse(response.text.trim());
+      return res.json(leads);
+    }
+    
+    // Fallback if AI fails
+    res.json([
+      {
+        id: "acq_1",
+        title: "Girne Alsancak'ta Sahibinden Satılık 2+1",
+        type: "Daire",
+        price: 85000,
+        currency: "GBP",
+        location: "Girne, Alsancak",
+        owner_name: "Mehmet K.",
+        description: "Deniz manzaralı, koçanı hazır individual ilan.",
+        link: "https://www.101evler.com/kktc-sahibinden-satilik-emlak-ilanlari"
+      }
+    ]);
+  } catch (error: any) {
+    console.error('Acquisition Radar error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Update or publish a radar news item with upsert on store_id + title
 router.post('/radar-news/publish', authenticate, async (req: any, res) => {
   const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;

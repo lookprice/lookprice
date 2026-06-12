@@ -590,6 +590,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     >
                       <option value="">Seçiniz</option>
                       <option value="Sahibinden">Sahibinden.com</option>
+                      <option value="101evler">101evler.com (KKTC)</option>
                       <option value="Hepsiemlak">Hepsiemlak</option>
                       <option value="Emlakjet">Emlakjet</option>
                       <option value="Zingat">Zingat</option>

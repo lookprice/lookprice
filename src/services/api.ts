@@ -207,6 +207,8 @@ export const api = {
   addPortfolioTransaction: (data: any, storeId?: number) => api.post(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deletePortfolioTransaction: (id: number, storeId?: number) => api.delete(`/api/real-estate/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
+  getAcquisitionLeads: (source: string = "101evler", filter: string = "individual") => api.post(`/api/real-estate/acquisition-radar`, { source, filter }),
+
   getSalesInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html?type=sales`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateSalesInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
