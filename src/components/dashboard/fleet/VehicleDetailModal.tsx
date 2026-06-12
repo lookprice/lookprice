@@ -319,7 +319,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                               </div>
                               <div>
                                 <p className="font-bold text-gray-900">{doc.type}</p>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{isTr ? 'NO' : 'ID'}: {doc.document_number || doc.id}</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{isTr ? 'NO' : 'ID'}: {doc.id}</p>
                               </div>
                             </div>
                             {!isViewer && (

@@ -577,8 +577,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
     ]},
     { type: 'category', key: "finance_operations", title: isTr ? "Finans & Operasyon" : "Finance & Operations", items: [
-      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
-      { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
+      ...(!isRealEstate ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown }] : []),
+      ...(!isRealEstate ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText }] : []),
       { id: "companies", label: t.companies, icon: Store },
       { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},
@@ -786,7 +786,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeId={currentStoreId!} 
                 />
               )}
-              {activeTab === "sales_invoices" && (
+              {activeTab === "sales_invoices" && !isRealEstate && (
                 <SalesInvoices 
                   storeId={currentStoreId} 
                   role={user.role} 
@@ -830,7 +830,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               {activeTab === "procurements" && (
                 <ProcurementTab storeId={currentStoreId!} isViewer={isViewer} />
               )}
-              {activeTab === "purchase_invoices" && (
+              {activeTab === "purchase_invoices" && !isRealEstate && (
                 <PurchaseInvoices 
                   storeId={currentStoreId} 
                   role={user.role} 

@@ -147,6 +147,19 @@ export default function App() {
 
   // If we are on a custom domain, we treat the root and other paths as store paths
   if (detectedSlug && !location.pathname.startsWith('/api') && !location.pathname.startsWith('/admin')) {
+    // Special case for Mega Portal (Enrakipsiz.com)
+    if (detectedSlug === "__portal__") {
+      return (
+        <div className="min-h-screen bg-gray-50 font-sans">
+          <React.Suspense fallback={<SuspenseLoader />}>
+            <Routes>
+              <Route path="*" element={<Marketplace />} />
+            </Routes>
+          </React.Suspense>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gray-50 font-sans">
         <React.Suspense fallback={<SuspenseLoader />}>

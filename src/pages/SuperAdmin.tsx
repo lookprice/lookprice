@@ -73,7 +73,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     portal_description: "",
     announcement: "",
     primary_color: "#4f46e5",
-    footer_text: ""
+    footer_text: "",
+    portal_domain: ""
   });
   const [enrakipsizSlides, setEnrakipsizSlides] = useState<any[]>([]);
   const [enrakipsizAds, setEnrakipsizAds] = useState<any[]>([]);
@@ -96,7 +97,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           portal_description: "Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.",
           announcement: "Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.",
           primary_color: "#4f46e5",
-          footer_text: "© 2026 Enrakipsiz.com. Tüm hakları saklıdır."
+          footer_text: "© 2026 Enrakipsiz.com. Tüm hakları saklıdır.",
+          portal_domain: "enrakipsiz.com"
         });
         setEnrakipsizSlides(res.slides || []);
         setEnrakipsizAds(res.ads || []);
@@ -556,6 +558,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                         onChange={e => setEnrakipsizSettings({...enrakipsizSettings, primary_color: e.target.value})}
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Portal Ana Domaini (Bağlanacak Domain)</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono"
+                      value={enrakipsizSettings.portal_domain || ""}
+                      onChange={e => setEnrakipsizSettings({...enrakipsizSettings, portal_domain: e.target.value})}
+                      placeholder="enrakipsiz.com"
+                    />
+                    <p className="text-[9px] text-gray-400 mt-1 italic leading-tight">Bu domaine gelen trafik otomatik olarak Market/Portal sayfasına yönlendirilir.</p>
                   </div>
 
                   <button

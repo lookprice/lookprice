@@ -24,12 +24,19 @@ export const AcquisitionRadar: React.FC = () => {
     setLoading(true);
     try {
       const data = await api.getAcquisitionLeads("101evler.com", "individual");
-      setLeads(data);
-      setLastScan(new Date().toLocaleTimeString());
-      toast.success("101evler.com bireysel ilanlar başarıyla tarandı.");
+      if (Array.isArray(data)) {
+        setLeads(data);
+        setLastScan(new Date().toLocaleTimeString());
+        toast.success("101evler.com bireysel ilanlar başarıyla tarandı.");
+      } else {
+        console.error("Acquisition scan received invalid data format:", data);
+        toast.error("Tarama sonucunda geçersiz format alındı.");
+        setLeads([]);
+      }
     } catch (error) {
       console.error("Acquisition scan failed:", error);
       toast.error("Tarama sırasında bir hata oluştu.");
+      setLeads([]);
     } finally {
       setLoading(false);
     }

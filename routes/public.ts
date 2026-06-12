@@ -454,6 +454,19 @@ router.get("/stores/by-domain", async (req, res) => {
 
   try {
     const normalizedDomain = (domain as string).startsWith("www.") ? (domain as string).substring(4) : domain;
+    
+    // Check if it's the Portal (Enrakipsiz) domain
+    const portalRes = await pool.query("SELECT portal_domain FROM enrakipsiz_settings WHERE id = 1");
+    if (portalRes.rows.length > 0) {
+      const portalDomain = portalRes.rows[0].portal_domain;
+      if (portalDomain) {
+        const normPortalDomain = portalDomain.startsWith("www.") ? portalDomain.substring(4) : portalDomain;
+        if (normalizedDomain === normPortalDomain || normalizedDomain === "enrakipsiz.com") {
+          return res.json({ slug: "__portal__", isPortal: true });
+        }
+      }
+    }
+
     const result = await pool.query(
       "SELECT slug FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1",
       [domain, normalizedDomain]

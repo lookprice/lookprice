@@ -583,11 +583,17 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
     });
 
     if (response && response.text) {
-      const leads = JSON.parse(response.text.trim());
-      return res.json(leads);
+      try {
+        const text = response.text.trim();
+        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const leads = JSON.parse(cleanText);
+        return res.json(leads);
+      } catch (e) {
+        console.error('Failed to parse acquisition radar response:', response.text);
+      }
     }
     
-    // Fallback if AI fails
+    // Fallback if AI fails or returns invalid JSON
     res.json([
       {
         id: "acq_1",
