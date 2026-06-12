@@ -30,8 +30,21 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
 import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
+import { SectorSpecs } from "../components/SectorSpecs";
 
 type CategoryFilter = "all" | "vehicle" | "real_estate";
+
+const cleanHtmlText = (text: string) => {
+  if (!text) return "";
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n/g, "<br />");
+};
 
 export const Marketplace = () => {
   const navigate = useNavigate();
@@ -61,10 +74,6 @@ export const Marketplace = () => {
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    setActiveDetailImageIndex(0);
-  }, [selectedListing]);
-
   const modalImages: string[] = [];
   if (selectedListing) {
     if (Array.isArray(selectedListing.images) && selectedListing.images.length > 0) {
@@ -73,6 +82,27 @@ export const Marketplace = () => {
       modalImages.push(selectedListing.image_url);
     }
   }
+
+  useEffect(() => {
+    setActiveDetailImageIndex(0);
+  }, [selectedListing]);
+
+  useEffect(() => {
+    if (!selectedListing || modalImages.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        setActiveDetailImageIndex((prev) => (prev + 1) % modalImages.length);
+      } else if (e.key === "ArrowLeft") {
+        setActiveDetailImageIndex(
+          (prev) => (prev - 1 + modalImages.length) % modalImages.length
+        );
+      } else if (e.key === "Escape") {
+        setSelectedListing(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedListing, modalImages.length]);
   const activeImage = modalImages[activeDetailImageIndex] || selectedListing?.image_url;
   
   // Luxury Slide states
@@ -992,7 +1022,7 @@ export const Marketplace = () => {
                       Detaylar
                     </button>
                     <Link 
-                      to={`/store/${listing.store_slug}`} 
+                      to={`/store/${listing.store_slug}/p/${listing.barcode || listing.id}`} 
                       target="_blank" 
                       className="py-2.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
                     >
@@ -1011,13 +1041,13 @@ export const Marketplace = () => {
       {/* Listing Detail Modal Block */}
       {selectedListing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-lg">
-          <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]">
+          <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[85vh]">
             
             {/* Left Image Screen */}
             <div className="w-full md:w-1/2 min-h-[350px] md:min-h-0 bg-slate-950 relative border-b md:border-b-0 md:border-r border-slate-800 flex flex-col justify-between">
               
               {/* Main Image Holder */}
-              <div className="flex-1 relative w-full min-h-[220px] md:h-0 group overflow-hidden flex items-center justify-center">
+              <div className="flex-1 relative w-full min-h-[260px] md:h-0 group overflow-hidden flex items-center justify-center">
                 {activeImage ? (
                   <img 
                     src={activeImage} 
@@ -1063,18 +1093,18 @@ export const Marketplace = () => {
                         e.stopPropagation();
                         setActiveDetailImageIndex((prev) => (prev - 1 + modalImages.length) % modalImages.length);
                       }}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-800 text-white flex items-center justify-center hover:bg-rose-500 transition-all shadow"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-slate-900/80 border border-slate-800 text-white flex items-center justify-center hover:bg-rose-500 hover:border-rose-500 transition-all shadow-md active:scale-90"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-5 h-5" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setActiveDetailImageIndex((prev) => (prev + 1) % modalImages.length);
                       }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-800 text-white flex items-center justify-center hover:bg-rose-500 transition-all shadow"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-slate-900/80 border border-slate-800 text-white flex items-center justify-center hover:bg-rose-500 hover:border-rose-500 transition-all shadow-md active:scale-90"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-5 h-5" />
                     </button>
                   </>
                 )}
@@ -1083,7 +1113,8 @@ export const Marketplace = () => {
               {/* Bottom Thumbnail area for multiple images */}
               <div className="p-4 bg-slate-950/40 border-t border-slate-850">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-rose-500" />
                     Portföy Fotoğrafları
                   </span>
                   {modalImages.length > 0 && (
@@ -1094,7 +1125,7 @@ export const Marketplace = () => {
                 </div>
 
                 {modalImages.length > 1 ? (
-                  <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
                     {modalImages.map((imgUrl, i) => (
                       <button
                         key={i}
@@ -1126,79 +1157,107 @@ export const Marketplace = () => {
             </div>
 
             {/* Right Information Sheet */}
-            <div className="w-full md:w-1/2 p-6 flex flex-col overflow-y-auto">
+            <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col overflow-y-auto">
               {/* Close Button */}
               <button 
                 onClick={() => setSelectedListing(null)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 bg-slate-950/60 rounded-full border border-slate-800 transition"
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 bg-slate-950/60 hover:bg-rose-600 rounded-full border border-slate-800 hover:border-rose-600 transition z-20"
               >
                 ✕
               </button>
 
               <div className="mt-4">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500 bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500 bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20 inline-block">
                   {selectedListing.listing_type === 'vehicle' ? 'Vasıta' : selectedListing.listing_type === 'real_estate' ? 'Gayrimenkul' : 'Mağaza Ürünü'}
                 </span>
-                <h2 className="text-xl font-black text-white mt-3 leading-tight mb-2">
+                <h2 className="text-2xl font-black text-white mt-3 leading-tight mb-2 tracking-tight">
                   {selectedListing.title}
                 </h2>
-                <p className="text-sm font-bold text-slate-400 flex items-center gap-1 mb-4">
+                <p className="text-sm font-semibold text-slate-400 flex items-center gap-1.5 mb-4">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" /> {selectedListing.store_name} Mağazası Güvencesiyle
                 </p>
               </div>
 
-              {/* Technical features & parameters */}
-              <div className="border-t border-b border-slate-800 py-4 my-2 grid grid-cols-2 gap-3 text-xs">
+              {/* Price Banner */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 my-2">
+                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block mb-1">Satış/Talep Bedeli</span>
+                <span className="text-2xl font-black text-emerald-400">
+                  {Math.round(Number(selectedListing.price) || 0).toLocaleString('tr-TR')} <span className="text-rose-500 font-extrabold text-sm">{selectedListing.currency || 'TRY'}</span>
+                </span>
+              </div>
+
+              {/* Technical features & parameters summary */}
+              <div className="border-t border-b border-slate-800/80 py-4 my-2 grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="text-slate-500 block">Marka/Lokasyon</span>
-                  <span className="font-bold text-white text-sm">{selectedListing.brand || 'Belirtilmedi'}</span>
+                  <span className="text-slate-500 block font-bold text-[10px] uppercase tracking-wider mb-0.5">Marka/Lokasyon</span>
+                  <span className="font-extrabold text-white text-sm">{selectedListing.brand || 'Belirtilmedi'}</span>
                 </div>
                 {selectedListing.listing_type === 'vehicle' && (
                   <div>
-                    <span className="text-slate-500 block">Kilometre/Mil</span>
-                    <span className="font-bold text-white text-sm">
+                    <span className="text-slate-500 block font-bold text-[10px] uppercase tracking-wider mb-0.5">Kilometre/Mil</span>
+                    <span className="font-extrabold text-white text-sm">
                       {selectedListing.mileage ? `${Math.round(Number(selectedListing.mileage) || 0).toLocaleString('tr-TR')} KM` : 'Yeni Araç'}
                     </span>
                   </div>
                 )}
                 <div>
-                  <span className="text-slate-500 block">Kategori</span>
-                  <span className="font-bold text-white text-sm">{selectedListing.category || 'Vasıta & Emlak'}</span>
+                  <span className="text-slate-500 block font-bold text-[10px] uppercase tracking-wider mb-0.5">Kategori</span>
+                  <span className="font-extrabold text-white text-sm">{selectedListing.category || 'Vasıta & Emlak'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Referans ID</span>
-                  <span className="font-mono text-slate-400 text-xs">#{selectedListing.id}</span>
+                  <span className="text-slate-500 block font-bold text-[10px] uppercase tracking-wider mb-0.5">Referans ID</span>
+                  <span className="font-mono text-rose-500 text-xs font-bold">#{selectedListing.id}</span>
                 </div>
               </div>
 
-              {/* Price Banner */}
-              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 my-3">
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block mb-1">Satış/Talep Bedeli</span>
-                <span className="text-2xl font-black text-white">
-                  {Math.round(Number(selectedListing.price) || 0).toLocaleString('tr-TR')} <span className="text-rose-500 font-extrabold text-sm">{selectedListing.currency}</span>
-                </span>
-              </div>
+              {/* Portfolio Description Area */}
+              {selectedListing.description && (
+                <div className="my-4 border-b border-slate-800/85 pb-6">
+                  <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.3em] mb-3">
+                    PORTFÖY AÇIKLAMASI
+                  </h4>
+                  <div 
+                    className="text-slate-300 leading-relaxed text-xs font-normal space-y-2 bg-slate-950/45 p-4 rounded-xl border border-slate-850 max-h-[170px] overflow-y-auto"
+                    dangerouslySetInnerHTML={{ __html: cleanHtmlText(selectedListing.description) }}
+                  />
+                </div>
+              )}
+
+              {/* Technical Data Sheets / SectorSpecs */}
+              {selectedListing.sector_data && (
+                <div className="my-2 select-none">
+                  <SectorSpecs
+                    sector={selectedListing.listing_type === 'vehicle' ? 'automotive' : selectedListing.listing_type === 'real_estate' ? 'real_estate' : 'general'}
+                    data={selectedListing.sector_data}
+                    category={selectedListing.category}
+                    name={selectedListing.title}
+                    description={selectedListing.description}
+                  />
+                </div>
+              )}
 
               {/* Action Sheet */}
-              <div className="mt-auto space-y-2 pt-4">
+              <div className="mt-auto space-y-2 pt-6 border-t border-slate-800">
                 <Link 
-                  to={`/store/${selectedListing.store_slug}`} 
+                  to={`/store/${selectedListing.store_slug}/p/${selectedListing.barcode || selectedListing.id}`} 
                   target="_blank"
-                  className="w-full py-3 bg-gradient-to-r from-rose-500 to-rose-600 hover:opacity-95 text-white text-center rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 hover:scale-[1.01] active:scale-[0.99] hover:shadow-xl hover:shadow-rose-950/35 text-white text-center rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2"
                 >
-                  Mağazayı Ziyaret Et
+                  Mağazayı Ziyaret Et (İlan Detayı)
                   <ExternalLink className="w-4 h-4" />
                 </Link>
                 <button 
                   onClick={() => {
-                    setSelectedListing(null);
                     const refMsg = selectedListing.id ? `(Portföy No: ${selectedListing.id}) ` : '';
-                    window.open(`https://wa.me/905330000000?text=${encodeURIComponent(`Merhaba, enrakipsiz.com üzerindeki ${refMsg}${selectedListing.title} ilanınız ile ilgileniyorum.`)}`, '_blank');
+                    const rawPhone = selectedListing.store_whatsapp || selectedListing.store_phone || "905330000000";
+                    const cleanPhone = rawPhone.replace(/\D/g, "");
+                    const targetPhone = cleanPhone.startsWith("90") ? cleanPhone : cleanPhone.startsWith("0") ? "90" + cleanPhone.substring(1) : "90" + cleanPhone;
+                    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(`Merhaba, enrakipsiz.com üzerindeki ${refMsg}${selectedListing.title} ilanınız ile ilgileniyorum.`)}`, '_blank');
                   }}
-                  className="w-full py-3 bg-slate-950 border border-slate-800 hover:bg-slate-850 text-emerald-400 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-slate-950 border border-slate-850 hover:bg-slate-850 hover:border-slate-700 text-emerald-400 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
-                  <PhoneCall className="w-4 h-4" />
-                  WhatsApp'tan Sor
+                  <PhoneCall className="w-4 h-4 text-emerald-400" />
+                  Portföy Danışmanına WhatsApp'tan Sor
                 </button>
               </div>
 
