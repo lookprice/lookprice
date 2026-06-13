@@ -1089,14 +1089,14 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
       {/* Stats */}
       {isSectionEnabled("stats") && (
         <div className="max-w-7xl mx-auto px-4 lg:px-8 mt-16">
-          <div className="grid grid-cols-3 gap-4 md:gap-12 border-y border-slate-200 py-6 md:py-12">
+          <div className="grid grid-cols-3 gap-2 md:gap-12 border-y border-slate-200 py-4 md:py-12">
             {content.stats.map((st, i) => (
-              <div key={i} className="text-center group">
-                <p className="text-2xl sm:text-3xl md:text-5xl font-black text-slate-900 mb-1 md:mb-2 group-hover:scale-110 transition-transform">
+              <div key={i} className="text-center group flex flex-col justify-between">
+                <p className="text-xl sm:text-3xl md:text-5xl font-black text-slate-900 mb-0.5 md:mb-2 group-hover:scale-110 transition-transform">
                   {st.value}
                 </p>
-                <div className="h-1 w-6 md:w-8 bg-indigo-600 mx-auto mb-2 md:mb-4 rounded-full"></div>
-                <p className="text-[9px] sm:text-[10px] md:text-[12px] font-black text-slate-400 uppercase tracking-wider leading-tight sm:tracking-widest">
+                <div className="h-0.5 w-4 md:w-8 bg-indigo-600 mx-auto mb-1 md:mb-4 rounded-full"></div>
+                <p className="text-[8px] sm:text-[10px] md:text-[12px] font-black text-slate-400 uppercase tracking-tight leading-tight sm:tracking-widest truncate">
                   {st.label}
                 </p>
               </div>
@@ -1110,14 +1110,14 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 pb-8 border-b border-slate-800 items-start">
             <div className="col-span-1 md:col-span-2 flex flex-col gap-4">
-              <div className="flex flex-row items-center justify-between gap-4 w-full flex-wrap">
+              <div className="flex flex-row items-center justify-between gap-4 w-full flex-nowrap">
                 {store.logo_url ? (
-                  <img src={store.logo_url} className="h-12 sm:h-16 md:h-20 w-auto max-w-full object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle shrink-0" alt={store.name} />
+                  <img src={store.logo_url} className="h-10 sm:h-16 md:h-20 w-auto max-w-[50%] object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle shrink-0" alt={store.name} />
                 ) : (
-                  <h2 className="text-xl sm:text-2xl font-black italic tracking-tighter uppercase text-white shrink-0">{store.name}</h2>
+                  <h2 className="text-lg sm:text-2xl font-black italic tracking-tighter uppercase text-white shrink-0 truncate max-w-[50%]">{store.name}</h2>
                 )}
-                {/* Social Media next to logo to avoid vertical stretch */}
-                <div className="flex gap-2 flex-wrap items-center shrink-0">
+                {/* Social Media next to logo strictly aligned on same row */}
+                <div className="flex gap-1.5 sm:gap-2 items-center shrink-0 flex-nowrap">
                   {store.facebook_url && (
                     <a href={store.facebook_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800/50 rounded-lg hover:bg-indigo-600 text-slate-400 hover:text-white transition-all">
                       <Facebook className="w-4 h-4" />
