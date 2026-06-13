@@ -719,6 +719,8 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                             >
                               <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
                               <option value="monthly">{lang === "tr" ? "Aylık" : "Monthly"}</option>
+                              <option value="3-monthly">{lang === "tr" ? "3 Aylık" : "3-Monthly"}</option>
+                              <option value="6-monthly">{lang === "tr" ? "6 Aylık" : "6-Monthly"}</option>
                               <option value="yearly">{lang === "tr" ? "Yıllık" : "Yearly"}</option>
                             </select>
                             <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
