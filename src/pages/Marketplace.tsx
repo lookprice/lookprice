@@ -10,6 +10,7 @@ import {
   SlidersHorizontal, 
   CheckCircle2, 
   Filter,
+  X,
   Sparkles,
   ArrowUpDown,
   PhoneCall,
@@ -97,12 +98,16 @@ export const Marketplace = () => {
           (prev) => (prev - 1 + modalImages.length) % modalImages.length
         );
       } else if (e.key === "Escape") {
-        setSelectedListing(null);
+        if (zoomedImage) {
+          setZoomedImage(null);
+        } else {
+          setSelectedListing(null);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedListing, modalImages.length]);
+  }, [selectedListing, modalImages.length, zoomedImage]);
   const activeImage = modalImages[activeDetailImageIndex] || selectedListing?.image_url;
   
   // Luxury Slide states
@@ -1049,14 +1054,14 @@ export const Marketplace = () => {
             <div className="w-full md:w-1/2 min-h-[350px] md:min-h-0 bg-slate-950 relative border-b md:border-b-0 md:border-r border-slate-800 flex flex-col justify-between">
               
               {/* Main Image Holder */}
-              <div className="flex-1 relative w-full min-h-[260px] md:h-0 group overflow-hidden flex items-center justify-center">
+              <div className="flex-1 relative w-full min-h-[260px] md:h-0 group overflow-hidden flex items-center justify-center bg-slate-950">
                 {activeImage ? (
                   <img 
                     src={activeImage} 
                     alt={selectedListing.title} 
-                    className="w-full h-full object-cover cursor-zoom-in transition-transform duration-300 hover:scale-[1.02]" 
+                    className="w-full h-full object-cover cursor-zoom-in transition-all duration-500 hover:scale-[1.04]" 
                     referrerPolicy="no-referrer"
-                    onDoubleClick={() => setZoomedImage(activeImage)}
+                    onClick={() => setZoomedImage(activeImage)}
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-700 bg-slate-950 min-h-[220px]">
@@ -1065,13 +1070,11 @@ export const Marketplace = () => {
                   </div>
                 )}
 
-                {/* Double click helper overlay */}
+                {/* Subtle visual count badge at top left - does not dim the photo */}
                 {activeImage && (
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                    <div className="bg-slate-900/95 text-xs text-white px-3 py-1.5 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold shadow-xl">
-                      <Maximize2 className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-                      Çift Tıklayarak Büyüt
-                    </div>
+                  <div className="absolute left-3.5 top-3.5 z-10 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 flex items-center gap-1.5 text-[10px] font-black text-rose-400 tracking-wider uppercase select-none shadow-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                    {activeDetailImageIndex + 1} / {modalImages.length}
                   </div>
                 )}
 
@@ -1079,7 +1082,7 @@ export const Marketplace = () => {
                 {activeImage && (
                   <button
                     onClick={() => setZoomedImage(activeImage)}
-                    className="absolute right-3.5 top-3.5 z-10 p-2 text-white bg-slate-900/90 hover:bg-rose-600 rounded-xl border border-slate-800 hover:scale-105 transition shadow-lg flex items-center gap-1.5 font-bold text-[10px] tracking-wider uppercase group/btn"
+                    className="absolute right-3.5 top-3.5 z-10 p-2 text-white bg-slate-900/90 hover:bg-rose-600 rounded-xl border border-slate-800 hover:scale-105 transition-all duration-300 shadow-lg flex items-center gap-1.5 font-bold text-[10px] tracking-wider uppercase group/btn"
                     title="Büyütmek için tıklayın"
                   >
                     <Maximize2 className="w-3.5 h-3.5 text-rose-400 group-hover/btn:text-white" />
@@ -1272,25 +1275,102 @@ export const Marketplace = () => {
       {/* Zoomed Image Lightbox */}
       {zoomedImage && (
         <div 
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl transition-all duration-300 cursor-zoom-out"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-between p-4 bg-slate-950/98 backdrop-blur-3xl transition-all duration-300"
           onClick={() => setZoomedImage(null)}
         >
-          <button 
-            onClick={() => setZoomedImage(null)}
-            className="absolute top-6 right-6 p-3 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:scale-105 transition shadow-lg text-sm font-bold active:scale-95 animate-pulse"
-          >
-            ✕ Kapat
-          </button>
-          <div className="relative max-w-5xl max-h-[85vh] overflow-hidden rounded-3xl border border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <img 
-              src={zoomedImage} 
-              alt="Yüksek Çözünürlüklü İlan Detayı" 
-              className="w-full h-full max-h-[85vh] object-contain select-none" 
-              referrerPolicy="no-referrer"
+          {/* Top Panel Actions */}
+          <div className="w-full flex items-center justify-between z-10 max-w-7xl mx-auto px-4 py-2 mt-2" onClick={(e) => e.stopPropagation()}>
+            {/* Index Counter */}
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 px-4 py-2 rounded-2xl text-xs font-extrabold text-rose-400 shadow-xl flex items-center gap-2 select-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+              {activeDetailImageIndex + 1} / {modalImages.length}
+            </div>
+
+            {/* Close Button */}
+            <button 
               onClick={() => setZoomedImage(null)}
-            />
+              className="px-4 py-2 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-rose-600 hover:border-rose-500 hover:scale-105 transition-all duration-300 shadow-xl text-xs font-black active:scale-95 flex items-center gap-1.5"
+            >
+              <X className="w-4 h-4 text-rose-500" />
+              <span>Görseli Kapat</span>
+            </button>
           </div>
-          <p className="text-slate-500 text-xs mt-4 select-none">Görselin üzerine veya dışına tıklayarak kapatabilirsiniz.</p>
+
+          {/* Main Visual Arena with Side Navigation Controls */}
+          <div className="relative flex-1 w-full flex items-center justify-center max-w-7xl mx-auto my-4" onClick={(e) => e.stopPropagation()}>
+            
+            {/* Prev Image Floating Trigger Button */}
+            {modalImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveDetailImageIndex((prev) => (prev - 1 + modalImages.length) % modalImages.length);
+                }}
+                className="absolute left-2 md:left-6 z-20 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/90 hover:bg-rose-600 text-slate-300 hover:text-white flex items-center justify-center border border-slate-800 hover:border-rose-500 transition-all shadow-2xl active:scale-95"
+                title="Önceki Fotoğraf"
+              >
+                <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
+              </button>
+            )}
+
+            {/* High-definition Image Canvas */}
+            <div 
+              className="relative max-w-4xl max-h-[65vh] md:max-h-[70vh] overflow-hidden rounded-3xl border border-slate-800 shadow-2xl bg-slate-950 flex items-center justify-center transition-all duration-300"
+              onClick={() => setZoomedImage(null)} 
+              title="Kapatmak için tıklayın"
+            >
+              <img 
+                src={activeImage || zoomedImage} 
+                alt="Yüksek Çözünürlüklü İlan Detayı" 
+                className="w-full h-full max-h-[65vh] md:max-h-[70vh] object-contain select-none cursor-zoom-out hover:scale-[1.01] transition-transform duration-300" 
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            {/* Next Image Floating Trigger Button */}
+            {modalImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveDetailImageIndex((prev) => (prev + 1) % modalImages.length);
+                }}
+                className="absolute right-2 md:right-6 z-20 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/90 hover:bg-rose-600 text-slate-300 hover:text-white flex items-center justify-center border border-slate-800 hover:border-rose-500 transition-all shadow-2xl active:scale-95"
+                title="Sonraki Fotoğraf"
+              >
+                <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
+              </button>
+            )}
+
+          </div>
+
+          {/* Interactive Bottom Miniatures Bar */}
+          <div className="w-full flex flex-col items-center gap-3 pb-4 z-10" onClick={(e) => e.stopPropagation()}>
+            {modalImages.length > 1 && (
+              <div className="flex gap-2.5 max-w-[90vw] md:max-w-xl overflow-x-auto pb-2 pt-1 px-4 bg-slate-900/80 backdrop-blur-xl border border-slate-850 rounded-2xl shadow-2xl scrollbar-thin scrollbar-thumb-rose-500/30 scrollbar-track-transparent">
+                {modalImages.map((imgUrl, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveDetailImageIndex(i)}
+                    className={`relative w-11 h-11 md:w-16 md:h-16 rounded-xl overflow-hidden border-2 transition-all duration-300 flex-shrink-0 ${
+                      activeDetailImageIndex === i 
+                        ? 'border-rose-500 scale-105 shadow-lg shadow-rose-950/50 opacity-100' 
+                        : 'border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-600'
+                    }`}
+                  >
+                    <img 
+                      src={imgUrl} 
+                      alt={`Zoom Thumbnail ${i + 1}`} 
+                      className="w-full h-full object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-slate-500 text-[10px] md:text-xs font-semibold select-none text-center">
+              Görselin üzerine veya dışına tıklayarak kapatabilirsiniz. Klavye yön tuşlarını (&larr; &rarr;) kullanabilirsiniz.
+            </p>
+          </div>
         </div>
       )}
 
