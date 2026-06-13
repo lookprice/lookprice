@@ -244,7 +244,7 @@ export interface RealEstateProperty {
   subtype?: string; // New: E.g., 'Daire', 'Villa', 'Malikane', 'Dükkan', 'Ofis', 'Tarla', etc.
   listing_intent: 'sale' | 'rent'; // Added for clear separation
   deposit?: number; // Added for rental
-  billing_period?: 'monthly' | 'yearly'; // Added for rental
+  billing_period?: 'monthly' | '3-monthly' | '6-monthly' | 'yearly'; // Added for rental
   room_count?: string;
   square_meters?: number;
   sqm_gross?: number;
