@@ -795,6 +795,8 @@ export const Marketplace = () => {
                           >
                             <option value="all">Tümü</option>
                             <option value="monthly">Aylık</option>
+                            <option value="3-monthly">3 Aylık</option>
+                            <option value="6-monthly">6 Aylık</option>
                             <option value="yearly">Yıllık</option>
                           </select>
                         </div>
