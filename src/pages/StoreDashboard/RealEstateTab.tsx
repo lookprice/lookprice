@@ -887,7 +887,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Ödeme Periyodu:</span>
                     <span className="text-slate-900 font-extrabold text-indigo-700">
-                      {propertyToPrint.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}
+                      {propertyToPrint.billing_period === 'yearly' ? 'Yıllık' :
+                       propertyToPrint.billing_period === '3-monthly' ? '3 Aylık' :
+                       propertyToPrint.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık'}
                     </span>
                   </div>
                 )}
