@@ -98,6 +98,8 @@ interface SalesInvoiceFormModalProps {
     grandTotal: number;
   };
   onQuickCariAdd?: (searchStr: string) => void;
+  status: 'draft' | 'approved' | 'cancelled';
+  setStatus: (val: 'draft' | 'approved' | 'cancelled') => void;
 }
 
 export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
@@ -166,7 +168,9 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   notes,
   setNotes,
   totals,
-  onQuickCariAdd
+  onQuickCariAdd,
+  status,
+  setStatus
 }) => {
   if (!isOpen) return null;
 
@@ -257,7 +261,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   </div>
                 </div>
 
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100">
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100">
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</label>
                     <input 
@@ -292,6 +296,18 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                         <option value="ISTISNA">{isTr ? "İstisna" : "Exemption"}</option>
                         <option value="IHRACKAYITLI">{isTr ? "İhraç Kayıtlı" : "Export Registry"}</option>
                       </select>
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura Statüsü' : 'Invoice Status'}</label>
+                    <select 
+                      className="w-full px-3 py-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
+                      value={status}
+                      onChange={(e: any) => setStatus(e.target.value)}
+                    >
+                      <option value="draft">{isTr ? "Taslak" : "Draft"}</option>
+                      <option value="approved">{isTr ? "Onaylandı" : "Approved"}</option>
+                      <option value="cancelled">{isTr ? "İptal" : "Cancelled"}</option>
+                    </select>
                   </div>
 
                   {giInvoiceType === 'ISTISNA' && (

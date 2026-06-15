@@ -180,6 +180,26 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     setItems(prevItems => prevItems.filter((_, i) => i !== index));
   };
 
+  const resetForm = () => {
+    setEditingInvoiceId(null);
+    setCompanyId("");
+    setCompanySearch("");
+    setInvoiceNumber("");
+    setWaybillNumber("");
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setNotes("");
+    setItems([]);
+    setProductSearch("");
+    setPaymentMethod('term');
+    setPaymentStatus('unpaid');
+    setCurrency(branding?.default_currency || 'TRY');
+    setExchangeRate("1");
+    setIsTaxInclusive(true);
+    setIsExpense(false);
+    setExpenseCategory("");
+    setExpenseCenter("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyId) {
@@ -371,6 +391,18 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     }
   };
 
+  const handleViewDetails = async (inv: any) => {
+    try {
+      const data = await api.getPurchaseInvoice(inv.id, role === 'superadmin' ? storeId : undefined);
+      if (data.error) throw new Error(data.error);
+      setSelectedInvoice(data);
+      setShowDetailsModal(true);
+    } catch (error: any) {
+      toast.error(isTr ? "Fatura detayları yüklenemedi." : "Could not load invoice details.");
+      console.error(error);
+    }
+  };
+
   const handleViewHtml = async (id: number) => {
     setPurchaseHtmlLoading(true);
     setPurchaseIframeReady(false);
@@ -463,9 +495,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           </button>
           <button
             onClick={() => {
-              setEditingInvoiceId(null);
-              setCompanyId("");
-              setItems([]);
+              resetForm();
               setShowModal(true);
             }}
             className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2"
@@ -483,7 +513,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         selectedIds={selectedIds}
         setSelectedIds={setSelectedIds}
         lastEditedId={lastEditedId}
-        handleViewDetails={(inv) => { setSelectedInvoice(inv); setShowDetailsModal(true); }}
+        handleViewDetails={handleViewDetails}
         handleEdit={handleEdit}
         handleDelete={handleDelete}
         handleViewHtml={handleViewHtml}

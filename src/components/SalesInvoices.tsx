@@ -243,6 +243,43 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     fetchTaxType();
   }, [companyId, customerId, editingInvoiceId]);
 
+  const handleCheckTaxpayer = async () => {
+    if (!editTaxNumber) {
+      toast.error(isTr ? "Sorgulama için Vergi/TC numarası gereklidir." : "Tax or ID number is required for checking.");
+      return;
+    }
+    setIsCheckingTaxpayer(true);
+    try {
+      const res = await api.checkTaxpayer(editTaxNumber);
+      if (res.error) throw new Error(res.error);
+      
+      if (res.documentType === 'E-FATURA') {
+        toast.info(isTr ? "E-Fatura Mükellefi" : "E-Invoice Taxpayer");
+        setInvoiceProfile('TEMELFATURA');
+        setEDocumentType('E-FATURA');
+      } else {
+        toast.info(isTr ? "E-Arşiv Mükellefi" : "E-Archive Taxpayer");
+        setInvoiceProfile('EARSIVFATURA');
+        setEDocumentType('E-ARŞİV');
+      }
+
+      if (res.title) {
+        setCustomerSearch(res.title);
+        toast.success(isTr ? "Cari ünvanı otomatik güncellendi!" : "Company title automatically updated!");
+      }
+      if (res.taxOffice) {
+        setEditTaxOffice(res.taxOffice);
+      }
+      if (res.address) {
+        setEditAddress(res.address);
+      }
+    } catch (err: any) {
+      toast.error(isTr ? `Sorgulama hatası: ${err.message || 'Mükellef bulunamadı'}` : `Query error: ${err.message || 'Taxpayer not found'}`);
+    } finally {
+      setIsCheckingTaxpayer(false);
+    }
+  };
+
   // Form Handlers
   const handleAddProduct = (product: any) => {
     const productCurrency = product.currency || branding?.default_currency || 'TRY';
@@ -298,6 +335,36 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       }
       return newItems;
     });
+  };
+
+  const resetForm = () => {
+    setEditingInvoiceId(null);
+    setSaleId(null);
+    setCustomerId("");
+    setCompanyId("");
+    setCustomerSearch("");
+    setInvoiceNumber("");
+    setWaybillNumber("");
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setNotes("");
+    setItems([]);
+    setProductSearch("");
+    setPaymentMethod('term');
+    setCurrency(branding?.default_currency || 'TRY');
+    setExchangeRate("1");
+    setStatus('draft');
+    setEDocumentType(null);
+    setInvoiceProfile('TEMELFATURA');
+    setGiInvoiceType('SATIS');
+    setIsReturn(false);
+    setCustomerEmail("");
+    setExemptionReasonCode("");
+    setWithholdingTaxCode("");
+    setIsTaxInclusive(true);
+    setEditTaxNumber("");
+    setEditTaxOffice("");
+    setEditAddress("");
+    setIsNewCustomer(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -413,6 +480,23 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setShowModal(true);
     } catch (error: any) {
       toast.error(error.message);
+    }
+  };
+
+  const handleViewDetails = async (inv: any, print?: boolean) => {
+    try {
+      const data = await api.getSalesInvoice(inv.id, role === 'superadmin' ? storeId : undefined);
+      if (data.error) throw new Error(data.error);
+      setSelectedInvoice(data);
+      setShowDetailsModal(true);
+      if (print) {
+        setTimeout(() => {
+          handlePrint();
+        }, 500);
+      }
+    } catch (error: any) {
+      toast.error(isTr ? "Fatura detayları yüklenemedi." : "Could not load invoice details.");
+      console.error(error);
     }
   };
 
@@ -588,10 +672,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           </button>
           <button 
             onClick={() => {
-              setEditingInvoiceId(null);
-              setCustomerId("");
-              setCompanyId("");
-              setItems([]);
+              resetForm();
               setShowModal(true);
             }}
             className="flex-[2] md:flex-none px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
@@ -615,11 +696,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         handleCheckEInvoiceStatus={handleCheckEInvoiceStatus}
         handleViewHtml={handleViewHtml}
         handleEdit={handleEdit}
-        handleViewDetails={(inv, print) => {
-           setSelectedInvoice(inv);
-           setShowDetailsModal(true);
-           if (print) setTimeout(() => handlePrint(), 500);
-        }}
+        handleViewDetails={handleViewDetails}
         handleDelete={handleDelete}
         page={page}
         totalPages={Math.ceil(invoices.length / itemsPerPage)}
@@ -633,6 +710,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         editingInvoiceId={editingInvoiceId}
         handleSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+        status={status}
+        setStatus={setStatus}
         customers={customers}
         companies={companies}
         customerId={customerId}
@@ -663,7 +742,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setEditTaxOffice={setEditTaxOffice}
         editTaxNumber={editTaxNumber}
         setEditTaxNumber={setEditTaxNumber}
-        handleCheckTaxpayer={() => {}} // simplified
+        handleCheckTaxpayer={handleCheckTaxpayer}
         isCheckingTaxpayer={isCheckingTaxpayer}
         customerEmail={customerEmail}
         setCustomerEmail={setCustomerEmail}
