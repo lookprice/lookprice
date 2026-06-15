@@ -50,8 +50,9 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
             </div>
           </div>
           
-          <div className="p-6 max-h-[75vh] overflow-y-auto" ref={invoiceRef}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div className="p-6 max-h-[75vh] overflow-y-auto">
+            <div id="print-invoice-wrapper" ref={invoiceRef} className="print-section bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <div className="space-y-2">
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
                 <p className="text-lg font-bold text-slate-900">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name}</p>
@@ -126,6 +127,7 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                   <span className="text-indigo-600">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </motion.div>

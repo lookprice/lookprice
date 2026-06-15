@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { X, AlertCircle, Search, Plus, Trash2, FileText, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 interface QuotationModalProps {
   showQuotationModal: boolean;
@@ -42,6 +43,68 @@ export const QuotationModal = ({
   setShowQuickProductModal,
 }: QuotationModalProps) => {
   const [prodSearch, setProdSearch] = useState("");
+  const [compList, setCompList] = useState(companies);
+  const [currCompanyId, setCurrCompanyId] = useState(editingQuotation?.company_id || "");
+  const [savingCari, setSavingCari] = useState(false);
+
+  React.useEffect(() => {
+    if (companies) {
+      setCompList(companies);
+    }
+  }, [companies]);
+
+  React.useEffect(() => {
+    setCurrCompanyId(editingQuotation?.company_id || "");
+  }, [editingQuotation]);
+
+  const handleSaveAsCari = async () => {
+    const nameInput = document.getElementById("quote_customer_name") as HTMLInputElement;
+    const taxNum = document.getElementById("quote_tax_number") as HTMLInputElement;
+    const taxOff = document.getElementById("quote_tax_office") as HTMLInputElement;
+    const repInput = document.getElementById("quote_customer_title") as HTMLInputElement;
+
+    const nameVal = nameInput?.value?.trim();
+    if (!nameVal) {
+      toast.error(isTr ? "Müşteri adı boş olamaz" : "Customer name is required");
+      return;
+    }
+
+    setSavingCari(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/store/companies`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          title: nameVal,
+          representative: repInput?.value?.trim() || undefined,
+          tax_office: taxOff?.value?.trim() || undefined,
+          tax_number: taxNum?.value?.trim() || undefined,
+          currency: branding?.default_currency || "TRY",
+          status: 'active'
+        })
+      });
+      if (!res.ok) {
+        throw new Error(isTr ? "Kaydedilirken hata oluştu" : "Save failed");
+      }
+      const newCari = await res.json();
+      
+      setCompList(prev => [...prev, newCari]);
+      setCurrCompanyId(String(newCari.id));
+      
+      const selectElement = document.getElementById("quote_company_id") as HTMLSelectElement;
+      if (selectElement) selectElement.value = String(newCari.id);
+      
+      toast.success(isTr ? "Yeni Cari hesabı başarıyla kaydedildi ve seçildi!" : "New Cari account successfully registered and selected!");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingCari(false);
+    }
+  };
 
   if (!showQuotationModal) return null;
 
@@ -103,16 +166,31 @@ export const QuotationModal = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-1.5 relative">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
-                    {isTr ? "Cari Hesap Seç" : "Select Customer Account"}
-                  </label>
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      {isTr ? "Cari Hesap Seç" : "Select Customer Account"}
+                    </label>
+                    {!currCompanyId && (
+                      <button
+                        type="button"
+                        disabled={savingCari}
+                        onClick={handleSaveAsCari}
+                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 rounded-xl transition-all flex items-center gap-1 border border-indigo-100 font-sans"
+                      >
+                        <Plus className="h-3 w-3" />
+                        {savingCari ? (isTr ? "Kaydediliyor..." : "Saving...") : (isTr ? "+ Cariyi Kaydet" : "+ Save as Registered Cari")}
+                      </button>
+                    )}
+                  </div>
                   <select
                     name="company_id"
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none shadow-sm"
-                    defaultValue={editingQuotation?.company_id || ""}
+                    id="quote_company_id"
+                    className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none shadow-sm font-sans"
+                    value={currCompanyId}
                     onChange={(e) => {
                       const val = e.target.value;
-                      const selected = companies?.find((c) => String(c.id) === val);
+                      setCurrCompanyId(val);
+                      const selected = compList?.find((c) => String(c.id) === val);
                       if (selected) {
                         const nameInput = document.getElementById("quote_customer_name") as HTMLInputElement;
                         const taxNum = document.getElementById("quote_tax_number") as HTMLInputElement;
@@ -126,9 +204,9 @@ export const QuotationModal = ({
                     }}
                   >
                     <option value="">{isTr ? "-- Yeni Cari / Manuel Giriş --" : "-- New Client / Manual Input --"}</option>
-                    {companies?.map((c) => (
+                    {compList?.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.title} {c.balance ? `(${Number(c.balance).toLocaleString("tr-TR")} ${c.currency})` : ""}
+                        {c.title} {c.balance ? `(${Number(c.balance).toLocaleString("tr-TR")} ${c.currency || 'TRY'})` : ""}
                       </option>
                     ))}
                   </select>
@@ -318,6 +396,21 @@ export const QuotationModal = ({
 
                   {prodSearch.trim() !== "" && (
                     <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-25 max-h-52 overflow-y-auto divide-y divide-slate-100 p-2">
+                      {setShowQuickProductModal && (
+                        <div className="p-1 border-b border-slate-100 mb-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowQuickProductModal(true);
+                              setProdSearch("");
+                            }}
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 transition-all shadow-xs"
+                          >
+                            <Plus className="h-3 w-3" />
+                            {isTr ? `Hızlı Ürün Ekle: "${prodSearch}"` : `Quick Add Product: "${prodSearch}"`}
+                          </button>
+                        </div>
+                      )}
                       {products
                         ?.filter(
                           (p) =>
@@ -326,54 +419,54 @@ export const QuotationModal = ({
                         )
                         .slice(0, 8)
                         .map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              const exist = quotationItems?.findIndex((item) => item.product_id === p.id);
-                              if (exist > -1 && setQuotationItems) {
-                                const updated = [...quotationItems];
-                                updated[exist].quantity += 1;
-                                updated[exist].total_price = updated[exist].quantity * updated[exist].unit_price;
-                                setQuotationItems(updated);
-                              } else if (setQuotationItems) {
-                                setQuotationItems([
-                                  ...quotationItems,
-                                  {
-                                    product_id: p.id,
-                                    product_name: p.name,
-                                    barcode: p.barcode,
-                                    quantity: 1,
-                                    unit_price: Number(p.price),
-                                    tax_rate: Number(p.tax_rate ?? 20),
-                                    total_price: Number(p.price),
-                                  },
-                                ]);
-                              }
-                              setProdSearch("");
-                            }}
-                            className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors rounded-xl flex justify-between items-center text-xs"
-                          >
-                            <div>
-                              <p className="font-bold text-slate-800">{p.name}</p>
-                              {p.barcode && <p className="text-[10px] text-slate-400 font-mono mt-0.5">#{p.barcode}</p>}
-                            </div>
-                            <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 border border-indigo-100 px-2.5 py-1 rounded-xl whitespace-nowrap">
-                              {Number(p.price).toLocaleString("tr-TR")} {p.currency}
-                            </span>
-                          </button>
-                        ))}
-                      {products?.filter(
-                        (p) =>
-                          p.name.toLowerCase().includes(prodSearch.toLowerCase()) ||
-                          p.barcode?.toLowerCase().includes(prodSearch.toLowerCase())
-                      ).length === 0 && (
-                        <p className="p-4 text-center text-slate-400 text-xs font-bold bg-slate-50 rounded-xl">
-                          {isTr ? "Uyuşan ürün bulunamadı." : "No matched products found."}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                           <button
+                             key={p.id}
+                             type="button"
+                             onClick={() => {
+                               const exist = quotationItems?.findIndex((item) => item.product_id === p.id);
+                               if (exist > -1 && setQuotationItems) {
+                                 const updated = [...quotationItems];
+                                 updated[exist].quantity += 1;
+                                 updated[exist].total_price = updated[exist].quantity * updated[exist].unit_price;
+                                 setQuotationItems(updated);
+                               } else if (setQuotationItems) {
+                                 setQuotationItems([
+                                   ...quotationItems,
+                                   {
+                                     product_id: p.id,
+                                     product_name: p.name,
+                                     barcode: p.barcode,
+                                     quantity: 1,
+                                     unit_price: Number(p.price),
+                                     tax_rate: Number(p.tax_rate ?? 20),
+                                     total_price: Number(p.price),
+                                   },
+                                 ]);
+                               }
+                               setProdSearch("");
+                             }}
+                             className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors rounded-xl flex justify-between items-center text-xs"
+                           >
+                             <div>
+                               <p className="font-bold text-slate-800">{p.name}</p>
+                               {p.barcode && <p className="text-[10px] text-slate-400 font-mono mt-0.5">#{p.barcode}</p>}
+                             </div>
+                             <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 border border-indigo-100 px-2.5 py-1 rounded-xl whitespace-nowrap">
+                               {Number(p.price).toLocaleString("tr-TR")} {p.currency}
+                             </span>
+                           </button>
+                         ))}
+                       {products?.filter(
+                         (p) =>
+                           p.name.toLowerCase().includes(prodSearch.toLowerCase()) ||
+                           p.barcode?.toLowerCase().includes(prodSearch.toLowerCase())
+                       ).length === 0 && (
+                         <div className="p-4 text-center">
+                           <p className="text-xs text-slate-500">{isTr ? "Başka uyuşan ürün bulunamadı." : "No other matched products found."}</p>
+                         </div>
+                       )}
+                     </div>
+                   )}
                 </div>
               </div>
 

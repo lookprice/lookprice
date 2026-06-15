@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout, Settings, Activity, Users, Shield, Download, CreditCard, RefreshCw, Smartphone, Sparkles } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout, Settings, Activity, Users, Shield, Download, CreditCard, RefreshCw, Smartphone, Sparkles, Building2, Car, Compass, Network, Share2, ClipboardSignature, MapPin, UserCheck, History, TrendingUp, Key, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
@@ -14,6 +14,7 @@ export const LandingPage = () => {
   const t = translations[lang];
 
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [systemType, setSystemType] = useState<'portfolio' | 'product'>('portfolio');
 
   useEffect(() => {
     if (location.state?.openDemo) {
@@ -80,26 +81,26 @@ export const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-rose-500/30">
       <SEO 
-        title={lang === 'tr' ? "LookPrice Nexus | Şirketinizin Merkezi Sinir Sistemi" : "LookPrice Nexus | The Central Nervous System for Businesses"}
+        title={lang === 'tr' ? "LookPrice | Yeni Nesil Gayrimenkul & Otomotiv CRM ve Perakende Hub'ı" : "LookPrice | Next-Gen Real Estate & Automotive CRM & Retail Hub"}
         description={lang === 'tr' 
-          ? "LookPrice Nexus ile kağıt kalemi bırakın. Entegre POS, stok takibi, teknik servis ve filo yönetimi ile şirketinizi tek merkezden yönetin." 
-          : "End paper management with LookPrice Nexus. Manage your company from a single center with integrated POS, stock tracking, and technical service."
+          ? "LookPrice ile emlak ve otomotiv ticareti ile perakende süreçlerini üst seviyeye taşıyın. Enrakipsiz.com entegrasyonu, dijital sözleşme oluşturucu ve entegre POS bir arada." 
+          : "Elevate your property, automotive trading and retail processes. Enrakipsiz.com integration, digital contract builders and integrated POS all in one place."
         }
-        keywords="pos, ecommerce, stock tracking, technical service management, fleet management, business software, erp, lookprice"
+        keywords="pos, crm, real estate software, automotive crm, emlak crm, oto galeri yazilimi, enrakipsiz, kktc emlak, lookprice"
         schemaData={schemaData}
       />
       {/* Top Navigation */}
       <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 lg:px-12 py-2 md:py-6 flex items-center justify-between bg-black/40 backdrop-blur-xl border-b border-white/5">
         <div className="flex items-center space-x-2 md:space-x-3 cursor-pointer group" onClick={() => navigate("/")}>
           <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            <div className="absolute -inset-1 bg-gradient-to-r from-rose-500 to-indigo-500 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
             <div className="relative w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg shadow-white/5">
-              <div className="w-4 h-4 md:w-5 md:h-5 bg-black rounded-sm" />
+              <div className="w-5 h-5 bg-gradient-to-tr from-rose-600 to-indigo-650 rounded" />
             </div>
           </div>
-          <span className="text-lg md:text-xl font-black tracking-tighter hidden sm:block text-white">Look<span className="text-indigo-500">Price</span></span>
+          <span className="text-lg md:text-xl font-black tracking-tighter hidden sm:block text-white">Look<span className="text-rose-500">Price</span></span>
         </div>
 
         <div className="flex items-center space-x-2 md:space-x-4">
@@ -126,7 +127,7 @@ export const LandingPage = () => {
           {/* Login Button */}
           <button
             onClick={() => navigate('/login')}
-            className="px-4 md:px-8 py-2 md:py-3 bg-white text-black hover:bg-indigo-600 hover:text-white rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-white/5 active:scale-95"
+            className="px-4 md:px-8 py-2 md:py-3 bg-white text-black hover:bg-rose-600 hover:text-white rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-white/5 active:scale-95"
           >
             {lang === 'tr' ? 'Giriş' : 'Login'}
           </button>
@@ -134,262 +135,399 @@ export const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex flex-col justify-center px-6 md:px-12 lg:px-24 pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/20 via-[#050505] to-[#050505] pointer-events-none" />
+      <section className="relative min-h-[95vh] flex flex-col justify-center px-6 md:px-12 lg:px-24 pt-36 pb-12 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-rose-950/20 via-[#050505] to-[#050505] pointer-events-none" />
         
-        <div className="relative z-10 max-w-7xl mx-auto">
+        <div className="relative z-10 max-w-7xl mx-auto w-full">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-center md:text-left"
           >
-            <div className="inline-block px-4 py-1.5 bg-indigo-500/10 text-indigo-400 rounded-full text-sm font-medium tracking-wider uppercase mb-8 border border-indigo-500/20">
-              {lang === 'tr' ? 'Şirketinizin Yeni Merkezi Sinir Sistemi' : 'Your Company\'s New Central Nervous System'}
+            <div className="inline-block px-4 py-1.5 bg-rose-500/10 text-rose-400 rounded-full text-xs md:text-sm font-semibold tracking-wider uppercase mb-8 border border-rose-500/20">
+              {lang === 'tr' ? '✨ GAYRİMENKUL, OTOMOTİV VE PERAKENDE DEVRİMİ' : '✨ REAL ESTATE, AUTOMOTIVE AND RETAIL REVOLUTION'}
             </div>
-            <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl font-medium tracking-tighter mb-8 leading-[1.05]">
-              LookPrice <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
-                Nexus.
+            
+            <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-6 leading-[1.05] text-white">
+              Sınırları Aşan <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-indigo-400 to-cyan-400">
+                Portföy & Yönetim Zekası.
               </span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-white/50 max-w-3xl mb-12 font-light leading-relaxed">
+            <p className="text-lg md:text-xl text-white/60 max-w-4xl mb-12 font-light leading-relaxed mx-auto md:mx-0">
               {lang === 'tr' 
-                ? 'Bir yerdeki hareket, tüm şirketi günceller. Kağıt kalemle, ayrı ayrı yazılımlarla koca bir şirketi yönetmeye çalışmayın. Şirketinizi "tek bir akılla" yaşatın.' 
-                : 'Movement in one area updates the whole company. Stop trying to manage a large company with paper and pen or fragmented software. Let your company live with a "single mind".'}
+                ? 'LookPrice, artık sadece bir perakende yazılımı değil. Gayrimenkul brokerları, otomotiv galerileri ve zincir mağazalar için geliştirilmiş; "ortak havuz", dijital sözleşme yönetimi, otomatik akıllı poster jeneratörleri ve gelişmiş finans denetimini barındıran canavar gibi bir ekosistem.' 
+                : 'LookPrice is no longer just a retail tool. It is a absolute ecosystem for real estate brokers, auto galleries and multi-branch stores; boasting joint listing pools, digital contract rooms, smart visual flyers, and deep financial tracking.'}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start items-center">
               <button
                 onClick={() => setShowDemoModal(true)}
-                className="group relative inline-flex items-center justify-center px-10 py-5 font-bold text-black bg-white rounded-full overflow-hidden transition-all hover:bg-indigo-500 hover:text-white text-lg"
+                className="w-full sm:w-auto group relative inline-flex items-center justify-center px-8 py-4 font-bold text-black bg-white rounded-full overflow-hidden transition-all hover:bg-rose-600 hover:text-white text-base shadow-xl"
               >
-                {lang === 'tr' ? 'Şirketinizin Sinir Ağını Aktive Edin' : 'Activate Your Company\'s Nervous Network'}
-                <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                {lang === 'tr' ? 'Hemen Demoya Katıl' : 'Join Live Demo'}
+                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
               <button
                 onClick={() => navigate('/portal')}
-                className="group relative inline-flex items-center justify-center px-10 py-5 font-bold text-white bg-[#0A0A0A] border border-white/20 rounded-full overflow-hidden transition-all hover:bg-white/10 text-lg"
+                className="w-full sm:w-auto group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white bg-slate-900/90 border border-white/10 rounded-full overflow-hidden transition-all hover:bg-white/10 text-base"
               >
-                {lang === 'tr' ? 'Keşfet: Enrakipsiz.com' : 'Explore: Enrakipsiz.com'}
+                <Flame className="w-4 h-4 mr-2 text-rose-500 animate-pulse" />
+                {lang === 'tr' ? 'Keşfet: Enrakipsiz.com Havuzu' : 'Explore: Enrakipsiz.com'}
               </button>
             </div>
           </motion.div>
         </div>
       </section>
 
+      {/* Dual Core Switcher Block */}
+      <section className="relative px-6 md:px-12 lg:px-24 py-12 border-t border-white/5 bg-[#060608] z-20">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="inline-flex p-1.5 bg-slate-950/90 border border-white/10 rounded-3xl mb-4 shadow-2xl">
+            <button
+              onClick={() => setSystemType('portfolio')}
+              className={`px-6 py-3.5 md:px-10 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
+                systemType === 'portfolio'
+                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50'
+                  : 'text-white/40 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              {lang === 'tr' ? 'GAYRİMENKUL & GALEBİ (Portföy CRM)' : 'REAL ESTATE & AUTO (Portfolio CRM)'}
+            </button>
+            <button
+              onClick={() => setSystemType('product')}
+              className={`px-6 py-3.5 md:px-10 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
+                systemType === 'product'
+                  ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-950/50'
+                  : 'text-white/40 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              {lang === 'tr' ? 'PERAKENDE, DETAY & MAĞAZA (POS)' : 'RETAIL, SHOP & POS (Shop System)'}
+            </button>
+          </div>
+          
+          <p className="text-white/40 text-xs md:text-sm font-medium tracking-wide">
+            {lang === 'tr' 
+              ? 'Çalışma alanınıza uygun sistemi seçerek özelliklerini ve merkezi sinir yapısını inceleyin.' 
+              : 'Choose the appropriate environment to examine its inner modules & features.'}
+          </p>
+        </div>
+      </section>
+
       {/* Anatomy - Central Nervous System */}
-      <section className="px-6 md:px-12 lg:px-24 py-32 border-t border-white/10 bg-[#0A0A0A]">
+      <section className="px-6 md:px-12 lg:px-24 py-24 border-t border-white/10 bg-[#0A0A0E] relative">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-20 text-center max-w-3xl mx-auto">
-            <h2 className="text-4xl md:text-5xl font-medium tracking-tight mb-6">
-              {lang === 'tr' ? 'Anatomi: Ne Alacaksınız?' : 'Anatomy: What Will You Get?'}
-            </h2>
-            <p className="text-white/50 text-xl font-light">
-              {lang === 'tr' 
-                ? 'Şirketinizi "canlı bir organizmaya" dönüştüren 5 ana sinir düğümü.' 
-                : '5 main nerve nodes that transform your company into a "living organism".'}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Brain */}
-            <div className="p-10 rounded-[2rem] bg-indigo-950/20 border border-indigo-500/20 relative group overflow-hidden hover:bg-indigo-900/20 transition-colors">
-              <div className="w-full h-48 bg-[#08080c] rounded-2xl mb-8 border border-indigo-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-indigo-500/40 transition-colors shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                {/* Mock UI Header */}
-                <div className="flex justify-between items-center mb-6">
-                  <div className="w-24 h-2.5 bg-indigo-500/20 rounded-full" />
-                  <div className="flex gap-2">
-                    <div className="w-6 h-6 bg-indigo-500/10 rounded-md" />
-                    <div className="w-6 h-6 bg-indigo-500/10 rounded-md" />
+          
+          <AnimatePresence mode="wait">
+            {systemType === 'portfolio' ? (
+              <motion.div
+                key="portfolio-anatomy"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="mb-20 text-center max-w-3xl mx-auto">
+                  <div className="inline-flex items-center gap-2 text-rose-400 text-[10px] font-black uppercase tracking-widest bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20 mb-4 animate-pulse">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {lang === 'tr' ? 'YEPYENİ KAPASİTELER' : 'BRAND NEW CAPABILITIES'}
                   </div>
+                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
+                    {lang === 'tr' ? 'Gayrimenkul & Otomotiv Yönetimi' : 'Real Estate & Automotive Engine'}
+                  </h2>
+                  <p className="text-white/50 text-lg md:text-xl font-light">
+                    {lang === 'tr' 
+                      ? 'Bayileriniz, danışmanlarınız ve ilan havuzunu saniyeler içinde otonom şekilde birbirine bağlayan 5 ana sinir düğümü.' 
+                      : '5 custom modules that seamlessly synchronize your sub-branches, brokers and joint listing pool.'}
+                  </p>
                 </div>
-                {/* Mock Chart Area */}
-                <div className="flex-1 flex items-end gap-3 px-2 mt-auto">
-                  <div className="w-full h-[40%] bg-indigo-500/20 rounded-t-md transition-all group-hover:h-[45%]" />
-                  <div className="w-full h-[70%] bg-indigo-500/40 rounded-t-md transition-all group-hover:h-[75%]" />
-                  <div className="w-full h-[50%] bg-indigo-500/30 rounded-t-md transition-all group-hover:h-[55%]" />
-                  <div className="w-full h-[90%] bg-indigo-500/60 rounded-t-md relative transition-all group-hover:h-[95%]">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_10px_rgba(129,140,248,0.8)]" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {/* Node 1 - Ortak Havuz */}
+                  <div className="p-10 rounded-[2.5rem] bg-rose-950/10 border border-rose-500/20 relative group overflow-hidden hover:bg-rose-900/15 transition-all duration-300">
+                    <div className="w-full h-48 bg-[#090708] rounded-2xl mb-8 border border-rose-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-rose-400/40 transition-all shadow-lg">
+                      {/* Inter-active Visual simulation of network */}
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-[9px] font-bold text-rose-400 px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">ENRAKİPSİZ.COM POOL</span>
+                        <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                          <div className="w-2/3 h-1.5 bg-slate-850 rounded-full" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-rose-500" />
+                          <div className="w-1/2 h-1.5 bg-slate-850 rounded-full animate-pulse" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                          <div className="w-5/6 h-1.5 bg-slate-850 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="mt-auto text-[9px] font-mono text-slate-500 text-center">
+                        Alt Bayiler Arası Kilit Rezervasyon & Komisyon
+                      </div>
+                    </div>
+                    <Network className="w-10 h-10 text-rose-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'ORTAK HAVUZ & ENRAKİPSİZ' : 'SHARED POOL & SYNC'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Enrakipsiz.com sessiz sedasız dev bir emlak ve galeri havuzu haline geldi! LookPrice entegrasyonu ile alt bayilerinizle ortak portföy paylaşın, akıllı komisyon dağılımları ve kilitli rezervasyon süreleri tanımlayın.' : 'Enrakipsiz.com has quietly turned into a monstrous property and auto pool! Share mutual listings, set precise commission cuts, and setup locked bookings.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Kapalı Devre Paylaşım</span>
+                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Rezervasyon Kilidi</span>
+                    </div>
                   </div>
-                  <div className="w-full h-[60%] bg-indigo-500/30 rounded-t-md transition-all group-hover:h-[65%]" />
-                  <div className="w-full h-[80%] bg-indigo-500/50 rounded-t-md transition-all group-hover:h-[85%]" />
-                </div>
-              </div>
-              <Zap className="w-10 h-10 text-indigo-400 mb-8 relative z-10" />
-              <h3 className="text-2xl font-medium mb-4 relative z-10">{lang === 'tr' ? 'BEYİN (Merkez Kasa & Yönetim)' : 'BRAIN (Central Cashier & Mgmt)'}</h3>
-              <p className="text-white/80 font-light leading-relaxed mb-4 text-sm relative z-10">
-                {lang === 'tr' ? 'N sayıda mağazanız, Hızlı POS modülü, e-marketler, kurumsal toptan, teknik servis hizmetleri ve sahada operasyon yapan personellerin tüm satışları TEK BİR MERKEZDE!' : 'Sales from N branches, Fast POS, e-marketplaces, corporate B2B, tech service, and field staff all in ONE CENTER!'}
-              </p>
-              <div className="flex flex-wrap gap-2 relative z-10">
-                 <span className="px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs rounded">Nakit, Kart & POS</span>
-                 <span className="px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs rounded">Döviz & Cari H.</span>
-                 <span className="px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs rounded">Banka EFT/Havale</span>
-                 <span className="px-2 py-1 bg-indigo-500/20 border border-indigo-500/40 text-white font-medium text-xs rounded w-full mt-1 text-center">ANLIK KASA DURUMU</span>
-              </div>
-            </div>
 
-            {/* Senses */}
-            <div className="p-10 rounded-[2rem] bg-cyan-950/20 border border-cyan-500/20 relative group overflow-hidden hover:bg-cyan-900/20 transition-colors">
-              <div className="w-full h-48 bg-[#080c0c] rounded-2xl mb-8 border border-cyan-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-cyan-500/40 transition-colors shadow-[0_0_30px_rgba(6,182,212,0.05)]">
-                <div className="flex justify-between items-center mb-4">
-                   <div className="w-16 h-2 bg-cyan-500/20 rounded-full" />
-                   <div className="w-8 h-2 bg-cyan-500/20 rounded-full" />
-                </div>
-                {/* Mock Integrations List */}
-                <div className="flex flex-col gap-3 mt-2">
-                   <div className="w-full p-2 bg-cyan-500/5 rounded-lg border border-cyan-500/10 flex items-center justify-between group-hover:bg-cyan-500/10 transition-colors">
-                      <div className="flex items-center gap-3">
-                         <div className="w-5 h-5 bg-cyan-500/20 rounded flex items-center justify-center"><div className="w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_5px_rgba(34,211,238,0.8)]" /></div>
-                         <div className="w-20 h-1.5 bg-cyan-500/20 rounded-full" />
+                  {/* Node 2 - Dynamic Contract Manager */}
+                  <div className="p-10 rounded-[2.5rem] bg-indigo-950/10 border border-indigo-500/20 relative group overflow-hidden hover:bg-indigo-900/15 transition-all duration-300">
+                    <div className="w-full h-48 bg-[#070709] rounded-2xl mb-8 border border-indigo-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-indigo-400/40 transition-all shadow-lg">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-[9px] font-bold text-indigo-400 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">AUTO CONTRACT BUILDER</span>
+                        <ClipboardSignature className="w-3.5 h-3.5 text-indigo-400" />
                       </div>
-                      <div className="w-8 h-4 rounded-full bg-cyan-500/20 flex items-center px-0.5"><div className="w-3 h-3 bg-cyan-400 rounded-full ml-auto" /></div>
-                   </div>
-                   <div className="w-full p-2 bg-cyan-500/5 rounded-lg border border-cyan-500/10 flex items-center justify-between group-hover:bg-cyan-500/10 transition-colors transition-delay-75">
-                      <div className="flex items-center gap-3">
-                         <div className="w-5 h-5 bg-cyan-500/20 rounded flex items-center justify-center"><div className="w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_5px_rgba(34,211,238,0.8)]" /></div>
-                         <div className="w-16 h-1.5 bg-cyan-500/20 rounded-full" />
+                      <div className="flex-1 bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-2.5 flex flex-col gap-1.5 text-[8px] font-mono text-slate-400">
+                        <p className="border-b border-white/5 pb-1 text-white">Yasal Emlak / Kira Sözleşmesi</p>
+                        <p>Firma: Seçkin VIP Emlak</p>
+                        <p>Danışman: +90 (548) ...</p>
+                        <p className="text-emerald-400 mt-auto flex items-center gap-1">✓ WhatsApp Onayı Aktif</p>
                       </div>
-                      <div className="w-8 h-4 rounded-full bg-cyan-500/20 flex items-center px-0.5"><div className="w-3 h-3 bg-cyan-400 rounded-full ml-auto" /></div>
-                   </div>
-                   <div className="w-full p-2 bg-cyan-500/5 rounded-lg border border-cyan-500/10 flex items-center justify-between group-hover:bg-cyan-500/10 transition-colors transition-delay-150">
-                      <div className="flex items-center gap-3">
-                         <div className="w-5 h-5 bg-cyan-500/20 rounded" />
-                         <div className="w-24 h-1.5 bg-cyan-500/20 rounded-full" />
-                      </div>
-                      <div className="w-8 h-4 rounded-full bg-cyan-500/10 flex items-center px-0.5"><div className="w-3 h-3 bg-cyan-500/30 rounded-full" /></div>
-                   </div>
-                </div>
-              </div>
-              <Globe className="w-10 h-10 text-cyan-400 mb-8 relative z-10" />
-              <h3 className="text-2xl font-medium mb-4 relative z-10">{lang === 'tr' ? 'DUYU ORGANLARI (Çoklu-Bağlantı)' : 'SENSES (Multi-Connectivity)'}</h3>
-              <p className="text-white/80 font-light leading-relaxed text-sm relative z-10">
-                {lang === 'tr' ? 'Ürünleriniz; anlık toplu fiyat güncelleme, kategori özellikleri ve çoklu döviz tanımları ile tek elden her yere dağılır.' : 'Your products are distributed everywhere from a single point with bulk price updates, category features, and multi-currency definitions.'}
-                <br /><br />
-                {lang === 'tr' ? 'Mağaza İçi: Personel veya müşteri "Dijital Fiyat Gör" ile fiyata saniyeler içinde erişir.' : 'In-Store: Staff or customers access prices in seconds via "Digital Price Check".'}
-              </p>
-            </div>
-
-            {/* Heart */}
-            <div className="p-10 rounded-[2rem] bg-rose-950/20 border border-rose-500/20 relative group overflow-hidden hover:bg-rose-900/20 transition-colors">
-              <div className="w-full h-48 bg-[#0c0809] rounded-2xl mb-8 border border-rose-500/20 flex flex-row overflow-hidden relative p-5 gap-4 group-hover:border-rose-500/40 transition-colors shadow-[0_0_30px_rgba(244,63,94,0.05)]">
-                {/* CRM/Kanban Mock */}
-                <div className="flex-1 flex flex-col gap-3">
-                   <div className="w-12 h-2 bg-rose-500/20 rounded-full mb-1" />
-                   <div className="w-full h-full bg-rose-500/5 rounded-lg border border-rose-500/10 flex flex-col p-2 gap-2 group-hover:bg-rose-500/10 transition-colors">
-                      <div className="w-full h-10 bg-rose-500/10 rounded flex flex-col p-2 gap-1.5 justify-center">
-                         <div className="w-3/4 h-1.5 bg-rose-400/40 rounded-full" />
-                         <div className="w-1/2 h-1 bg-rose-500/30 rounded-full" />
-                      </div>
-                      <div className="w-full h-16 bg-rose-500/15 rounded flex flex-col p-2 gap-1.5 border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]">
-                         <div className="w-full h-1.5 bg-rose-400/60 rounded-full" />
-                         <div className="w-2/3 h-1 bg-rose-500/40 rounded-full" />
-                         <div className="w-6 h-6 rounded-full bg-rose-400/20 mt-auto ml-auto flex items-center justify-center"><div className="w-3 h-3 text-rose-400 text-[8px] leading-none">+</div></div>
-                      </div>
-                   </div>
-                </div>
-                <div className="flex-1 flex flex-col gap-3">
-                   <div className="w-16 h-2 bg-rose-500/20 rounded-full mb-1" />
-                   <div className="w-full h-[60%] bg-rose-500/5 rounded-lg border border-rose-500/10 flex flex-col p-2 gap-2 group-hover:bg-rose-500/10 transition-colors">
-                      <div className="w-full h-10 bg-rose-500/10 rounded flex flex-col p-2 gap-1.5 justify-center">
-                         <div className="w-1/2 h-1.5 bg-rose-400/40 rounded-full" />
-                         <div className="w-1/3 h-1 bg-rose-500/30 rounded-full" />
-                      </div>
-                   </div>
-                </div>
-              </div>
-              <Wallet className="w-10 h-10 text-rose-400 mb-8 relative z-10" />
-              <h3 className="text-2xl font-medium mb-4 relative z-10">{lang === 'tr' ? 'KALP (Teklif, Servis & Satış)' : 'HEART (Quote, Service & Sales)'}</h3>
-              <p className="text-white/80 font-light leading-relaxed text-sm mb-4 relative z-10">
-                {lang === 'tr' ? 'Teknik servis takibi ve kurumsal satışın kalbi. Süreci yönetin, anında PDF teklif şablonları üretin.' : 'The heart of tech service and corporate sales. Manage the process, generate instant PDF templates.'}
-              </p>
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded relative z-10">
-                 <span className="block font-bold mb-1">Dijital Onay Köprüsü:</span>
-                 {lang === 'tr' ? 'Müşteri teklifi tek tıkla onaylar, onay sonrası "Yeni Cari & Ürün Kartı" otomatik açılır.' : 'Customer clicks to approve, triggering Auto-Current Account & Product creation.'}
-              </div>
-            </div>
-
-            {/* Motor */}
-            <div className="p-10 rounded-[2rem] bg-emerald-950/20 border border-emerald-500/20 relative group overflow-hidden hover:bg-emerald-900/20 transition-colors">
-              <div className="w-full h-48 bg-[#080c0a] rounded-2xl mb-8 border border-emerald-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-emerald-500/40 transition-colors shadow-[0_0_30px_rgba(16,185,129,0.05)]">
-                 {/* Logistics/Map Mock */}
-                 <div className="flex justify-between items-center mb-4">
-                   <div className="w-1/3 h-2 bg-emerald-500/20 rounded-full" />
-                   <div className="w-4 h-4 rounded-full border-2 border-emerald-500/40 flex items-center justify-center"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /></div>
-                 </div>
-                 <div className="relative flex-1 bg-emerald-900/10 rounded-xl overflow-hidden flex items-center justify-center border border-emerald-500/10 group-hover:bg-emerald-900/20 transition-colors">
-                   <svg className="absolute w-full h-full opacity-40" viewBox="0 0 100 50" preserveAspectRatio="none">
-                      <path d="M10,40 Q30,10 50,25 T90,15" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-emerald-500" strokeDasharray="3 3" />
-                      <circle cx="10" cy="40" r="2.5" className="fill-emerald-500" />
-                      <circle cx="50" cy="25" r="2.5" className="fill-emerald-500" />
-                      <circle cx="90" cy="15" r="3.5" className="fill-emerald-400 shadow-[0_0_10px_rgba(52,211,153,1)]" />
-                   </svg>
-                   {/* Popup Mock */}
-                   <div className="absolute top-2 right-4 bg-[#080c0a] border border-emerald-500/30 rounded-lg p-2 backdrop-blur-md shadow-lg shadow-emerald-900/20">
-                      <div className="flex items-center gap-2 mb-1.5">
-                         <Truck className="w-3 h-3 text-emerald-400" />
-                         <div className="w-10 h-1 bg-emerald-400/80 rounded-full" />
-                      </div>
-                      <div className="w-16 h-1 bg-emerald-500/30 rounded-full" />
-                   </div>
-                 </div>
-              </div>
-              <Truck className="w-10 h-10 text-emerald-400 mb-8 relative z-10" />
-              <h3 className="text-2xl font-medium mb-4 relative z-10">{lang === 'tr' ? 'MOTOR (Lojistik, Transfer & Filo)' : 'MOTOR (Logistics & Fleet)'}</h3>
-              <div className="space-y-3 text-white/80 font-light text-sm relative z-10">
-                <p>
-                  <span className="text-emerald-400 font-medium">{lang === 'tr' ? 'Sevkiyat:' : 'Dispatch:'}</span> {lang === 'tr' ? 'Çok mağazalı yapılar için depo/mağaza arası transfer süreçleri sıfır hatayla çalışır.' : 'Zero-error warehouse/store transfer process for multi-branch setups.'}
-                </p>
-                <p>
-                  <span className="text-emerald-400 font-medium">{lang === 'tr' ? '360° Filo:' : '360° Fleet:'}</span> {lang === 'tr' ? 'Şirket & şahsi araçların evrakları, sigorta, vergi takibi. Sürücü zimmetleri ve kaza raporlamaları.' : 'Tracking documents, tax, and insurance for all vehicles. Driver assignments and accident reports.'}
-                </p>
-                <p>
-                  <span className="text-emerald-400 font-medium">{lang === 'tr' ? 'Uyarı Mekanizması:' : 'Alert Mechanism:'}</span> {lang === 'tr' ? 'KM/Mil ayarlı periyodik bakım ve lastik değişimi uyarıları.' : 'Mileage-triggered periodic maintenance and tire alerts.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Otonom */}
-            <div className="p-10 rounded-[2rem] bg-purple-950/20 border border-purple-500/20 relative group overflow-hidden hover:bg-purple-900/20 transition-colors">
-              <div className="w-full h-48 bg-[#0a080c] rounded-2xl mb-8 border border-purple-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-purple-500/40 transition-colors shadow-[0_0_30px_rgba(168,85,247,0.05)]">
-                 <div className="flex gap-2 mb-6">
-                    <div className="w-2.5 h-2.5 rounded-full bg-purple-500/20" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-purple-500/40" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
-                 </div>
-                 {/* Workflow Mock */}
-                 <div className="flex-1 border-l-2 border-purple-500/20 ml-1.5 pl-6 flex flex-col justify-center gap-5">
-                    <div className="relative group-hover:translate-x-1 transition-transform">
-                       <div className="w-2.5 h-2.5 bg-purple-400 rounded-full absolute -left-[29px] top-1/2 -translate-y-1/2 shadow-[0_0_10px_rgba(192,132,252,1)]" />
-                       <div className="w-24 h-1.5 bg-purple-400/80 rounded-full mb-1" />
-                       <div className="w-16 h-1 bg-purple-500/40 rounded-full" />
                     </div>
-                    <div className="relative">
-                       <div className="w-2 h-2 bg-purple-500/30 rounded-full absolute -left-[28px] top-1/2 -translate-y-1/2" />
-                       <div className="w-20 h-1.5 bg-purple-500/30 rounded-full" />
+                    <ClipboardSignature className="w-10 h-10 text-indigo-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'DİJİTAL SÖZLEŞME ODASI' : 'DIGITAL CONTRACT ROOM'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Artık şablon aramaya son. Sistem her sözleşmeye (Kira, Satış, Kaparo) firmanızın gerçek ünvanı (Seçkin Emlak/Otomotiv), broker isimleri ve WhatsApp numaralarını anlık bind ederek sıfır hata sözleşme üretir.' : 'Erase manual templates. The system dynamically binds store display titles, manager contacts, and WhatsApp parameters into legal real estate / auto templates in seconds.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] rounded-lg">Dinamik Firma Eşleşmesi</span>
+                      <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] rounded-lg">Dönemlik Ödemeler</span>
                     </div>
-                    <div className="relative group-hover:translate-x-1 transition-transform delay-75">
-                       <div className="w-2.5 h-2.5 bg-purple-400 rounded-full absolute -left-[29px] top-1/2 -translate-y-1/2 shadow-[0_0_10px_rgba(192,132,252,1)]" />
-                       <div className="w-32 h-1.5 bg-purple-400/80 rounded-full mb-1" />
-                       <div className="w-24 h-1 bg-purple-500/40 rounded-full" />
+                  </div>
+
+                  {/* Node 3 - Poster & AI Social Caption Creator */}
+                  <div className="p-10 rounded-[2.5rem] bg-cyan-950/10 border border-cyan-500/20 relative group overflow-hidden hover:bg-cyan-900/15 transition-all duration-300">
+                    <div className="w-full h-48 bg-[#070909] rounded-2xl mb-8 border border-cyan-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-cyan-400/40 transition-all shadow-lg">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-[9px] font-bold text-cyan-400">POSTER CREATOR & CAPTION</span>
+                        <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+                      </div>
+                      <div className="flex-1 bg-cyan-500/5 rounded-xl p-2.5 text-[8px] font-mono leading-relaxed text-slate-400 overflow-hidden">
+                        <span className="text-cyan-300 block mb-1">📋 Otomatik Sosyal Metin:</span>
+                        "🔑 Muhteşem Portföyümüz Satışta! Detaylı bilgi için Seçkin Emlak ofisimize ve Danışmanımıza ulaşın... #KıbrısEmlak"
+                      </div>
                     </div>
-                 </div>
-              </div>
-              <Layout className="w-10 h-10 text-purple-400 mb-8 relative z-10" />
-              <h3 className="text-2xl font-medium mb-4 relative z-10">{lang === 'tr' ? 'OTONOM (Tedarik, Vergi & Denetim)' : 'AUTONOMIC (Supply & Audit)'}</h3>
-              <div className="space-y-3 text-white/80 font-light text-sm relative z-10">
-                 <p>
-                  <span className="text-purple-400 font-medium">{lang === 'tr' ? 'Distribütör Zekası:' : 'Distributor Intelligence:'}</span> {lang === 'tr' ? 'Teklif kabul edildi ama stok yok mu? Sistem distribütör verisini okur, otomatik tedarik emri oluşturur.' : 'Quote approved but out of stock? System reads distributor data, creates auto-supply order.'}
-                </p>
-                <p>
-                  <span className="text-purple-400 font-medium">{lang === 'tr' ? 'Finans & Vergi Öngörüsü:' : 'Finance & Tax Forecast:'}</span> {lang === 'tr' ? 'Dijital hesap mutabakatı ve anlık ödenecek vergi öngörü dashboardları.' : 'Digital reconciliation and live dashboards anticipating upcoming taxes.'}
-                </p>
-                 <p>
-                  <span className="text-purple-400 font-medium">{lang === 'tr' ? 'İşlem Geçmişi:' : 'Audit Trail:'}</span> {lang === 'tr' ? 'Hangi personel ne iş yapmış, çarkı kim çeviriyor? Tüm raporları dilediğiniz cihaza indirin.' : 'Track exact operations by staff. Download all reports anywhere, anytime.'}
-                </p>
-              </div>
-            </div>
-          </div>
+                    <Share2 className="w-10 h-10 text-cyan-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'POSTER & DİGİTAL PAYLAŞIM' : 'POSTER & METADATA SHARING'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Sosyal medya ilanlarınızı anında göz alıcı posterlere dönüştürün. Portföy detaylarından otomatik çekilen marka sanitasyon işlemine sahip captionlar ile kopyala-yapıştır yapmaya hazır metinler elinizin altında.' : 'Convert your listings into stunning posters instantly. Visual assets are paired with auto-caption texts sanitizing special characters in your company store name.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Sıfır Manuel Giriş</span>
+                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Sosyal Medya Poster</span>
+                    </div>
+                  </div>
+
+                  {/* Node 4 - Regional Cyprus & Med Specific Optimizations */}
+                  <div className="p-10 rounded-[2.5rem] bg-emerald-950/10 border border-emerald-500/20 relative group overflow-hidden hover:bg-emerald-900/15 transition-all duration-300">
+                    <div className="w-full h-48 bg-[#070908] rounded-2xl mb-8 border border-emerald-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-emerald-400/40 transition-all shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-emerald-400">REGIONAL CALC FILTER</span>
+                        <MapPin className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
+                      </div>
+                      <div className="space-y-1 text-[9px] font-mono">
+                        <p className="text-white">📍 Bölge: Kuzey Kıbrıs / KKTC</p>
+                        <p className="text-emerald-400">⚡ Trafo Katkı Payı: Dahil</p>
+                        <p className="text-emerald-400">📊 KDV Muafiyeti: Seçili</p>
+                        <p className="text-emerald-400">🏷️ Tapu Tipi: Eşdeğer / Türk Koçanlı</p>
+                      </div>
+                    </div>
+                    <MapPin className="w-10 h-10 text-emerald-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'KIBRIS & BÖLGESEL OPTİMİZASYON' : 'REGION SPECIFIC DEALS'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Akdeniz ve Kıbrıs ticaret modellerine tam dijital entegrasyon! Trafo katkı bedelleri, KDV muafiyet opsiyonları, çatı terası hakları, koçan/tapu durumları (Türk Malı, Eşdeğer, tahsis) ve çok para birimli döviz kurları ile sistemi dilediğiniz gibi süzün.' : 'Zero local adaptation friction. Out of the box calculation fields for Trafo transformer pay, VAT status, terrace access parameters, and Cyprus property titles (equivalent, Turkish block, allocation).'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">Çok Dövizli Hesaplama</span>
+                      <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">Trafo & KDV Koruması</span>
+                    </div>
+                  </div>
+
+                  {/* Node 5 - Multi-Branch Manager Permissions */}
+                  <div className="p-10 rounded-[2.5rem] bg-purple-950/10 border border-purple-500/20 relative group overflow-hidden hover:bg-purple-900/15 transition-all duration-300">
+                    <div className="w-full h-48 bg-[#090709] rounded-2xl mb-8 border border-purple-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-purple-400/40 transition-all shadow-lg justify-center gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-xs text-purple-400">U1</div>
+                        <div>
+                          <p className="text-[10px] text-white">Yönetici / Broker</p>
+                          <p className="text-[8px] text-purple-400">Tüm şubeleri ve gizli portföyleri gör</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-xs text-slate-500">U2</div>
+                        <div>
+                          <p className="text-[10px] text-slate-400">Danışman / Alt Bayi</p>
+                          <p className="text-[8px] text-slate-500">Yalnızca onaylı ortak portföyleri gör</p>
+                        </div>
+                      </div>
+                    </div>
+                    <Users className="w-10 h-10 text-purple-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'ŞUBE & DANIŞMAN YALITIMI' : 'SECURE DELEGATION'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Hassas gayrimenkullerinizin ve araç portföylerinizin izinlerini rütbeye göre atayın. Brokerların kontrol panelinden tüm danışman aktivitelerini, tur durumlarını, rezerve kilitleri anlık izlemesini ve alt bayilerin yetki sınırlarını koruyun.' : 'Enforce safety on prestigious listings. Broker controls enable secure view authorizations, active sub-agent constraints, locked viewing logs, and fine-grain delegation.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] rounded-lg">Rol Bazlı Yetki</span>
+                      <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] rounded-lg">Tur & Log Geçmişi</span>
+                    </div>
+                  </div>
+
+                  {/* Node 6 - Vehicle Tracking Automations */}
+                  <div className="p-10 rounded-[2.5rem] bg-blue-950/10 border border-blue-500/20 relative group overflow-hidden hover:bg-blue-900/15 transition-all duration-300">
+                    <div className="w-full h-48 bg-[#070809] rounded-2xl mb-8 border border-blue-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-blue-400/40 transition-all shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-blue-400">VEHICLE LOGISTICS ENGINE</span>
+                        <Car className="w-3.5 h-3.5 text-blue-400" />
+                      </div>
+                      <div className="text-[9px] font-mono space-y-1 text-slate-400">
+                        <p className="text-white">🚗 Galeri Portföy: Range Rover Sport</p>
+                        <p className="text-blue-400">📊 Plaka Durumu: Kayıtlı Değil / Gümrüksüz</p>
+                        <p className="text-blue-400">⚙️ Servis / Muayene Günü: Kalan 4 Gün</p>
+                      </div>
+                    </div>
+                    <Car className="w-10 h-10 text-blue-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'AKILLI OTO GALERİ & TAKİP' : 'INTELLIGENT AUTO CRM'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Motorlu taşıt satıcıları için araç stoğu, evrak, gümrükleme, sigorta/kasko takibi ile sürücü zimmet otomasyonları. Mil/KM ayarlı bakım uyarı mekanizması ile araçlarınızın satış öncesi kondisyonunu en üstte saklayın.' : 'A beautiful gallery interface: manage custom auto traits, registration status, logistics tracking, insurance deadlines, and automated tire/maintenance mileage notifications.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] rounded-lg">Gümrük & Plaka Filtresi</span>
+                      <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] rounded-lg">Mekanik Kondisyon Log</span>
+                    </div>
+                  </div>
+
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="product-anatomy"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="mb-20 text-center max-w-3xl mx-auto">
+                  <div className="inline-flex items-center gap-2 text-indigo-400 text-[10px] font-black uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 mb-4">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {lang === 'tr' ? 'İŞLETMENİZİN OMURGASI' : 'THE SYSTEM CORES'}
+                  </div>
+                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
+                    {lang === 'tr' ? 'Ürün, Perakende & POS Yönetimi' : 'Product, Retail & POS Engine'}
+                  </h2>
+                  <p className="text-white/50 text-lg md:text-xl font-light">
+                    {lang === 'tr' 
+                      ? 'Şirketinizi "canlı bir organizmaya" dönüştüren 5 ana klasik sinir düğümü.' 
+                      : '5 classic modules that transform your retail store into a unified living organism.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {/* Brain */}
+                  <div className="p-10 rounded-[2.5rem] bg-indigo-950/15 border border-indigo-500/20 relative group overflow-hidden hover:bg-indigo-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#08080c] rounded-2xl mb-8 border border-indigo-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-indigo-500/40 transition-colors shadow-lg">
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="w-24 h-2.5 bg-indigo-500/20 rounded-full" />
+                        <div className="flex gap-2">
+                          <div className="w-6 h-6 bg-indigo-500/10 rounded-md" />
+                          <div className="w-6 h-6 bg-indigo-500/10 rounded-md" />
+                        </div>
+                      </div>
+                      <div className="flex-1 flex items-end gap-3 px-2 mt-auto">
+                        <div className="w-full h-[40%] bg-indigo-500/20 rounded-t-md transition-all group-hover:h-[45%]" />
+                        <div className="w-full h-[70%] bg-indigo-500/40 rounded-t-md transition-all group-hover:h-[75%]" />
+                        <div className="w-full h-[50%] bg-indigo-500/30 rounded-t-md transition-all group-hover:h-[55%]" />
+                        <div className="w-full h-[90%] bg-indigo-500/60 rounded-t-md relative transition-all group-hover:h-[95%]">
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_10px_rgba(129,140,248,0.8)]" />
+                        </div>
+                        <div className="w-full h-[60%] bg-indigo-500/30 rounded-t-md transition-all group-hover:h-[65%]" />
+                        <div className="w-full h-[80%] bg-indigo-500/50 rounded-t-md transition-all group-hover:h-[85%]" />
+                      </div>
+                    </div>
+                    <Zap className="w-10 h-10 text-indigo-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'BEYİN (Merkez Kasa & POS)' : 'BRAIN (Central Cashier & POS)'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'N sayıda perakende mağazanız, Hızlı POS modülü, e-ticaret siteniz, teknik servis servisleriniz ve toptan satışlarınız tek akıllı kasada birleşir.' : 'Integrate your N branches, high-speed POS registry, digital store checkout, and technical logs into a master unified system.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] rounded-lg">Nakit, Kart & Çok Döviz</span>
+                    </div>
+                  </div>
+
+                  {/* Senses */}
+                  <div className="p-10 rounded-[2.5rem] bg-cyan-950/15 border border-cyan-500/20 relative group overflow-hidden hover:bg-cyan-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#080c0c] rounded-2xl mb-8 border border-cyan-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-cyan-500/40 transition shadow-lg">
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="w-16 h-2 bg-cyan-500/20 rounded-full" />
+                        <div className="w-8 h-2 bg-cyan-500/20 rounded-full" />
+                      </div>
+                      <div className="flex flex-col gap-3 mt-2">
+                        <div className="w-full p-2 bg-cyan-500/5 rounded-lg border border-cyan-500/10 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 bg-cyan-500/20 rounded flex items-center justify-center"><div className="w-2 h-2 bg-cyan-400 rounded-full" /></div>
+                            <div className="w-20 h-1.5 bg-cyan-500/20 rounded-full" />
+                          </div>
+                          <div className="w-8 h-4 rounded-full bg-cyan-500/20 flex items-center px-0.5"><div className="w-3 h-3 bg-cyan-400 rounded-full ml-auto" /></div>
+                        </div>
+                        <div className="w-full p-2 bg-cyan-500/5 rounded-lg border border-cyan-500/10 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 bg-cyan-500/20 rounded flex items-center justify-center"><div className="w-2 h-2 bg-cyan-400 rounded-full" /></div>
+                            <div className="w-16 h-1.5 bg-cyan-500/20 rounded-full" />
+                          </div>
+                          <div className="w-8 h-4 rounded-full bg-cyan-500/20 flex items-center px-0.5"><div className="w-3 h-3 bg-cyan-400 rounded-full ml-auto" /></div>
+                        </div>
+                      </div>
+                    </div>
+                    <Globe className="w-10 h-10 text-cyan-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'DUYU ORGANLARI (Çoklu Bağlantı)' : 'SENSES (Multi-Connectivity)'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Ürünleriniz; anlık toplu fiyat güncelleme, kategori özellikleri ve çoklu döviz kurları ile tek elden pazaryerlerine ve el terminallerine saniyeler içinde dağıtılır.' : 'Seamless bulk updates. Spread customizable pricing models, structural item categories, and multi-currency formats to sales points effortlessly.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Dijital Fiyat Gör</span>
+                    </div>
+                  </div>
+
+                  {/* Kalp */}
+                  <div className="p-10 rounded-[2.5rem] bg-rose-950/15 border border-rose-500/20 relative group overflow-hidden hover:bg-rose-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#0c0809] rounded-2xl mb-8 border border-rose-500/20 flex flex-row overflow-hidden relative p-5 gap-4 group-hover:border-rose-500/40 transition shadow-lg">
+                      <div className="flex-1 flex flex-col gap-3">
+                        <div className="w-12 h-2 bg-rose-500/20 rounded-full mb-1" />
+                        <div className="w-full h-full bg-rose-500/5 rounded-lg border border-rose-500/10 flex flex-col p-2 gap-2">
+                          <div className="w-full h-10 bg-rose-500/10 rounded flex flex-col p-1 justify-center">
+                            <div className="w-3/4 h-1 bg-rose-400/40 rounded-full" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <Wallet className="w-10 h-10 text-rose-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'KALP (Teklif, Servis & Satış)' : 'HEART (Quotes & Service Logs)'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' ? 'Teknik servis takip süreçleri, ürün yedek parça kesintileri ve kurumsal profesyonel PDF teklifler. Onaylanan her teklif için anında yeni cari oluşturma yetisi.' : 'Corporate quote operations, stock deduction algorithms, and technical service sheets automatically linked with client consent tools.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Dijital Onay Köprüsü</span>
+                    </div>
+                  </div>
+
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
         </div>
       </section>
 

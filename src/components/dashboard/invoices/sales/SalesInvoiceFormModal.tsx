@@ -97,6 +97,7 @@ interface SalesInvoiceFormModalProps {
     taxTotal: number;
     grandTotal: number;
   };
+  onQuickCariAdd?: (searchStr: string) => void;
 }
 
 export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
@@ -164,7 +165,8 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   removeItem,
   notes,
   setNotes,
-  totals
+  totals,
+  onQuickCariAdd
 }) => {
   if (!isOpen) return null;
 
@@ -229,6 +231,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     type="all-accounts"
                     lang={isTr ? 'tr' : 'en'}
                     placeholder={isTr ? 'Müşteri veya Cari arayın...' : 'Search Customer or Company...'}
+                    onQuickAdd={onQuickCariAdd}
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-4">
@@ -450,6 +453,19 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                       
                       {showProductDropdown && productSearch && (
                         <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-64 overflow-y-auto p-2">
+                          <div className="p-1.5 border-b border-slate-100 mb-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowQuickProductModal(true);
+                                setShowProductDropdown(false);
+                              }}
+                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              {isTr ? `Hızlı Ürün Ekle: "${productSearch}"` : `Quick Add Product: "${productSearch}"`}
+                            </button>
+                          </div>
                           {filteredProducts.map((p: any) => (
                             <button
                               key={p.id}
@@ -474,18 +490,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                           ))}
                           {filteredProducts.length === 0 && (
                             <div className="p-4 text-center">
-                              <p className="text-sm text-slate-500 mb-2">{isTr ? "Ürün bulunamadı" : "Product not found"}</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowQuickProductModal(true);
-                                  setShowProductDropdown(false);
-                                }}
-                                className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center gap-1 w-full"
-                              >
-                                <Plus className="h-4 w-4" />
-                                {isTr ? "Hızlı Ürün Ekle" : "Quick Add Product"}
-                              </button>
+                              <p className="text-sm text-slate-500 mb-1">{isTr ? "Eşleşen başka ürün bulunamadı." : "No other matching products found."}</p>
                             </div>
                           )}
                         </div>

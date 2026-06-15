@@ -12,7 +12,7 @@ import {
   Loader2,
   X 
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { normalizeSearch } from "../lib/searchUtils";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -85,6 +85,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [expenseCenter, setExpenseCenter] = useState("");
   const [lastEditedId, setLastEditedId] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [purchaseHtmlLoading, setPurchaseHtmlLoading] = useState(false);
+  const [purchaseIframeReady, setPurchaseIframeReady] = useState(false);
 
   useEffect(() => {
     setPage(1);
@@ -206,7 +208,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
             tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
           })),
           payment_method: paymentMethod,
-          payment_status: paymentStatus,
+          payment_status: paymentMethod !== 'term' ? 'paid' : paymentStatus,
           currency,
           exchange_rate: Number(exchangeRate) || 1,
           is_tax_inclusive: isTaxInclusive,
@@ -319,7 +321,15 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   });
 
   const exportToExcel = () => {
-    const data = invoices.map((inv: any) => ({
+    const targetInvoices = selectedIds.length > 0 
+      ? invoices.filter((i: any) => selectedIds.includes(i.id))
+      : invoices;
+
+    if (selectedIds.length > 0) {
+      toast.success(isTr ? `Seçili ${selectedIds.length} fatura Excel'e aktarılıyor...` : `Exporting ${selectedIds.length} selected invoices...`);
+    }
+
+    const data = targetInvoices.map((inv: any) => ({
       [isTr ? 'Tarih' : 'Date']: new Date(inv.invoice_date).toLocaleDateString('tr-TR'),
       [isTr ? 'Fatura No' : 'Invoice No']: inv.invoice_number,
       [isTr ? 'Satıcı' : 'Supplier']: inv.company_name,
@@ -332,6 +342,16 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Purchase Invoices");
     XLSX.writeFile(wb, `alis_faturalari_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleBulkPrint = () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkPrinting(true);
+    toast.info(isTr ? "Toplu yazdırma hazırlanıyor..." : "Preparing bulk print...");
+    setTimeout(() => {
+      window.print();
+      setIsBulkPrinting(false);
+    }, 1000);
   };
 
   const handleSyncInbox = async () => {
@@ -352,16 +372,22 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   };
 
   const handleViewHtml = async (id: number) => {
+    setPurchaseHtmlLoading(true);
+    setPurchaseIframeReady(false);
+    setShowHtmlModal(true);
     try {
       const res = await api.getPurchaseInvoiceHtml(id, role === 'superadmin' ? storeId : undefined);
       if (res.html) {
         setSelectedHtml(res.html);
-        setShowHtmlModal(true);
       } else {
         toast.error(isTr ? "Fatura görseli bulunamadı" : "Invoice image not found");
+        setShowHtmlModal(false);
       }
     } catch (error: any) {
       toast.error(error.message);
+      setShowHtmlModal(false);
+    } finally {
+      setPurchaseHtmlLoading(false);
     }
   };
 
@@ -429,9 +455,11 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           )}
           <button
             onClick={exportToExcel}
-            className="p-2 bg-white border border-slate-200 text-emerald-600 rounded-xl hover:bg-slate-50 transition-all"
+            className="p-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all text-xs font-black flex items-center gap-2 shadow-sm"
+            title={isTr ? "Excel'e Aktar" : "Export to Excel"}
           >
-            <FileSpreadsheet className="h-5 w-5" />
+            <FileSpreadsheet className="h-4 w-4" />
+            <span className="hidden sm:inline">{isTr ? "Excel (XLS)" : "Excel (XLS)"}</span>
           </button>
           <button
             onClick={() => {
@@ -458,6 +486,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         handleViewDetails={(inv) => { setSelectedInvoice(inv); setShowDetailsModal(true); }}
         handleEdit={handleEdit}
         handleDelete={handleDelete}
+        handleViewHtml={handleViewHtml}
         handleUpdateTicariStatus={handleUpdateTicariStatus}
         handleUpdatePaymentStatus={handleUpdatePaymentStatus}
         page={page}
@@ -533,11 +562,13 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
               <div className="flex gap-2">
                 <button 
                   onClick={() => {
-                    const win = window.open('', '_blank');
-                    win?.document.write(selectedHtml || '');
-                    win?.document.close();
+                    const iframe = document.getElementById('purchase-invoice-iframe') as HTMLIFrameElement;
+                    if (iframe?.contentWindow) {
+                      iframe.contentWindow.focus();
+                      iframe.contentWindow.print();
+                    }
                   }}
-                  className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-2"
+                  className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all flex items-center gap-2 shadow-sm"
                 >
                   <Printer className="h-4 w-4" />
                   {isTr ? "Yazdır" : "Print"}
@@ -547,8 +578,23 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-slate-100 p-8">
-              <div className="bg-white shadow-lg mx-auto w-fit p-1" dangerouslySetInnerHTML={{ __html: selectedHtml || '' }} />
+            <div className="relative flex-1 overflow-auto bg-slate-100 p-8 flex justify-center">
+              {(purchaseHtmlLoading || !purchaseIframeReady) && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100/90 backdrop-blur-xs gap-4 z-10 transition-opacity duration-300">
+                   <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
+                   <p className="text-sm font-bold text-slate-500 animate-pulse uppercase tracking-widest">{isTr ? 'Görsel Hazırlanıyor...' : 'Preparing Preview...'}</p>
+                 </div>
+              )}
+              <iframe 
+                id="purchase-invoice-iframe"
+                srcDoc={selectedHtml || ''} 
+                onLoad={() => setPurchaseIframeReady(true)}
+                className={`w-full h-full bg-white shadow-lg rounded-2xl min-h-[60vh] border-0 p-4 transition-opacity duration-300 ${
+                  purchaseIframeReady && !purchaseHtmlLoading ? 'opacity-100' : 'opacity-0'
+                }`}
+                title="Invoice HTML Preview" 
+                referrerPolicy="no-referrer"
+              />
             </div>
           </motion.div>
         </div>
@@ -570,6 +616,122 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
            } catch(err) { toast.error("Hata"); }
         }}
       />
+
+      {/* Floating Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[130] bg-slate-900 border border-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-black">{selectedIds.length}</span>
+              <span className="text-sm font-bold text-slate-300">{isTr ? "Seçili Fatura" : "Selected Invoices"}</span>
+            </div>
+            <div className="h-5 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBulkPrint}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                {isTr ? "SEÇİLENLERİ YAZDIR" : "PRINT SELECTED"}
+              </button>
+              <button
+                onClick={exportToExcel}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {isTr ? "EXCEL AKTAR" : "EXPORT EXCEL"}
+              </button>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="p-2 hover:bg-slate-800 rounded-xl transition-all text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hidden container that is only displayed during @media print printing */}
+      {isBulkPrinting && (
+        <div id="print-invoice-wrapper" className="print-section bg-white text-slate-900 font-sans p-6">
+          {invoices.filter((inv: any) => selectedIds.includes(inv.id)).map((invoice: any, idx: number) => (
+            <div key={invoice.id} className="mb-12 border-b-2 border-dashed border-slate-300 pb-12" style={{ pageBreakAfter: 'always' }}>
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900">{branding?.store_name || "Seçkin Mağaza"}</h1>
+                  <p className="text-xs text-slate-500 mt-1">{isTr ? 'Alış Faturası' : 'Purchase Invoice'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-slate-900">{invoice.invoice_number}</p>
+                  <p className="text-xs text-slate-500">{new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 mb-8 text-xs">
+                <div>
+                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'SATICI (TEDARİKÇİ)' : 'SUPPLIER'}</p>
+                  <p className="font-bold text-slate-800 text-sm">{invoice.company_name}</p>
+                  {invoice.tax_number && <p className="text-slate-500 mt-1">{isTr ? "VKN/TCKN:" : "Tax ID:"} {invoice.tax_number}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
+                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
+                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method === 'cash' ? (isTr ? 'Nakit' : 'Cash') : (isTr ? 'Vadeli' : 'Term')}</p>
+                </div>
+              </div>
+
+              <table className="w-full text-left text-xs border-collapse border border-slate-200 mb-8">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 uppercase font-black border-b border-slate-200">
+                    <th className="p-2 border border-slate-200">{isTr ? 'Ürün/Hizmet' : 'Product/Service'}</th>
+                    <th className="p-2 border border-slate-200 text-center">{isTr ? 'Miktar' : 'Qty'}</th>
+                    <th className="p-2 border border-slate-200 text-right">{isTr ? 'Birim Fiyat' : 'Price'}</th>
+                    <th className="p-2 border border-slate-200 text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
+                    <th className="p-2 border border-slate-200 text-right">{isTr ? 'Toplam' : 'Total'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(invoice.items || []).map((item: any, i: number) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="p-2 border border-slate-200 font-medium">{item.product_name}</td>
+                      <td className="p-2 border border-slate-200 text-center">{item.quantity}</td>
+                      <td className="p-2 border border-slate-200 text-right">{Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
+                      <td className="p-2 border border-slate-200 text-center">%{item.tax_rate}</td>
+                      <td className="p-2 border border-slate-200 text-right font-bold">{(Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="flex justify-between items-start text-xs">
+                <div className="max-w-md italic text-slate-500">
+                  {invoice.notes && <p className="mb-2"><span className="font-bold">{isTr ? 'Not:' : 'Note:'}</span> {invoice.notes}</p>}
+                </div>
+                <div className="w-64 space-y-1.5 text-right font-semibold">
+                  <div className="flex justify-between text-slate-500">
+                    <span>{isTr ? 'Ara Toplam' : 'Subtotal'}</span>
+                    <span>{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
+                    <span>{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2 text-indigo-600">
+                    <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                    <span>{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

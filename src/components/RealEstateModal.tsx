@@ -707,8 +707,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Ödeme Periyodu</label>
-                    <select className="w-full p-3 border rounded-xl text-sm" value={formData.billing_period || 'monthly'} onChange={(e) => setFormData({...formData, billing_period: e.target.value as 'monthly'|'yearly'})}>
+                    <select className="w-full p-3 border rounded-xl text-sm" value={formData.billing_period || 'monthly'} onChange={(e) => setFormData({...formData, billing_period: e.target.value as any})}>
                         <option value="monthly">Aylık</option>
+                        <option value="3-monthly">3 Aylık</option>
+                        <option value="6-monthly">6 Aylık</option>
                         <option value="yearly">Yıllık</option>
                     </select>
                   </div>

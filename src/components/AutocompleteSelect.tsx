@@ -111,6 +111,22 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
             exit={{ opacity: 0, y: 10 }}
             className="absolute z-[100] left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto"
           >
+            {onQuickAdd && search.trim() !== "" && (
+              <div className="p-2 bg-indigo-50/50 border-b border-indigo-100/50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onQuickAdd(search);
+                    setShowDropdown(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-xs font-black text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-xs"
+                >
+                  <Plus className="h-3.5 w-3.5 animate-pulse" />
+                  {isTr ? `Hızlı Yeni Ekle: "${search}"` : `Quick Add New: "${search}"`}
+                </button>
+              </div>
+            )}
+
             {filteredItems.length > 0 ? (
               <div className="py-2">
                 {filteredItems.map((item, idx) => (
@@ -141,22 +157,6 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
                 <p className="text-xs text-slate-400 font-medium">
                   {isTr ? 'Sonuç bulunamadı' : 'No results found'}
                 </p>
-              </div>
-            )}
-
-            {onQuickAdd && (
-              <div className="p-2 bg-slate-50 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onQuickAdd(search);
-                    setShowDropdown(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {isTr ? `Yeni Olarak Ekle: "${search}"` : `Add as New: "${search}"`}
-                </button>
               </div>
             )}
           </motion.div>

@@ -379,7 +379,10 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
             {lang === "tr" ? "ÖDEME PERİYODU" : "PAYMENT PERIOD"}
           </p>
           <p className="text-sm font-black text-sky-950 transition-colors uppercase">
-            {data.billing_period === 'yearly' ? (lang === "tr" ? 'Yıllık' : 'Yearly') : (lang === "tr" ? 'Aylık' : 'Monthly')}
+            {data.billing_period === 'yearly' ? (lang === "tr" ? 'Yıllık' : 'Yearly') :
+             data.billing_period === '3-monthly' ? (lang === "tr" ? '3 Aylık' : '3-Monthly') :
+             data.billing_period === '6-monthly' ? (lang === "tr" ? '6 Aylık' : '6-Monthly') :
+             (lang === "tr" ? 'Aylık' : 'Monthly')}
           </p>
         </div>
       )}

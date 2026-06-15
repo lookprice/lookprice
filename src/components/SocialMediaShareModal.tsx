@@ -137,6 +137,10 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     const mainHashtags = isRent 
       ? `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibriskiralik #luxurylife #realestatepremium #kiralikfirsati ${storeHashtag}`
       : `#kibrisemlak #${propertyLocation.toLowerCase()}emlak #kibrisyatirim #luxurylife #realestatepremium #yatirimfirsati ${storeHashtag}`;
+    const burgerPriceText = priceText;
+    const bPeriod = property.billing_period === 'yearly' ? 'Yıllık' :
+                    property.billing_period === '3-monthly' ? '3 Aylık' :
+                    property.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık';
 
     switch (selectedTone) {
       case 'luxury':
@@ -149,7 +153,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                (isRent 
                  ? `• Eşya Durumu: ${property.furnished ? 'A-Z Tam Teşekküllü Eşyalı' : 'Eşyasız (Zevkinize Uygun Tasarım)'}\n` +
                    `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Özel Görüşülecek'}\n` +
-                   `• Ödeme Periyodu: ${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}\n`
+                   `• Ödeme Periyodu: ${bPeriod}\n`
                  : `• Tapu Durumu: ${titleType}\n`) +
                `• Bölge: ${regionText}\n\n` +
                `💰 ${priceLabel}: ${priceText}\n\n` +
@@ -173,7 +177,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `🎯 Finansal & Yapısal Özet:\n` +
                `• Alt Tip: ${property.subtype || typeText}\n` +
                `• Değer Raporu: Bölgesel ortalamalara göre oldukça avantajlı\n` +
-               (isRent ? `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}\n• Ödeme Periyodu: ${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}\n` : '') +
+               (isRent ? `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}\n• Ödeme Periyodu: ${bPeriod}\n` : '') +
                `${amortSentence}\n` +
                `• Kapalı Alan Raporu: ${sqmText || 'Belirtilmedi'} (${roomsText})\n` +
                `• Konum Kusursuzluğu: Ana arterlere, denize ve lüks marina hattına yürüme mesafesinde\n` +
@@ -201,7 +205,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                (isRent
                  ? `👉 Kullanım Kolaylığı: ${property.furnished ? 'Taşınmaya hazır, tam mobilyalı!' : 'Kendi tarzınızı yansıtabileceğiniz boş mülk.'}\n` +
                    `👉 Depozito Koşulu: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)} depozitolu` : 'Görüşülecek'}\n` +
-                   `👉 Ödeme Kolaylığı: ${property.billing_period === 'yearly' ? 'Yıllık peşin periyot' : 'Aylık ödemeli periyot'}\n`
+                   `👉 Ödeme Kolaylığı: ${property.billing_period === 'yearly' ? 'Yıllık peşin periyot' : property.billing_period === '3-monthly' ? '3 Aylık periyot' : property.billing_period === '6-monthly' ? '6 Aylık periyot' : 'Aylık ödemeli periyot'}\n`
                  : `👉 Güvenli Tapu: ${titleType} güvencesiyle içiniz rahat\n`) +
                `👉 Lokasyon Dostu: Alışveriş noktalarına, kafelere ve masmavi plajlara çok yakın!\n\n` +
                `💰 Fiyat: ${priceText}${isRent ? ' / Aylık' : ''} (Hızlı karar veren fırsat sahibi olur!)\n\n` +
@@ -528,7 +532,10 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
           specString += `  •  💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}`;
         }
         if (property.billing_period) {
-          specString += ` (${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'})`;
+          const bpText = property.billing_period === 'yearly' ? 'Yıllık' :
+                         property.billing_period === '3-monthly' ? '3 Aylık' :
+                         property.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık';
+          specString += ` (${bpText})`;
         }
       } else {
         specString += `📜 ${titleType}`;
@@ -739,7 +746,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   <p className={`text-[10px] font-bold mt-2.5 tracking-tight truncate ${themeConfig.textBody}`}>
                     {roomsText ? `🛌 ${roomsText} • ` : ''}
                     {isRent 
-                      ? `${property.furnished ? '🛋️ Eşyalı' : '🔑 Boş'} • ${property.deposit ? `💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}` : 'Depozitosuz'} • ⏱️ ${property.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}` 
+                      ? `${property.furnished ? '🛋️ Eşyalı' : '🔑 Boş'} • ${property.deposit ? `💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}` : 'Depozitosuz'} • ⏱️ ${
+                          property.billing_period === 'yearly' ? 'Yıllık' :
+                          property.billing_period === '3-monthly' ? '3 Aylık' :
+                          property.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık'
+                        }` 
                       : `📜 ${titleType}`}
                     {property.kktc_region ? ` • 🌍 ${property.kktc_region}` : ''}
                   </p>

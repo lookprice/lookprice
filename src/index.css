@@ -98,7 +98,11 @@
 
   /* Make sure our print container and all elements inside are visible */
   #print-poster-wrapper,
-  #print-poster-wrapper * {
+  #print-poster-wrapper *,
+  #print-invoice-wrapper,
+  #print-invoice-wrapper *,
+  .print-section,
+  .print-section * {
     visibility: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -118,6 +122,19 @@
     z-index: 9999999 !important;
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
+  }
+
+  #print-invoice-wrapper {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 15mm !important;
+    background: white !important;
+    z-index: 9999999 !important;
   }
 
   @page {

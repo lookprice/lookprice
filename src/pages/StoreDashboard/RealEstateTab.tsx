@@ -8,42 +8,27 @@ import {
   Lock,
   Plus,
   Search,
-  List,
   LayoutGrid,
-  SlidersHorizontal,
+  List,
   Home,
   MapPin,
   FolderLock,
-  Users,
-  Sparkles,
   FileSignature,
   Printer,
   Calendar,
   Edit2,
   Trash2,
-  AlertTriangle,
-  Shield,
-  Megaphone,
-  Send,
-  Check,
-  RefreshCw,
-  Award,
-  X,
-  MessageSquare,
-  Scale,
-  FileCheck,
-  FileText,
-  Cloud,
-  Radar
+  Cloud
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
-import { AcquisitionRadar } from "../../components/AcquisitionRadar";
+
 const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
 const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
 const ArrangeTourModal = React.lazy(() => import("../../components/ArrangeTourModal").then(m => ({ default: m.ArrangeTourModal })));
 const SocialMediaShareModal = React.lazy(() => import("../../components/SocialMediaShareModal").then(m => ({ default: m.SocialMediaShareModal })));
+
 interface RealEstateTabProps {
   properties: any[];
   loading: boolean;
@@ -67,10 +52,6 @@ const formatNumberVal = (val: any) => {
 const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, initialStatusFilter, onResetStatusFilter, storeId }: RealEstateTabProps) => {
   const safeProperties = Array.isArray(properties) ? properties : [];
 
-  const handleOpenMatching = (property: any) => {
-    setMatchingProperty(property);
-  };
-
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
@@ -82,8 +63,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       setDriveConnected(!!res?.connected);
     }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
   }, []);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [filterBranch, setFilterBranch] = useState("all");
   const [branches, setBranches] = useState<any[]>([]);
   const [filterScope, setFilterScope] = useState("all");
@@ -95,50 +76,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [contractProperty, setContractProperty] = useState<any>(null);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
-  const [matchingProperty, setMatchingProperty] = useState<any>(null);
   const [isSocialShareModalOpen, setIsSocialShareModalOpen] = useState(false);
   const [socialShareProperty, setSocialShareProperty] = useState<any>(null);
 
-  // Missing States for CRM Overlay & Hub tabs
-  const [activeHubTab, setActiveHubTab] = useState<string>('matches');
-  const [aiAdPlatform, setAiAdPlatform] = useState<string>('portal');
-  const [buyerOfferAmount, setBuyerOfferAmount] = useState<number | "">("");
-  const [negotiationNotes, setNegotiationNotes] = useState<string>("");
-  const [newFeedbackReview, setNewFeedbackReview] = useState<string>("");
-  const [newFeedbackRating, setNewFeedbackRating] = useState<number>(5);
-  const [selectedSplitBranch, setSelectedSplitBranch] = useState<any>(null);
-  const [splitNegotiatedAgent, setSplitNegotiatedAgent] = useState<string>("");
-  const [escrowTimeline, setEscrowTimeline] = useState<any[]>([
-    { id: "e1", label: "Kaparo Depozito Yatırımı", completed: true, date: "2026-06-02" },
-    { id: "e2", label: "Koçan / Hukuki İnceleme", completed: true, date: "2026-06-03" },
-    { id: "e3", label: "Yabancı Satın Alım İznine Başvuru", completed: false, date: "Bekliyor" },
-    { id: "e4", label: "Devlet Harç ve Damga Pulu Ödemesi", completed: false, date: "Bekliyor" },
-    { id: "e5", label: "Tapu Sicil Devir Mukavelesi İmza", completed: false, date: "Bekliyor" }
-  ]);
-  const cmaElasticityPrice = matchingProperty ? Math.round((matchingProperty.price || 0) * 0.95) : 0;
-
-  const [complianceChecked, setComplianceChecked] = useState<Record<string, boolean>>({});
-  const [splitCommissionPercentage, setSplitCommissionPercentage] = useState(3);
-  const [splitRatio, setSplitRatio] = useState(50);
-  
-  const [showingFeedbacks, setShowingFeedbacks] = useState<any[]>([
-    {
-      id: "demo-f-1",
-      agent: "Emrah Ceyhan",
-      status: "Sıcak Takip",
-      date: "2026-06-01",
-      rating: 4,
-      review: "Mülk çok iyi konumda, ancak fiyat pazar ortalamasının biraz üzerinde. Alıcı düşünmek için süre istedi."
-    },
-    {
-      id: "demo-f-2",
-      agent: "Canan Yılmaz",
-      status: "Fiyat Revizesi İstiyor",
-      date: "2026-05-30",
-      rating: 3,
-      review: "Alıcı lokasyonu çok beğendi ama fiyatı yüksek buldu. Eğer biraz esneklik gösterilirse teklif vermeye hazır."
-    }
-  ]);
   const [showingBufferTime, setShowingBufferTime] = useState<number>(15);
   const [showingWaitlist, setShowingWaitlist] = useState<any[]>([
     {
@@ -156,13 +96,10 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
     scentRefreshed: true,
     flyersPresent: true
   });
-  const [matchList, setMatchList] = useState<any[]>([]);
-  const [activeDripTemplate, setActiveDripTemplate] = useState<any>(null);
   
   const [newFeedbackAgent, setNewFeedbackAgent] = useState("");
   const [newFeedbackStatus, setNewFeedbackStatus] = useState("pending");
   const [statusTabFilter, setStatusTabFilter] = useState<'all' | 'sale' | 'rent' | 'optioned' | 'sold'>('all');
-  const [showRadar, setShowRadar] = useState(false);
 
   const uniqueRegions = Array.from(new Set(safeProperties.map(p => p.kktc_region).filter(Boolean))) as string[];
 
@@ -213,11 +150,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
     return unescapeEntities(html).replace(/<[^>]*>?/gm, '');
   };
 
-  const runMatchingAlgorithm = (property: any) => {
-    // Placeholder matching logic
-    return [];
-  };
-
   // Safe checks for user role representation
   const userRole = (user?.role || 'admin').toString();
   const isOfficeManager = ["superadmin", "admin", "storeadmin", "manager", "owner", "portfolio_manager", "portföy yöneticisi", "consultant", "danışman", "danisman", "editor"].includes((userRole || "admin").toLowerCase());
@@ -238,7 +170,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
     setPropertyToPrint(property);
     setTimeout(() => {
       window.print();
-      // Backwards fallback timeout if afterprint listener doesn't trigger
       setTimeout(() => {
         setPropertyToPrint(null);
       }, 3000);
@@ -364,13 +295,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             </button>
           )}
           <button
-            onClick={() => setShowRadar(!showRadar)}
-            className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-md active:scale-95 self-start md:self-auto ${showRadar ? 'bg-indigo-900 text-white' : 'bg-white text-indigo-600 border border-indigo-100 hover:bg-slate-50'}`}
-          >
-            <Radar className={`h-4 w-4 ${showRadar ? 'animate-pulse' : ''}`} />
-            {showRadar ? 'Portföy Süzgecine Dön' : 'Bireysel Portföy Radarı (101evler)'}
-          </button>
-          <button
             onClick={() => {
               setSelectedProperty(null);
               setIsModalOpen(true);
@@ -397,51 +321,55 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         </div>
         <div>
           <select
-            className="w-full p-2 bg-slate-50 border-0 rounded-xl text-xs font-bold text-slate-600 focus:bg-white focus:ring-1 focus:ring-indigo-500"
-            value={filterRegion}
-            onChange={(e) => setFilterRegion(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-50 border-0 rounded-xl text-xs font-bold text-slate-700 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+            value={filterScope}
+            onChange={(e) => setFilterScope(e.target.value)}
           >
-            <option value="all">Tüm Pilot Bölgeler</option>
-            {uniqueRegions.map(region => (
-              <option key={region} value={region}>{region}</option>
-            ))}
+            <option value="all">🌐 Ağ ve Paylaşım Durumu</option>
+            <option value="shared_pool">🌐 Ortak Havuz İlanları</option>
+            <option value="branch_private">🏢 Sadece Kendi Şubem</option>
+            <option value="private">🔑 Sadece Benim Şahsi İlanlarım</option>
+            <option value="locked">🔒 Kilitli / Rezerveli İlanlar</option>
           </select>
         </div>
         <div>
-           <button
-              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200/50 transition-all text-center"
-           >
-              {viewMode === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
-              {viewMode === 'grid' ? "Liste Görünümü" : "Izgara Görünümü"}
-           </button>
+          <select
+            className="w-full px-3 py-2 bg-slate-50 border-0 rounded-xl text-xs font-bold text-slate-700 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+            value={filterRegion}
+            onChange={(e) => setFilterRegion(e.target.value)}
+          >
+            <option value="all">📍 Tüm Bölgeler (Kuzey Kıbrıs)</option>
+            {uniqueRegions.map(reg => (
+              <option key={reg} value={reg}>{reg}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Portföy Durum Sekmeleri (Satılık / Kiralık Ayrımı) */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-1.5 bg-slate-100/60 border border-slate-200/50 rounded-2xl">
-        <div className="flex flex-wrap gap-1 md:gap-1.5">
-          <button
+      {/* Segmented status filter tab header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
+        <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-205/60">
+          <button 
             onClick={() => setStatusTabFilter('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
               statusTabFilter === 'all'
-                ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                ? 'bg-white text-slate-900 shadow-sm font-bold scale-[1.01]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            TÜMÜ ({totalCount})
+            HEPSİ ({totalCount})
           </button>
-          <button
+          <button 
             onClick={() => setStatusTabFilter('sale')}
             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
               statusTabFilter === 'sale'
-                ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                ? 'bg-indigo-600 text-white shadow-sm font-bold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
             🏠 SATILIK ({saleCount})
           </button>
-          <button
+          <button 
             onClick={() => setStatusTabFilter('rent')}
             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
               statusTabFilter === 'rent'
@@ -451,7 +379,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           >
             🔑 KİRALIK ({rentCount})
           </button>
-          <button
+          <button 
             onClick={() => setStatusTabFilter('optioned')}
             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
               statusTabFilter === 'optioned'
@@ -459,9 +387,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            ✍ OPSİYONLU ({optionedCount})
+            ✍ OPSİYONLANDI ({optionedCount})
           </button>
-          <button
+          <button 
             onClick={() => setStatusTabFilter('sold')}
             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
               statusTabFilter === 'sold'
@@ -474,9 +402,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         </div>
       </div>
       
-      {showRadar ? (
-        <AcquisitionRadar />
-      ) : loading ? (
+      {loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
           <span className="text-xs text-slate-500 font-bold">Portföy Yükleniyor...</span>
@@ -490,8 +416,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       ) : (
         <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
           {displayedProperties.map(property => {
-            const matchesCount = runMatchingAlgorithm(property).length;
-            
             return (
               <div 
                 key={property.id} 
@@ -504,7 +428,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                       src={property.images[0]} 
                       alt={property.title} 
                       className="w-full h-full object-cover" 
-                      referrerPolicy="no-referrer" 
+                      referrerPolicy="no-referrer"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -526,7 +450,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                     </span>
                   </div>
                 </div>
-
 
                 {/* Content body */}
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
@@ -630,30 +553,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   </div>
 
                   <div className="pt-3 border-t border-slate-100 flex flex-col space-y-3">
-                    
-                    {/* Alıcı Portföy & Müşteri Eşleştirme Motoru */}
-                    <div 
-                      onClick={() => handleOpenMatching(property)}
-                      className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 p-2.5 rounded-xl flex items-center justify-between cursor-pointer active:scale-98 transition-all"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
-                          <Users className="w-3.5 h-3.5 stroke-[2.5]" />
-                        </div>
-                        <div className="text-left">
-                          <span className="block text-[10px] font-black text-indigo-950 uppercase tracking-wide">Yatırımcı Bulucu Motoru</span>
-                          <span className="block text-[9px] text-indigo-600">
-                            {matchesCount > 0 ? `🔥 ${matchesCount} Eşleşen Alıcı Bulundu!` : 'Kriterlere uygun alıcı bulunamadı'}
-                          </span>
-                        </div>
-                      </div>
-                      {matchesCount > 0 && (
-                        <span className="inline-flex items-center gap-1 bg-indigo-600 text-white px-2 py-1 rounded-lg text-[9px] font-black uppercase">
-                          Eşleştir
-                          <Sparkles className="w-2.5 h-2.5" />
-                        </span>
-                      )}
-                    </div>
 
                     {/* Price and Standard Action Buttons */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -687,8 +586,18 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           <Printer className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => { setSelectedProperty(property); setIsModalOpen(true); }}
-                          className="flex items-center justify-center p-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 shrink-0"
+                          onClick={() => { setActiveTourProperty(property); setIsTourModalOpen(true); }}
+                          className="flex items-center justify-center p-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl transition-all shadow active:scale-95 border border-slate-200 shrink-0"
+                          title="Temsilci Keşif / Gösterim Turu Planla"
+                        >
+                          <Calendar className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedProperty(property);
+                            setIsModalOpen(true);
+                          }}
+                          className="flex items-center justify-center p-2.5 text-slate-750 hover:bg-slate-100 rounded-xl transition-all border border-transparent shrink-0"
                           title="Düzenle"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -714,1045 +623,6 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           })}
         </div>
       )}
-
-      {/* MATCHING ALGORITHM OVERLAY MODAL / ENRAKİPSİZ ELİTE CRM HUB */}
-      {matchingProperty && (() => {
-        const propSqmPrice = matchingProperty.square_meters ? Math.round(matchingProperty.price / matchingProperty.square_meters) : 0;
-        
-        // Estimatat regional average in KKTC/TR
-        let regionalAverage = 1300;
-        const loc = (matchingProperty.location || "").toLowerCase();
-        const reg = (matchingProperty.kktc_region || "").toLowerCase();
-        if (loc.includes("girne") || reg.includes("girne")) regionalAverage = 1750;
-        else if (loc.includes("iskele") || reg.includes("iskele")) regionalAverage = 1500;
-        else if (loc.includes("lefkoşa") || reg.includes("lefkoşa")) regionalAverage = 950;
-        else if (loc.includes("mağusa") || reg.includes("mağusa") || loc.includes("magosa")) regionalAverage = 1100;
-
-        const isUnderpriced = propSqmPrice <= regionalAverage;
-        const diffPercent = Math.round(Math.abs((propSqmPrice - regionalAverage) / regionalAverage) * 100);
-
-        // Compliance score calculated
-        const checkedCount = Object.values(complianceChecked).filter(Boolean).length;
-        const totalCount = Object.keys(complianceChecked).length;
-        const complianceScore = Math.round((checkedCount / totalCount) * 100);
-
-        // Commission Split calculations
-        const estTotalCommission = Math.round((matchingProperty.price || 0) * (splitCommissionPercentage / 100));
-        const firstBranchCommission = Math.round(estTotalCommission * (splitRatio / 100));
-        const secondBranchCommission = estTotalCommission - firstBranchCommission;
-
-        // Dynamic Copywriting generator
-        const getAICopyText = () => {
-          const isRentMatch = matchingProperty.listing_intent === 'rent';
-          const priceLabelMatch = isRentMatch ? "Aylık Kira Bedeli" : "Fiyatı";
-          const intentWordMatch = isRentMatch ? "kiralık" : "satılık";
-          const intentActionMatch = isRentMatch ? "kiracısını bekliyor" : "yeni sahibini arıyor";
-
-          if (aiAdPlatform === 'portal') {
-            return `🌟 KAÇIRILMAYACAK FIRSAT! ${matchingProperty.location} bölgesinde ${intentWordMatch} harika ${matchingProperty.type}! 🌟\n\n` +
-                   `Özellikler:\n` +
-                   `• ${formatNumberVal(matchingProperty.square_meters)} m² Net Yaşam Alanı\n` +
-                   `• ${matchingProperty.room_count} Lüks Tasarımlı Oda Sayısı\n` +
-                   (isRentMatch 
-                     ? `• Eşya Durumu: ${matchingProperty.furnished ? 'Tam Eşyalı & Taşınmaya Hazır' : 'Eşyasız (Zevkinize Göre Tasarım)'}\n`
-                     : `• Tapu Statüsü: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n`) +
-                   `• Isınma ve Donanım: Lüks iklimlendirme sistemleri hazır\n\n` +
-                   `📍 Konum: Mağaza, deniz hattı ve sosyal yaşam mekanlarına yürüme mesafesinde.\n\n` +
-                   `📞 ${branding?.store_name || branding?.name || 'Seçkin Emlak'} çok şubeli ağ güvencesiyle detaylı sunum, dosya inceleme ve mülk yerinde sunumu için hemen iletişime geçin.`;
-          } else if (aiAdPlatform === 'social') {
-            return `🔥 Göz Alıcı Yatırım Lokasyonu: Kuzey Kıbrıs / ${matchingProperty.kktc_region || "Girne"} 🔥\n\n` +
-                   `Uluslararası standartlarda yaşam sunan ${matchingProperty.location} bölgesindeki bu muhteşem ${matchingProperty.type} ${intentActionMatch}!\n\n` +
-                   `📈 Bölgesel Analiz: £${formatNumberVal(regionalAverage)}/m²\n` +
-                   `🎯 Fırsat ${priceLabelMatch}: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}${isRentMatch ? ' / Aylık' : ''} (${formatNumberVal(matchingProperty.square_meters)} m²)\n` +
-                   (isRentMatch
-                     ? `🔑 Kiralama Koşulu: Minimum 1 Yıl Resmi Sözleşme Güvencesi\n\n`
-                     : `📜 Tapu Güvencesi: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n`) +
-                   `Detaylı görsel kataloğumuz ve mülk raporuna profilimizden hemen ulaşabilirsiniz.\n\n` +
-                   `💡 Daha fazla bilgi için hemen DM veya profil bağlantımızdan bize ulaşın! ${isRentMatch ? '#kktckiralik #kibriskiralik #realestate #lookpricehub' : '#kktcemlak #kibrisyatirim #realestate #lookpricehub'}`;
-          } else {
-            return `Merhaba Sayın Yatırımcımız,\n\n` +
-                   `${branding?.store_name || branding?.name || 'Seçkin Emlak'} Ağının çok şubeli veri tabanından kriterlerinize özel eşleşen yeni bir ${intentWordMatch} mülk fırsatı kaydoldu:\n\n` +
-                   `📌 Bölge: ${matchingProperty.location} (${matchingProperty.kktc_region || 'KKTC'})\n` +
-                   `🏡 Mülk Tipi: ${formatNumberVal(matchingProperty.square_meters)} m² Net - ${matchingProperty.room_count} - ${matchingProperty.type}\n` +
-                   `💰 ${priceLabelMatch}: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}\n` +
-                   (isRentMatch
-                     ? `🛋️ Eşya Durumu: ${matchingProperty.furnished ? 'Tam Teşekküllü Eşyalı' : 'Eşyasız/Sıfır Daire'}\n\n`
-                     : `🔑 Koçan: ${matchingProperty.kktc_title_type || "Eşdeğer Koçan"}\n\n`) +
-                   `Mülkle ilgili detaylı görseller ve resmî mülk fizibilite raporuna ulaşmak ve incelemek için bizimle dilediğiniz an iletişime geçebilirsiniz.\n\n` +
-                   `Portföy sorumlumuz ile öncelikli randevu ayarlamak için bu mesaja dönüş yapabilirsiniz. Saygılarımızla.`;
-          }
-        };
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setMatchingProperty(null)} />
-            
-            <div className="bg-white rounded-[2.5rem] w-full max-w-4xl relative z-10 flex flex-col max-h-[90vh] shadow-2xl border border-slate-100 overflow-hidden">
-              
-              {/* BRAND HEADER */}
-              <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 relative">
-                <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
-                  <Award className="h-32 w-32" />
-                </div>
-                <div className="flex justify-between items-start gap-4">
-                  <div>
-                    <span className="bg-indigo-600/30 text-indigo-300 text-[10px] font-black tracking-widest px-2.5 py-1 rounded-full uppercase">
-                      🏆 ENRAKİPSİZ CRM & PORTFÖY YÖNETİM HUB
-                    </span>
-                    <h4 className="text-2xl font-black text-white mt-1.5 leading-none">
-                      Elite CRM İşlem Konsolu
-                    </h4>
-                    <p className="text-slate-300 text-xs mt-1.5 font-medium flex items-center gap-2">
-                      <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] text-white">🏡 {matchingProperty.title}</span>
-                      <span>• {matchingProperty.location} ({matchingProperty.kktc_region || 'TR'})</span>
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => setMatchingProperty(null)}
-                    className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Sub status row */}
-                <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-white/10 text-[10.5px] font-extrabold text-slate-300">
-                  <span>🏢 Sorumlu Ofis: <strong className="text-white">{matchingProperty.branch_name || 'Merkez Ofis'}</strong></span>
-                  <span>👤 Portföy Sorumlusu: <strong className="text-indigo-200">{matchingProperty.responsible_agent || 'Belirtilmedi'}</strong></span>
-                  <span>🔒 Paylaşım Durumu: <strong className="text-teal-300 uppercase">{matchingProperty.sharing_scope === 'private' ? 'Kişisel' : matchingProperty.sharing_scope === 'branch_private' ? 'Şubeye Özel' : 'Ortak Havuz'}</strong></span>
-                </div>
-              </div>
-
-              {/* TABS SELECTOR */}
-              <div className="bg-slate-50 border-b border-slate-200/80 px-6 py-2 flex flex-wrap gap-1.5 justify-center">
-                {[
-                  { id: 'matches', label: '🤝 Alıcı Eşleme', icon: Users },
-                  { id: 'showings', label: '👁️ Sunum Hazırlığı & Yorumlar', icon: MessageSquare },
-                  { id: 'negotiate', label: '⚖️ Pazarlık Pazarı', icon: Scale },
-                  { id: 'compliance', label: '🛡️ Mevzuat Uyumu', icon: Shield, badge: `${complianceScore}%` },
-                  { id: 'splits', label: '🏢 Şube Paylaşımı', icon: Building2 },
-                  { id: 'escrow', label: '📑 Tapu & Kapanış', icon: FileCheck },
-                ].map((tb) => {
-                  const Icon = tb.icon;
-                  const isActive = activeHubTab === tb.id;
-                  return (
-                    <button
-                      key={tb.id}
-                      onClick={() => setActiveHubTab(tb.id as any)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${
-                        isActive 
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
-                          : 'text-slate-600 hover:bg-slate-200 border border-transparent'
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      {tb.label}
-                      {tb.badge && (
-                        <span className={`ml-1 text-[8.5px] px-1 py-0.5 rounded-full font-bold ${
-                          isActive ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700'
-                        }`}>
-                          {tb.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* MODAL MAIN CONTENT SCROLLABLE */}
-              <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6 max-h-[50vh] bg-slate-50/20">
-                
-                {/* TAB 1: MATCHES */}
-                {activeHubTab === 'matches' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h5 className="font-extrabold text-sm text-slate-800">Eşleşen Yatırımcı Adayları</h5>
-                        <p className="text-[11px] text-slate-400">Yatırımcı bütçesi, metrekare ve Kıbrıs koçan beklentilerine göre anlık uyum testi.</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {matchList.length === 0 ? (
-                        <div className="text-center py-12 text-xs font-bold text-slate-400 bg-white border rounded-3xl p-6">
-                          <p>Bu gayrimenkule uyan aktif bir alıcı talebi bulunmuyor.</p>
-                          <p className="text-[10px] text-slate-400 mt-1 font-normal">Fiyat rasyolarını veya mülk özelliklerini güncelledikten sonra tekrar test edin.</p>
-                        </div>
-                      ) : (
-                        matchList.map(({ buyer, score, reason }) => (
-                          <div key={buyer.id} className="p-5 bg-white border hover:border-indigo-200 rounded-[2rem] space-y-4 transition-all shadow-sm relative overflow-hidden group">
-                            
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="space-y-1">
-                                <div className="flex gap-2 items-center">
-                                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${buyer.nationality === 'UK' ? 'bg-blue-600' : 'bg-red-500'}`}>
-                                    {buyer.nationality === 'UK' ? '🇬🇧 UK' : '🇹🇷 TR'}
-                                  </span>
-                                  <span className="font-extrabold text-sm text-slate-900">{buyer.name}</span>
-                                </div>
-                                <p className="text-[11px] text-slate-500">
-                                  Tercihler: <strong className="text-slate-700">{buyer.preferredRegions.join(", ")}</strong> • Min: {formatNumberVal(buyer.minSqm)} m² • Max Bütçe: {buyer.currency === 'GBP' ? '£' : '₺'}{formatNumberVal(buyer.maxBudget)}
-                                </p>
-                              </div>
-
-                              <span className="bg-indigo-600 text-white font-black text-xs px-3 py-1 rounded-full shadow-sm text-center">
-                                %{score} Uyum
-                              </span>
-                            </div>
-
-                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10.5px] text-slate-600 leading-relaxed font-semibold">
-                              🎯 <span className="text-slate-800">Eşleşme Gerekçesi:</span> {reason}
-                            </div>
-
-                            <div className="flex gap-2 justify-end pt-2 border-t border-slate-50">
-                              <button
-                                onClick={() => {
-                                  const subject = encodeURIComponent(`${branding?.store_name || branding?.name || 'Seçkin Emlak'} Yatırım Teklifi - ${matchingProperty.title}`);
-                                  const body = encodeURIComponent(`Sayın ${buyer.name},\n\nİstemiş olduğunuz kriterlere uyum sağlayan yeni portföyümüzü incelemenize sunmaktan memnuniyet duyarız:\n\nMülk Başlığı: ${matchingProperty.title}\nKonum: ${matchingProperty.location}\nLüks Detay: ${formatNumberVal(matchingProperty.square_meters)} m² / ${matchingProperty.room_count}\n\nDetaylı bilgi için şubemizle iletişime geçebilirsiniz.`);
-                                  window.open(`mailto:${buyer.email}?subject=${subject}&body=${body}`, '_blank');
-                                }}
-                                className="bg-slate-50 hover:bg-indigo-50 text-indigo-700 font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl border border-indigo-100 transition-all flex items-center gap-1.5"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                                Teklif PDF E-Posta Gönder
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const text = encodeURIComponent(`Merhaba ${buyer.name}, ${branding?.store_name || branding?.name || 'Seçkin Emlak'} ağından yazdım. Kriterlerinize birebir uyum sağlayan yeni mülkümüzü ilk olarak sizinle paylaşıyorum!\n\n🏡 Mülk: ${matchingProperty.title}\n📍 Bölge: ${matchingProperty.location}\n💰 Fiyat: ${matchingProperty.currency} ${formatNumberVal(matchingProperty.price)}`);
-                                  window.open(`https://wa.me/${buyer.phone.replace(/\s+/g, '')}?text=${text}`, '_blank');
-                                }}
-                                className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                                WhatsApp Sunum Yap
-                              </button>
-                            </div>
-
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* CRM LEAD NURTURING & DRIP SEQUENCE PREVIEW */}
-                    <div className="bg-indigo-50/50 p-5 rounded-[2rem] border border-indigo-100/80 space-y-4 shadow-sm mt-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="block text-[10px] font-black text-indigo-700 uppercase tracking-wider">CRM & DRIP CAMPAIGNS</span>
-                          <h6 className="font-extrabold text-sm text-slate-800">Müşteri Segmentasyonu & Damlama Akışları</h6>
-                        </div>
-                        <span className="text-[9.5px] bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
-                          ⚡ Lead Nurturing Etkin
-                        </span>
-                      </div>
-
-                      <p className="text-[11px] text-slate-500 leading-relaxed font-sans">
-                        Kriterleriyle eşleşen alıcıları sıcak tutmak amacıyla tasarlanmış, davranışlara duyarlı, kişiselleştirilmiş çok kanallı takip şablonları.
-                      </p>
-
-                      {/* Client tags info */}
-                      <div className="flex flex-wrap gap-1.5 py-1">
-                        <span className="text-[9.5px] bg-rose-50 border border-rose-100 text-rose-700 font-black px-2 py-0.5 rounded-lg">#SıcakTakip (Saha Ziyareti Hazır)</span>
-                        <span className="text-[9.5px] bg-teal-50 border border-teal-100 text-teal-700 font-black px-2 py-0.5 rounded-lg">#DövizBütçeli (£ Sterling Nakit)</span>
-                        <span className="text-[9.5px] bg-amber-50 border border-amber-100 text-amber-700 font-black px-2 py-0.5 rounded-lg">#VIP_Investor (Kıbrıs Alıcısı)</span>
-                        <span className="text-[9.5px] bg-blue-50 border border-blue-100 text-blue-700 font-black px-2 py-0.5 rounded-lg">#HızlıKapanış (Tapu Hazır)</span>
-                      </div>
-
-                      {/* Campaign triggers selector */}
-                      <div className="grid grid-cols-3 gap-2 py-2">
-                        {[
-                          { id: 'intro', label: '1️⃣ İlk Tanıtım & 3D Tur', desc: 'Portföy keşif daveti' },
-                          { id: 'pricedrop', label: '2️⃣ Fiyat / Kampanya', desc: 'Sınırlı süre fırsatı' },
-                          { id: 'scarcity', label: '3️⃣ Son Çağrı & Aciliyet', desc: 'Teklif alma baskısı' }
-                        ].map((drip) => {
-                          const isSel = activeDripTemplate === drip.id;
-                          return (
-                            <button
-                              key={drip.id}
-                              onClick={() => setActiveDripTemplate(drip.id)}
-                              className={`p-2.5 text-left rounded-xl transition-all border ${
-                                isSel 
-                                  ? 'bg-slate-900 border-slate-950 text-white shadow-md' 
-                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                              }`}
-                            >
-                              <span className="block font-extrabold text-[10.5px] leading-tight">{drip.label}</span>
-                              <span className={`block text-[9.5px] ${isSel ? 'text-slate-300' : 'text-slate-400 font-medium'} mt-0.5`}>
-                                {drip.desc}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Drip Content display with Copy function */}
-                      {(() => {
-                        let dripSubject = "";
-                        let dripBody = "";
-                        const firstBuyerName = matchList[0]?.buyer.name || "Değerli Yatırımcımız";
-
-                        if (activeDripTemplate === 'intro') {
-                          dripSubject = `Özel Keşif Daveti: ${matchingProperty.location} / ${matchingProperty.title}`;
-                          dripBody = `Sayın ${firstBuyerName},\n\n${branding?.store_name || branding?.name || 'Seçkin Emlak'} portföy havuzuna henüz eklenen ve kriterlerinizle %90+ uyum sağlayan yeni bir fırsatımız var: ${matchingProperty.title}.\n\nMülkün fiziksel sunumundan önce hazırladığımız 3D sanal turumuzla mülk içinde dilediğinizce yürüyebilir, mutfak tezgahı ölçülerini bile alabilirsiniz:\n🔗 Sanal Keşif: ${matchingProperty.virtual_tour_url || 'lookprice-3d-explorer'}\n\nBu özel portföyü ne zaman yerinde görmek istersiniz?`;
-                        } else if (activeDripTemplate === 'pricedrop') {
-                          dripSubject = `Fiyat / Kampanya Güncellemesi - Önemli Fırsat`;
-                          dripBody = `Değerli ${firstBuyerName},\n\nTakip listenizde yer alan ${matchingProperty.title} mülkü için satıcı ile yürüttüğümüz özel pazarlık neticesinde kısa bir süreliğine özel bir esneklik sağlandı!\n\nYeni Liste Değeri: ${matchingProperty.currency} ${formatNumberVal(cmaElasticityPrice || matchingProperty.price || 0)}\n\nBölgesel CMA rasyolarına göre bu fiyat emsallerden yaklaşık %15 daha avantajlıdır. Fırsatı kaçırmamak adına hemen bir geri dönüş yapmanızı öneririm.`;
-                        } else {
-                          dripSubject = `Kapanış Öncesi Son Çağrı: ${matchingProperty.location}`;
-                          dripBody = `Sayın ${firstBuyerName},\n\n${matchingProperty.title} mülkü üzerinde şu anda başka bir şubemizin yürüttüğü sıcak bir pazarlık süreci bulunuyor ve tapu devir (escrow) işleminin bu hafta tamamlanması öngörülüyor.\n\nEğer bu mülkle hâlâ ciddi olarak ilgileniyorsanız, satıcıya resmi karşı teklifimizi sunabileceğimiz son güne girmiş bulunuyoruz. Talebiniz olması halinde teklif kütüğümüzü hemen işleme alabilirim.`;
-                        }
-
-                        return (
-                          <div className="bg-slate-950 text-slate-100 p-4 rounded-2xl relative">
-                            <span className="block text-[8.5px] font-black text-indigo-400 uppercase tracking-widest pl-1 mb-1">DAMLAMA PREVIEW (E-POSTA & WHATSAPP)</span>
-                            <div className="text-[10.5px] font-semibold border-b border-white/10 pb-1.5 mb-1.5 text-slate-300">
-                              📍 Konu: {dripSubject}
-                            </div>
-                            <p className="text-[10px] whitespace-pre-line text-slate-200 leading-relaxed font-mono">
-                              {dripBody}
-                            </p>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(`Konu: ${dripSubject}\n\n${dripBody}`);
-                                alert("Sıcak takip mesajı kopyalandı! Doğrudan müşteriye gönderebilirsiniz.");
-                              }}
-                              className="absolute top-3 right-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-2 py-1 rounded shadow"
-                            >
-                              Kopyala
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                  </div>
-                )}
-
-                {/* TAB: SHOWINGS PREPARATION & FEEDBACK */}
-                {activeHubTab === 'showings' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      
-                      {/* PREPARATION SYSTEM (Alarm & Look & Scent) */}
-                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">SHOWING OPTIMIZATION</span>
-                            <h5 className="font-extrabold text-sm text-slate-800">Saha Gösterim Öncesi Hazırlık Center</h5>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase text-white ${
-                            showingPrep.alarmArmed ? 'bg-indigo-600 animate-pulse' : 'bg-emerald-600'
-                          }`}>
-                            {showingPrep.alarmArmed ? '🚨 Alarm Aktif' : '✅ Hazırlık Yapıldı'}
-                          </span>
-                        </div>
-
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
-                          Saha danışmanlarının sunumdan 30 dk önce mülke gidip ilk izlenim 'WOW' faktörünü tetiklemesini sağlayan kontrol listesi.
-                        </p>
-
-                        <div className="space-y-3 pt-2">
-                          {[
-                            { id: 'alarmArmed', label: 'Güvenlik Alarmı Devre Dışı', activeDesc: '30 dk ihbar süresi alındı; alarm geçici olarak kapatıldı.', inactiveDesc: 'Alarm devrede (Giriş için izin bekleniyor).' },
-                            { id: 'lightsOn', label: 'Dekoratif Aydınlatmaları Aç', activeDesc: 'Tüm lambalar, şerit LED\'ler ve aydınlatmalar açık durumda.', inactiveDesc: 'Lambalar kapalı' },
-                            { id: 'blindsOpen', label: 'Panjur ve Perdeleri Aç', activeDesc: 'Panjurlar tamamen açık; gün ışığı içeri alınıyor.', inactiveDesc: 'Perdeler kapalı' },
-                            { id: 'acAdjusted', label: 'İklimlendirme Set Düzeyi', activeDesc: 'Klimatizasyon aktif; sakinleştirici 22°C set edildi.', inactiveDesc: 'Kombiler/Klima kapalı' },
-                            { id: 'scentRefreshed', label: 'Ortam Parfümü & Koku Tazele', activeDesc: 'Lavanta & okyanus özlü aktif oda kokusu tazeleyici sıkıldı.', inactiveDesc: 'Koku tazeleyici yapılmadı' },
-                            { id: 'flyersPresent', label: 'Yazılı El Broşürleri ve Kalemler', activeDesc: 'Basılı broşürler, teknik şartname ve boş mukaveleler tezgahta.', inactiveDesc: 'Broşürler tezgahta yok' },
-                          ].map((item) => {
-                            const isVal = (showingPrep as any)[item.id];
-                            return (
-                              <div 
-                                key={item.id}
-                                onClick={() => setShowingPrep({ ...showingPrep, [item.id]: !isVal })}
-                                className="flex items-start gap-2.5 p-2 px-3 rounded-xl hover:bg-slate-50 border border-slate-100 transition-all cursor-pointer select-none"
-                              >
-                                <input 
-                                  type="checkbox" 
-                                  checked={isVal} 
-                                  onChange={() => {}}
-                                  className="mt-0.5 h-3.5 w-3.5 text-indigo-600 rounded border-gray-300" 
-                                />
-                                <div className="text-[11px]">
-                                  <span className="font-extrabold text-slate-700 block leading-tight">{item.label}</span>
-                                  <span className="text-[9.5px] text-slate-400 mt-0.5 block">
-                                    {isVal ? item.activeDesc : item.inactiveDesc}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            setShowingPrep({
-                              alarmArmed: false,
-                              lightsOn: true,
-                              blindsOpen: true,
-                              acAdjusted: true,
-                              scentRefreshed: true,
-                              flyersPresent: true
-                            });
-                          }}
-                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase rounded-xl transition-all shadow-sm"
-                        >
-                          ⚡ Profesyonel Sunum Hazırlığını Tamamla (Tümünü Onayla)
-                        </button>
-                      </div>
-
-                      {/* SOLICITING SHOWING COPIES & FEEDBACK */}
-                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
-                        <div>
-                          <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-wider">SHOWING FEEDBACK LOOP</span>
-                          <h5 className="font-extrabold text-sm text-slate-800">Sunum Sonrası Gerçek Alıcı Yorumları</h5>
-                        </div>
-
-                        {/* Interactive Analyzer */}
-                        {(() => {
-                          const negativePriceCount = showingFeedbacks.filter(f => (f.review || "").toLowerCase().includes("fiyat") || (f.review || "").toLowerCase().includes("pahalı")).length;
-                          const avgRating = Math.round(showingFeedbacks.reduce((acc, f) => acc + f.rating, 0) / showingFeedbacks.length * 10) / 10;
-                          return (
-                            <div className={`p-3 rounded-xl border flex items-start gap-2 text-[10.5px] font-semibold leading-relaxed ${
-                              negativePriceCount >= 2 
-                                ? 'bg-rose-50 border-rose-100 text-rose-900' 
-                                : 'bg-teal-50 border-teal-100 text-teal-900'
-                            }`}>
-                              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                              <div>
-                                <span className="block font-black uppercase text-[9px]">Geri Bildirim Anlık Değerlendirmesi</span>
-                                {negativePriceCount >= 2 
-                                  ? `KRİTİK UYARI: Son gösterimlerde mülkün fiyatının çevre emsallerinden pazar payı olarak yüksek olduğu vurgulanmıştır. Ortalama puan: ${avgRating}/5. Acil bir fiyat esnekliği (CMA) analizi gerekebilir!` 
-                                  : `Sıcak pazar ilgisi tespit edildi! Ortalama puan: ${avgRating}/5. Alıcıların ilgisi yüksek, takip mesajları göndermeye devam edin.`
-                                }
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Logs list */}
-                        <div className="space-y-2 h-44 overflow-y-auto pr-1">
-                          {showingFeedbacks.map((item) => (
-                            <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[10.5px] space-y-1 font-sans">
-                              <div className="flex justify-between items-center">
-                                <span className="font-extrabold text-slate-800 text-[11px]">{item.agent}</span>
-                                <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded text-[8.5px] font-bold">{item.status}</span>
-                              </div>
-                              <div className="flex justify-between text-slate-400 text-[9.5px]">
-                                <span>Tarih: {item.date}</span>
-                                <span className="text-amber-500 font-extrabold">{"★".repeat(item.rating)}</span>
-                              </div>
-                              <p className="text-slate-600 leading-relaxed italic">"{item.review}"</p>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Add simulated feedback */}
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/50 space-y-2.5">
-                          <span className="block text-[10px] font-black text-slate-500 uppercase">Görüşme Sonucu Ekle</span>
-                          <div className="grid grid-cols-2 gap-2">
-                            <input 
-                              type="text" 
-                              placeholder="Sorumlu Yetkili" 
-                              className="p-1 px-2 text-[10px] font-bold border rounded bg-white focus:outline-indigo-600" 
-                              value={newFeedbackAgent}
-                              onChange={(e) => setNewFeedbackAgent(e.target.value)}
-                            />
-                            <select 
-                              className="p-1 text-[10px] font-bold border rounded bg-white focus:outline-indigo-600 animate-none"
-                              value={newFeedbackStatus}
-                              onChange={(e) => setNewFeedbackStatus(e.target.value)}
-                            >
-                              <option value="Sıcak Takip">Sıcak Takip</option>
-                              <option value="Fiyat Revizesi İstiyor">Fiyat Revizesi İstiyor</option>
-                              <option value="Teklif Bekleniyor">Teklif Bekleniyor</option>
-                              <option value="Olumsuz Elendi">Olumsuz Elendi</option>
-                            </select>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 font-sans">
-                            <input 
-                              type="text" 
-                              placeholder="Filtrelenmemiş Gerçek Görüşme Notları..." 
-                              className="p-1 px-2 text-[10px] border rounded bg-white focus:outline-indigo-600"
-                              value={newFeedbackReview}
-                              onChange={(e) => setNewFeedbackReview(e.target.value)}
-                            />
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-slate-500 font-bold">Puan:</span>
-                              {[1, 2, 3, 4, 5].map(star => (
-                                <button 
-                                  key={star} 
-                                  onClick={() => setNewFeedbackRating(star)}
-                                  className={`text-xs ${newFeedbackRating >= star ? 'text-amber-500' : 'text-slate-300'}`}
-                                >
-                                  ★
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              if (!newFeedbackReview) return alert("Lütfen görüşme notu girin!");
-                              const newF = {
-                                id: Date.now(),
-                                date: "Bugün",
-                                agent: newFeedbackAgent,
-                                rating: newFeedbackRating,
-                                review: newFeedbackReview,
-                                status: newFeedbackStatus
-                              };
-                              setShowingFeedbacks([newF, ...showingFeedbacks]);
-                              setNewFeedbackReview("");
-                            }}
-                            className="w-full py-1 text-[9.5px] font-extrabold bg-slate-900 text-white rounded hover:bg-slate-800 uppercase"
-                          >
-                            ☎️ Arayıp Geri Bildirim Al & Sisteme İşle
-                          </button>
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* INTELLIGENT SCHEDULING & WAITING LISTS CO-ORDINATOR */}
-                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/80 space-y-4 shadow-sm mt-6">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none">INTELLIGENT APPOINTMENT & ROUTE MANAGEMENT</span>
-                          <h5 className="font-extrabold text-sm text-slate-800 mt-1">Akıllı Randevu, Yol Payı & Hava Durumu Koordinasyonu</h5>
-                          <p className="text-[11px] text-slate-400 mt-1 font-sans">Endless aramalara son verin. Çakışmaları sıfırlayan, yol izinlerini ve anlık bölge iklimini hesaba katan saha yönetim motoru.</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
-                        
-                        {/* 1. Travel Buffer & Smart Route Planner */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5">
-                          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">🚗 YOL PAYI VE BUFFER SÜRESİ</span>
-                          
-                          <div className="space-y-1">
-                            <label className="text-[10.5px] font-bold text-slate-600">Gösterimler Arası Geçiş Payı (Geçiş Blokajı)</label>
-                            <div className="flex gap-1 bg-white p-1 rounded-xl border border-slate-200 mt-1">
-                              {[15, 30, 45, 60].map((mins) => (
-                                <button
-                                  key={mins}
-                                  onClick={() => setShowingBufferTime(mins)}
-                                  className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all ${
-                                    showingBufferTime === mins 
-                                      ? 'bg-indigo-600 text-white shadow-sm' 
-                                      : 'text-slate-600 hover:bg-slate-100'
-                                  }`}
-                                >
-                                  {mins} Dk
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <p className="text-[10px] text-slate-400 leading-normal font-sans">
-                            💡 {showingBufferTime} dakika otomatik yol payı, takvimde çakışmaları engellemek adına sonraki randevuya bloke edilmiştir.
-                          </p>
-                        </div>
-
-                        {/* 2. Microclimate Weather Watch & Showing Tip */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">☀️ HAFIZALI BÖLGESEL HAVA KOŞULLARI</span>
-                          
-                          <div className="bg-amber-50/70 text-amber-950 p-3 rounded-xl border border-amber-100 flex items-start gap-2.5">
-                            <span className="text-xl leading-none">☀️</span>
-                            <div className="text-[10.5px] font-semibold leading-relaxed">
-                              <strong>Kıbrıs / {matchingProperty.kktc_region || "Girne"}:</strong> 25°C Açık & Esintili
-                              <span className="block text-[9.5px] text-amber-700 font-sans mt-0.5 font-medium leading-normal">
-                                Hava açık; teras, havuz başı ve peyzaj sunumlarına mükemmel elverişli. İç mekanda odaları ferah hissettirmek için klimaları 21°C set edin, perdeleri sonuna kadar açın!
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 3. Showing Waitlist priority manager */}
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 flex flex-col justify-between">
-                          <div>
-                            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">📋 PORTFÖY TALEP SIRASI (WAITLIST)</span>
-                            
-                            <div className="space-y-1.5 mt-2 overflow-y-auto max-h-24 pr-1">
-                              {showingWaitlist.length === 0 ? (
-                                <p className="text-[10px] text-slate-400 font-bold italic py-2">Bekleme listesinde alıcı bulunmuyor.</p>
-                              ) : (
-                                showingWaitlist.map((w) => (
-                                  <div key={w.id} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm text-[10px] font-sans">
-                                    <div className="font-semibold text-slate-800">
-                                      {w.name}
-                                      <span className="block text-[8.5px] text-indigo-600 mt-0.5">Tarih: {w.date}</span>
-                                    </div>
-                                    <button
-                                      key={w.id}
-                                      onClick={() => {
-                                        setShowingWaitlist(showingWaitlist.filter(item => item.id !== w.id));
-                                        alert(`${w.name} için randevu onaylandı! Müşteriye SMS/Email bilgilendirmesi gönderildi.`);
-                                      }}
-                                      className="bg-indigo-600 hover:bg-slate-900 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded"
-                                    >
-                                      Onayla
-                                    </button>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              const name = prompt("Sıraya eklenecek alıcının adı:");
-                              if (!name) return;
-                              const phone = prompt("Alıcının cep telefonu:");
-                              if (!phone) return;
-                              setShowingWaitlist([...showingWaitlist, {
-                                id: Date.now().toString(),
-                                name,
-                                phone,
-                                date: "Yarın Alıcı Kararı",
-                                status: "Onay Bekliyor"
-                              }]);
-                            }}
-                            className="w-full mt-2 text-center py-1 border border-dashed border-indigo-400/60 hover:border-indigo-600 text-[10px] text-indigo-700 font-bold rounded-lg transition-all"
-                          >
-                            ➕ Bekleme Listesine Alıcı Ekle
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB: EMOTION-FREE NEGOTIATION ADVISOR */}
-                {activeHubTab === 'negotiate' && (
-                  <div className="space-y-6">
-                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
-                      <div>
-                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block font-sans">EMOTION-FREE NEGOTIATOR</span>
-                        <h5 className="font-extrabold text-sm text-slate-800 mt-0.5">Yatırımcı Teklif ve Karşı-Teklif Satış Asistanı</h5>
-                        <p className="text-[11px] text-slate-400">
-                          Sıcak pazarlık süreçlerinde duygusal tepkileri (Overvaluing/Undervaluing) önleyen matematiksel pazar simülasyonu.
-                        </p>
-                      </div>
-
-                      {/* Input Offer form */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <div>
-                          <label className="block text-[10.5px] font-bold text-slate-500 mb-1">Mülk Liste Fiyatı</label>
-                          <div className="text-base font-black text-slate-900 bg-white p-2 border rounded-xl shadow-sm">
-                            {matchingProperty.currency} {formatNumberVal(matchingProperty.price)}
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-[10.5px] font-bold text-indigo-600 mb-1">Alıcıdan Sözel/Yazılı Teklif ({matchingProperty.currency})</label>
-                          <input 
-                            type="number" 
-                            className="p-2 w-full font-black text-indigo-700 bg-white border border-indigo-200 rounded-xl focus:outline-indigo-600 shadow-sm"
-                            value={buyerOfferAmount || ""}
-                            onChange={(e) => setBuyerOfferAmount(Number(e.target.value))}
-                          />
-                          <p className="text-[9px] text-indigo-600 mt-1">Önerilen varsayılan: Liste fiyatının %90'ı</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-[10.5px] font-bold text-slate-500 mb-1">Alıcı Şart Notları (Örn: Peşinat oranı)</label>
-                          <input 
-                            type="text" 
-                            placeholder="Örn: %50 peşin, %50 teslimde tapu devrinde." 
-                            className="p-2 w-full text-xs font-bold bg-white border rounded-xl focus:outline-indigo-600 shadow-sm"
-                            value={negotiationNotes}
-                            onChange={(e) => setNegotiationNotes(e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Calculations Panel */}
-                      {(() => {
-                        const initialPriceVal = matchingProperty.price || 0;
-                        const currentOfferVal = buyerOfferAmount || Math.round(initialPriceVal * 0.9);
-                        const discountAmt = initialPriceVal - currentOfferVal;
-                        const discountPercent = initialPriceVal > 0 ? Math.round((discountAmt / initialPriceVal) * 100) : 0;
-                        const isUnderBudget = discountPercent < 0; // offers higher than list price
-
-                        // Generate warnings
-                        let warningTitle = "";
-                        let warningDesc = "";
-                        let toneStyle = "";
-
-                        if (isUnderBudget) {
-                          warningTitle = "🔥 LİSTE FİYATININ ÜSTÜNDE MÜKEMMEL TEKLİF!";
-                          warningDesc = "Bu durum agresif bir rekabet (bidding war) döneminde veya lüks yatırım aşamasında görünür. Alıcıyı kaçırmamak için süreyi sınırlayıp teklifi hemen kabul edin!";
-                          toneStyle = "bg-emerald-50 border-emerald-500 text-emerald-950";
-                        } else if (discountPercent >= 20) {
-                          warningTitle = "⚠️ ALARM: AŞIRI İSKONTO (%20+ Pazarlık Payı)";
-                          warningDesc = "DİKKAT! Alıcı mülkü öldürmek ya da panik satış rasyolarınızı test etmek istiyor. Satıcının duygulanıp masadan kalkması en büyük risktir! Doğrudan hayır demek yerine, liste fiyatından %5-8 iskonto yapabileceğinizi gösteren bir karşı mukavele yazın. Alıcının esneyip esnemeyeceğini anlarsınız.";
-                          toneStyle = "bg-rose-50 border-rose-500 text-rose-950";
-                        } else if (discountPercent > 8 && discountPercent < 20) {
-                          warningTitle = "⚖️ DENGELİ ALAN: STANDART PAZARLIK (%9 - %19)";
-                          warningDesc = "Bu teklif, pazar şartlarında makul bir açılıştır. Alıcı sizin adınıza bir karşı mukavele bekliyor. Mülkü elde tutmanın maliyeti (holding costs) göz önüne alındığında anlaşma karlı tescillenecektir.";
-                          toneStyle = "bg-amber-50 border-amber-500 text-amber-950";
-                        } else {
-                          warningTitle = "💚 MÜKEMMEL ALAN: SATIŞA ÇOK YAKIN (%1 - %8)";
-                          warningDesc = "Harika! Teklif liste değerine çok yakın. Kesinlikle alıcıya gurur yapayıp 'liste fiyatından bir kuruş aşağı inmem' demeyin. Alıcıya küçük bir prestij indirimi sunup sözleşmeyi tapuya bağlamak en karlı yatırımcı refleksidir.";
-                          toneStyle = "bg-teal-50 border-teal-500 text-teal-900";
-                        }
-
-                        return (
-                          <div className="space-y-4 pt-2">
-                            
-                            {/* DECISION ANALYSIS CARD */}
-                            <div className={`p-6 rounded-[2rem] border-l-8 ${toneStyle} space-y-4 shadow-sm`}>
-                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                                <div>
-                                  <span className="text-[10px] font-black uppercase tracking-widest block leading-none font-sans">RASYONEL PAZARLIK ÖNGÖRÜSÜ</span>
-                                  <h6 className="font-extrabold text-base leading-tight mt-1">{warningTitle}</h6>
-                                </div>
-                                <div className="text-left sm:text-right text-[10.5px] font-bold">
-                                  <span>İskonto Miktarı:</span> <span className="underline block text-base font-black font-mono mt-0.5">{matchingProperty.currency} {formatNumberVal(discountAmt)} ({discountPercent}%)</span>
-                                </div>
-                              </div>
-                              
-                              <p className="text-[12px] leading-relaxed font-semibold font-sans opacity-95">
-                                {warningDesc}
-                              </p>
-                              
-                              <div className="pt-4 border-t border-dashed border-current/25 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                                <div className="text-[11px] font-bold opacity-90">
-                                  Teklif Edilen Değer: <span className="font-mono font-black text-xs">{matchingProperty.currency} {formatNumberVal(currentOfferVal)}</span>
-                                </div>
-                                <button
-                                  onClick={() => {
-                                    setContractProperty({
-                                      ...matchingProperty,
-                                      title: `[PAZARLIK PROTOKOLÜ] ` + matchingProperty.title,
-                                      price: currentOfferVal,
-                                      kktc_title_type: `Pazarlıklı Karşı Teklif Ön Anlaşması (Alıcı Teklifi: ${matchingProperty.currency} ${formatNumberVal(currentOfferVal)})`
-                                    } as any);
-                                    setIsContractModalOpen(true);
-                                    setMatchingProperty(null);
-                                  }}
-                                  className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase rounded-xl transition-all shadow"
-                                >
-                                  ✍️ Karşı Teklif Mukavelesi Hazırla ve Yazdır
-                                </button>
-                              </div>
-                            </div>
-
-                          </div>
-                        );
-                      })()}
-
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 2: COMPLIANCE */}
-                {activeHubTab === 'compliance' && (
-                  <div className="space-y-4">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                      <div>
-                        <h5 className="font-extrabold text-sm text-slate-800">Tapu, Hukuk & Mevzuat Uygunluk Kontrolü</h5>
-                        <p className="text-[11px] text-slate-400">Sözleşmeler, koçan temiz raporu ve Kıbrıs/Türkiye tapu daireleri standartlarına uygunluk skoru.</p>
-                      </div>
-
-                      <div className="flex items-center gap-2 bg-indigo-50 px-4 py-1.5 rounded-full border border-indigo-100">
-                        <span className="text-[10px] font-black text-indigo-950 uppercase">Şu Anki Uyum:</span>
-                        <span className={`text-xs font-black ${
-                          complianceScore >= 80 ? 'text-emerald-600' : 'text-amber-600'
-                        }`}>%{complianceScore} Uyumlu</span>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-500 ${
-                          complianceScore >= 80 ? 'bg-emerald-500' : 'bg-indigo-600'
-                        }`}
-                        style={{ width: `${complianceScore}%` }}
-                      />
-                    </div>
-
-                    {/* Checklist Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                      {[
-                        { 
-                          id: 'tapu', 
-                          title: 'Tapu/Koçan Sicil Kontrolü', 
-                          desc: 'İpotek, şerh, haciz ve takyidat kayıtları KKTC/TR tapu kütüğünden teyit edilmiştir, devire temizdir.' 
-                        },
-                        { 
-                          id: 'dask', 
-                          title: 'Zorunlu Deprem Sigortası (DASK)', 
-                          desc: 'Maddi hasarlı yapı sigortası ile zorunlu afet teminatları aktiftir ve poliçe numarası sisteme girilmiştir.' 
-                        },
-                        { 
-                          id: 'belediye', 
-                          title: 'Belediye Borçsuzluk Belgesi', 
-                          desc: 'Belediye emlak vergisi, çevre-altyapı katılım bedeli ve su borcu yoktur belgesi temin edilmiştir.' 
-                        },
-                        { 
-                          id: 'yetki', 
-                          title: 'Portföy Yetki Belgesi / Mukavele', 
-                          desc: 'Mülk sahibinin ıslak/dijital imzalı LookPrice tek yetkili satış sözleşmesi geçerli sürededir.' 
-                        },
-                        { 
-                          id: 'satinAlmaIzni', 
-                          title: 'Müstakbel Yabancı Satın Alma Süreci', 
-                          desc: 'Fasıl 109 KKTC Bakanlar Kurulu onay ve tescil yol haritası (UK/Avrupa alıcıları için) planlıdır.' 
-                        },
-                      ].map((item) => (
-                        <div 
-                          key={item.id} 
-                          onClick={() => setComplianceChecked({ ...complianceChecked, [item.id]: !complianceChecked[item.id] })}
-                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
-                            complianceChecked[item.id] 
-                              ? 'bg-slate-900 text-white border-slate-950' 
-                              : 'bg-white text-slate-800 border-slate-200/80 hover:bg-slate-50'
-                          }`}
-                        >
-                          <input 
-                            type="checkbox" 
-                            checked={complianceChecked[item.id]} 
-                            onChange={() => {}} // handled by parent click
-                            className="mt-1 h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <div>
-                            <span className="block font-extrabold text-xs">{item.title}</span>
-                            <span className={`block text-[10px] mt-1 leading-relaxed ${
-                              complianceChecked[item.id] ? 'text-slate-300' : 'text-slate-400'
-                            }`}>{item.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="bg-slate-100 p-3.5 rounded-2xl border border-slate-200/50 text-[10.5px] text-slate-500 font-bold flex gap-2 items-center">
-                      <Shield className="w-5 h-5 text-indigo-600 shrink-0" />
-                      <span>Bu mülkle ilgili evrak tescilleri ve kontroller şube yetkilisi tarafından dijital zaman damgasıyla imzalanmıştır. Hukuk davalarına karşı koruma altındadır.</span>
-                    </div>
-
-                  </div>
-                )}
-
-                {/* TAB 4: SPLITS */}
-                {activeHubTab === 'splits' && (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h5 className="font-extrabold text-sm text-slate-800">Çok Şubeli Ağ İçi Gelir Paylaşımı (Commission Splits)</h5>
-                        <p className="text-[11px] text-slate-400">Farklı şubelerle ortak gerçekleştirilen satış işlemlerinde komisyon hak haklarını güvenceye alın.</p>
-                      </div>
-                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase">
-                        SÖZLEŞME ENTEGRELİ
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      
-                      <div className="space-y-4 bg-white p-5 rounded-[2rem] border border-slate-200/80">
-                        <span className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Ortak İşlem Yapılan Şube & Temsilci</span>
-                        
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-1">Ortak Çalışan Diğer Şube</label>
-                            <select 
-                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-indigo-600"
-                              value={selectedSplitBranch}
-                              onChange={(e) => setSelectedSplitBranch(e.target.value)}
-                            >
-                              <option value="Lefkoşa Merkez Ofis">Lefkoşa Merkez Ofis</option>
-                              <option value="Girne Harbour Ofisi">Girne Harbour Ofisi</option>
-                              <option value="İskele LongBeach Şubesi">İskele LongBeach Şubesi</option>
-                              <option value="Gazi Mağusa Ofisi">Gazi Mağusa Ofisi</option>
-                              <option value="İstanbul High-End Ofisi">İstanbul High-End Ofisi</option>
-                            </select>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Muhatap Diğer Yetkili</label>
-                              <input 
-                                type="text"
-                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-indigo-600"
-                                value={splitNegotiatedAgent}
-                                onChange={(e) => setSplitNegotiatedAgent(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Mülk Toplam Hizmet Bedeli (%)</label>
-                              <input 
-                                type="number"
-                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-indigo-600"
-                                value={splitCommissionPercentage}
-                                onChange={(e) => setSplitCommissionPercentage(Number(e.target.value))}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-2 flex justify-between">
-                              <span>Komisyon Bölüşüm (Split) Oranı</span>
-                              <span className="text-indigo-600 font-black">{splitRatio}% / {100 - splitRatio}%</span>
-                            </label>
-                            <div className="flex gap-2">
-                              {[
-                                { val: 50, label: 'Eşit Bölüşüm (%50 / %50)' },
-                                { val: 60, label: 'Portföy Sorumlusu Ağırlıklı (%60 / %40)' },
-                                { val: 70, label: 'Portföy Sorumlusu Ağırlıklı (%70 / %30)' },
-                              ].map((opt) => (
-                                <button
-                                  key={opt.val}
-                                  onClick={() => setSplitRatio(opt.val)}
-                                  className={`flex-1 text-center py-2 border rounded-xl text-[9px] font-black uppercase transition-all ${
-                                    splitRatio === opt.val 
-                                      ? 'bg-indigo-600 text-white border-indigo-600' 
-                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CALCULATION DETAILS & PROTOCOL BUTTON */}
-                      <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 flex flex-col justify-between">
-                        <div className="space-y-4">
-                          <span className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Anlık Hak Ediş Hesap Raporu</span>
-                          
-                          <div className="space-y-3.5">
-                            <div className="flex justify-between items-center text-xs text-slate-600 font-bold">
-                              <span>Hedeflenen Toplam Hizmet Bedeli:</span>
-                              <span className="text-slate-900 font-extrabold">{matchingProperty.currency} {formatNumberVal(estTotalCommission)}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center text-xs text-slate-600 border-t border-dashed border-slate-100 pt-3 font-semibold">
-                              <span className="flex items-center gap-1">🏢 Bizim Şube ({matchingProperty.branch_name || 'Merkez'} - {splitRatio}%):</span>
-                              <span className="text-indigo-600 font-black">{matchingProperty.currency} {formatNumberVal(firstBranchCommission)}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center text-xs text-slate-600 pt-1 font-semibold">
-                              <span className="flex items-center gap-1">🏢 İş Ortağı Şube ({selectedSplitBranch} - {100 - splitRatio}%):</span>
-                              <span className="text-teal-600 font-black">{matchingProperty.currency} {formatNumberVal(secondBranchCommission)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-4">
-                          <button
-                            onClick={() => {
-                              // Dynamically fill properties to contract model trigger
-                              setContractProperty({
-                                ...matchingProperty,
-                                title: `[${splitRatio}/${100 - splitRatio} SPLIT] ` + matchingProperty.title,
-                                kktc_title_type: `Şubeler Arası Split Protocol (${splitRatio}/${100-splitRatio})`
-                              } as any);
-                              setIsContractModalOpen(true);
-                              setMatchingProperty(null);
-                            }}
-                            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase rounded-xl transition-all shadow border border-slate-950 flex items-center justify-center gap-2"
-                          >
-                            <FileSignature className="w-4 h-4 stroke-[2.5]" />
-                            Şubeler Arası Protokol Mukavalesi Yazdır
-                          </button>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB: ESCROW & PRE-CLOSING TRACKER */}
-                {activeHubTab === 'escrow' && (
-                  <div className="space-y-6">
-                    <div className="bg-white p-5 rounded-[2rem] border border-slate-200/80 space-y-4 shadow-sm">
-                      <div className="flex justify-between items-center bg-indigo-50/55 p-5 rounded-2xl border border-indigo-100">
-                        <div>
-                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block font-sans">SECURE ESCROW TIMELINE</span>
-                          <h5 className="font-extrabold text-sm text-slate-800 leading-tight mt-0.5">Güvenceli Tapu & Kapanış Yönetimi</h5>
-                          <p className="text-[10px] text-slate-400 mt-1">Sözleşmenin tescilinden tapu koçan devrine kadar olan 6 adımlı tescil takvimi.</p>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[9px] font-black text-slate-400 uppercase block">KAPANMA İHTİMALİ</span>
-                          <span className="text-xl font-black text-indigo-600">%{escrowTimeline.filter(t => t.checked).length * 16 + 4}</span>
-                        </div>
-                      </div>
-
-                      {/* Escrow Milestone Items list */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {escrowTimeline.map((step) => (
-                          <div 
-                            key={step.id}
-                            onClick={() => {
-                              const updated = escrowTimeline.map(s => s.id === step.id ? { ...s, checked: !s.checked } : s);
-                              setEscrowTimeline(updated);
-                            }}
-                            className={`p-4 rounded-2xl border transition-all cursor-pointer flex gap-3 relative overflow-hidden select-none ${
-                              step.checked 
-                                ? 'bg-slate-900 text-white border-slate-950' 
-                                : 'bg-slate-50 border-slate-200/80 text-slate-800 hover:bg-slate-100/70'
-                            }`}
-                          >
-                            <input 
-                              type="checkbox" 
-                              checked={step.checked} 
-                              onChange={() => {}}
-                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
-                            />
-                            <div className="text-[11px] leading-tight space-y-1">
-                              <span className="block font-extrabold">{step.label}</span>
-                              <span className={`block text-[9.5px] leading-relaxed ${
-                                step.checked ? 'text-slate-300' : 'text-slate-400 font-semibold'
-                              }`}>
-                                {step.description}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Action trigger to send pre-closing docket */}
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 font-sans">
-                        <div className="text-[10.5px] text-slate-500 font-bold leading-relaxed">
-                          ⚠️ <span className="text-slate-700">Tescil Uyarısı:</span> Bu mülke ait tescil listesindeki tüm adımların tamamlanması, Kıbrıs & Türkiye mevzuat uyarınca tescil iptallerini ve vergi cezalarını sıfıra indirir.
-                        </div>
-                        <button
-                          onClick={() => {
-                            const stepsCompleted = escrowTimeline.filter(s => s.checked).map(s => `[X] ${s.label}`).join("\n");
-                            const stepsPending = escrowTimeline.filter(s => !s.checked).map(s => `[ ] ${s.label}`).join("\n");
-                            const subject = encodeURIComponent(`GÜVENLİ ESCROW RAPORU: ${matchingProperty.title}`);
-                            const body = encodeURIComponent(`Sayın Temsilci,\n\n${matchingProperty.title} numaralı portföyün kapanış süreçleri ve tapu devir takibi tescil raporu:\n\nTAMAMLANAN ADIMLAR:\n${stepsCompleted}\n\nBEKLEYEN EKSİKLER:\n${stepsPending}\n\nİlgili dosya ve harçların takibini sitemiz üzerinden tamamlayabilirsiniz.\n\n${branding?.store_name || branding?.name || 'Seçkin Emlak'} Elite Escrow Asistanı.`);
-                            window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
-                          }}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10.5px] px-4 py-2 rounded-xl transition-all shadow"
-                        >
-                          ✉️ Aktif Tapu Durum Raporunu Yetkililere Gönder
-                        </button>
-                      </div>
-
-                    </div>
-                  </div>
-                )}
-
-
-              </div>
-
-              {/* FOOTER */}
-              <div className="bg-slate-50 p-6 border-t flex justify-end gap-3 rounded-b-[2.5rem]">
-                <button 
-                  onClick={() => setMatchingProperty(null)}
-                  className="px-6 py-3 bg-slate-900 text-white font-black text-xs uppercase rounded-xl hover:bg-slate-800 transition-colors"
-                >
-                  Hub Kapat
-                </button>
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Real Real Estate Modal component */}
       {isModalOpen && (
@@ -2017,7 +887,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   <div className="flex justify-between border-b border-slate-100 pb-1">
                     <span className="text-slate-500 font-medium">Ödeme Periyodu:</span>
                     <span className="text-slate-900 font-extrabold text-indigo-700">
-                      {propertyToPrint.billing_period === 'yearly' ? 'Yıllık' : 'Aylık'}
+                      {propertyToPrint.billing_period === 'yearly' ? 'Yıllık' :
+                       propertyToPrint.billing_period === '3-monthly' ? '3 Aylık' :
+                       propertyToPrint.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık'}
                     </span>
                   </div>
                 )}
@@ -2030,7 +902,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               </div>
             </div>
 
-            {/* Short Marketing Description - Dual column layout with overflow-hidden to perfectly fit A4 bounds */}
+            {/* Short Marketing Description */}
             {propertyToPrint.description && (
               <div className="my-3 text-slate-700 leading-normal font-sans flex-1 overflow-hidden max-h-[135px] relative">
                 <span className="block font-black text-slate-900 mb-1 tracking-wider uppercase text-[9px]">AÇIKLAMA VE AYRINTILAR</span>

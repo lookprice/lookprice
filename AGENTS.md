@@ -32,3 +32,16 @@ This file outlines strict engineering, performance, and naming directives that m
 - **Asset Chunks and Lazy Loading (code split)**:
   - All lazy-loaded components in `/src/App.tsx` must be retained to maintain minimal initial asset sizes.
   - Large external bundles (utility worksheets, PDF generators, charts) must be designated inside the Vite config under target vendor chunks to avoid bundle bloat.
+
+---
+
+## 3. Sektörel İzolasyon ve Ortak Yönetim Koruma Kuralları
+
+- **Katı Sektörel İzolasyon (Gayrimenkul / Otomotiv / Perakende)**:
+  - **Gayrimenkul (Emlak)**, **Otomotiv (Motorlu Araçlar)** ve **Genel Ürün Yönetimi** modülleri kod düzeyinde tamamen izole kalmalıdır.
+  - Bir sektörel modüle veya genel ürün alt yapısına yapılan müdahaleler, diğer modüllerin veri yapılarını, API uçlarını, ilan/form şablonlarını veya durum yönetimlerini kesinlikle etkilememelidir.
+  - Emlak ve Otomotiv modüllerine ait özel bileşenler (`SectorSpecs`, `RealEstateModal`, vb.) bağımsız yapıdadır ve ortak ürün tablolarına geçildiğinde bu sectoral alanlar bozulmadan korunmalıdır.
+
+- **Ortak Özelliklerin/Hataların Korunması**:
+  - Ürün Yönetimi, Alış/Satış Faturaları, Cari Hesaplar ve Stok sistemleri üzerinde hata giderilirken ortak arayüzlerin veya statik doğrulamaların (örneğin fatura durumları, ödeme yöntemleri) sektörel filtrelerle (Emlak/Oto) çakışmaması sağlanmalıdır.
+  - Tüm geliştirici ajanlar, her turn öncesinde bu izolasyon kurallarını okumak ve modül sınırlarına harfiyen uymakla yükümlüdür.

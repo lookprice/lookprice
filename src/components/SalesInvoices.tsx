@@ -36,6 +36,7 @@ import { SalesInvoiceTable } from "./dashboard/invoices/sales/SalesInvoiceTable"
 import { SalesInvoiceDetailsModal } from "./dashboard/invoices/sales/SalesInvoiceDetailsModal";
 import { SalesInvoiceHtmlModal } from "./dashboard/invoices/sales/SalesInvoiceHtmlModal";
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
+import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
@@ -66,6 +67,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkPrinting, setIsBulkPrinting] = useState(false);
   const [showHtmlModal, setShowHtmlModal] = useState(false);
   const [htmlContent, setHtmlContent] = useState("");
   const [htmlLoading, setHtmlLoading] = useState(false);
@@ -114,6 +116,46 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     tax_rate: String(branding?.default_tax_rate ?? 20),
     currency: branding?.default_currency || 'TRY'
   });
+
+  const [showQuickCariModal, setShowQuickCariModal] = useState(false);
+  const [quickCariSearchInitial, setQuickCariSearchInitial] = useState("");
+
+  const handleQuickCariSubmit = async (data: any) => {
+    try {
+      if (data.type === 'company') {
+        const newCompany = await api.addCompany({
+          title: data.title,
+          representative: data.phone ? data.title + " Temsilcisi" : undefined,
+          phone: data.phone,
+          email: data.email,
+          tax_office: data.tax_office,
+          tax_number: data.tax_number,
+          currency: data.currency,
+          status: 'active'
+        }, storeId);
+        setCompanies((prev: any) => [...prev, newCompany]);
+        setCompanyId(String(newCompany.id));
+        setCustomerId("");
+        setCustomerSearch(newCompany.title || newCompany.company_title || "");
+      } else {
+        const newCust = await api.addCustomer({
+          name: data.title,
+          phone: data.phone,
+          email: data.email,
+          currency: data.currency,
+          status: 'active'
+        }, storeId);
+        setCustomers((prev: any) => [...prev, newCust]);
+        setCustomerId(String(newCust.id));
+        setCompanyId("");
+        setCustomerSearch(newCust.name || newCust.customer_name || "");
+      }
+      setShowQuickCariModal(false);
+      toast.success(isTr ? "Cari başarıyla kaydedildi" : "Cari successfully registered");
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? "Cari kaydedilemedi" : "Cari register failed"));
+    }
+  };
 
   const invoiceRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: invoiceRef });
@@ -450,7 +492,15 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   };
 
   const handleExportExcel = () => {
-    const data = invoices.map((inv: any) => ({
+    const targetInvoices = selectedIds.length > 0 
+      ? invoices.filter((i: any) => selectedIds.includes(i.id))
+      : invoices;
+    
+    if (selectedIds.length > 0) {
+      toast.success(isTr ? `Seçili ${selectedIds.length} fatura Excel'e aktarılıyor...` : `Exporting ${selectedIds.length} selected invoices...`);
+    }
+
+    const data = targetInvoices.map((inv: any) => ({
       [isTr ? 'Tarih' : 'Date']: new Date(inv.invoice_date).toLocaleDateString('tr-TR'),
       [isTr ? 'Fatura No' : 'Invoice No']: inv.invoice_number,
       [isTr ? 'Müşteri / Cari' : 'Customer / Company']: inv.customer_name || inv.company_title || '-',
@@ -463,6 +513,16 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Invoices");
     XLSX.writeFile(wb, `satis_faturalari_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleBulkPrint = () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkPrinting(true);
+    toast.info(isTr ? "Toplu yazdırma hazırlanıyor..." : "Preparing bulk print...");
+    setTimeout(() => {
+      window.print();
+      setIsBulkPrinting(false);
+    }, 1000);
   };
 
   const totals = calculateInvoiceTotals(items, isTaxInclusive);
@@ -632,6 +692,10 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         notes={notes}
         setNotes={setNotes}
         totals={totals}
+        onQuickCariAdd={(searchStr) => {
+          setQuickCariSearchInitial(searchStr);
+          setShowQuickCariModal(true);
+        }}
       />
 
       <SalesInvoiceDetailsModal 
@@ -659,6 +723,131 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setQuickProductForm={setQuickProductForm}
         handleQuickProductSubmit={handleQuickProductSubmit}
       />
+
+      <QuickCariModal
+        isOpen={showQuickCariModal}
+        onClose={() => setShowQuickCariModal(false)}
+        isTr={isTr}
+        onSubmit={handleQuickCariSubmit}
+        initialValue={quickCariSearchInitial}
+      />
+
+      {/* Floating Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[130] bg-slate-900 border border-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-black">{selectedIds.length}</span>
+              <span className="text-sm font-bold text-slate-300">{isTr ? "Seçili Fatura" : "Selected Invoices"}</span>
+            </div>
+            <div className="h-5 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBulkPrint}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                {isTr ? "SEÇİLENLERİ YAZDIR" : "PRINT SELECTED"}
+              </button>
+              <button
+                onClick={handleExportExcel}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {isTr ? "EXCEL AKTAR" : "EXPORT EXCEL"}
+              </button>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="p-2 hover:bg-slate-800 rounded-xl transition-all text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hidden container that is only displayed during @media print printing */}
+      {isBulkPrinting && (
+        <div id="print-invoice-wrapper" className="print-section bg-white text-slate-900 font-sans p-6">
+          {invoices.filter((inv: any) => selectedIds.includes(inv.id)).map((invoice: any, idx: number) => (
+            <div key={invoice.id} className="mb-12 border-b-2 border-dashed border-slate-300 pb-12" style={{ pageBreakAfter: 'always' }}>
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900">{branding?.store_name || "Seçkin Mağaza"}</h1>
+                  <p className="text-xs text-slate-500 mt-1">{isTr ? 'Satış Faturası' : 'Sales Invoice'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-slate-900">{invoice.invoice_number}</p>
+                  <p className="text-xs text-slate-500">{new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 mb-8 text-xs">
+                <div>
+                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'ALICI (MÜŞTERİ)' : 'CUSTOMER'}</p>
+                  <p className="font-bold text-slate-800 text-sm">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name}</p>
+                  <p className="text-slate-500 mt-1">{invoice.customer_address || invoice.company_address || '-'}</p>
+                  {invoice.tax_number && <p className="text-slate-500 mt-1">{isTr ? "VKN/TCKN:" : "Tax ID:"} {invoice.tax_number}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">{isTr ? 'FATURA DETAYI' : 'DETAILS'}</p>
+                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Para Birimi:' : 'Currency:'}</span> {invoice.currency}</p>
+                  <p className="text-slate-600"><span className="font-bold">{isTr ? 'Ödeme Yöntemi:' : 'Payment:'}</span> {invoice.payment_method}</p>
+                </div>
+              </div>
+
+              <table className="w-full text-left text-xs border-collapse border border-slate-200 mb-8">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 uppercase font-black border-b border-slate-200">
+                    <th className="p-2 border border-slate-200">{isTr ? 'Ürün/Hizmet' : 'Product/Service'}</th>
+                    <th className="p-2 border border-slate-200 text-center">{isTr ? 'Miktar' : 'Qty'}</th>
+                    <th className="p-2 border border-slate-200 text-right">{isTr ? 'Birim Fiyat' : 'Price'}</th>
+                    <th className="p-2 border border-slate-200 text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
+                    <th className="p-2 border border-slate-200 text-right">{isTr ? 'Toplam' : 'Total'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(invoice.items || []).map((item: any, i: number) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="p-2 border border-slate-200 font-medium">{item.product_name}</td>
+                      <td className="p-2 border border-slate-200 text-center">{item.quantity}</td>
+                      <td className="p-2 border border-slate-200 text-right">{Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
+                      <td className="p-2 border border-slate-200 text-center">%{item.tax_rate}</td>
+                      <td className="p-2 border border-slate-200 text-right font-bold">{(Number(item.total_price) + Number(item.tax_amount)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="flex justify-between items-start text-xs">
+                <div className="max-w-md italic text-slate-500">
+                  {invoice.notes && <p className="mb-2"><span className="font-bold">{isTr ? 'Not:' : 'Note:'}</span> {invoice.notes}</p>}
+                </div>
+                <div className="w-64 space-y-1.5 text-right font-semibold">
+                  <div className="flex justify-between text-slate-500">
+                    <span>{isTr ? 'Ara Toplam' : 'Subtotal'}</span>
+                    <span>{Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
+                    <span>{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2 text-indigo-600">
+                    <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
+                    <span>{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

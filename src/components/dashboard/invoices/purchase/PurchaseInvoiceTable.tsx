@@ -6,7 +6,8 @@ import {
   Trash2, 
   CheckCircle2, 
   XCircle, 
-  Loader2 
+  Loader2,
+  FileText
 } from 'lucide-react';
 
 interface PurchaseInvoiceTableProps {
@@ -19,6 +20,7 @@ interface PurchaseInvoiceTableProps {
   handleViewDetails: (inv: any) => void;
   handleEdit: (id: number) => void;
   handleDelete: (id: number) => void;
+  handleViewHtml?: (id: number) => void;
   handleUpdateTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED') => void;
   handleUpdatePaymentStatus: (id: number, status: 'paid' | 'unpaid') => void;
   page: number;
@@ -36,6 +38,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   handleViewDetails,
   handleEdit,
   handleDelete,
+  handleViewHtml,
   handleUpdateTicariStatus,
   handleUpdatePaymentStatus,
   page,
@@ -146,16 +149,22 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                     {invoice.currency}
                   </td>
                   <td className="p-4 text-center">
-                    <button
-                      onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
-                        invoice.payment_status === 'paid' 
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                          : 'bg-rose-50 text-rose-700 border-rose-100'
-                      }`}
-                    >
-                      {invoice.payment_status === 'paid' ? (isTr ? 'Ödendi' : 'Paid') : (isTr ? 'Ödenmedi' : 'Unpaid')}
-                    </button>
+                    {invoice.payment_method && invoice.payment_method !== 'term' && invoice.payment_method !== 'vadeli' ? (
+                      <span className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-100">
+                        {isTr ? 'Ödendi' : 'Paid'}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
+                          invoice.payment_status === 'paid' 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                            : 'bg-rose-50 text-rose-700 border-rose-100'
+                        }`}
+                      >
+                        {invoice.payment_status === 'paid' ? (isTr ? 'Ödendi' : 'Paid') : (isTr ? 'Ödenmedi' : 'Unpaid')}
+                      </button>
+                    )}
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-1">
@@ -180,12 +189,23 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                       <button 
                         onClick={() => handleViewDetails(invoice)}
                         className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title={isTr ? "Kayıt Detayları" : "Details"}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
+                      {handleViewHtml && (
+                        <button 
+                          onClick={() => handleViewHtml(invoice.id)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title={isTr ? "Fatura Görselini Aç (HTML)" : "View Invoice HTML"}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleEdit(invoice.id)}
                         className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title={isTr ? "Düzenle" : "Edit"}
                       >
                         <Edit className="h-4 w-4" />
                       </button>

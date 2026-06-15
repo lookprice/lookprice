@@ -19,6 +19,12 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const [iframeReady, setIframeReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setIframeReady(false);
+  }, [htmlContent]);
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
@@ -33,12 +39,11 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
             <div className="flex gap-2">
               <button 
                 onClick={() => {
-                   const win = window.open('', '_blank');
-                   if (win) {
-                     win.document.write(htmlContent);
-                     win.document.close();
-                     setTimeout(() => win.print(), 500);
-                   }
+                  const iframe = document.getElementById('sales-invoice-iframe') as HTMLIFrameElement;
+                  if (iframe?.contentWindow) {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                  }
                 }} 
                 className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 flex items-center gap-2 text-sm font-bold"
               >
@@ -51,18 +56,23 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
             </div>
           </div>
           
-          <div className="flex-1 overflow-auto p-4 bg-slate-100 flex justify-center">
-            {htmlLoading ? (
-               <div className="flex flex-col items-center justify-center h-full gap-4">
+          <div className="relative flex-1 overflow-auto p-4 bg-slate-100 flex justify-center">
+            {(htmlLoading || !iframeReady) && (
+               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100/90 backdrop-blur-xs gap-4 z-10 transition-opacity duration-300">
                  <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
                  <p className="text-sm font-bold text-slate-500 animate-pulse uppercase tracking-widest">{isTr ? 'Görsel Hazırlanıyor...' : 'Preparing Preview...'}</p>
                </div>
-            ) : (
-              <div 
-                className="w-full h-full bg-white shadow-inner p-4 min-h-screen"
-                dangerouslySetInnerHTML={{ __html: htmlContent }} 
-              />
             )}
+            <iframe 
+              id="sales-invoice-iframe"
+              srcDoc={htmlContent || ''}
+              onLoad={() => setIframeReady(true)}
+              className={`w-full h-full bg-white shadow-inner p-4 rounded-2xl min-h-[60vh] border-0 transition-opacity duration-300 ${
+                iframeReady && !htmlLoading ? 'opacity-100' : 'opacity-0'
+              }`}
+              title="Invoice Preview"
+              referrerPolicy="no-referrer"
+            />
           </div>
         </motion.div>
       </div>
