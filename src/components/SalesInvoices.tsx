@@ -160,8 +160,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const invoiceRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: invoiceRef });
 
-  const selectedCompany = companies.find((c: any) => c.id === Number(companyId));
-  const selectedCustomer = customers.find((c: any) => c.id === Number(customerId));
+  const selectedCompany = companies.find((c: any) => String(c.id) === String(companyId));
+  const selectedCustomer = customers.find((c: any) => String(c.id) === String(customerId));
 
   // Data Fetching
   const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string, silent = false) => {
@@ -227,7 +227,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       let vkn = selectedCompany?.tax_number || selectedCustomer?.tax_number || "";
       if (vkn && (vkn.length === 10 || vkn.length === 11)) {
         try {
-          const res = await api.checkTaxpayer(vkn);
+          const res = await api.checkTaxpayer(vkn, role === 'superadmin' ? storeId : undefined);
           if (res.documentType === 'E-FATURA') {
             if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TEMELFATURA');
             setEDocumentType('E-FATURA');
@@ -241,7 +241,35 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       }
     };
     fetchTaxType();
-  }, [companyId, customerId, editingInvoiceId]);
+  }, [companyId, customerId, selectedCompany, selectedCustomer, editingInvoiceId]);
+
+  // Sync selected cari details to form states
+  useEffect(() => {
+    // For new invoices, always sync when a selection is made
+    if (!editingInvoiceId) {
+      if (selectedCompany) {
+        setEditTaxNumber(selectedCompany.tax_number || "");
+        setEditTaxOffice(selectedCompany.tax_office || "");
+        setEditAddress(selectedCompany.address || "");
+        setCustomerEmail(selectedCompany.email || "");
+        setCustomerSearch(selectedCompany.title || selectedCompany.company_title || "");
+      } else if (selectedCustomer) {
+        setEditTaxNumber(selectedCustomer.tax_number || "");
+        setEditTaxOffice(selectedCustomer.tax_office || "");
+        setEditAddress(selectedCustomer.address || "");
+        setCustomerEmail(selectedCustomer.email || "");
+        setCustomerSearch(selectedCustomer.name || selectedCustomer.customer_name || "");
+      } else if (!isNewCustomer) {
+        // Only clear if explicitly empty IDs and not a manual new customer form
+        if (!companyId && !customerId) {
+          setEditTaxNumber("");
+          setEditTaxOffice("");
+          setEditAddress("");
+          setCustomerEmail("");
+        }
+      }
+    }
+  }, [companyId, customerId, selectedCompany, selectedCustomer, isNewCustomer, editingInvoiceId]);
 
   const handleCheckTaxpayer = async () => {
     if (!editTaxNumber) {
@@ -250,7 +278,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     }
     setIsCheckingTaxpayer(true);
     try {
-      const res = await api.checkTaxpayer(editTaxNumber);
+      const res = await api.checkTaxpayer(editTaxNumber, role === 'superadmin' ? storeId : undefined);
       if (res.error) throw new Error(res.error);
       
       if (res.documentType === 'E-FATURA') {
@@ -418,6 +446,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setLastEditedId(editingInvoiceId || res.id);
       await fetchInvoicesData(activeSearch, startDate, endDate, true);
       if (onSave) await onSave(true);
+      resetForm();
       return res;
     })();
 
@@ -620,8 +649,15 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const totalGrandTotal = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
   const filteredProducts = products.filter((p: any) => {
-    const term = normalizeSearch(deferredProductSearch);
-    return !term || normalizeSearch(p.name).includes(term) || (p.barcode || "").toLowerCase().includes(term);
+    const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    
+    return searchTerms.every(term => 
+      normalizeSearch(p.name).includes(term) || 
+      (p.barcode || "").toLowerCase().includes(term) ||
+      (p.brand || "").toLowerCase().includes(term) ||
+      (p.description || "").toLowerCase().includes(term)
+    );
   });
 
   return (

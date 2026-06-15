@@ -297,10 +297,27 @@ const ProductsTab = ({
     
     return matchesSearch && matchesCategory && matchesMarketplace;
   }).sort((a, b) => {
-    const aIsNew = Array.isArray(a.labels) && a.labels.includes('yeni_fatura_urunu') ? 1 : 0;
-    const bIsNew = Array.isArray(b.labels) && b.labels.includes('yeni_fatura_urunu') ? 1 : 0;
-    if (aIsNew && !bIsNew) return -1;
-    if (!aIsNew && bIsNew) return 1;
+    const aIsNewLabel = Array.isArray(a.labels) && a.labels.includes('yeni_fatura_urunu') ? 1 : 0;
+    const bIsNewLabel = Array.isArray(b.labels) && b.labels.includes('yeni_fatura_urunu') ? 1 : 0;
+    
+    if (aIsNewLabel && !bIsNewLabel) return -1;
+    if (!aIsNewLabel && bIsNewLabel) return 1;
+
+    // Also consider recently updated products as "new"
+    const isRecent = (dateStr: string) => {
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
+      return diffDays < 3; // within 3 days
+    };
+
+    const aIsRecent = isRecent(a.updated_at);
+    const bIsRecent = isRecent(b.updated_at);
+
+    if (aIsRecent && !bIsRecent) return -1;
+    if (!aIsRecent && bIsRecent) return 1;
+
     return b.id - a.id;
   });
   
@@ -704,6 +721,31 @@ const ProductsTab = ({
                                 )}
                               </div>
                               <div className="flex flex-wrap items-center gap-1.5">
+                                {(() => {
+                                  if (!p.updated_at) return null;
+                                  const date = new Date(p.updated_at);
+                                  const now = new Date();
+                                  const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
+                                  if (diffDays < 3) {
+                                    return (
+                                      <span className="text-[8px] font-black text-white bg-indigo-600 border border-indigo-700 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm animate-pulse">
+                                        <Zap className="h-2.5 w-2.5" />
+                                        {lang === 'tr' ? 'YENİ' : 'NEW'}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                                {p.category && (
+                                  <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none">
+                                    {p.category}
+                                  </span>
+                                )}
+                                {p.sub_category && (
+                                  <span className="text-[9px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none">
+                                    {p.sub_category}
+                                  </span>
+                                )}
                                 {p.brand && (
                                   <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest bg-white">
                                     {p.brand}

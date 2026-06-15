@@ -33,7 +33,7 @@ export const getEInvoiceService = async (storeId: number) => {
 // 1. Check Taxpayer endpoint
 router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.user.store_id;
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
     const { vknTckn } = req.body;
     
     if (!vknTckn) return res.status(400).json({ error: "VKN veya TCKN gereklidir" });

@@ -125,6 +125,19 @@ export const ProductModal = ({
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "Alt Kategori" : "Sub Category"}
+              </label>
+              <input
+                type="text"
+                name="sub_category"
+                placeholder={isTr ? "örn: Çatı Paneli" : "Sub category"}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                defaultValue={editingProduct?.sub_category || ""}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
                 {isTr ? "Marka / Üretici" : "Brand"}
               </label>
               <input

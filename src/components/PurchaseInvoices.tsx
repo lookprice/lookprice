@@ -246,6 +246,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         setLastEditedId(editingInvoiceId || res.id);
         await fetchInvoicesData(undefined, undefined, undefined, true);
         if (onSave) await onSave(true);
+        resetForm();
         return res;
       } finally {
         setIsSubmitting(false);
@@ -336,8 +337,15 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const totalGrandTotal = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.grand_total || 0) * (Number(inv.exchange_rate) || 1)), 0);
 
   const filteredProducts = products.filter((p: any) => {
-    const term = normalizeSearch(deferredProductSearch);
-    return !term || normalizeSearch(p.name).includes(term) || (p.barcode || "").toLowerCase().includes(term);
+    const searchTerms = normalizeSearch(deferredProductSearch).split(/\s+/).filter(Boolean);
+    if (searchTerms.length === 0) return true;
+    
+    return searchTerms.every(term => 
+      normalizeSearch(p.name).includes(term) || 
+      (p.barcode || "").toLowerCase().includes(term) ||
+      (p.brand || "").toLowerCase().includes(term) ||
+      (p.description || "").toLowerCase().includes(term)
+    );
   });
 
   const exportToExcel = () => {

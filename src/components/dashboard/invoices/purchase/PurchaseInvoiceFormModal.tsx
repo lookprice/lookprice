@@ -14,6 +14,7 @@ import {
   Loader2 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { AutocompleteSelect } from '../../../AutocompleteSelect';
 
 interface PurchaseInvoiceFormModalProps {
   isOpen: boolean;
@@ -61,6 +62,7 @@ interface PurchaseInvoiceFormModalProps {
   setNotes: (val: string) => void;
   totals: any;
   branding: any;
+  onQuickCariAdd?: (searchStr: string) => void;
 }
 
 export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> = ({
@@ -108,7 +110,8 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
   notes,
   setNotes,
   totals,
-  branding
+  branding,
+  onQuickCariAdd
 }) => {
   if (!isOpen) return null;
 
@@ -117,7 +120,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-slate-200"
+        className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-slate-200"
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
@@ -134,52 +137,128 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-1.5 md:col-span-2 relative">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                <Building2 className="h-3 w-3" />
-                {isTr ? "SATICI (CARİ)" : "SUPPLIER (COMPANY)"}
-              </label>
-              <select
-                value={companyId}
-                onChange={(e) => setCompanyId(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none appearance-none"
-              >
-                <option value="">{isTr ? "Cari Seçin..." : "Select Company..."}</option>
-                {companies.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.title} {c.tax_number ? `(${c.tax_number})` : ''}</option>
-                ))}
-              </select>
-            </div>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-10 scrollbar-hide">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+             <div className="lg:col-span-6 space-y-6">
+                <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 shadow-sm">
+                  <AutocompleteSelect
+                    label={isTr ? 'Tedarikçi / Cari Seçimi' : 'Supplier / Company Selection'}
+                    items={companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' }))}
+                    displayField="display"
+                    secondaryField="phone"
+                    value={companySearch}
+                    onSelect={(item) => {
+                      if (!item) {
+                        setCompanyId('');
+                        setCompanySearch('');
+                        return;
+                      }
+                      setCompanyId(item.id);
+                      setCompanySearch(item.display);
+                    }}
+                    type="company"
+                    lang={isTr ? 'tr' : 'en'}
+                    placeholder={isTr ? 'Tedarikçi arayın...' : 'Search supplier...'}
+                    onQuickAdd={onQuickCariAdd}
+                  />
+                </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                <Hash className="h-3 w-3" />
-                {isTr ? "FATURA NO" : "INVOICE NO"}
-              </label>
-              <input
-                type="text"
-                required
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value.toUpperCase())}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
-              />
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura No' : 'Invoice No'}</label>
+                    <input 
+                      type="text"
+                      className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                      value={invoiceNumber}
+                      onChange={(e) => setInvoiceNumber(e.target.value.toUpperCase())}
+                      placeholder="ALIS-0001"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'İrsaliye No' : 'Waybill No'}</label>
+                    <input 
+                      type="text"
+                      className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                      value={waybillNumber}
+                      onChange={(e) => setWaybillNumber(e.target.value.toUpperCase())}
+                      placeholder="İRS-0001"
+                    />
+                  </div>
+                </div>
+             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                <Calendar className="h-3 w-3" />
-                {isTr ? "FATURA TARİHİ" : "INVOICE DATE"}
-              </label>
-              <input
-                type="date"
-                required
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
-              />
-            </div>
+             <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 p-6 rounded-3xl border-2 border-slate-100">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</label>
+                  <input 
+                    type="date"
+                    className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fiyat Ayarı' : 'Tax Setting'}</label>
+                    <div className="flex items-center gap-2">
+                       <button
+                         type="button"
+                         onClick={() => setIsTaxInclusive(true)}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
+                       >
+                         {isTr ? "KDV DAHİL" : "TAX INCL."}
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setIsTaxInclusive(false)}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
+                       >
+                         {isTr ? "KDV HARİÇ" : "TAX EXCL."}
+                       </button>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tipi' : 'Invoice Type'}</label>
+                    <div className="flex items-center gap-2">
+                       <button
+                         type="button"
+                         onClick={() => setIsExpense(false)}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${!isExpense ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-500'}`}
+                       >
+                         {isTr ? "STOKLU ALIM" : "STOCK BUY"}
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setIsExpense(true)}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${isExpense ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-slate-200 text-slate-500 hover:border-amber-500'}`}
+                       >
+                         {isTr ? "GİDER" : "EXPENSE"}
+                       </button>
+                    </div>
+                </div>
+
+                {isExpense && (
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-2">{isTr ? 'Gider Yeri' : 'Expense Center'}</label>
+                    <select
+                      value={expenseCenter}
+                      onChange={(e) => setExpenseCenter(e.target.value)}
+                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-500 transition-all font-bold text-slate-700"
+                    >
+                      <option value="">{isTr ? "Gider Yeri Seçin" : "Select Center"}</option>
+                      <option value="showroom">Showroom</option>
+                      <option value="service">Servis / Atölye</option>
+                      <option value="office">Ofis / İdari</option>
+                      <option value="marketing">Pazarlama / Reklam</option>
+                      <option value="personnel">Personel</option>
+                      <option value="other">Diğer</option>
+                    </select>
+                  </div>
+                )}
+             </div>
           </div>
 
           <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200 space-y-4">

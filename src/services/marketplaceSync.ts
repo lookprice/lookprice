@@ -70,27 +70,33 @@ export async function processMarketplaceOrderLines(
     );
 
     await client.query(
-      "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [salesInvoiceId, name, quantity, price, taxRate, taxAmount, total]
+      "INSERT INTO sales_invoice_items (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+      [salesInvoiceId, productId, name, line.barcode || '', quantity, price, taxRate, taxAmount, total]
     );
 
     if (productId) {
+      // Robust stock update
       await client.query(
-        "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+        "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) - $1 WHERE id = $2",
         [quantity, productId]
       );
 
-      await addStockMovement(
-        client, 
-        storeId, 
-        productId, 
-        'out', 
-        quantity, 
-        marketplaceName.toLowerCase(), 
-        `${marketplaceName} Satışı: ${orderId}`, 
-        price, 
-        'Pazaryeri Müşterisi'
-      );
+      // Always try to log movement
+      try {
+        await addStockMovement(
+          client, 
+          storeId, 
+          productId, 
+          'out', 
+          quantity, 
+          marketplaceName.toLowerCase(), 
+          `${marketplaceName} Satışı: ${orderId}`, 
+          price || 0, 
+          'Pazaryeri Müşterisi'
+        );
+      } catch (moveErr) {
+        console.error(`Stock movement logging failed for ${marketplaceName} order ${orderId}:`, moveErr);
+      }
     }
   }
 }

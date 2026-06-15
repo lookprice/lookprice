@@ -181,10 +181,10 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl my-auto overflow-hidden border border-slate-200"
+          className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-[95%] lg:max-w-[90rem] my-auto overflow-hidden border border-slate-200"
         >
-          <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[90vh]">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[92vh]">
+            <div className="p-8 lg:p-10 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
                   <FileText className="h-6 w-6" />
@@ -203,56 +203,71 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-              {/* Customer Selection & Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="md:col-span-1 space-y-4">
-                  <AutocompleteSelect
-                    label={isTr ? 'Müşteri / Cari Seçimi' : 'Customer / Company Selection'}
-                    items={[
-                      ...customers.map(c => ({ ...c, display: c.name || c.customer_name, type: 'customer' })),
-                      ...companies.map(c => ({ ...c, display: c.title || c.company_title, type: 'company' }))
-                    ]}
-                    displayField="display"
-                    secondaryField="phone"
-                    value={customerSearch}
-                    onSelect={(item) => {
-                      if (!item) {
-                        setCustomerId('');
-                        setCompanyId('');
-                        setCustomerSearch('');
-                        return;
-                      }
-                      if (item.type === 'customer') {
-                        setCustomerId(item.id);
-                        setCompanyId('');
-                      } else {
-                        setCompanyId(item.id);
-                        setCustomerId('');
-                      }
-                      setCustomerSearch(item.display);
-                    }}
-                    type="all-accounts"
-                    lang={isTr ? 'tr' : 'en'}
-                    placeholder={isTr ? 'Müşteri veya Cari arayın...' : 'Search Customer or Company...'}
-                    onQuickAdd={onQuickCariAdd}
-                  />
+            <div className="flex-1 overflow-y-auto p-8 space-y-10 scrollbar-hide">
+              {/* Main Header Info Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div className="lg:col-span-5 space-y-6">
+                  <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 shadow-sm">
+                    <AutocompleteSelect
+                      label={isTr ? 'Müşteri / Cari Seçimi' : 'Customer / Company Selection'}
+                      items={[
+                        ...customers.map(c => ({ ...c, display: c.name || c.full_name || c.customer_name || c.email, type: 'customer' })),
+                        ...companies.map(c => ({ ...c, display: c.title || c.company_title || c.name, type: 'company' }))
+                      ]}
+                      displayField="display"
+                      secondaryField="phone"
+                      value={customerSearch}
+                      onSelect={(item) => {
+                        if (!item) {
+                          setCustomerId('');
+                          setCompanyId('');
+                          setCustomerSearch('');
+                          setEditTaxNumber('');
+                          setEditTaxOffice('');
+                          setEditAddress('');
+                          setCustomerEmail('');
+                          return;
+                        }
+                        if (item.type === 'customer') {
+                          setCustomerId(item.id);
+                          setCompanyId('');
+                          setEditTaxNumber(item.tax_number || '');
+                          setEditTaxOffice(item.tax_office || '');
+                          setEditAddress(item.address || '');
+                          setCustomerEmail(item.email || '');
+                        } else {
+                          setCompanyId(item.id);
+                          setCustomerId('');
+                          setEditTaxNumber(item.tax_number || '');
+                          setEditTaxOffice(item.tax_office || '');
+                          setEditAddress(item.address || '');
+                          setCustomerEmail(item.email || '');
+                        }
+                        setCustomerSearch(item.display);
+                      }}
+                      type="all-accounts"
+                      lang={isTr ? 'tr' : 'en'}
+                      placeholder={isTr ? 'Müşteri veya Cari arayın...' : 'Search Customer or Company...'}
+                      onQuickAdd={onQuickCariAdd}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura No' : 'Invoice No'}</label>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura No' : 'Invoice No'}</label>
                       <input 
                         type="text"
-                        className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                        className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
                         value={invoiceNumber}
                         onChange={(e) => setInvoiceNumber(e.target.value)}
                         placeholder="SATIŞ-0001"
                       />
                     </div>
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'İrsaliye No' : 'Waybill No'}</label>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'İrsaliye No' : 'Waybill No'}</label>
                       <input 
                         type="text"
-                        className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
+                        className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
                         value={waybillNumber}
                         onChange={(e) => setWaybillNumber(e.target.value)}
                         placeholder="İRS-0001"
@@ -261,46 +276,45 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   </div>
                 </div>
 
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</label>
+                <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50/50 p-6 rounded-3xl border-2 border-slate-100">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tarihi' : 'Invoice Date'}</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
+                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
                       value={invoiceDate}
                       onChange={(e) => setInvoiceDate(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura Dosya Profili' : 'Invoice File Profile'}</label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Dosya Profili' : 'File Profile'}</label>
                     <select 
-                      className="w-full px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700 appearance-none"
+                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
                       value={invoiceProfile}
                       onChange={(e) => setInvoiceProfile(e.target.value)}
                     >
-                      <option value="TEMELFATURA">{isTr ? "Temel Fatura" : "Basic Invoice"}</option>
-                      <option value="TICARIFATURA">{isTr ? "Ticari Fatura" : "Commercial Invoice"}</option>
-                      <option value="EARSIVFATURA">{isTr ? "E-Arşiv Fatura" : "E-Archive Invoice"}</option>
+                      <option value="TEMELFATURA">{isTr ? "Temel Fatura" : "Basic"}</option>
+                      <option value="TICARIFATURA">{isTr ? "Ticari Fatura" : "Commercial"}</option>
+                      <option value="EARSIVFATURA">{isTr ? "E-Arşiv" : "E-Archive"}</option>
                     </select>
                   </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'GİB Fatura Tipi' : 'GİB Invoice Type'}</label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'GİB Tipi' : 'GİB Type'}</label>
                       <select 
-                        className="w-full px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700 appearance-none"
+                        className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
                         value={giInvoiceType}
                         onChange={(e: any) => setGiInvoiceType(e.target.value)}
                       >
                         <option value="SATIS">{isTr ? "Satış" : "Sales"}</option>
                         <option value="IADE">{isTr ? "İade" : "Return"}</option>
-                        <option value="TEVKIFAT">{isTr ? "Tevkifat" : "Withholding"}</option>
-                        <option value="ISTISNA">{isTr ? "İstisna" : "Exemption"}</option>
-                        <option value="IHRACKAYITLI">{isTr ? "İhraç Kayıtlı" : "Export Registry"}</option>
+                        <option value="TEVKIFAT">{isTr ? "Tevkifat" : "Withh."}</option>
+                        <option value="ISTISNA">{isTr ? "İstisna" : "Exempt."}</option>
                       </select>
                   </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Fatura Statüsü' : 'Invoice Status'}</label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Durum' : 'Status'}</label>
                     <select 
-                      className="w-full px-3 py-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
+                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
                       value={status}
                       onChange={(e: any) => setStatus(e.target.value)}
                     >
@@ -310,12 +324,52 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     </select>
                   </div>
 
+                  <div className="lg:col-span-2 space-y-3">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Vergi Ayarı' : 'Tax Setting'}</label>
+                     <div className="flex items-center gap-2">
+                       <button
+                         type="button"
+                         onClick={() => setIsTaxInclusive(true)}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-200'}`}
+                       >
+                         {isTr ? "Dahil" : "Incl."}
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setIsTaxInclusive(false)}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-200'}`}
+                       >
+                         {isTr ? "Hariç" : "Excl."}
+                       </button>
+                     </div>
+                  </div>
+
+                  <div className="lg:col-span-2 space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Tipi' : 'Type'}</label>
+                    <div className="flex items-center gap-2">
+                       <button
+                         type="button"
+                         onClick={() => { setIsReturn(false); if(giInvoiceType === 'IADE') setGiInvoiceType('SATIS'); }}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${!isReturn ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-200'}`}
+                       >
+                         {isTr ? "SATIŞ" : "SALE"}
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => { setIsReturn(true); setGiInvoiceType('IADE'); }}
+                         className={`flex-1 py-3 text-xs font-bold rounded-xl border-2 transition-all ${isReturn ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 text-slate-500 hover:border-rose-200'}`}
+                       >
+                         {isTr ? "İADE" : "RETURN"}
+                       </button>
+                    </div>
+                  </div>
+
                   {giInvoiceType === 'ISTISNA' && (
-                    <div className="space-y-4">
-                       <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest px-1">{isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Reason Code'}</label>
+                    <div className="lg:col-span-2 space-y-3">
+                       <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest px-2">{isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Code'}</label>
                        <input 
                          type="text"
-                         className="w-full px-4 py-4 bg-rose-50 border-2 border-rose-100 rounded-2xl focus:border-rose-500 focus:bg-white transition-all font-bold text-slate-700"
+                         className="w-full px-4 py-3 bg-rose-50 border-2 border-rose-100 rounded-2xl focus:border-rose-500 focus:bg-white transition-all font-bold text-slate-700"
                          value={exemptionReasonCode}
                          onChange={(e) => setExemptionReasonCode(e.target.value)}
                          placeholder="351, 301, vb..."
@@ -324,57 +378,17 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   )}
 
                   {giInvoiceType === 'TEVKIFAT' && (
-                    <div className="space-y-4">
-                       <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-1">{isTr ? 'Tevkifat Kodu' : 'Withholding Tax Code'}</label>
+                    <div className="lg:col-span-2 space-y-3">
+                       <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-2">{isTr ? 'Tevkifat Kodu' : 'Withholding Code'}</label>
                        <input 
                          type="text"
-                         className="w-full px-4 py-4 bg-amber-50 border-2 border-amber-100 rounded-2xl focus:border-amber-500 focus:bg-white transition-all font-bold text-slate-700"
+                         className="w-full px-4 py-3 bg-amber-50 border-2 border-amber-100 rounded-2xl focus:border-amber-500 focus:bg-white transition-all font-bold text-slate-700"
                          value={withholdingTaxCode}
                          onChange={(e) => setWithholdingTaxCode(e.target.value)}
                          placeholder="601, 602, vb..."
                        />
                     </div>
                   )}
-
-                  <div className="space-y-4">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'İşlem' : 'Action'}</label>
-                     <div className="flex items-center gap-4 py-4">
-                       <button
-                         type="button"
-                         onClick={() => { setIsReturn(false); if(giInvoiceType === 'IADE') setGiInvoiceType('SATIS'); }}
-                         className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${!isReturn ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
-                       >
-                         {isTr ? "Satış" : "Sale"}
-                       </button>
-                       <button
-                         type="button"
-                         onClick={() => { setIsReturn(true); setGiInvoiceType('IADE'); }}
-                         className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isReturn ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 text-slate-500'}`}
-                       >
-                         {isTr ? "İade" : "Return"}
-                       </button>
-                     </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{isTr ? 'Vergi Durumu' : 'Tax Status'}</label>
-                    <div className="flex items-center gap-4 py-4">
-                      <button
-                        type="button"
-                        onClick={() => setIsTaxInclusive(true)}
-                        className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
-                      >
-                        {isTr ? "KDV Dahil" : "VAT Incl."}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsTaxInclusive(false)}
-                        className={`flex-1 py-3 text-sm font-bold rounded-xl border-2 ${!isTaxInclusive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-500'}`}
-                      >
-                        {isTr ? "KDV Hariç" : "VAT Excl."}
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
 

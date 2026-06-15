@@ -445,7 +445,7 @@ export const api = {
   testPazaramaConnection: (storeId?: number) => api.post("/api/integrations/pazarama/test", { storeId }),
 
   // E-Invoice Methods
-  checkTaxpayer: (vknTckn: string) => api.post("/api/einvoice/check-taxpayer", { vknTckn }),
+  checkTaxpayer: (vknTckn: string, storeId?: number) => api.post(`/api/einvoice/check-taxpayer${storeId ? `?storeId=${storeId}` : ""}`, { vknTckn, storeId }),
   sendEInvoice: (invoiceId: number) => api.post(`/api/einvoice/send/${invoiceId}`, {}),
   cancelEInvoice: (invoiceId: number, reason: string) => api.post(`/api/einvoice/cancel/${invoiceId}`, { reason }),
   checkEInvoiceStatus: (invoiceId: number) => api.get(`/api/einvoice/status/${invoiceId}`),
