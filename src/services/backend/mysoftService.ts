@@ -69,7 +69,7 @@ export class MySoftService {
   }
 
   // 2. Taxpayer Query (Mükellef Sorgulama)
-  async checkTaxpayer(vknTckn: string): Promise<{ isTaxpayer: boolean; title?: string; documentType: 'E-FATURA' | 'E-ARSIV' }> {
+  async checkTaxpayer(vknTckn: string): Promise<{ isTaxpayer: boolean; title?: string; documentType: 'E-FATURA' | 'E-ARSIV', alias?: string }> {
     try {
       const token = await this.authenticate();
       
@@ -132,11 +132,12 @@ export class MySoftService {
           }
 
           if (isTaxpayer) {
-            console.log(`Taxpayer ${vknTckn} identified as E-FATURA`);
+            console.log(`Taxpayer ${vknTckn} identified as E-FATURA with alias: ${alias}`);
             return {
               isTaxpayer: true,
               title: title,
-              documentType: 'E-FATURA'
+              documentType: 'E-FATURA',
+              alias: alias
             };
           }
         } catch (innerErr: any) {

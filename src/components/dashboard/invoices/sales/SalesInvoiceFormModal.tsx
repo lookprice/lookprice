@@ -38,6 +38,8 @@ interface SalesInvoiceFormModalProps {
   setWaybillNumber: (val: string) => void;
   invoiceDate: string;
   setInvoiceDate: (val: string) => void;
+  invoiceTime: string;
+  setInvoiceTime: (val: string) => void;
   invoiceProfile: string;
   setInvoiceProfile: (val: string) => void;
   giInvoiceType: string;
@@ -123,6 +125,8 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   setWaybillNumber,
   invoiceDate,
   setInvoiceDate,
+  invoiceTime,
+  setInvoiceTime,
   invoiceProfile,
   setInvoiceProfile,
   giInvoiceType,
@@ -284,6 +288,16 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                       className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
                       value={invoiceDate}
                       onChange={(e) => setInvoiceDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Saati' : 'Invoice Time'}</label>
+                    <input 
+                      type="time"
+                      step="1"
+                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
+                      value={invoiceTime}
+                      onChange={(e) => setInvoiceTime(e.target.value)}
                     />
                   </div>
                   <div className="space-y-3">

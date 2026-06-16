@@ -3963,6 +3963,7 @@ router.post("/sales-invoices", async (req: any, res) => {
       invoice_number, 
       waybill_number,
       invoice_date, 
+      invoice_time,
       items, 
       notes, 
       currency, 
@@ -4057,8 +4058,8 @@ router.post("/sales-invoices", async (req: any, res) => {
     // Insert invoice
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING id`,
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) RETURNING id`,
       [
         storeId, 
         sale_id || null, 
@@ -4067,6 +4068,7 @@ router.post("/sales-invoices", async (req: any, res) => {
         invoice_number, 
         waybill_number || null, 
         invoice_date || new Date(), 
+        invoice_time || new Date().toLocaleTimeString('tr-TR', { hour12: false }),
         total_amount, 
         tax_amount, 
         grand_total, 
@@ -4191,7 +4193,7 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
     
     const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
     const { 
-      company_id, customer_id, invoice_number, waybill_number, invoice_date, 
+      company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time,
       notes, items, payment_method, currency, exchange_rate, 
       invoice_type, invoice_profile, status, is_tax_inclusive,
       tax_number, tax_office, address,
@@ -4323,8 +4325,9 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
            invoice_profile = $16, is_tax_inclusive = $17,
         customer_email = $18,
         tax_number = $19, tax_office = $20, address = $21,
-        gi_invoice_type = $22, gi_exemption_reason_code = $23, gi_withholding_tax_code = $24
-    WHERE id = $25 AND store_id = $26`,
+        gi_invoice_type = $22, gi_exemption_reason_code = $23, gi_withholding_tax_code = $24,
+        invoice_time = $25
+    WHERE id = $26 AND store_id = $27`,
     [
       company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, 
       total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, 
@@ -4334,6 +4337,7 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
       req.body.customer_email || null,
       tax_number || null, tax_office || null, address || null,
       gi_invoice_type || 'SATIS', gi_exemption_reason_code || null, gi_withholding_tax_code || null,
+      invoice_time || null,
       req.params.id, storeId
     ]
     );

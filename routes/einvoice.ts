@@ -82,24 +82,30 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // 2. Email for E-Archive (GİB Mandatory for some scenarios, highly recommended for all)
     const customerEmail = invoice.customer_email || invoice.email;
     if (docType === 'E-ARSIV' && !customerEmail) {
-       // While GİB allows sending without email to some extent (using default), 
-       // it's a "rule and schema" compliance point the user specifically mentioned.
-       // We'll allow it if strictly forced, but warn or prefer it.
-       // Actually, user said: "müşterinin e-mail bilgisi gibi GİB kurallarına uygun olup olmadığımızı kontrol etmedik"
-       // So I will enforce it here.
        return res.status(400).json({ error: "E-Arşiv faturaları için müşteri e-posta adresi zorunludur." });
     }
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (customerEmail && !emailRegex.test(customerEmail)) {
-        return res.status(400).json({ error: "Geçerli bir müşteri e-posta adresi girilmelidir." });
-    }
-
     // Fetch Store and Company settings to use for UBL Generation
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
     const row = storeRes.rows[0] || {};
     const settings = row.einvoice_settings || {};
     const branding = row.branding || {};
+
+    // Determine Receiver Alias (for E-Fatura)
+    let pkAlias = settings.receiver_alias || 'urn:mail:defaultpk@default.com';
+    if (docType === 'E-FATURA') {
+      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+      if (taxpayerCheck.isTaxpayer && taxpayerCheck.alias) {
+        pkAlias = taxpayerCheck.alias;
+        console.log(`[INVOICE-SEND] Using customer-specific alias: ${pkAlias}`);
+      }
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (customerEmail && !emailRegex.test(customerEmail)) {
+        res.status(400).json({ error: "Geçerli bir müşteri e-posta adresi girilmelidir." });
+        return;
+    }
     
     // Ensure ETTN and Document Number are present and atomic
     let documentNumber = invoice.document_number;
@@ -194,7 +200,16 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // Date formatting
     const docDate = new Date(invoice.invoice_date || new Date());
     const formattedDate = docDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
-    const formattedTime = docDate.toISOString().split('T')[1].substring(0, 8); // "HH:mm:ss"
+    
+    let formattedTime = docDate.toISOString().split('T')[1].substring(0, 8); // default "HH:mm:ss" UTC
+    if (invoice.invoice_time) {
+        // user provided time, ensure it's in HH:mm:ss format
+        if (invoice.invoice_time.length === 5) {
+            formattedTime = invoice.invoice_time + ":00";
+        } else if (invoice.invoice_time.length >= 8) {
+            formattedTime = invoice.invoice_time.substring(0, 8);
+        }
+    }
 
     const nameParts = (invoice.customer_name || "").split(' ');
     const surname = nameParts.length > 1 ? nameParts.pop() : "";
@@ -259,7 +274,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        currencyRate: Number(Number(invoice.exchange_rate || 1).toFixed(4)),
        tenantIdentifierNumber: storeTaxNumber,
        
-       pkAlias: settings.receiver_alias || 'urn:mail:defaultpk@default.com',
+       pkAlias: pkAlias,
        
        invoiceAccount: {
           vknTckn: taxNumber,

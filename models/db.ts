@@ -588,6 +588,7 @@ export async function initDb() {
         payment_method TEXT,
         invoice_type TEXT DEFAULT 'manual',
         status TEXT DEFAULT 'draft',
+        invoice_time TEXT,
         quotation_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
@@ -604,6 +605,7 @@ export async function initDb() {
       END $$;
 
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS quotation_id INTEGER;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS invoice_time TEXT;
 
       CREATE TABLE IF NOT EXISTS sales_invoice_items (
         id SERIAL PRIMARY KEY,

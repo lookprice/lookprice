@@ -80,6 +80,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [waybillNumber, setWaybillNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [invoiceTime, setInvoiceTime] = useState(new Date().toLocaleTimeString('tr-TR', { hour12: false }));
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
@@ -374,6 +375,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setInvoiceNumber("");
     setWaybillNumber("");
     setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setInvoiceTime(new Date().toLocaleTimeString('tr-TR', { hour12: false }));
     setNotes("");
     setItems([]);
     setProductSearch("");
@@ -414,6 +416,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       invoice_number: invoiceNumber,
       waybill_number: waybillNumber,
       invoice_date: invoiceDate,
+      invoice_time: invoiceTime,
       notes,
       items: items.map(item => ({
         ...item,
@@ -482,6 +485,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setInvoiceNumber(data.invoice_number);
       setWaybillNumber(data.waybill_number || "");
       setInvoiceDate(new Date(data.invoice_date).toISOString().split('T')[0]);
+      setInvoiceTime(data.invoice_time || new Date().toLocaleTimeString('tr-TR', { hour12: false }));
       setNotes(data.notes || "");
       setPaymentMethod(data.payment_method);
       setCurrency(data.currency);
@@ -762,6 +766,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setWaybillNumber={setWaybillNumber}
         invoiceDate={invoiceDate}
         setInvoiceDate={setInvoiceDate}
+        invoiceTime={invoiceTime}
+        setInvoiceTime={setInvoiceTime}
         invoiceProfile={invoiceProfile}
         setInvoiceProfile={(val: any) => setInvoiceProfile(val)}
         giInvoiceType={giInvoiceType}
