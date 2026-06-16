@@ -670,7 +670,7 @@ router.get("/store/:slug/products", async (req, res) => {
     JOIN stores s ON p.store_id = s.id
     WHERE (p.store_id = $1 OR s.parent_id = $1) 
     AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
-    ORDER BY p.name ASC
+    ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC
   `, [store.id]);
 
   const vehiclesRes = await pool.query(`

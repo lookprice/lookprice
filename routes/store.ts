@@ -1885,7 +1885,7 @@ if (search) {
   });
 }
 
-    query += ` ORDER BY p.name ASC`;
+    query += ` ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC`;
 
     const productsRes = await pool.query(query, params);
     res.json(productsRes.rows);

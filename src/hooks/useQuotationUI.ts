@@ -6,7 +6,14 @@ export const useQuotationUI = (branding: any) => {
   const [showNotes, setShowNotes] = useState(false);
   const [quotationProductSearch, setQuotationProductSearch] = useState("");
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', barcode: '', tax_rate: String(branding?.default_tax_rate ?? 20) });
+  const [quickProductForm, setQuickProductForm] = useState({ 
+    name: '', 
+    price: '', 
+    barcode: '', 
+    category: '',
+    sub_category: '',
+    tax_rate: String(branding?.default_tax_rate ?? 20) 
+  });
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [quotationSearch, setQuotationSearch] = useState("");

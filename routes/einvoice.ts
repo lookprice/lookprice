@@ -50,16 +50,23 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
 
 // 2. Send Sales Invoice to Entegrator
 router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
   const { invoiceId } = req.params;
+  let storeId = req.user.store_id; 
   try {
-    const service = await getEInvoiceService(storeId);
+    // 1. Fetch the invoice first to identify the correct storeId
+    let invoice;
+    if (req.user.role === 'superadmin') {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+      storeId = invoice.store_id;
+    } else {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+    }
 
-    // Get the invoice
-    const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
-    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
-    
-    const invoice = invRes.rows[0];
+    const service = await getEInvoiceService(storeId);
     const docType = invoice.e_document_type || 'E-ARSIV';
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
     const exemptionCode = invoice.gi_exemption_reason_code;
@@ -92,13 +99,24 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const branding = row.branding || {};
 
     // Determine Receiver Alias (for E-Fatura)
-    let pkAlias = settings.receiver_alias || 'urn:mail:defaultpk@default.com';
+    let pkAlias = settings.receiver_alias || '';
     if (docType === 'E-FATURA') {
       const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-      if (taxpayerCheck.isTaxpayer && taxpayerCheck.alias) {
-        pkAlias = taxpayerCheck.alias;
-        console.log(`[INVOICE-SEND] Using customer-specific alias: ${pkAlias}`);
+      if (taxpayerCheck.isTaxpayer) {
+        if (taxpayerCheck.alias) {
+          pkAlias = taxpayerCheck.alias;
+          console.log(`[INVOICE-SEND] Using customer-specific alias: ${pkAlias}`);
+        } else {
+          // Fallback to a default if still empty but is taxpayer
+          pkAlias = pkAlias || 'urn:mail:defaultpk@default.com';
+          console.log(`[INVOICE-SEND] Taxpayer found but NO alias returned. Using fallback: ${pkAlias}`);
+        }
       }
+    }
+    
+    // Final safety check for pkAlias when E-FATURA
+    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "")) {
+      pkAlias = 'urn:mail:defaultpk@default.com';
     }
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -201,7 +219,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const docDate = new Date(invoice.invoice_date || new Date());
     const formattedDate = docDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
     
-    let formattedTime = docDate.toISOString().split('T')[1].substring(0, 8); // default "HH:mm:ss" UTC
+    // Time formatting - use local TR time (UTC+3) rather than UTC
+    let formattedTime = new Date(docDate.getTime() + (3 * 60 * 60 * 1000)).toISOString().split('T')[1].substring(0, 8);
+    
     if (invoice.invoice_time) {
         // user provided time, ensure it's in HH:mm:ss format
         if (invoice.invoice_time.length === 5) {
@@ -329,17 +349,27 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
 // 3. Check Status of a Sent Invoice
 router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
   const { invoiceId } = req.params;
+  let storeId = req.user.store_id;
   try {
-    const service = await getEInvoiceService(storeId);
+    let ettn;
+    
+    if (req.user.role === 'superadmin') {
+      const invRes = await pool.query("SELECT store_id, ettn FROM sales_invoices WHERE id = $1", [invoiceId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      storeId = invRes.rows[0].store_id;
+      ettn = invRes.rows[0].ettn;
+    } else {
+      const invRes = await pool.query("SELECT ettn FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      ettn = invRes.rows[0].ettn;
+    }
 
-    const invRes = await pool.query("SELECT ettn FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
-    if (invRes.rows.length === 0 || !invRes.rows[0].ettn) {
+    if (!ettn) {
       return res.status(404).json({ error: "Geçerli bir ETTN bulunamadı." });
     }
     
-    const ettn = invRes.rows[0].ettn;
+    const service = await getEInvoiceService(storeId);
     console.log(`[INVOICE-STATUS-CHECK] Checking status for ETTN: ${ettn}`);
     const status = await service.getInvoiceStatus(ettn);
     console.log(`[INVOICE-STATUS-CHECK] Got status:`, status);
@@ -359,24 +389,36 @@ router.get("/einvoice/status/:invoiceId", authenticate, async (req: any, res) =>
 
 // 4. Cancel E-Archive Invoice
 router.post("/einvoice/cancel/:invoiceId", authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
   const { invoiceId } = req.params;
   const { reason } = req.body;
+  let storeId = req.user.store_id;
   try {
-    const service = await getEInvoiceService(storeId);
+    let invoice;
+    
+    if (req.user.role === 'superadmin') {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+      storeId = invoice.store_id;
+    } else {
+      const invRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+      if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı" });
+      invoice = invRes.rows[0];
+    }
 
-    const invRes = await pool.query("SELECT ettn, e_document_type, invoice_date FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
-    if (invRes.rows.length === 0 || !invRes.rows[0].ettn) {
+    if (!invoice.ettn) {
       return res.status(404).json({ error: "Fatura bulunamadı veya ETTN'si yok." });
     }
     
+    const service = await getEInvoiceService(storeId);
+
     // Only allow E-ARSIV for cancellation via MySoft (E-FATURA usually requires different processes or portal)
-    if (invRes.rows[0].e_document_type !== 'E-ARSIV') {
+    if (invoice.e_document_type !== 'E-ARSIV') {
         return res.status(400).json({ error: "Sadece E-Arşiv faturaları sistem üzerinden iptal edilebilir." });
     }
 
     // the 8-day rule for E-Archive
-    const invoiceDate = new Date(invRes.rows[0].invoice_date);
+    const invoiceDate = new Date(invoice.invoice_date);
     const currentDate = new Date();
     const diffTime = Math.abs(currentDate.getTime() - invoiceDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -385,8 +427,8 @@ router.post("/einvoice/cancel/:invoiceId", authenticate, async (req: any, res) =
        return res.status(400).json({ error: "E-Arşiv faturaları, düzenlenme tarihinden itibaren sadece 8 gün içerisinde iptal edilebilir." });
     }
 
-    const ettn = invRes.rows[0].ettn;
-    const eDocType = invRes.rows[0].e_document_type;
+    const ettn = invoice.ettn;
+    const eDocType = invoice.e_document_type;
     
     const result = await (service as any).cancelInvoice(ettn, reason || "İptal talebi", eDocType);
 

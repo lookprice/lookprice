@@ -115,15 +115,40 @@ export class MySoftService {
               );
               const bestMatch = data.find(item => item.Identifier === vknTckn || item.Vkn === vknTckn) || data[0];
               title = bestMatch.Title || bestMatch.title || bestMatch.Name || bestMatch.name || "";
-              alias = bestMatch.Alias || bestMatch.alias || "";
+              
+              // Handle alias which could be a string or a list
+              const rawAlias = bestMatch.Alias || bestMatch.alias || bestMatch.DefaultPkAlias || bestMatch.defaultPkAlias || bestMatch.PkAlias || bestMatch.pkAlias || "";
+              if (Array.isArray(rawAlias)) {
+                // If it's a list, look for one containing 'pk'
+                const pkAlias = rawAlias.find(a => String(a).toLowerCase().includes('pk')) || rawAlias[0];
+                alias = String(pkAlias || "");
+              } else {
+                alias = String(rawAlias);
+              }
+              
+              // If still empty but we have multiple items in data, try searching the list for any alias
+              if (!alias && data.length > 1) {
+                const itemWithAlias = data.find(item => item.Alias || item.alias || item.DefaultPkAlias);
+                if (itemWithAlias) {
+                  alias = String(itemWithAlias.Alias || itemWithAlias.alias || itemWithAlias.DefaultPkAlias || "");
+                }
+              }
             }
           } else {
             isTaxpayer = data.IsEInvoiceUser || data.isEInvoiceUser || data.EInvoiceUser || 
                          data.efaturaMukkellefi === true || data.efaturaMukkellefi === "True" ||
-                         data.Type === 'EFATURA' || data.type === 'EFATURA';
+                         data.Type === 'EFATURA' || data.type === 'EFATURA' ||
+                         data.Title || data.Name; // Presence of Title/Name often implies a match
                          
             title = data.Title || data.title || data.Name || data.name || "";
-            alias = data.Alias || data.alias || "";
+            
+            const rawAlias = data.Alias || data.alias || data.DefaultPkAlias || data.defaultPkAlias || data.PkAlias || data.pkAlias || "";
+            if (Array.isArray(rawAlias)) {
+              const pkAlias = rawAlias.find(a => String(a).toLowerCase().includes('pk')) || rawAlias[0];
+              alias = String(pkAlias || "");
+            } else {
+              alias = String(rawAlias);
+            }
             
             if (!isTaxpayer && (data.Vkn === vknTckn || data.Identifier === vknTckn || data.vkn === vknTckn)) {
               // If we found the record by VKN specifically, some API versions imply they are registered
@@ -412,6 +437,7 @@ export class MySoftService {
         const baseAmount = item.LineExtensionAmount || item.lineExtensionAmount || item.TaxExclusiveAmount || item.taxExclusiveAmount || (Number(payableAmount) - Number(taxAmount)) || 0;
         const currency = item.CurrencyCode || item.currencyCode || item.Currency || item.currency || item.documentCurrencyCode || item.DocumentCurrencyCode || 'TRY';
         const documentType = item.InvoiceTypeCode || item.invoiceTypeCode || item.Type || item.type || item.eDocumentType || item.DocumentType || item.documentType || item.profileId || item.ProfileId || 'EFATURA';
+        const exchangeRate = Number(item.PricingExchangeRate?.CalculationRate || item.pricingExchangeRate?.calculationRate || item.ExchangeRate || item.exchangeRate || item.CurrencyRate || item.currencyRate || 1);
         
         return {
           ettn,
@@ -424,6 +450,7 @@ export class MySoftService {
           baseAmount: Number(baseAmount) || 0,
           currency,
           documentType,
+          exchangeRate,
           raw: item
         };
       });

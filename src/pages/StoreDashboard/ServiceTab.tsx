@@ -90,7 +90,15 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
 
   const [isSubmittingQuickProduct, setIsSubmittingQuickProduct] = useState(false);
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
-  const [quickProductForm, setQuickProductForm] = useState({ name: '', price: '', tax_rate: '20', type: 'part', index: 0 });
+  const [quickProductForm, setQuickProductForm] = useState({ 
+    name: '', 
+    price: '', 
+    tax_rate: '20', 
+    category: '',
+    sub_category: '',
+    type: 'part', 
+    index: 0 
+  });
 
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -214,7 +222,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
       setServiceItems(newItems);
       
       setShowQuickProductModal(false);
-      setQuickProductForm({ name: '', price: '', tax_rate: '20', type: 'part', index: 0 });
+      setQuickProductForm({ name: '', price: '', tax_rate: '20', category: '', sub_category: '', type: 'part', index: 0 });
     } catch(err) {
       console.error(err);
       alert(isTr ? "Ürün/Hizmet kaydedilemedi." : "Item save failed.");
@@ -1012,7 +1020,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                             <button
                               type="button"
                               onClick={() => {
-                                setQuickProductForm({ name: item.item_name || '', price: '', tax_rate: '20', type: item.type, index });
+                                setQuickProductForm({ name: item.item_name || '', price: '', tax_rate: '20', category: '', sub_category: '', type: item.type, index });
                                 setShowQuickProductModal(true);
                               }}
                               className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded"
@@ -1041,7 +1049,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                                 }
                               }}
                               onQuickAdd={(search) => {
-                                setQuickProductForm({ name: search, price: '', tax_rate: '20', type: 'part', index });
+                                setQuickProductForm({ name: search, price: '', tax_rate: '20', category: '', sub_category: '', type: 'part', index });
                                 setShowQuickProductModal(true);
                               }}
                             />
@@ -1065,7 +1073,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                                 }
                               }}
                               onQuickAdd={(search) => {
-                                setQuickProductForm({ name: search, price: '', tax_rate: '20', type: 'labor', index });
+                                setQuickProductForm({ name: search, price: '', tax_rate: '20', category: '', sub_category: '', type: 'labor', index });
                                 setShowQuickProductModal(true);
                               }}
                             />

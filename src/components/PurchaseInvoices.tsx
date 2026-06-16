@@ -74,11 +74,13 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     name: "", 
     price: "", 
     barcode: "", 
+    category: "",
+    sub_category: "",
     tax_rate: String(branding?.default_tax_rate ?? 20),
     currency: branding?.default_currency || 'TRY'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isTaxInclusive, setIsTaxInclusive] = useState(true);
+  const [isTaxInclusive, setIsTaxInclusive] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [isExpense, setIsExpense] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState("");
@@ -138,8 +140,9 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         );
       } else {
         const taxRate = Math.floor(Number(product.tax_rate ?? branding?.default_tax_rate ?? 20));
-        const kdvDahilPrice = Number(product.cost_price || product.price) || 0;
-        let unitPrice = kdvDahilPrice / (1 + taxRate / 100);
+        // cost_price is stored as EXCLUSIVE in DB.
+        const costPriceExcl = Number(product.cost_price || product.price) || 0;
+        let unitPrice = isTaxInclusive ? (costPriceExcl * (1 + taxRate / 100)) : costPriceExcl;
 
         if (productCurrency !== targetCurrency) {
           const rates = branding?.currency_rates || {};
@@ -194,7 +197,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     setPaymentStatus('unpaid');
     setCurrency(branding?.default_currency || 'TRY');
     setExchangeRate("1");
-    setIsTaxInclusive(true);
+    setIsTaxInclusive(false);
     setIsExpense(false);
     setExpenseCategory("");
     setExpenseCenter("");
@@ -288,18 +291,24 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       setPaymentStatus(data.payment_status || 'unpaid');
       setCurrency(data.currency || 'TRY');
       setExchangeRate(String(data.exchange_rate || 1));
-      setIsTaxInclusive(data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true);
+      const editIsTaxIncl = data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : false;
+      setIsTaxInclusive(editIsTaxIncl);
       setIsExpense(!!data.is_expense);
       setExpenseCategory(data.expense_category || "");
       setExpenseCenter(data.expense_center || "");
-      setItems((data.items || []).map((item: any) => ({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        barcode: item.barcode,
-        quantity: String(item.quantity || 0),
-        unit_price: String(Number(item.unit_price).toFixed(2)),
-        tax_rate: String(item.tax_rate || 0)
-      })));
+      setItems((data.items || []).map((item: any) => {
+        const up = Number(item.unit_price) || 0;
+        const tr = Number(item.tax_rate) || 0;
+        const displayPrice = editIsTaxIncl ? (up * (1 + tr / 100)) : up;
+        return {
+          product_id: item.product_id,
+          product_name: item.product_name,
+          barcode: item.barcode,
+          quantity: String(item.quantity || 0),
+          unit_price: String(displayPrice.toFixed(2)),
+          tax_rate: String(item.tax_rate || 0)
+        };
+      }));
       setShowModal(true);
     } catch (error: any) {
       toast.error(error.message);

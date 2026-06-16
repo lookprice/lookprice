@@ -61,6 +61,26 @@ export const QuickProductModal: React.FC<QuickProductModalProps> = ({
               />
             </div>
             <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Kategori" : "Category"}</label>
+              <input
+                type="text"
+                value={quickProductForm.category || ""}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, category: e.target.value })}
+                placeholder={isTr ? "örn: Elektronik" : "e.g. Electronics"}
+                className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Alt Kategori" : "Sub Category"}</label>
+              <input
+                type="text"
+                value={quickProductForm.sub_category || ""}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, sub_category: e.target.value })}
+                placeholder={isTr ? "örn: Telefon" : "e.g. Phone"}
+                className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+            <div>
               <label className="text-sm font-medium text-slate-700 block mb-1.5">{isTr ? "Barkod" : "Barcode"}</label>
               <input
                 type="text"

@@ -114,6 +114,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     name: "",
     price: "",
     barcode: "",
+    category: "",
+    sub_category: "",
     tax_rate: String(branding?.default_tax_rate ?? 20),
     currency: branding?.default_currency || 'TRY'
   });
