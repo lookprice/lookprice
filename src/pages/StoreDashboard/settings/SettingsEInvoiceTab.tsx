@@ -147,6 +147,28 @@ export const SettingsEInvoiceTab = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
                   <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Firma Resmi VKN / TCKN (10/11 Hane) *</label>
+                    <input 
+                      type="text" 
+                      maxLength={11}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold border-indigo-200 ring-2 ring-indigo-500/5"
+                      placeholder="Örn: 1234567890"
+                      value={branding.einvoice_settings.vkn || ''}
+                      onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, vkn: e.target.value.replace(/[^0-9]/g, '') })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Firma Resmi Vergi Dairesi</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold"
+                      placeholder="Örn: Kadıköy"
+                      value={branding.einvoice_settings.tax_office || ''}
+                      onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, tax_office: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Kullanıcı ID (Tenant ID)</label>
                     <input 
                       type="text" 

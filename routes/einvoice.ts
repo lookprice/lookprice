@@ -52,6 +52,7 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
 router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => {
   const { invoiceId } = req.params;
   let storeId = req.user.store_id; 
+  console.log(`[INVOICE-SEND-ENTRY] InvoiceID: ${invoiceId}, UserStoreId: ${storeId}`);
   try {
     // 1. Fetch the invoice first to identify the correct storeId
     let invoice;
@@ -94,23 +95,42 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     
     // Fetch Store and Company settings to use for UBL Generation
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları bulunamadı.");
+    
     const row = storeRes.rows[0] || {};
     const settings = row.einvoice_settings || {};
     const branding = row.branding || {};
 
+    console.log(`[INVOICE-SEND] settings: ${JSON.stringify(settings).substring(0, 100)}`);
+
+    // Determine Store VKN for tenantIdentifierNumber
+    let storeTaxNumber = (settings.vkn || settings.tax_number || branding.tax_number || "").replace(/\s/g, '').replace(/\D/g, '');
+    if (!storeTaxNumber && settings.tenant_id && (settings.tenant_id.length === 10 || settings.tenant_id.length === 11)) {
+      storeTaxNumber = settings.tenant_id.replace(/\s/g, '').replace(/\D/g, '');
+    }
+
+    if (!storeTaxNumber || (storeTaxNumber.length !== 10 && storeTaxNumber.length !== 11)) {
+      return res.status(400).json({ 
+        error: `Geçersiz veya eksik Firma VKN/TCKN (${storeTaxNumber || 'Boş'}). Lütfen Ayarlar > E-Fatura paneline gidin, 10 haneli Vergi Kimlik Numarasını (VKN) veya 11 haneli T.C. Kimlik Numarasını (TCKN) girerek kaydedin.`
+      });
+    }
+
     // Determine Receiver Alias (for E-Fatura)
     let pkAlias = settings.receiver_alias || '';
     if (docType === 'E-FATURA') {
-      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-      if (taxpayerCheck.isTaxpayer) {
-        if (taxpayerCheck.alias) {
-          pkAlias = taxpayerCheck.alias;
-          console.log(`[INVOICE-SEND] Using customer-specific alias: ${pkAlias}`);
-        } else {
-          // Fallback to a default if still empty but is taxpayer
-          pkAlias = pkAlias || 'urn:mail:defaultpk@default.com';
-          console.log(`[INVOICE-SEND] Taxpayer found but NO alias returned. Using fallback: ${pkAlias}`);
+      try {
+        const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+        if (taxpayerCheck.isTaxpayer) {
+          if (taxpayerCheck.alias) {
+            pkAlias = taxpayerCheck.alias;
+            console.log(`[INVOICE-SEND] Using customer-specific alias: ${pkAlias}`);
+          } else {
+            pkAlias = pkAlias || 'urn:mail:defaultpk@default.com';
+            console.log(`[INVOICE-SEND] Taxpayer found but NO alias returned. Using fallback: ${pkAlias}`);
+          }
         }
+      } catch (checkErr) {
+        console.warn("[INVOICE-SEND] Taxpayer check failed, continuing with default alias:", checkErr);
       }
     }
     
@@ -132,8 +152,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     console.log(`[INVOICE-SEND] Invoice ID: ${invoiceId}, Existing DocNumber: ${documentNumber}, Existing ETTN: ${ettn}`);
     
     if (!documentNumber || !ettn) {
-      await pool.query("BEGIN");
+      const client = await pool.connect();
       try {
+        await client.query("BEGIN");
+        
         if (!documentNumber) {
           const docTypeStr = invoice.e_document_type || 'E-ARSIV';
           let prefix = docTypeStr === 'E-FATURA' ? (settings.einvoice_prefix || 'GAP') : (settings.earchive_prefix || 'GEA');
@@ -142,7 +164,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           const currentYear = new Date().getFullYear().toString();
           const prefixWithYear = `${prefix}${currentYear}`;
           
-          const seqRes = await pool.query(
+          const seqRes = await client.query(
              "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
              [storeId, `${prefixWithYear}%`]
           );
@@ -167,14 +189,16 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           invoice.ettn = ettn;
         }
         
-        await pool.query(
+        await client.query(
            "UPDATE sales_invoices SET document_number = $1, ettn = $2 WHERE id = $3",
            [documentNumber, ettn, invoiceId]
         );
-        await pool.query("COMMIT");
+        await client.query("COMMIT");
       } catch (err) {
-        await pool.query("ROLLBACK");
+        await client.query("ROLLBACK");
         throw err;
+      } finally {
+        client.release();
       }
     }
 
@@ -212,23 +236,34 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        }
     }
 
-    // Determine Store VKN for tenantIdentifierNumber
-    const storeTaxNumber = (settings.vkn || branding.tax_number || "").replace(/\s/g, '');
-
     // Date formatting
     const docDate = new Date(invoice.invoice_date || new Date());
+    if (isNaN(docDate.getTime())) {
+      return res.status(400).json({ error: "Fatura tarihi geçersiz." });
+    }
     const formattedDate = docDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
     
     // Time formatting - use local TR time (UTC+3) rather than UTC
-    let formattedTime = new Date(docDate.getTime() + (3 * 60 * 60 * 1000)).toISOString().split('T')[1].substring(0, 8);
+    let formattedTime = "12:00:00";
+    try {
+      // Create a date string in YYYY-MM-DD HH:mm:ss format which MySoft often expects for docTime
+      const now = new Date(docDate.getTime() + (3 * 60 * 60 * 1000));
+      const timePart = now.toISOString().split('T')[1].substring(0, 8);
+      formattedTime = `${formattedDate} ${timePart}`;
+    } catch (e) {
+      console.warn("Could not format time from docDate, using default");
+      formattedTime = `${formattedDate} 12:00:00`;
+    }
     
     if (invoice.invoice_time) {
-        // user provided time, ensure it's in HH:mm:ss format
+        // user provided time, ensure it's in HH:mm:ss format and combine with date
+        let userTime = "12:00:00";
         if (invoice.invoice_time.length === 5) {
-            formattedTime = invoice.invoice_time + ":00";
+            userTime = invoice.invoice_time + ":00";
         } else if (invoice.invoice_time.length >= 8) {
-            formattedTime = invoice.invoice_time.substring(0, 8);
+            userTime = invoice.invoice_time.substring(0, 8);
         }
+        formattedTime = `${formattedDate} ${userTime}`;
     }
 
     const nameParts = (invoice.customer_name || "").split(' ');
@@ -238,9 +273,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // LINES (mapped to invoiceDetail for MySoft)
     const isTaxInclusive = !!invoice.is_tax_inclusive;
     const InvoiceDetail = items.map((item, index) => {
-      const qty = Number(item.quantity) || 1;
-      const price = Number(item.unit_price) || 0;
-      const taxRate = Number(item.tax_rate) || 0;
+      const qty = Number(String(item.quantity).replace(',', '.')) || 1;
+      const price = Number(String(item.unit_price).replace(',', '.')) || 0;
+      const taxRate = Number(String(item.tax_rate).replace(',', '.')) || 0;
       
       let lineExtensionAmount: number; // tax exclusive total
       let unitPrice: number; // tax exclusive unit price
@@ -259,13 +294,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
       return {
         productName: item.product_name || "Ürün/Hizmet",
-        qty: Number(qty.toFixed(4)),
+        qty: String(Number(qty.toFixed(4))),
         unitCode: item.unit_code || UNIT_CODES.PIECE,
-        unitPriceTra: Number(unitPrice.toFixed(4)),
-        amtTra: Number(lineExtensionAmount.toFixed(2)),
-        vatRate: Number(taxRate.toFixed(2)),
-        amtVatTra: Number(taxAmount.toFixed(2)),
-        taxableAmtTra: Number(lineExtensionAmount.toFixed(2)),
+        unitPriceTra: String(Number(unitPrice.toFixed(4))),
+        amtTra: String(Number(lineExtensionAmount.toFixed(2))),
+        vatRate: String(Number(taxRate.toFixed(2))),
+        amtVatTra: String(Number(taxAmount.toFixed(2))),
+        taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
         taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
       };
     });
@@ -274,13 +309,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     if (!invoice.document_number) throw new Error("Fatura numarası oluşturulamadı.");
     
     // Explicitly compute totals from lines to ensure consistency
-    const totalLineExtension = InvoiceDetail.reduce((acc, item) => acc + item.amtTra, 0);
-    const totalTax = InvoiceDetail.reduce((acc, item) => acc + item.amtVatTra, 0);
+    const totalLineExtension = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtTra), 0);
+    const totalTax = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtVatTra), 0);
     const grandTotal = totalLineExtension + totalTax;
 
     const ublData: any = {
        isCalculateByApi: false,
-       isManuelCalculation: false,
+       isManuelCalculation: true,
        id: 0, 
        connectorGuid: settings.connector_guid || undefined,
        eDocumentType: docType === 'E-FATURA' ? 'EFATURA' : 'EARSIVFATURA',
@@ -290,16 +325,16 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        docTime: formattedTime,
        ettn: invoice.ettn,
        docNo: invoice.document_number,
-       currencyCode: invoice.currency || 'TRY',
-       currencyRate: Number(Number(invoice.exchange_rate || 1).toFixed(4)),
+       currencyCode: (invoice.currency || 'TRY').toUpperCase(),
+       currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
        tenantIdentifierNumber: storeTaxNumber,
        
        pkAlias: pkAlias,
        
        invoiceAccount: {
           vknTckn: taxNumber,
-          accountName: customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`),
-          taxOffice: taxOffice || "",
+          accountName: (customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`)).substring(0, 100),
+          taxOfficeName: taxOffice || "",
           email1: customerEmail || "",
           countryName: "Türkiye",
           cityName: cityName || "İSTANBUL",
@@ -308,10 +343,11 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        },
 
        tax: [{
-         taxAmount: totalTax,
+         taxAmount: Number(totalTax.toFixed(2)),
          taxSubTotal: InvoiceDetail.map(detail => ({
-            taxableAmount: detail.taxableAmtTra,
-            taxAmount: detail.amtVatTra,
+            taxableAmount: Number(Number(detail.taxableAmtTra).toFixed(2)),
+            taxAmount: Number(Number(detail.amtVatTra).toFixed(2)),
+            calculationSequenceNumeric: 0,
             percent: String(detail.vatRate),
             taxName: "Katma Değer Vergisi",
             taxTypeCode: "0015"
@@ -321,10 +357,11 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        invoiceDetail: InvoiceDetail,
 
        invoiceCalculation: {
-          lineExtensionAmount: Number(totalLineExtension).toFixed(2),
-          taxExclusiveAmount: Number(totalLineExtension).toFixed(2),
-          taxInclusiveAmount: Number(grandTotal).toFixed(2),
-          payableAmount: Number(grandTotal).toFixed(2)
+          lineExtensionAmount: Number(totalLineExtension.toFixed(2)),
+          taxExclusiveAmount: Number(totalLineExtension.toFixed(2)),
+          taxInclusiveAmount: Number(grandTotal.toFixed(2)),
+          payableAmount: Number(grandTotal.toFixed(2)),
+          allowanceTotalAmount: 0
        }
     };
 
@@ -342,8 +379,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
     res.json(result);
   } catch (error: any) {
+    console.error(`[EINVOICE-SEND-CRITICAL-ERROR] Invoice: ${invoiceId}, Store: ${storeId}:`, error);
     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
-    res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+    res.status(500).json({ 
+      error: error.message || "Bilinmeyen bir iç sunucu hatası oluştu.",
+      details: error.response?.data || undefined
+    });
   }
 });
 
@@ -515,7 +556,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
              baseAmount: Number(detailsBase) || inv.baseAmount || 0,
              taxAmount: Number(detailsTax) || inv.taxAmount || 0,
              currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
-              exchangeRate: (details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1),
+             exchangeRate: Number(details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1) || 1,
              documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
              raw: details
            };
@@ -570,8 +611,8 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 
           const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
             [
               storeId, 
               companyId,
@@ -605,7 +646,8 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               'approved', 
               'RECEIVED',
               'term',
-              'unpaid'
+              'unpaid',
+              false // E-invoices are imported as Exclusive (KDV Hariç) by default
             ]
           );
           
@@ -627,13 +669,13 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
               const unitCode = line.unitCode || line.UnitCode || line.unitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
               
-              const qty = Number(qtyRaw) || 0;
+              const qty = Number(String(qtyRaw).replace(',', '.')) || 0;
               
               const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
-              const up = Number(upRaw) || 0;
+              const up = Number(String(upRaw).replace(',', '.')) || 0;
               
               const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 0;
-              const tr = Number(trRaw) || 0;
+              const tr = Number(String(trRaw).replace(',', '.')) || 0;
               
               const lineTotal = qty * up;
               const taxAmount = (lineTotal * tr) / 100;

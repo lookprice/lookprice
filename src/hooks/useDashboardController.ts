@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 export const useDashboardController = (user: any) => {
-  const [activeTab, setActiveTab] = useState("analytics");
+  const [activeTab, setActiveTab] = useState("system_cockpit");
 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);

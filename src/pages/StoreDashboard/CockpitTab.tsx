@@ -257,7 +257,7 @@ export default function CockpitTab({ currentStoreId, branding, user, isPortfolio
   };
 
   useEffect(() => {
-    handleProbeAll();
+    // handleProbeAll(); // Removed auto-run for speed on initial load
   }, [currentStoreId]);
 
   return (

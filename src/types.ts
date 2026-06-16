@@ -167,13 +167,17 @@ export interface EInvoiceSettings {
   is_active: boolean;
   provider: 'mysoft' | 'diyalogo' | 'none';
   username?: string;            // User ID / Tax URN prefix
+  password?: string;            // Password
   api_token?: string;           // E-Fatura Token / API Key
   tenant_id?: string;           // VKN / Tenant
+  connector_guid?: string;      // Mysoft Connector GUID
   sender_alias?: string;        // GB
   receiver_alias?: string;      // PK
   earchive_username?: string;   // E-Archive user id
   einvoice_prefix?: string;     // GAP
   earchive_prefix?: string;     // GEA
+  vkn?: string;                 // Firma VKN / TCKN
+  tax_office?: string;          // Vergi Dairesi
 }
 
 export interface Quotation {

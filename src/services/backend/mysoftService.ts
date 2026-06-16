@@ -33,10 +33,11 @@ export class MySoftService {
     }
 
     try {
+      console.log(`[MySoft] Authenticating for user: ${this.credentials.username || this.credentials.earchive_username}`);
       // Use URLSearchParams for x-www-form-urlencoded format
       const params = new URLSearchParams();
       params.append('username', this.credentials.username || this.credentials.earchive_username || '');
-      params.append('password', this.credentials.password || '');
+      params.append('password', this.credentials.password || (this.credentials as any).api_token || '');
       params.append('grant_type', 'password');
       if (this.credentials.connector_guid) {
         params.append('connector_guid', this.credentials.connector_guid);
@@ -50,21 +51,24 @@ export class MySoftService {
         authUrl = this.baseUrl + '/oauth/token';
       }
       
-      const response = await axios.post(authUrl, params, {
+      const config: any = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         timeout: 10000
-      });
+      };
+
+      const response = await axios.post(authUrl, params, config);
 
       if (response.data.access_token) {
         this.token = response.data.access_token;
-        // Token'ı birkaç dakika önce expire olmuş gibi ayarlayalım ki güvenli olsun
         this.tokenExpiry = new Date(Date.now() + (response.data.expires_in - 300) * 1000);
+        console.log(`[MySoft] Auth Successful. Token obtained.`);
         return this.token;
       }
-      throw new Error("Authentication response failed");
+      throw new Error("Authentication response failed: No access_token returned");
     } catch (error: any) {
       console.error("MySoft OAuth Error:", error.response?.data || error.message);
-      throw new Error("MySoft API kimlik doğrulaması başarısız.");
+      const details = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      throw new Error(`MySoft API kimlik doğrulaması başarısız: ${details}`);
     }
   }
 
@@ -76,9 +80,6 @@ export class MySoftService {
       const config: any = {
         headers: { Authorization: `Bearer ${token}` }
       };
-      if (this.credentials.tenant_id) {
-        config.headers['TenantId'] = this.credentials.tenant_id;
-      }
 
       // Try multiple variations for taxpayer check as MySoft has different API versions
       const variations = [
@@ -188,37 +189,40 @@ export class MySoftService {
       const config: any = {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        timeout: 20000
-      };
-      
-      console.log(`Sending MySoft Invoice (Outbox) to: ${this.baseUrl}/InvoiceOutbox/invoiceOutbox`);
-      
-      const response = await axios.post(`${this.baseUrl}/InvoiceOutbox/invoiceOutbox`, invoiceData, {
-        ...config,
-        headers: {
-          ...config.headers,
           "Content-Type": "application/json",
           "Accept": "application/json"
-        }
-      });
+        },
+        timeout: 30000
+      };
+      
+      const targetUrl = `${this.baseUrl}/InvoiceOutbox/invoiceOutbox`;
+      console.log(`[MySoft] Sending Invoice to: ${targetUrl}`);
+      console.log(`[MySoft] Payload (summary): ETTN: ${invoiceData.ettn} | DocNo: ${invoiceData.docNo} | Tenant: ${invoiceData.tenantIdentifierNumber}`);
+      
+      const response = await axios.post(targetUrl, invoiceData, config);
 
-      if (response.data.succeed === true) {
+      console.log(`[MySoft] Send Result:`, JSON.stringify(response.data).substring(0, 500));
+
+      if (response.data.succeed === true || response.data.Succeed === true) {
+         const data = response.data.data || response.data.Data;
          return {
             isSuccess: true,
-            ettn: response.data.data?.invoiceETTN || invoiceData.ettn || "",
-            message: response.data.message || "Fatura başarıyla oluşturuldu ve kuyruğa alındı."
+            ettn: data?.invoiceETTN || invoiceData.ettn || "",
+            message: response.data.message || response.data.Message || "Fatura başarıyla oluşturuldu ve kuyruğa alındı."
          };
       }
       
-      const errorMsg = response.data.message || "Entegratör bilinmeyen bir hata döndürdü.";
+      const errorMsg = response.data.message || response.data.Message || "Entegratör bilinmeyen bir hata döndürdü.";
       throw new Error(errorMsg);
 
     } catch (error: any) {
-      const apiError = error.response?.data?.message || error.response?.data?.Message || error.message;
-      console.error("MySoft Send Invoice Error:", apiError);
-      throw new Error(apiError);
+      const apiErrorResponse = error.response?.data;
+      let detailedMsg = error.message;
+      if (apiErrorResponse) {
+        detailedMsg = apiErrorResponse.message || apiErrorResponse.Message || JSON.stringify(apiErrorResponse);
+      }
+      console.error("[MySoft] Send Invoice Error:", detailedMsg);
+      throw new Error(detailedMsg);
     }
   }
 
@@ -235,14 +239,15 @@ export class MySoftService {
       };
       if (this.credentials.tenant_id) {
         config.headers['TenantId'] = this.credentials.tenant_id;
+        config.headers['ApplicationId'] = this.credentials.tenant_id;
       }
 
       const response = await axios.get(`${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxStatus?invoiceETTN=${ettn}`, config);
 
-      const data = response.data.Data || response.data;
+      const data = response.data.Data || response.data.data || response.data;
       return {
-        status: data.StatusName || data.status,
-        message: data.StatusDescription || data.message,
+        status: data.StatusName || data.status || "UNKNOWN",
+        message: data.StatusDescription || data.message || "",
         gibStatusCode: data.GibStatusCode
       };
     } catch (error: any) {
@@ -251,7 +256,39 @@ export class MySoftService {
     }
   }
 
-  // 5. Sync Inbox (Gelen Fatura Senkronizasyonu)
+  // 5. Delete Draft Invoice
+  async deleteInvoiceDraft(ettn: string): Promise<boolean> {
+    try {
+      const token = await this.authenticate();
+      const config: any = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+
+      const response = await axios.post(`${this.baseUrl}/Invoice/deleteInvoiceDraft`, [String(ettn)], config);
+      return response.data.succeed || response.data.Succeed;
+    } catch (error: any) {
+      console.error("MySoft Delete Draft Error:", error.response?.data || error.message);
+      return false;
+    }
+  }
+
+  // 6. Sign and Send Draft Invoice
+  async signAndSendInvoiceDraft(ettn: string): Promise<boolean> {
+    try {
+      const token = await this.authenticate();
+      const config: any = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+
+      const response = await axios.post(`${this.baseUrl}/Invoice/invoiceDraftSignAndSend?invoiceETTN=${ettn}`, null, config);
+      return response.data.succeed || response.data.Succeed;
+    } catch (error: any) {
+      console.error("MySoft Sign and Send Error:", error.response?.data || error.message);
+      return false;
+    }
+  }
+
+  // 7. Sync Inbox (Gelen Fatura Senkronizasyonu)
   async getIncomingInvoices(startDate: string, endDate: string, retryOnAuth = true): Promise<any[]> {
     try {
       const token = await this.authenticate();
@@ -339,11 +376,6 @@ export class MySoftService {
             },
             timeout: 15000
           };
-          
-          if (this.credentials.tenant_id) {
-            config.headers['TenantId'] = this.credentials.tenant_id;
-            config.headers['ApplicationId'] = this.credentials.tenant_id;
-          }
 
           let response;
           if (opt.method === 'POST') {
@@ -560,10 +592,6 @@ export class MySoftService {
         },
         timeout: 15000
       };
-      
-      if (this.credentials.tenant_id) {
-        config.headers['TenantId'] = this.credentials.tenant_id;
-      }
       
       const tId = this.credentials.tenant_id;
       

@@ -12,6 +12,7 @@ import {
   Store,
   History,
   Home,
+  BarChart3,
   Briefcase,
   Radar,
   CreditCard,
@@ -349,18 +350,29 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         return;
       }
       
-      const [productsRes, analyticsRes, brandingRes, usersRes, branchesRes] = await Promise.all([
+      const requests: any[] = [
         api.getProducts("", targetStoreId, includeBranches),
-        api.getAnalytics(targetStoreId),
         api.getBranding(targetStoreId),
         api.getUsers(targetStoreId),
         api.getBranches(targetStoreId)
-      ]);
+      ];
+
+      // Only fetch analytics on initial load if we're actually starting on analytics-heavy tabs
+      if (activeTab === 'analytics' || activeTab === 'notifications') {
+        requests.push(api.getAnalytics(targetStoreId));
+      }
+
+      const results = await Promise.all(requests);
+      const [productsRes, brandingRes, usersRes, branchesRes, analyticsRes] = results;
+
       setProducts(Array.isArray(productsRes) ? productsRes : []);
-      setAnalytics(analyticsRes && !analyticsRes.error ? analyticsRes : null);
       if (brandingRes && !brandingRes.error) setBranding(brandingRes);
       setUsers(Array.isArray(usersRes) ? usersRes : []);
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+      
+      if (analyticsRes && !analyticsRes.error) {
+        setAnalytics(analyticsRes);
+      }
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
@@ -434,6 +446,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       fetchCompanies();
     }
   }, [fetchQuotations, fetchCompanies, currentStoreId]);
+
+  useEffect(() => {
+    if ((activeTab === 'analytics' || activeTab === 'notifications') && !analytics && currentStoreId) {
+      fetchAnalytics();
+    }
+  }, [activeTab, analytics, currentStoreId]);
 
   useEffect(() => {
     if (activeTab === 'pos') {
@@ -572,6 +590,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [isPortfolio, isAutomotive, isRealEstate, activeTab, setActiveTab]);
 
   const navItems = isPortfolio ? [
+    { type: 'item', id: "system_cockpit", label: isTr ? "Kokpit" : "Cockpit", icon: LayoutDashboard },
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
       ...(isRealEstate ? [{ id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home }] : []),
       ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
@@ -591,7 +610,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "settings_yedekleme", label: isTr ? "Yedekleme" : "Backup", icon: Database },
     ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
-      { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "analytics", label: t.analytics, icon: BarChart3 },
       { id: "radar_alerts", label: isTr ? (isAutomotive ? "Motorlu Taşıtlar & Haber Radarı" : "İmar & Haber Radarı") : "Radar & Alerts", icon: Radar },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
@@ -600,6 +619,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ] : [
+    { type: 'item', id: "system_cockpit", label: isTr ? "Kokpit" : "Cockpit", icon: LayoutDashboard },
     { type: 'category', key: "operations", title: isTr ? "Operasyonlar" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
@@ -624,7 +644,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "settings_yedekleme", label: isTr ? "Yedekleme" : "Backup", icon: Database },
     ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Blog" : "Analytics & Blog", items: [
-      { id: "analytics", label: t.analytics, icon: LayoutDashboard },
+      { id: "analytics", label: t.analytics, icon: BarChart3 },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
       { id: "audit-logs", label: t.auditLogs, icon: History },
