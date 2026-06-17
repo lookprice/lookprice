@@ -13,6 +13,7 @@ interface ProductModalProps {
   lang: string;
   branding: any;
   translations: any;
+  products?: any[];
 }
 
 export const ProductModal = ({
@@ -25,16 +26,79 @@ export const ProductModal = ({
   lang,
   branding,
   translations: t,
+  products = [],
 }: ProductModalProps) => {
   const [productImageUrl, setProductImageUrl] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSubCategory, setSelectedSubCategory] = useState("");
+  const [isNewCategoryMode, setIsNewCategoryMode] = useState(false);
+  const [isNewSubCategoryMode, setIsNewSubCategoryMode] = useState(false);
+
+  const categoriesList = React.useMemo(() => {
+    if (!products || !Array.isArray(products)) return [];
+    const cats = new Set<string>();
+    products.forEach((p: any) => {
+      if (p.category) {
+        cats.add(p.category.trim());
+      }
+    });
+    return Array.from(cats).sort((a, b) => a.localeCompare(b, "tr"));
+  }, [products]);
+
+  const subCategoriesMap = React.useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    if (products && Array.isArray(products)) {
+      products.forEach((p: any) => {
+        if (p.category && p.sub_category) {
+          const cat = p.category.trim();
+          const sub = p.sub_category.trim();
+          if (!map.has(cat)) {
+            map.set(cat, new Set());
+          }
+          map.get(cat)!.add(sub);
+        }
+      });
+    }
+    return map;
+  }, [products]);
 
   useEffect(() => {
     if (showProductModal) {
       setProductImageUrl(editingProduct?.image_url || "");
+      const cat = editingProduct?.category || "";
+      const sub = editingProduct?.sub_category || "";
+      setSelectedCategory(cat);
+      setSelectedSubCategory(sub);
+
+      const hasCategories = categoriesList.length > 0;
+      const warrantsNewCat = cat ? !categoriesList.includes(cat) : !hasCategories;
+      setIsNewCategoryMode(warrantsNewCat);
+
+      const availableSubs = cat ? Array.from(subCategoriesMap.get(cat) || []) : [];
+      const warrantsNewSub = sub ? !availableSubs.includes(sub) : availableSubs.length === 0;
+      setIsNewSubCategoryMode(warrantsNewSub);
     } else {
       setProductImageUrl("");
+      setSelectedCategory("");
+      setSelectedSubCategory("");
+      setIsNewCategoryMode(false);
+      setIsNewSubCategoryMode(false);
     }
   }, [showProductModal, editingProduct]);
+
+  const handleCategoryChange = (val: string) => {
+    setSelectedCategory(val);
+    setSelectedSubCategory("");
+
+    const availableSubs = val ? Array.from(subCategoriesMap.get(val) || []) : [];
+    setIsNewSubCategoryMode(availableSubs.length === 0);
+  };
+
+  const handleCategoryTextChange = (val: string) => {
+    setSelectedCategory(val);
+    setIsNewSubCategoryMode(true);
+    setSelectedSubCategory("");
+  };
 
   if (!showProductModal) return null;
 
@@ -110,30 +174,119 @@ export const ProductModal = ({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
-                {isTr ? "Kategori" : "Category"}
-              </label>
-              <input
-                type="text"
-                name="category"
-                placeholder={isTr ? "örn: İnşaat, Yapı Çelikleri" : "Category"}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
-                defaultValue={editingProduct?.category || ""}
-              />
+            <div className="space-y-1.5 flex flex-col justify-between">
+              <div className="flex justify-between items-center ml-1 mb-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  {isTr ? "Kategori" : "Category"}
+                </label>
+                {categoriesList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prevMode = isNewCategoryMode;
+                      setIsNewCategoryMode(!prevMode);
+                      if (!prevMode) {
+                        setIsNewSubCategoryMode(true);
+                      } else {
+                        setSelectedCategory("");
+                        setSelectedSubCategory("");
+                        setIsNewSubCategoryMode(false);
+                      }
+                    }}
+                    className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest cursor-pointer border-0 outline-none"
+                  >
+                    {isNewCategoryMode
+                      ? (isTr ? "Listeden Seç" : "Select from List")
+                      : (isTr ? "+ Yeni Kategori" : "+ New Category")}
+                  </button>
+                )}
+              </div>
+              {isNewCategoryMode || categoriesList.length === 0 ? (
+                <input
+                  type="text"
+                  name="category"
+                  placeholder={isTr ? "örn: İnşaat, Yapı Çelikleri" : "Category"}
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                  value={selectedCategory}
+                  onChange={(e) => handleCategoryTextChange(e.target.value)}
+                />
+              ) : (
+                <div className="relative">
+                  <select
+                    name="category"
+                    value={selectedCategory}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none h-[50px] text-xs"
+                  >
+                    <option value="">{isTr ? "-- Kategori Seçin --" : "-- Select Category --"}</option>
+                    {categoriesList.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
-                {isTr ? "Alt Kategori" : "Sub Category"}
-              </label>
-              <input
-                type="text"
-                name="sub_category"
-                placeholder={isTr ? "örn: Çatı Paneli" : "Sub category"}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
-                defaultValue={editingProduct?.sub_category || ""}
-              />
+            <div className="space-y-1.5 flex flex-col justify-between">
+              <div className="flex justify-between items-center ml-1 mb-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  {isTr ? "Alt Kategori" : "Sub Category"}
+                </label>
+                {!isNewCategoryMode && selectedCategory && (subCategoriesMap.get(selectedCategory)?.size || 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNewSubCategoryMode(!isNewSubCategoryMode);
+                      if (isNewSubCategoryMode) {
+                        setSelectedSubCategory("");
+                      }
+                    }}
+                    className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest cursor-pointer border-0 outline-none"
+                  >
+                    {isNewSubCategoryMode
+                      ? (isTr ? "Listeden Seç" : "Select from List")
+                      : (isTr ? "+ Yeni Alt Kategori" : "+ New Sub Category")}
+                  </button>
+                )}
+              </div>
+              {isNewSubCategoryMode || isNewCategoryMode || !selectedCategory || (subCategoriesMap.get(selectedCategory)?.size || 0) === 0 ? (
+                <input
+                  type="text"
+                  name="sub_category"
+                  placeholder={isTr ? "örn: Çatı Paneli" : "Sub category"}
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                  value={selectedSubCategory}
+                  onChange={(e) => setSelectedSubCategory(e.target.value)}
+                />
+              ) : (
+                <div className="relative">
+                  <select
+                    name="sub_category"
+                    value={selectedSubCategory}
+                    onChange={(e) => setSelectedSubCategory(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none h-[50px] text-xs"
+                  >
+                    <option value="">{isTr ? "-- Alt Kategori Seçin --" : "-- Select Sub Category --"}</option>
+                    {Array.from(subCategoriesMap.get(selectedCategory) || []).map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">

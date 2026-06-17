@@ -1410,6 +1410,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
         lang={lang}
         branding={branding}
         translations={t}
+        products={products}
       />
 
       {/* Company Add / Edit Modal */}

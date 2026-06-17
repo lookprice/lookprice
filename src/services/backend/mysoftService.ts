@@ -80,6 +80,10 @@ export class MySoftService {
       const config: any = {
         headers: { Authorization: `Bearer ${token}` }
       };
+      if (this.credentials.tenant_id) {
+        config.headers['TenantId'] = this.credentials.tenant_id;
+        config.headers['ApplicationId'] = this.credentials.tenant_id;
+      }
 
       // Try multiple variations for taxpayer check as MySoft has different API versions
       const variations = [
@@ -88,10 +92,14 @@ export class MySoftService {
         `${this.baseUrl}/Common/GetTaxpayer?vkn=${vknTckn}`
       ];
 
+      let lastError: any = null;
+      let successCount = 0;
+
       for (const url of variations) {
         try {
           console.log(`[MySoft DEBUG] Checking taxpayer at: ${url}`);
           const response = await axios.get(url, config);
+          successCount++;
           
           const rawData = response.data;
           console.log(`[MySoft DEBUG] Response for ${vknTckn}:`, JSON.stringify(rawData).substring(0, 500));
@@ -107,15 +115,6 @@ export class MySoftService {
 
           if (Array.isArray(data)) {
             if (data.length > 0) {
-              isTaxpayer = data.some(item => 
-                item.IsEInvoiceUser || 
-                item.isEInvoiceUser || 
-                item.EInvoiceUser || 
-                item.Type === 'EFATURA' || 
-                item.type === 'EFATURA' ||
-                item.Identifier === vknTckn ||
-                item.Vkn === vknTckn
-              );
               const bestMatch = data.find(item => item.Identifier === vknTckn || item.Vkn === vknTckn) || data[0];
               title = bestMatch.Title || bestMatch.title || bestMatch.Name || bestMatch.name || "";
               
@@ -129,7 +128,16 @@ export class MySoftService {
                 alias = String(rawAlias);
               }
               
-              // If still empty but we have multiple items in data, try searching the list for any alias
+              isTaxpayer = bestMatch.IsEInvoiceUser === true || 
+                           bestMatch.IsEInvoiceUser === "True" ||
+                           bestMatch.isEInvoiceUser === true || 
+                           bestMatch.isEInvoiceUser === "True" ||
+                           bestMatch.EInvoiceUser === true || 
+                           bestMatch.EInvoiceUser === "True" ||
+                           bestMatch.Type === 'EFATURA' || 
+                           bestMatch.type === 'EFATURA' ||
+                           (alias && alias.toLowerCase().startsWith('urn:mail:'));
+
               if (!alias && data.length > 1) {
                 const itemWithAlias = data.find(item => item.Alias || item.alias || item.DefaultPkAlias);
                 if (itemWithAlias) {
@@ -138,11 +146,6 @@ export class MySoftService {
               }
             }
           } else {
-            isTaxpayer = data.IsEInvoiceUser || data.isEInvoiceUser || data.EInvoiceUser || 
-                         data.efaturaMukkellefi === true || data.efaturaMukkellefi === "True" ||
-                         data.Type === 'EFATURA' || data.type === 'EFATURA' ||
-                         data.Title || data.Name; // Presence of Title/Name often implies a match
-                         
             title = data.Title || data.title || data.Name || data.name || "";
             
             const rawAlias = data.Alias || data.alias || data.DefaultPkAlias || data.defaultPkAlias || data.PkAlias || data.pkAlias || "";
@@ -152,11 +155,18 @@ export class MySoftService {
             } else {
               alias = String(rawAlias);
             }
-            
-            if (!isTaxpayer && (data.Vkn === vknTckn || data.Identifier === vknTckn || data.vkn === vknTckn)) {
-              // If we found the record by VKN specifically, some API versions imply they are registered
-              isTaxpayer = true;
-            }
+
+            isTaxpayer = data.IsEInvoiceUser === true || 
+                         data.IsEInvoiceUser === "True" ||
+                         data.isEInvoiceUser === true || 
+                         data.isEInvoiceUser === "True" ||
+                         data.EInvoiceUser === true || 
+                         data.EInvoiceUser === "True" ||
+                         data.efaturaMukkellefi === true || 
+                         data.efaturaMukkellefi === "True" ||
+                         data.Type === 'EFATURA' || 
+                         data.type === 'EFATURA' ||
+                         (alias && alias.toLowerCase().startsWith('urn:mail:'));
           }
 
           if (isTaxpayer) {
@@ -170,16 +180,25 @@ export class MySoftService {
           }
         } catch (innerErr: any) {
           console.log(`Variation ${url} failed: ${innerErr.message}`);
+          lastError = innerErr;
         }
+      }
+
+      if (successCount === 0 && lastError) {
+        console.warn(`[MySoft checkTaxpayer] All query attempts failed due to errors. Re-throwing to prevent incorrect document downgrade.`);
+        throw lastError;
       }
 
       return { isTaxpayer: false, documentType: 'E-ARSIV' };
     } catch (error: any) {
       if (error.response?.status === 404) {
-         return { isTaxpayer: false, documentType: 'E-ARSIV' };
+         // This is the outer catch, but since we throw inside, we should let it propagate unless we are sure it's not a router error.
+         // Actually, if we threw from inside, it means successCount was 0 and lastError had 404.
+         // Let's print detailed message.
+         console.warn(`[MySoft checkTaxpayer Outer Catch] Query returned 404. Propagating to allow caller fallback.`);
       }
       console.error("MySoft Taxpayer Check Error:", error.response?.data || error.message);
-      throw new Error("Mükellef sorgulaması başarısız oldu.");
+      throw error;
     }
   }
 

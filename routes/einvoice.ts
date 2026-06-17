@@ -68,7 +68,50 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     const service = await getEInvoiceService(storeId);
-    const docType = invoice.e_document_type || 'E-ARSIV';
+    
+    // Validate recipient taxpayer number
+    const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
+    if (!taxNumber || (taxNumber.length !== 10 && taxNumber.length !== 11)) {
+       return res.status(400).json({ error: "Geçerli bir VKN (10 hane) veya TCKN (11 hane) bulunamadı." });
+    }
+
+    // Dynamic GİB taxpayer lookup
+    let docType = invoice.e_document_type || 'E-ARSIV';
+    let pkAlias = '';
+    
+    // Fetch Store and Company settings to use for UBL Generation (need this for receiver_alias / mailboxes)
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları bulunamadı.");
+    const row = storeRes.rows[0] || {};
+    const settings = row.einvoice_settings || {};
+    const branding = row.branding || {};
+    pkAlias = settings.receiver_alias || '';
+
+    try {
+      console.log(`[INVOICE-SEND] Querying GİB taxpayer registry for buyer VKN/TCKN: ${taxNumber}`);
+      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+      if (taxpayerCheck.isTaxpayer) {
+        docType = 'E-FATURA';
+        if (taxpayerCheck.alias) {
+          pkAlias = taxpayerCheck.alias;
+          console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User! Correcting docType to E-FATURA and using alias: ${pkAlias}`);
+        } else {
+          pkAlias = pkAlias || 'urn:mail:defaultpk@default.com';
+          console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned, fallback to: ${pkAlias}`);
+        }
+      } else {
+        docType = 'E-ARSIV';
+        console.log(`[INVOICE-SEND] GİB Check: Receiver is not an e-Invoice user. Correcting docType to E-ARSIV.`);
+      }
+    } catch (checkErr) {
+      console.warn("[INVOICE-SEND] Taxpayer GİB registry check failed. Keeping draft selection:", checkErr);
+      docType = invoice.e_document_type || 'E-ARSIV';
+    }
+
+    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "")) {
+      pkAlias = 'urn:mail:defaultpk@default.com';
+    }
+
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
     const exemptionCode = invoice.gi_exemption_reason_code;
     const withholdingCode = invoice.gi_withholding_tax_code;
@@ -81,25 +124,11 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        return res.status(400).json({ error: "Tevkifatlı faturalar için 'Tevkifat Kodu' zorunludur." });
     }
 
-    // 1. Party Identifiers
-    const taxNumber = (invoice.tax_number || "").replace(/\D/g, '');
-    if (!taxNumber || (taxNumber.length !== 10 && taxNumber.length !== 11)) {
-       return res.status(400).json({ error: "Geçerli bir VKN (10 hane) veya TCKN (11 hane) bulunamadı." });
-    }
-
     // 2. Email for E-Archive (GİB Mandatory for some scenarios, highly recommended for all)
     const customerEmail = invoice.customer_email || invoice.email;
     if (docType === 'E-ARSIV' && !customerEmail) {
        return res.status(400).json({ error: "E-Arşiv faturaları için müşteri e-posta adresi zorunludur." });
     }
-    
-    // Fetch Store and Company settings to use for UBL Generation
-    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
-    if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları bulunamadı.");
-    
-    const row = storeRes.rows[0] || {};
-    const settings = row.einvoice_settings || {};
-    const branding = row.branding || {};
 
     console.log(`[INVOICE-SEND] settings: ${JSON.stringify(settings).substring(0, 100)}`);
 
@@ -115,30 +144,6 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       });
     }
 
-    // Determine Receiver Alias (for E-Fatura)
-    let pkAlias = settings.receiver_alias || '';
-    if (docType === 'E-FATURA') {
-      try {
-        const taxpayerCheck = await service.checkTaxpayer(taxNumber);
-        if (taxpayerCheck.isTaxpayer) {
-          if (taxpayerCheck.alias) {
-            pkAlias = taxpayerCheck.alias;
-            console.log(`[INVOICE-SEND] Using customer-specific alias: ${pkAlias}`);
-          } else {
-            pkAlias = pkAlias || 'urn:mail:defaultpk@default.com';
-            console.log(`[INVOICE-SEND] Taxpayer found but NO alias returned. Using fallback: ${pkAlias}`);
-          }
-        }
-      } catch (checkErr) {
-        console.warn("[INVOICE-SEND] Taxpayer check failed, continuing with default alias:", checkErr);
-      }
-    }
-    
-    // Final safety check for pkAlias when E-FATURA
-    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "")) {
-      pkAlias = 'urn:mail:defaultpk@default.com';
-    }
-    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (customerEmail && !emailRegex.test(customerEmail)) {
         res.status(400).json({ error: "Geçerli bir müşteri e-posta adresi girilmelidir." });
@@ -149,51 +154,57 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     let documentNumber = invoice.document_number;
     let ettn = invoice.ettn;
     
-    console.log(`[INVOICE-SEND] Invoice ID: ${invoiceId}, Existing DocNumber: ${documentNumber}, Existing ETTN: ${ettn}`);
+    // Determine expected prefix based on CORRECTED docType
+    const expectedPrefix = docType === 'E-FATURA' ? (settings.einvoice_prefix || 'GAP') : (settings.earchive_prefix || 'GEA');
+    const actualPrefix = documentNumber ? documentNumber.substring(0, 3) : '';
     
-    if (!documentNumber || !ettn) {
+    // If the docType changed, we MUST regenerate the invoice number to keep sequences matching!
+    const docTypeMismatch = invoice.e_document_type && invoice.e_document_type !== docType;
+    const isIncorrectPrefix = actualPrefix && actualPrefix.toUpperCase() !== expectedPrefix.toUpperCase();
+    
+    console.log(`[INVOICE-SEND] Invoice ID: ${invoiceId}, Existing DocNumber: ${documentNumber}, Expected Prefix: ${expectedPrefix}, Mismatch? ${docTypeMismatch || isIncorrectPrefix}`);
+    
+    if (!documentNumber || !ettn || docTypeMismatch || isIncorrectPrefix) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
         
-        if (!documentNumber) {
-          const docTypeStr = invoice.e_document_type || 'E-ARSIV';
-          let prefix = docTypeStr === 'E-FATURA' ? (settings.einvoice_prefix || 'GAP') : (settings.earchive_prefix || 'GEA');
-          prefix = prefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
-          
-          const currentYear = new Date().getFullYear().toString();
-          const prefixWithYear = `${prefix}${currentYear}`;
-          
-          const seqRes = await client.query(
-             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
-             [storeId, `${prefixWithYear}%`]
-          );
-          
-          let nextSequenceNumber = 1;
-          if (seqRes.rows.length > 0) {
-              const lastDocNum = seqRes.rows[0].document_number;
-              const lastSequencePart = lastDocNum.substring(7);
-              const parsedSeq = parseInt(lastSequencePart, 10);
-              if (!isNaN(parsedSeq)) {
-                 nextSequenceNumber = parsedSeq + 1;
-              }
-          }
-          
-          const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
-          documentNumber = `${prefixWithYear}${sequenceString}`;
-          invoice.document_number = documentNumber;
+        // Regenerate doc number
+        let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+        const currentYear = new Date().getFullYear().toString();
+        const prefixWithYear = `${prefix}${currentYear}`;
+        
+        const seqRes = await client.query(
+           "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+           [storeId, `${prefixWithYear}%`]
+        );
+        
+        let nextSequenceNumber = 1;
+        if (seqRes.rows.length > 0) {
+            const lastDocNum = seqRes.rows[0].document_number;
+            const lastSequencePart = lastDocNum.substring(7);
+            const parsedSeq = parseInt(lastSequencePart, 10);
+            if (!isNaN(parsedSeq)) {
+               nextSequenceNumber = parsedSeq + 1;
+            }
         }
+        
+        const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
+        documentNumber = `${prefixWithYear}${sequenceString}`;
+        invoice.document_number = documentNumber;
 
         if (!ettn) {
           ettn = crypto.randomUUID();
           invoice.ettn = ettn;
         }
         
+        // Save both correct document_number, ettn AND e_document_type
         await client.query(
-           "UPDATE sales_invoices SET document_number = $1, ettn = $2 WHERE id = $3",
-           [documentNumber, ettn, invoiceId]
+           "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3 WHERE id = $4",
+           [documentNumber, ettn, docType, invoiceId]
         );
         await client.query("COMMIT");
+        console.log(`[INVOICE-SEND] Updated draft number: ${documentNumber}, updated docType: ${docType}`);
       } catch (err) {
         await client.query("ROLLBACK");
         throw err;
@@ -372,8 +383,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // Format DB Update
     if (result.isSuccess) {
        await pool.query(
-         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2, ettn = $3 WHERE id = $4", 
-         ['QUEUED', result.message, result.ettn, invoiceId]
+         "UPDATE sales_invoices SET integration_status = $1, integration_message = $2, ettn = $3, e_document_type = $4, document_number = $5 WHERE id = $6", 
+         ['QUEUED', result.message, result.ettn, docType, documentNumber, invoiceId]
        );
     }
 
