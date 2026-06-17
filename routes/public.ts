@@ -39,7 +39,7 @@ router.get("/debug-stores", async (req, res) => {
 router.get("/stores/:slug/blog-posts", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
     const storeId = storeRes.rows[0].id;
 
@@ -56,7 +56,7 @@ router.get("/stores/:slug/blog-posts", async (req, res) => {
 router.get("/stores/:slug/blog-posts/:id", async (req, res) => {
   const { slug, id } = req.params;
   try {
-    const storeRes = await pool.query("SELECT id FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
     const storeId = storeRes.rows[0].id;
 
@@ -131,7 +131,7 @@ function generateIyzicoSignature(apiKey: string, secretKey: string, randomString
 router.get("/stores/:slug/radar-news", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT id, store_type FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
     const storeId = storeRes.rows[0].id;
     const storeType = storeRes.rows[0].store_type;
@@ -392,7 +392,7 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
       instagram_url, facebook_url, twitter_url, whatsapp_number,
       address, phone, parent_id, currency_rates
     FROM stores 
-    WHERE slug = $1
+    WHERE LOWER(slug) = LOWER($1)
   `, [slug]);
   let store = storeRes.rows[0];
 
@@ -520,9 +520,12 @@ router.get("/stores/by-domain", async (req, res) => {
       }
     }
 
+    const cleanDomain = (domain as string).trim();
+    const cleanNormalized = (normalizedDomain as string).trim();
+
     const result = await pool.query(
-      "SELECT slug FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1",
-      [domain, normalizedDomain]
+      "SELECT slug FROM stores WHERE LOWER(TRIM(custom_domain)) = LOWER($1) OR LOWER(TRIM(custom_domain)) = LOWER($2) LIMIT 1",
+      [cleanDomain, cleanNormalized]
     );
 
     if (result.rows.length > 0) {
@@ -906,7 +909,7 @@ router.get("/store/:slug/products", async (req, res) => {
 router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT id, name, slug, description, default_currency, currency_rates, meta_settings, google_merchant_settings, custom_domain FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, name, slug, description, default_currency, currency_rates, meta_settings, google_merchant_settings, custom_domain FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
     const store = storeRes.rows[0];
     
@@ -1106,7 +1109,7 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
 router.get("/store/:slug/about-us", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT name, about_text FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT name, about_text FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
     
     const store = storeRes.rows[0];
@@ -1143,7 +1146,7 @@ router.get("/store/:slug/about-us", async (req, res) => {
 router.get("/store/:slug/return-policy", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
     
     const store = storeRes.rows[0];
@@ -1183,7 +1186,7 @@ router.get("/store/:slug/return-policy", async (req, res) => {
 router.get("/store/:slug/shipping-policy", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
     
     const store = storeRes.rows[0];
@@ -1223,7 +1226,7 @@ router.get("/store/:slug/shipping-policy", async (req, res) => {
 router.get("/store/:slug/privacy", async (req, res) => {
   const { slug } = req.params;
   try {
-    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
     
     const store = storeRes.rows[0];
@@ -1400,7 +1403,7 @@ router.get("/store/:slug/content", async (req, res) => {
   const { slug } = req.params;
   try {
     const storeRes = await pool.query(
-      "SELECT id, slug, faq, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE slug = $1",
+      "SELECT id, slug, faq, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE LOWER(slug) = LOWER($1)",
       [slug]
     );
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
@@ -1423,7 +1426,7 @@ router.get("/store/:slug/content", async (req, res) => {
 router.get("/store/:slug/collections/:type", async (req, res) => {
   const { slug, type } = req.params; // type: 'new', 'bestseller', 'discounted' or category name
   try {
-    const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
     const store = storeRes.rows[0];
     const storeId = store.id;
@@ -1517,7 +1520,7 @@ router.get("/store/:slug/products/:barcode/stock", async (req, res) => {
   const { slug, barcode } = req.params;
   try {
     // 1. Find the store by slug to get its parent_id
-    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE slug = $1", [slug]);
+    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
     
     const { id, parent_id } = storeRes.rows[0];

@@ -1093,7 +1093,7 @@ router.get("/info", async (req: any, res) => {
   if (storeId !== undefined && storeId !== null && storeId !== "") {
     storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
   } else if (slug) {
-    storeRes = await pool.query("SELECT * FROM stores WHERE slug = $1", [slug]);
+    storeRes = await pool.query("SELECT * FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
   } else {
     return res.status(400).json({ error: "Store ID or Slug required" });
   }

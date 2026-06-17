@@ -100,6 +100,16 @@ export class MySoftService {
           if (!data) continue;
           
           console.log(`[MySoft DEBUG] Data found. Type: ${typeof data}, Array? ${Array.isArray(data)}`);
+          
+          let isTaxpayer = false;
+          let title = "";
+          let alias = "";
+
+          if (Array.isArray(data)) {
+            if (data.length > 0) {
+              isTaxpayer = data.some(item => 
+                item.IsEInvoiceUser || 
+                item.isEInvoiceUser || 
                 item.EInvoiceUser || 
                 item.Type === 'EFATURA' || 
                 item.type === 'EFATURA' ||

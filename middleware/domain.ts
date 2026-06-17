@@ -56,9 +56,13 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
     // Check if this host is a custom domain for any store
     const normalizedHost = domainToLookup.startsWith("www.") ? domainToLookup.substring(4) : domainToLookup;
     console.log(`Looking up custom domain: ${domainToLookup}, normalized: ${normalizedHost}`);
+    
+    const cleanDomain = domainToLookup.trim();
+    const cleanNormalized = normalizedHost.trim();
+    
     const result = await pool.query(
-      "SELECT slug FROM stores WHERE custom_domain = $1 OR custom_domain = $2", 
-      [domainToLookup, normalizedHost]
+      "SELECT slug FROM stores WHERE LOWER(TRIM(custom_domain)) = LOWER($1) OR LOWER(TRIM(custom_domain)) = LOWER($2)", 
+      [cleanDomain, cleanNormalized]
     );
     
     if (result.rows.length > 0) {
