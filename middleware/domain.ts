@@ -55,6 +55,7 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
   try {
     // Check if this host is a custom domain for any store
     const normalizedHost = domainToLookup.startsWith("www.") ? domainToLookup.substring(4) : domainToLookup;
+    console.log(`Looking up custom domain: ${domainToLookup}, normalized: ${normalizedHost}`);
     const result = await pool.query(
       "SELECT slug FROM stores WHERE custom_domain = $1 OR custom_domain = $2", 
       [domainToLookup, normalizedHost]
@@ -62,6 +63,7 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
     
     if (result.rows.length > 0) {
       const storeSlug = result.rows[0].slug;
+      console.log(`Found slug for ${domainToLookup}: ${storeSlug}`);
       domainCache.set(domainToLookup, storeSlug);
       
       // Clear cache after TTL

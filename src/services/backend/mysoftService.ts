@@ -90,24 +90,16 @@ export class MySoftService {
 
       for (const url of variations) {
         try {
-          console.log(`Checking taxpayer at: ${url}`);
+          console.log(`[MySoft DEBUG] Checking taxpayer at: ${url}`);
           const response = await axios.get(url, config);
           
           const rawData = response.data;
-          console.log(`Taxpayer Response check for ${vknTckn}:`, JSON.stringify(rawData).substring(0, 200));
+          console.log(`[MySoft DEBUG] Response for ${vknTckn}:`, JSON.stringify(rawData).substring(0, 500));
           
           const data = rawData.Data || rawData.data || rawData;
           if (!data) continue;
-
-          let isTaxpayer = false;
-          let title = "";
-          let alias = "";
-
-          if (Array.isArray(data)) {
-            if (data.length > 0) {
-              isTaxpayer = data.some(item => 
-                item.IsEInvoiceUser || 
-                item.isEInvoiceUser || 
+          
+          console.log(`[MySoft DEBUG] Data found. Type: ${typeof data}, Array? ${Array.isArray(data)}`);
                 item.EInvoiceUser || 
                 item.Type === 'EFATURA' || 
                 item.type === 'EFATURA' ||
