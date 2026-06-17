@@ -3,9 +3,9 @@ import { pool } from "./models/db";
 async function run() {
   try {
     const res = await pool.query(
-      "SELECT * FROM sales_invoices WHERE id = 233"
+      "SELECT id, document_number, ettn, integration_status, integration_message, e_document_type FROM sales_invoices WHERE integration_status IS NOT NULL ORDER BY id DESC LIMIT 50"
     );
-    console.log("Invoice 233 Record:");
+    console.log("Invoice Audit Trail:");
     console.log(JSON.stringify(res.rows, null, 2));
   } catch (err) {
     console.error(err);

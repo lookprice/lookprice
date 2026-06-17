@@ -44,7 +44,13 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
     res.json(result);
   } catch (error: any) {
     console.error("Check Taxpayer endpoint error:", error);
-    res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
+    // Return a friendly payload so frontend won't raise unhandled 500 developer alerts
+    res.json({ 
+      isTaxpayer: false, 
+      documentType: 'E-ARSIV', 
+      alias: "", 
+      error: "Mükellef kaydı entegratörden sorgulanamadı (E-Arşiv ile devam edebilir ve/veya manuel E-Fatura seçebilirsiniz)" 
+    });
   }
 });
 
@@ -96,8 +102,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           pkAlias = taxpayerCheck.alias;
           console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User! Correcting docType to E-FATURA and using alias: ${pkAlias}`);
         } else {
-          pkAlias = pkAlias || 'urn:mail:defaultpk@default.com';
-          console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned, fallback to: ${pkAlias}`);
+          pkAlias = pkAlias || '';
+          console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned, letting MySoft auto-resolve.`);
         }
       } else {
         docType = 'E-ARSIV';
@@ -109,7 +115,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "")) {
-      pkAlias = 'urn:mail:defaultpk@default.com';
+      pkAlias = ''; // Passing empty string lets MySoft auto-resolve the default GİB mailbox
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
