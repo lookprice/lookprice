@@ -54,6 +54,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
 
   // UI States
   const [showModal, setShowModal] = useState(false);
+  const lastSyncedIdRef = useRef<string | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
@@ -246,22 +247,31 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     fetchTaxType();
   }, [companyId, customerId, selectedCompany, selectedCustomer, editingInvoiceId]);
 
+  // Reset lastSyncedIdRef on modal open/close
+  useEffect(() => {
+    if (!showModal) {
+      lastSyncedIdRef.current = null;
+    }
+  }, [showModal]);
+
   // Sync selected cari details to form states
   useEffect(() => {
-    // For new invoices, always sync when a selection is made
-    if (!editingInvoiceId) {
+    const currentId = companyId ? `company-${companyId}` : customerId ? `customer-${customerId}` : "";
+    if (currentId !== lastSyncedIdRef.current) {
       if (selectedCompany) {
         setEditTaxNumber(selectedCompany.tax_number || "");
         setEditTaxOffice(selectedCompany.tax_office || "");
         setEditAddress(selectedCompany.address || "");
         setCustomerEmail(selectedCompany.email || "");
         setCustomerSearch(selectedCompany.title || selectedCompany.company_title || "");
+        lastSyncedIdRef.current = currentId;
       } else if (selectedCustomer) {
         setEditTaxNumber(selectedCustomer.tax_number || "");
         setEditTaxOffice(selectedCustomer.tax_office || "");
         setEditAddress(selectedCustomer.address || "");
         setCustomerEmail(selectedCustomer.email || "");
         setCustomerSearch(selectedCustomer.name || selectedCustomer.customer_name || "");
+        lastSyncedIdRef.current = currentId;
       } else if (!isNewCustomer) {
         // Only clear if explicitly empty IDs and not a manual new customer form
         if (!companyId && !customerId) {
@@ -269,10 +279,11 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           setEditTaxOffice("");
           setEditAddress("");
           setCustomerEmail("");
+          lastSyncedIdRef.current = "";
         }
       }
     }
-  }, [companyId, customerId, selectedCompany, selectedCustomer, isNewCustomer, editingInvoiceId]);
+  }, [companyId, customerId, selectedCompany, selectedCustomer, isNewCustomer]);
 
   const handleCheckTaxpayer = async () => {
     if (!editTaxNumber) {
@@ -496,13 +507,39 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setEDocumentType(data.e_document_type);
       setGiInvoiceType(data.gi_invoice_type);
       setIsReturn(data.gi_invoice_type === 'IADE');
-      setCustomerEmail(data.customer_email || "");
       setExemptionReasonCode(data.gi_exemption_reason_code || "");
       setWithholdingTaxCode(data.gi_withholding_tax_code || "");
       setInvoiceProfile(data.invoice_profile);
-      setEditTaxNumber(data.tax_number || "");
-      setEditTaxOffice(data.tax_office || "");
-      setEditAddress(data.address || "");
+
+      let resolvedTaxNumber = data.tax_number || "";
+      let resolvedTaxOffice = data.tax_office || "";
+      let resolvedAddress = data.address || "";
+      let resolvedEmail = data.customer_email || "";
+
+      if (!resolvedTaxNumber || !resolvedTaxOffice || !resolvedAddress || !resolvedEmail) {
+        if (data.customer_id) {
+          const matchedCari = (customers as any[]).find(c => String(c.id) === String(data.customer_id));
+          if (matchedCari) {
+            resolvedTaxNumber = resolvedTaxNumber || matchedCari.tax_number || "";
+            resolvedTaxOffice = resolvedTaxOffice || matchedCari.tax_office || "";
+            resolvedAddress = resolvedAddress || matchedCari.address || "";
+            resolvedEmail = resolvedEmail || matchedCari.email || "";
+          }
+        } else if (data.company_id) {
+          const matchedCari = (companies as any[]).find(c => String(c.id) === String(data.company_id));
+          if (matchedCari) {
+            resolvedTaxNumber = resolvedTaxNumber || matchedCari.tax_number || "";
+            resolvedTaxOffice = resolvedTaxOffice || matchedCari.tax_office || "";
+            resolvedAddress = resolvedAddress || matchedCari.address || "";
+            resolvedEmail = resolvedEmail || matchedCari.email || "";
+          }
+        }
+      }
+
+      setEditTaxNumber(resolvedTaxNumber);
+      setEditTaxOffice(resolvedTaxOffice);
+      setEditAddress(resolvedAddress);
+      setCustomerEmail(resolvedEmail);
       setIsTaxInclusive(data.is_tax_inclusive !== undefined ? data.is_tax_inclusive : true);
       setItems((data.items || []).map((item: any) => ({
         product_id: item.product_id,

@@ -73,6 +73,35 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       invoice = invRes.rows[0];
     }
 
+    // Dynamically fallback to linked companies or customers details if blank on the invoice itself
+    if (invoice.company_id && (!invoice.tax_number || !invoice.address || !invoice.company_title)) {
+      const compRes = await pool.query(
+        "SELECT title, tax_number, tax_office, address, email FROM companies WHERE id = $1",
+        [invoice.company_id]
+      );
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        invoice.tax_number = invoice.tax_number || comp.tax_number;
+        invoice.tax_office = invoice.tax_office || comp.tax_office;
+        invoice.address = invoice.address || comp.address;
+        invoice.company_title = invoice.company_title || comp.title;
+        invoice.customer_email = invoice.customer_email || comp.email;
+      }
+    } else if (invoice.customer_id && (!invoice.tax_number || !invoice.address || !invoice.customer_name)) {
+      const custRes = await pool.query(
+        "SELECT name, full_name, tax_number, tax_office, address, email FROM customers WHERE id = $1",
+        [invoice.customer_id]
+      );
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        invoice.tax_number = invoice.tax_number || cust.tax_number;
+        invoice.tax_office = invoice.tax_office || cust.tax_office;
+        invoice.address = invoice.address || cust.address;
+        invoice.customer_name = invoice.customer_name || cust.full_name || cust.name;
+        invoice.customer_email = invoice.customer_email || cust.email;
+      }
+    }
+
     const service = await getEInvoiceService(storeId);
     
     // Validate recipient taxpayer number
@@ -115,7 +144,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "")) {
-      pkAlias = ''; // Passing empty string lets MySoft auto-resolve the default GİB mailbox
+      pkAlias = 'urn:mail:defaultpk'; // Fallback to standard GİB default mailbox to prevent empty tag validation error
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';

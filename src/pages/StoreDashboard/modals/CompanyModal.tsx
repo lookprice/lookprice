@@ -38,7 +38,7 @@ export const CompanyModal = ({
             <h3 className="text-lg font-black uppercase tracking-wider">
               {editingCompany
                 ? isTr
-                  ? "Cari Cari Düzenle"
+                  ? "Cari Hesap Düzenle"
                   : "Edit Client Account"
                 : isTr
                 ? "Yeni Cari Hesap (Müşteri/Tedarikçi) Kaydet"

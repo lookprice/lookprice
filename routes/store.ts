@@ -722,11 +722,24 @@ router.post("/domain/manual", async (req: any, res) => {
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
   try {
+    // Register the custom domain automatically in Render.com
+    const { renderService } = await import("../src/services/renderService");
+    let renderMessage = "";
+    try {
+      await renderService.addCustomDomain(domain);
+      if (!domain.startsWith('www.')) {
+        await renderService.addCustomDomain(`www.${domain}`);
+      }
+    } catch (renderError: any) {
+      console.warn("[Render Manual Custom Domain Error]", renderError);
+      renderMessage = " (Render registration skipped/configured: " + renderError.message + ")";
+    }
+
     await pool.query(
       "UPDATE stores SET custom_domain = $1, custom_domain_status = $2 WHERE id = $3",
       [domain, 'manual', storeId]
     );
-    res.json({ success: true, message: "Domain saved manually" });
+    res.json({ success: true, message: `Domain saved manually${renderMessage}` });
   } catch (e: any) {
     console.error("POST /api/store/domain/manual error:", e);
     res.status(500).json({ error: e.message });
@@ -3923,7 +3936,15 @@ router.get("/sales-invoices/:id", async (req: any, res) => {
     const invoiceResult = await pool.query(
       `SELECT si.*, 
               c.title as company_title,
-              cust.full_name as customer_name
+              c.tax_number as company_tax_number,
+              c.tax_office as company_tax_office,
+              c.address as company_address,
+              c.email as company_email,
+              cust.full_name as customer_name,
+              cust.tax_number as customer_tax_number,
+              cust.tax_office as customer_tax_office,
+              cust.address as customer_address,
+              cust.email as customer_email_fallback
        FROM sales_invoices si 
        LEFT JOIN companies c ON si.company_id = c.id 
        LEFT JOIN customers cust ON si.customer_id = cust.id
@@ -3942,6 +3963,19 @@ router.get("/sales-invoices/:id", async (req: any, res) => {
     
     const invoice = invoiceResult.rows[0];
     invoice.items = itemsResult.rows;
+
+    // Apply corporate/customer fallbacks dynamically if they are empty
+    if (invoice.company_id) {
+      invoice.tax_number = invoice.tax_number || invoice.company_tax_number;
+      invoice.tax_office = invoice.tax_office || invoice.company_tax_office;
+      invoice.address = invoice.address || invoice.company_address;
+      invoice.customer_email = invoice.customer_email || invoice.company_email;
+    } else if (invoice.customer_id) {
+      invoice.tax_number = invoice.tax_number || invoice.customer_tax_number;
+      invoice.tax_office = invoice.tax_office || invoice.customer_tax_office;
+      invoice.address = invoice.address || invoice.customer_address;
+      invoice.customer_email = invoice.customer_email || invoice.customer_email_fallback;
+    }
     
     res.json(invoice);
   } catch (e: any) {
