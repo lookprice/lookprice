@@ -634,14 +634,18 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 {/* Minimalist Header */}
                 <div className="px-3.5 py-1.5 flex justify-between items-center z-10 border-b border-white/5 bg-slate-950/15">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
-                    <h3 className={`text-[10px] font-black truncate max-w-[170px] leading-none select-none uppercase tracking-widest ${themeConfig.textTitle}`}>
-                      {branding?.store_name && !branding.store_name.toLowerCase().includes('lookprice') ? branding.store_name : 'PREMIUM VIP EMLAK'}
+                    <h3 className={`text-[8.5px] font-black truncate max-w-[120px] leading-none select-none uppercase tracking-widest ${themeConfig.textTitle}`}>
+                      👤 {property.responsible_agent || branding?.owner_name || 'Danışman'}
                     </h3>
                   </div>
-                  <span className="bg-slate-900/90 border border-slate-800 text-slate-100 font-mono text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase select-none shrink-0">
+                  <span className={`${themeConfig.pillBg} font-mono text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase select-none shrink-0 border`}>
                     LP-{property.reference_no || property.id}
                   </span>
+                  <div className="flex items-center text-right shrink-0">
+                    <h3 className={`text-[8.5px] font-black leading-none select-none tracking-widest ${themeConfig.textTitle}`}>
+                      📞 {property.consultant_phone || branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}
+                    </h3>
+                  </div>
                 </div>
 
                 {/* Property Image Cover Block */}
@@ -727,7 +731,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       {categoryLabelForPreview(property.type)}
                     </span>
                     {property.subtype && (
-                      <span className="text-[8.5px] font-bold px-2 py-0.5 rounded-md border uppercase text-indigo-600 bg-indigo-50/70 border-indigo-200">
+                      <span className={`text-[8.5px] font-bold px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
                         🏠 {property.subtype}
                       </span>
                     )}
@@ -735,11 +739,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       📍 {propertyLocation}
                     </span>
                     {property.square_meters && (
-                      <span className={`text-[8.5px] font-semibold px-2 py-0.5 rounded-md border ${
-                        selectedTheme === 'cyprus_warm' 
-                          ? 'text-orange-950 border-orange-200 bg-orange-100/30' 
-                          : 'text-slate-300 border-slate-700/55'
-                      }`}>
+                      <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
                         📐 {property.square_meters} m²
                       </span>
                     )}
@@ -774,20 +774,13 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   </div>
                 )}
 
-                {/* Footer with responsible broker */}
-                <div className={`mt-auto px-4 py-3 flex justify-between items-center text-[8.5px] ${themeConfig.footerBg}`}>
-                  <div className="truncate max-w-[150px]">
-                    <span className={`block text-[6.5px] uppercase leading-none ${
-                      selectedTheme === 'cyprus_warm' ? 'text-orange-950 font-black' : 'text-zinc-500'
-                    }`}>PORTFÖY DANIŞMANI</span>
-                    <strong className={`mt-0.5 block truncate uppercase ${
-                      selectedTheme === 'cyprus_warm' ? 'text-orange-950 font-black' : 'text-zinc-200'
-                    }`}>{property.responsible_agent || branding?.owner_name || 'PORTFÖY DANIŞMANI'}</strong>
+                {/* Footer slim */}
+                <div className={`mt-auto px-4 py-2 flex justify-between items-center text-[7.5px] leading-none ${themeConfig.footerBg}`}>
+                  <div className={`truncate font-black uppercase tracking-widest ${themeConfig.textTitle}`}>
+                    {(branding?.store_name && !branding.store_name.toLowerCase().includes('lookprice')) ? branding.store_name : 'PREMIUM VIP EMLAK'}
                   </div>
-                  <div className="text-right">
-                    <span className={`block tracking-wider font-mono font-black leading-none ${
-                      selectedTheme === 'cyprus_warm' ? 'text-orange-950' : 'text-zinc-400'
-                    }`}>{branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}</span>
+                  <div className={`text-right font-black uppercase tracking-widest opacity-80 text-[6.5px] ${themeConfig.textBody}`}>
+                    enrakipsiz.com
                   </div>
                 </div>
 

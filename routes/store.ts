@@ -6117,7 +6117,19 @@ router.put("/consultants/:id", async (req: any, res) => {
        WHERE id = $8 AND store_id = $9 RETURNING *`,
       [name, email, phone, role, effectiveBranchId, image_url, performance || {}, id, storeId]
     );
+
     if (result.rows.length === 0) return res.status(404).json({ error: "Consultant not found" });
+
+    // Sync denormalized name across all properties linked to this consultant
+    try {
+      await pool.query(
+        `UPDATE real_estate_properties SET responsible_agent = $1 WHERE responsible_consultant_id = $2`,
+        [name, id]
+      );
+    } catch (syncErr) {
+      console.warn("Failed to sync updated consultant name to real_estate_properties:", syncErr);
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Consultant update error:", error);

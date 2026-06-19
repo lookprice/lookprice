@@ -358,18 +358,18 @@ export const Marketplace = () => {
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            <Link 
-              to="/login" 
+            <a 
+              href="https://lookprice.net/login" 
               className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               Mağaza Girişi
-            </Link>
-            <Link 
-              to="/register" 
+            </a>
+            <a 
+              href="https://lookprice.net/register" 
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 text-white text-sm font-bold shadow-lg shadow-rose-950/20 hover:opacity-90 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               Hemen Başla
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -1474,8 +1474,8 @@ export const Marketplace = () => {
           </p>
           <div className="flex justify-center gap-6">
             <Link to="/" className="hover:text-rose-400 transition">Ana Sayfa</Link>
-            <Link to="/login" className="hover:text-rose-400 transition">Mağaza Paneli</Link>
-            <Link to="/register" className="hover:text-rose-400 transition">Mağaza Oluştur</Link>
+            <a href="https://lookprice.net/login" className="hover:text-rose-400 transition">Mağaza Paneli</a>
+            <a href="https://lookprice.net/register" className="hover:text-rose-400 transition">Mağaza Oluştur</a>
           </div>
         </div>
       </footer>

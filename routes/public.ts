@@ -217,14 +217,21 @@ router.get("/marketplace/listings", async (req, res) => {
     let realEstateList: any[] = [];
     try {
       const realEstateRes = await pool.query(`
-        SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp
+        SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp,
+               c.name as consultant_name, c.phone as consultant_phone
         FROM real_estate_properties r
         JOIN stores s ON r.store_id = s.id
+        LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
         WHERE r.status <> 'sold' AND (r.is_on_enrakipsiz = true)
         ORDER BY r.created_at DESC
         LIMIT 100
       `);
-      realEstateList = realEstateRes.rows || [];
+      const rows = realEstateRes.rows || [];
+      realEstateList = rows.map((r: any) => ({
+        ...r,
+        responsible_agent: r.consultant_name || r.responsible_agent,
+        consultant_phone: r.consultant_phone || undefined
+      }));
     } catch (error: any) {
       console.warn("Table real_estate_properties query soft-failed. Attempting real_estate table name instead...", error);
       try {
@@ -236,7 +243,12 @@ router.get("/marketplace/listings", async (req, res) => {
           ORDER BY r.created_at DESC
           LIMIT 100
         `);
-        realEstateList = realEstateRes.rows || [];
+        const rows2 = realEstateRes.rows || [];
+        realEstateList = rows2.map((r: any) => ({
+          ...r,
+          responsible_agent: r.consultant_name || r.responsible_agent,
+          consultant_phone: r.consultant_phone || undefined
+        }));
       } catch (innerError: any) {
         console.error("Both real_estate table aliases failed or missing:", innerError);
       }
@@ -687,9 +699,11 @@ router.get("/store/:slug/products", async (req, res) => {
   let realEstateRes: any = { rows: [] };
   try {
     realEstateRes = await pool.query(`
-      SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+      SELECT r.*, s.name as branch_name, s.slug as branch_slug,
+             c.name as consultant_name, c.phone as consultant_phone
       FROM real_estate_properties r 
       JOIN stores s ON r.store_id = s.id
+      LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
       WHERE (r.store_id = $1 OR s.parent_id = $1) 
       AND r.status IN ('active', 'rented', 'optioned', 'sold')
     `, [store.id]);
@@ -941,9 +955,11 @@ router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res
     let realEstateRes: any = { rows: [] };
     try {
       realEstateRes = await pool.query(`
-        SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug,
+               c.name as consultant_name, c.phone as consultant_phone
         FROM real_estate_properties r 
         JOIN stores s ON r.store_id = s.id
+        LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
         WHERE (r.store_id = $1 OR s.parent_id = $1) 
         AND r.status IN ('active', 'rented', 'optioned', 'sold')
       `, [store.id]);

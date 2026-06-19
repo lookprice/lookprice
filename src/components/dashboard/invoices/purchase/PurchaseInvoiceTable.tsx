@@ -122,13 +122,13 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                     {invoice.e_document_type && (
                        <div className="flex items-center gap-2 mt-0.5">
                          <div className="text-[9px] text-indigo-600 font-bold uppercase">{invoice.e_document_type}</div>
-                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status === 'APPROVED' && (
+                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'APPROVED' && (
                             <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">{isTr ? 'Kabul Edildi' : 'Approved'}</span>
                          )}
-                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status === 'REJECTED' && (
+                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'REJECTED' && (
                             <span className="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">{isTr ? 'Reddedildi' : 'Rejected'}</span>
                          )}
-                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status === 'pending' && (() => {
+                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toLowerCase() === 'pending' && (() => {
                            const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
                            const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
                            return diffDays > 8;
@@ -181,7 +181,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-1">
                       {(() => {
-                        if (invoice.status !== 'pending' || invoice.e_document_type?.toUpperCase() !== 'TICARIFATURA') return false;
+                        if (invoice.status?.toLowerCase() !== 'pending' || invoice.e_document_type?.toUpperCase() !== 'TICARIFATURA') return false;
                         const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
                         const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
                         return diffDays <= 8;

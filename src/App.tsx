@@ -50,10 +50,14 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { lang } = useLanguage();
-  const [detectedSlug, setDetectedSlug] = useState<string | null>(null);
+  const initialHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const [detectedSlug, setDetectedSlug] = useState<string | null>(() => {
+    if (initialHostname === "enrakipsiz.com" || initialHostname === "www.enrakipsiz.com") return "__portal__";
+    return null;
+  });
   const [isCheckingDomain, setIsCheckingDomain] = useState(() => {
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    if (!hostname) return false;
+    if (!initialHostname) return false;
+    if (initialHostname === "enrakipsiz.com" || initialHostname === "www.enrakipsiz.com") return false;
     const mainDomains = [
       "lookprice.net",
       "www.lookprice.net",
@@ -63,10 +67,10 @@ export default function App() {
       "0.0.0.0",
       "onrender.com"
     ];
-    const isMainDomain = mainDomains.some(d => hostname.includes(d)) || 
-                        hostname.includes(".run.app") || 
-                        hostname.includes(".google.com") ||
-                        hostname.includes("webcontainer");
+    const isMainDomain = mainDomains.some(d => initialHostname.includes(d)) || 
+                        initialHostname.includes(".run.app") || 
+                        initialHostname.includes(".google.com") ||
+                        initialHostname.includes("webcontainer");
     return !isMainDomain;
   });
 

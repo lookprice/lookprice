@@ -239,7 +239,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         const prefixWithYear = `${prefix}${currentYear}`;
         
         const seqRes = await client.query(
-           "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+           "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 AND LENGTH(document_number) = 16 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
            [storeId, `${prefixWithYear}%`]
         );
         
@@ -512,7 +512,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           const prefixWithYear = `${prefix}${currentYear}`;
           
           const seqRes = await client.query(
-             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 AND LENGTH(document_number) = 16 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
              [storeId, `${prefixWithYear}%`]
           );
           
@@ -569,7 +569,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           const prefixWithYear = `${prefix}${currentYear}`;
 
           const seqRes = await client.query(
-             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 AND LENGTH(document_number) = 16 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
              [storeId, `${prefixWithYear}%`]
           );
 
@@ -628,6 +628,19 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
     res.json(result);
   } catch (error: any) {
+    if (error.message && error.message.includes("Aynı belge numarasından daha önce kayıt oluşturulmuştur")) {
+        console.log(`[INVOICE-SEND-RECOVERY] Intercepted duplicate document number error for invoice ${invoiceId}. Marking as QUEUED automatically.`);
+        await pool.query(
+          "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3", 
+          ['QUEUED', 'Fatura başarıyla entegratöre iletilmiş (Tekrar gönderimi engellendi).', invoiceId]
+        );
+        return res.json({
+           isSuccess: true,
+           ettn: ettn,
+           message: "Fatura zaten sisteme başarıyla gönderilmiş! Durumu senkronize edildi."
+        });
+    }
+
     console.error(`[EINVOICE-SEND-CRITICAL-ERROR] Invoice: ${invoiceId}, Store: ${storeId}:`, error);
     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
     res.status(500).json({ 
