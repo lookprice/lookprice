@@ -5,6 +5,7 @@ import { authenticate } from "../middleware/auth";
 import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
+import { numberToTurkishWords } from "../src/utils/dashboardUtils";
 
 const router = express.Router();
 
@@ -39,7 +40,20 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
     if (!vknTckn) return res.status(400).json({ error: "VKN veya TCKN gereklidir" });
 
     const service = await getEInvoiceService(storeId);
-    const result = await service.checkTaxpayer(vknTckn);
+    
+    // Check official taxpayer cache first
+    const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [vknTckn]);
+    
+    let result;
+    if (cacheRes.rows.length > 0) {
+      console.log(`[checkTaxpayer] VKN ${vknTckn} found in official cache.`);
+      result = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
+    } else {
+      result = await service.checkTaxpayer(vknTckn);
+      if (result && result.isTaxpayer) {
+        await pool.query("INSERT INTO official_taxpayer_cache (vkn, taxpayer_title, alias, last_updated) VALUES ($1, $2, $3, NOW()) ON CONFLICT (vkn) DO UPDATE SET taxpayer_title = EXCLUDED.taxpayer_title, alias = EXCLUDED.alias, last_updated = NOW()", [vknTckn, result.title || '', result.alias || '']);
+      }
+    }
     
     res.json(result);
   } catch (error: any) {
@@ -123,8 +137,22 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     pkAlias = settings.receiver_alias || '';
 
     try {
-      console.log(`[INVOICE-SEND] Querying GİB taxpayer registry for buyer VKN/TCKN: ${taxNumber}`);
-      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+      console.log(`[INVOICE-SEND] Querying registry for buyer VKN/TCKN: ${taxNumber}`);
+      
+      // Check official taxpayer cache first
+      const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [taxNumber]);
+      
+      let taxpayerCheck;
+      if (cacheRes.rows.length > 0) {
+        console.log(`[checkTaxpayer (send)] VKN ${taxNumber} found in official cache.`);
+        taxpayerCheck = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
+      } else {
+        taxpayerCheck = await service.checkTaxpayer(taxNumber);
+        if (taxpayerCheck && taxpayerCheck.isTaxpayer) {
+          await pool.query("INSERT INTO official_taxpayer_cache (vkn, taxpayer_title, alias, last_updated) VALUES ($1, $2, $3, NOW()) ON CONFLICT (vkn) DO UPDATE SET taxpayer_title = EXCLUDED.taxpayer_title, alias = EXCLUDED.alias, last_updated = NOW()", [taxNumber, taxpayerCheck.title || '', taxpayerCheck.alias || '']);
+        }
+      }
+      
       if (taxpayerCheck.isTaxpayer) {
         docType = 'E-FATURA';
         if (taxpayerCheck.alias) {
@@ -199,7 +227,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     
     console.log(`[INVOICE-SEND] Invoice ID: ${invoiceId}, Existing DocNumber: ${documentNumber}, Expected Prefix: ${expectedPrefix}, Mismatch? ${docTypeMismatch || isIncorrectPrefix}`);
     
-    if (!documentNumber || !ettn || docTypeMismatch || isIncorrectPrefix) {
+    // Only regenerate if documentNumber is missing, ETTN is missing, or it's the first attempt and there's a configuration mismatch.
+    if (!documentNumber || !ettn || ((!invoice.integration_status || invoice.integration_status === 'UNKNOWN') && (docTypeMismatch || isIncorrectPrefix))) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -228,15 +257,19 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         documentNumber = `${prefixWithYear}${sequenceString}`;
         invoice.document_number = documentNumber;
 
-        if (!ettn) {
+        // Regenerate ETTN if docTypeMismatch or isIncorrectPrefix is true to prevent integrator uuid reuse conflicts!
+        if (!ettn || docTypeMismatch || isIncorrectPrefix) {
           ettn = crypto.randomUUID();
           invoice.ettn = ettn;
         }
         
-        // Save both correct document_number, ettn AND e_document_type
+        invoice.e_document_type = docType;
+        invoice.invoice_profile = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+        
+        // Save correct document_number, ettn, e_document_type, and set invoice_profile to EARSIVFATURA if E-Arşiv
         await client.query(
-           "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3 WHERE id = $4",
-           [documentNumber, ettn, docType, invoiceId]
+           "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+           [documentNumber, ettn, docType, invoice.invoice_profile, invoiceId]
         );
         await client.query("COMMIT");
         console.log(`[INVOICE-SEND] Updated draft number: ${documentNumber}, updated docType: ${docType}`);
@@ -341,7 +374,35 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       return {
         productName: item.product_name || "Ürün/Hizmet",
         qty: String(Number(qty.toFixed(4))),
-        unitCode: item.unit_code || UNIT_CODES.PIECE,
+        unitCode: (() => {
+          const rawUnit = (item.unit_code || "").trim();
+          if (!rawUnit) return UNIT_CODES.PIECE;
+          const norm = rawUnit.toLowerCase();
+          const mapping: { [key: string]: string } = {
+            "adet": "C62",
+            "ad": "C62",
+            "pcs": "C62",
+            "piece": "C62",
+            "kg": "KGM",
+            "kilogram": "KGM",
+            "gr": "GRM",
+            "litre": "LTR",
+            "lt": "LTR",
+            "meter": "MTR",
+            "metre": "MTR",
+            "paket": "PA",
+            "kutu": "BX",
+            "ton": "TNE",
+            "metrekare": "MTK",
+            "m2": "MTK",
+            "gün": "DAY",
+            "gun": "DAY",
+            "saat": "HUR",
+            "ay": "MON",
+            "yıl": "ANN"
+          };
+          return mapping[norm] || rawUnit;
+        })(),
         unitPriceTra: String(Number(unitPrice.toFixed(4))),
         amtTra: String(Number(lineExtensionAmount.toFixed(2))),
         vatRate: String(Number(taxRate.toFixed(2))),
@@ -365,17 +426,17 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        id: 0, 
        connectorGuid: settings.connector_guid || undefined,
        eDocumentType: docType === 'E-FATURA' ? 'EFATURA' : 'EARSIVFATURA',
-       profile: invoice.invoice_profile || (docType === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA'),
+       profile: docType === 'E-ARSIV' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA'),
        invoiceType: giInvoiceType,
        docDate: formattedDate,
        docTime: formattedTime,
-       ettn: invoice.ettn,
-       docNo: invoice.document_number,
+       ettn: ettn,
+       docNo: documentNumber,
        currencyCode: (invoice.currency || 'TRY').toUpperCase(),
        currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
        tenantIdentifierNumber: storeTaxNumber,
        
-       pkAlias: pkAlias,
+       pkAlias: docType === 'E-FATURA' ? pkAlias : undefined,
        
        invoiceAccount: {
           vknTckn: taxNumber,
@@ -407,13 +468,155 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           taxExclusiveAmount: Number(totalLineExtension.toFixed(2)),
           taxInclusiveAmount: Number(grandTotal.toFixed(2)),
           payableAmount: Number(grandTotal.toFixed(2)),
+          grandTotalAmountText: numberToTurkishWords(Number(grandTotal.toFixed(2)), (invoice.currency || 'TRY').toUpperCase()),
           allowanceTotalAmount: 0
        }
     };
 
 
     // Sending
-    const result = await service.sendInvoice(ublData);
+    let result;
+    try {
+      console.log(`[INVOICE-SEND] Initiating sendInvoice with docType: ${docType}, documentNumber: ${documentNumber}`);
+      result = await service.sendInvoice(ublData);
+    } catch (sendErr: any) {
+      const errMsg = sendErr.message || "";
+      console.warn(`[INVOICE-SEND] Primary attempt failed: "${errMsg}". Checking if auto-recovery applies...`);
+
+      const isProfileMismatch = 
+        errMsg.includes("Profile alanında") || 
+        errMsg.includes("E-Fatura için") || 
+        errMsg.includes("uygun Profile") ||
+        errMsg.includes("Profile değeri") ||
+        errMsg.includes("geçersiz değer");
+
+      const isEArchiveRequired =
+        errMsg.includes("mükellef değil") ||
+        errMsg.includes("E-Fatura kullanıcısı değil") ||
+        errMsg.includes("E-Arşiv Fatura olarak") ||
+        errMsg.includes("E-Arşiv faturası") ||
+        errMsg.includes("not registered") ||
+        errMsg.includes("mükellefi değildir");
+
+      if (isProfileMismatch && docType === 'E-ARSIV') {
+        console.warn(`[INVOICE-SEND-RECOVERY] Integrator rejected E-Arşiv due to target being an active E-Fatura taxpayer. Attempting auto-recovery as E-FATURA...`);
+        docType = 'E-FATURA';
+        pkAlias = 'urn:mail:defaultpk';
+        
+        const expectedPrefix = settings.einvoice_prefix || 'GAP';
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+          const currentYear = new Date().getFullYear().toString();
+          const prefixWithYear = `${prefix}${currentYear}`;
+          
+          const seqRes = await client.query(
+             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+             [storeId, `${prefixWithYear}%`]
+          );
+          
+          let nextSequenceNumber = 1;
+          if (seqRes.rows.length > 0) {
+              const lastDocNum = seqRes.rows[0].document_number;
+              const lastSequencePart = lastDocNum.substring(7);
+              const parsedSeq = parseInt(lastSequencePart, 10);
+              if (!isNaN(parsedSeq)) {
+                 nextSequenceNumber = parsedSeq + 1;
+              }
+          }
+          
+          const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
+          documentNumber = `${prefixWithYear}${sequenceString}`;
+          
+          ettn = crypto.randomUUID();
+          
+          await client.query(
+             "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+             [documentNumber, ettn, docType, 'TEMELFATURA', invoiceId]
+          );
+          await client.query("COMMIT");
+          console.log(`[INVOICE-SEND-RECOVERY] Successfully set sequence and saved as E-FATURA: ${documentNumber}`);
+        } catch (dbErr) {
+          await client.query("ROLLBACK");
+          console.error("[INVOICE-SEND-RECOVERY] DB Update failed inside E-FATURA recovery branch:", dbErr);
+          throw dbErr;
+        } finally {
+          client.release();
+        }
+
+        // Reconstruct fields for E-FATURA
+        ublData.eDocumentType = 'EFATURA';
+        ublData.profile = invoice.invoice_profile || 'TEMELFATURA';
+        ublData.docNo = documentNumber;
+        ublData.pkAlias = pkAlias;
+        ublData.ettn = ettn;
+
+        console.log("[INVOICE-SEND-RECOVERY] Retrying sendInvoice with updated E-FATURA sequence payload...");
+        result = await service.sendInvoice(ublData);
+
+      } else if (isEArchiveRequired && docType === 'E-FATURA') {
+        console.warn(`[INVOICE-SEND-RECOVERY] Integrator rejected E-Fatura due to target NOT being an active e-Invoice taxpayer. Attempting auto-recovery as E-ARSIV...`);
+        docType = 'E-ARSIV';
+        pkAlias = '';
+
+        const expectedPrefix = settings.earchive_prefix || 'GEA';
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+          const currentYear = new Date().getFullYear().toString();
+          const prefixWithYear = `${prefix}${currentYear}`;
+
+          const seqRes = await client.query(
+             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+             [storeId, `${prefixWithYear}%`]
+          );
+
+          let nextSequenceNumber = 1;
+          if (seqRes.rows.length > 0) {
+              const lastDocNum = seqRes.rows[0].document_number;
+              const lastSequencePart = lastDocNum.substring(7);
+              const parsedSeq = parseInt(lastSequencePart, 10);
+              if (!isNaN(parsedSeq)) {
+                 nextSequenceNumber = parsedSeq + 1;
+              }
+          }
+
+          const sequenceString = nextSequenceNumber.toString().padStart(9, '0');
+          documentNumber = `${prefixWithYear}${sequenceString}`;
+
+          ettn = crypto.randomUUID();
+
+          await client.query(
+             "UPDATE sales_invoices SET document_number = $1, ettn = $2, e_document_type = $3, invoice_profile = $4 WHERE id = $5",
+             [documentNumber, ettn, docType, 'EARSIVFATURA', invoiceId]
+          );
+          await client.query("COMMIT");
+          console.log(`[INVOICE-SEND-RECOVERY] Successfully set sequence and saved as E-ARSIV: ${documentNumber}`);
+        } catch (dbErr) {
+          await client.query("ROLLBACK");
+          console.error("[INVOICE-SEND-RECOVERY] DB Update failed inside E-ARSIV recovery branch:", dbErr);
+          throw dbErr;
+        } finally {
+          client.release();
+        }
+
+        // Reconstruct fields for E-ARSIV
+        ublData.eDocumentType = 'EARSIVFATURA';
+        ublData.profile = 'TEMELFATURA';
+        ublData.docNo = documentNumber;
+        ublData.pkAlias = undefined;
+        ublData.ettn = ettn;
+
+        console.log("[INVOICE-SEND-RECOVERY] Retrying sendInvoice with updated E-ARSIV sequence payload...");
+        result = await service.sendInvoice(ublData);
+
+      } else {
+        // Unhandled error, propagate
+        throw sendErr;
+      }
+    }
 
     // Format DB Update
     if (result.isSuccess) {
@@ -871,5 +1074,158 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });
   }
 });
+
+export const runGlobalEInvoiceSync = async () => {
+  console.log("[runGlobalEInvoiceSync] Triggering background sync for all active stores");
+  try {
+    const storesRes = await pool.query(
+      "SELECT id FROM stores WHERE einvoice_settings->>'is_active' = 'true'"
+    );
+    for (const store of storesRes.rows) {
+      try {
+        const storeId = store.id;
+        const service = await getEInvoiceService(storeId);
+        
+        // Let's pull the last 3 days
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        // Fetch raw incoming invoices
+        const incomingInvoices = await service.getIncomingInvoices(startDate, endDate);
+        
+        let importedCount = 0;
+        const normalizeDate = (dateStr: any) => {
+          if (typeof dateStr !== 'string') return dateStr;
+          if (dateStr.includes('.')) {
+            const parts = dateStr.split('.');
+            if (parts.length === 3 && parts[2].length === 4) {
+              return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+          }
+          return dateStr;
+        };
+
+        for (const inv of incomingInvoices) {
+           let invoiceDetails = inv;
+           
+           const rawForLines = inv.raw || (typeof inv === 'object' ? inv : {});
+           const linesAtRoot = rawForLines.detailList || rawForLines.InvoiceLines || rawForLines.lines || rawForLines.InvoiceLine || rawForLines.Lines || rawForLines.invoiceLines;
+           
+           if (!linesAtRoot && inv.ettn) {
+             const details = await service.getInvoiceDetailsByUuid(inv.ettn);
+             if (details) {
+               const detailsBase = details.legalMonetaryTotal?.taxExclusiveAmount || details.TaxExclusiveAmount || 0;
+               const detailsTaxArr = details.taxTotal || details.TaxTotal || [];
+               const detailsTax = Array.isArray(detailsTaxArr) 
+                 ? detailsTaxArr.reduce((sum: number, tax: any) => sum + (Number(tax.taxAmount || tax.TaxAmount || 0)), 0)
+                 : (Number(detailsTaxArr.taxAmount || detailsTaxArr.TaxAmount) || 0);
+
+               invoiceDetails = {
+                 ...inv,
+                 documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
+                 issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
+                 senderTitle: details.supplierInfo?.partyName || details.supplierInfo?.customerName || details.SenderTitle || details.senderTitle || inv.senderTitle,
+                 senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
+                 payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
+                 baseAmount: Number(detailsBase) || inv.baseAmount || 0,
+                 taxAmount: Number(detailsTax) || inv.taxAmount || 0,
+                 currency: details.documentCurrencyCode || details.CurrencyCode || details.currencyCode || inv.currency,
+                 exchangeRate: Number(details.pricingExchangeRate?.calculationRate || details.PricingExchangeRate?.CalculationRate || details.paymentExchangeRate?.calculationRate || details.exchangeRate || details.ExchangeRate || details.currencyRate || 1) || 1,
+                 documentType: details.profileId || details.InvoiceTypeCode || details.invoiceTypeCode || inv.documentType,
+                 raw: details
+               };
+             }
+           } else {
+             invoiceDetails = {
+               ...inv,
+               issueDate: normalizeDate(inv.issueDate)
+             };
+           }
+
+           const existingRes = await pool.query(
+             "SELECT id, ettn FROM purchase_invoices WHERE store_id = $1 AND (ettn = $2 OR document_number = $3)", 
+             [storeId, invoiceDetails.ettn, invoiceDetails.documentNumber]
+           );
+
+           if (existingRes.rows.length > 0) {
+              const existing = existingRes.rows[0];
+              if (!existing.ettn && invoiceDetails.ettn) {
+                 await pool.query(
+                   "UPDATE purchase_invoices SET ettn = $1 WHERE id = $2",
+                   [invoiceDetails.ettn, existing.id]
+                 );
+              }
+              continue;
+           }
+
+           let companyId = null;
+           if (invoiceDetails.senderVkn) {
+             const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
+             if (compRes.rows.length > 0) {
+               companyId = compRes.rows[0].id;
+             } else {
+               const newComp = await pool.query(
+                 "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
+                 [storeId, invoiceDetails.senderTitle || 'Bilinmeyen Tedarikçi', invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
+               );
+               companyId = newComp.rows[0].id;
+             }
+           }
+
+           const baseAmt = Number(invoiceDetails.baseAmount) || (Number(invoiceDetails.payableAmount) - Number(invoiceDetails.taxAmount || 0));
+           const taxAmt = Number(invoiceDetails.taxAmount) || 0;
+           const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
+
+           await pool.query(
+             `INSERT INTO purchase_invoices 
+             (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_read)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false) RETURNING id`,
+             [
+               storeId, 
+               companyId,
+               invoiceDetails.documentNumber, 
+               invoiceDetails.documentNumber, 
+               invoiceDetails.ettn, 
+               invoiceDetails.documentType, 
+               invoiceDetails.senderTitle,
+               invoiceDetails.senderVkn,
+               (() => {
+                 const d = invoiceDetails.issueDate;
+                 if (!d) return new Date().toISOString();
+                 if (typeof d !== 'string') return d;
+                 if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
+                   const [day, month, year] = d.split('.');
+                   return `${year}-${month}-${day}`;
+                 }
+                 try {
+                   const parsed = new Date(d);
+                   if (!isNaN(parsed.getTime())) return parsed.toISOString();
+                 } catch (e) {}
+                 return new Date().toISOString();
+               })(),
+               baseAmt,
+               taxAmt,
+               grandAmt,
+               invoiceDetails.currency || 'TRY',
+               invoiceDetails.exchangeRate || 1,
+               'pending',
+               'RECEIVED',
+               'term',
+               'unpaid',
+               false
+             ]
+           );
+           
+           importedCount++;
+        }
+        console.log(`[runGlobalEInvoiceSync] Store ${storeId} imported ${importedCount} new invoices.`);
+      } catch (err) {
+         console.error(`[runGlobalEInvoiceSync] Error in store ${store.id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error(`[runGlobalEInvoiceSync] Failed to query active stores:`, err);
+  }
+};
 
 export default router;

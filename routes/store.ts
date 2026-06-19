@@ -4007,7 +4007,14 @@ router.post("/sales-invoices", async (req: any, res) => {
       invoice_profile,
       status,
       is_tax_inclusive,
-      e_document_type: req_e_document_type
+      e_document_type: req_e_document_type,
+      tax_number: req_tax_number,
+      tax_office,
+      address,
+      customer_email,
+      gi_invoice_type,
+      gi_exemption_reason_code,
+      gi_withholding_tax_code
     } = req.body;
     
     let storeId = req.user.store_id;
@@ -4127,6 +4134,80 @@ router.post("/sales-invoices", async (req: any, res) => {
     );
     
     const invoiceId = invoiceResult.rows[0].id;
+
+    // Bidirectional sync: save entered tax info to company/customer if empty in database
+    const currentTaxNum = req.body.tax_number || null;
+    const currentTaxOffice = req.body.tax_office || null;
+    const currentAddress = req.body.address || null;
+    const currentEmail = req.body.customer_email || null;
+
+    if (company_id) {
+      const compRes = await client.query("SELECT * FROM companies WHERE id = $1", [company_id]);
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!comp.tax_number || comp.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!comp.tax_office || comp.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!comp.address || comp.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!comp.email || comp.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(company_id);
+          await client.query(
+            `UPDATE companies SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!cust.tax_number || cust.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!cust.tax_office || cust.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!cust.address || cust.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!cust.email || cust.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(customer_id);
+          await client.query(
+            `UPDATE customers SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    }
     
     // Get display name for logs
     let displayName = 'Müşteri';
@@ -4375,6 +4456,80 @@ router.put("/sales-invoices/:id", async (req: any, res) => {
       req.params.id, storeId
     ]
     );
+
+    // Bidirectional sync on update: save entered tax info to company/customer if empty in database
+    const currentTaxNum = tax_number || null;
+    const currentTaxOffice = tax_office || null;
+    const currentAddress = address || null;
+    const currentEmail = req.body.customer_email || null;
+
+    if (company_id) {
+      const compRes = await client.query("SELECT * FROM companies WHERE id = $1", [company_id]);
+      if (compRes.rows.length > 0) {
+        const comp = compRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!comp.tax_number || comp.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!comp.tax_office || comp.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!comp.address || comp.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!comp.email || comp.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(company_id);
+          await client.query(
+            `UPDATE companies SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    } else if (customer_id) {
+      const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [customer_id]);
+      if (custRes.rows.length > 0) {
+        const cust = custRes.rows[0];
+        const updateFields: string[] = [];
+        const updateValues: any[] = [];
+        let valIdx = 1;
+
+        if (currentTaxNum && (!cust.tax_number || cust.tax_number.trim() === "")) {
+          updateFields.push(`tax_number = $${valIdx++}`);
+          updateValues.push(currentTaxNum);
+        }
+        if (currentTaxOffice && (!cust.tax_office || cust.tax_office.trim() === "")) {
+          updateFields.push(`tax_office = $${valIdx++}`);
+          updateValues.push(currentTaxOffice);
+        }
+        if (currentAddress && (!cust.address || cust.address.trim() === "")) {
+          updateFields.push(`address = $${valIdx++}`);
+          updateValues.push(currentAddress);
+        }
+        if (currentEmail && (!cust.email || cust.email.trim() === "")) {
+          updateFields.push(`email = $${valIdx++}`);
+          updateValues.push(currentEmail);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(customer_id);
+          await client.query(
+            `UPDATE customers SET ${updateFields.join(', ')} WHERE id = $${valIdx}`,
+            updateValues
+          );
+        }
+      }
+    }
 
     // 6. Insert new items and update stock
     for (const item of items) {
@@ -5865,12 +6020,28 @@ router.get("/notifications", async (req: any, res) => {
       [storeId]
     );
 
+    // 6. Rejected/Failed Sales Invoices
+    const salesInvoicesCount = await pool.query(
+      `SELECT COUNT(*) FROM sales_invoices 
+       WHERE store_id = $1 AND integration_status IN ('REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED')`,
+      [storeId]
+    );
+
+    // 7. Unread/New Incoming Purchase Invoices
+    const purchaseInvoicesCount = await pool.query(
+      `SELECT COUNT(*) FROM purchase_invoices 
+       WHERE store_id = $1 AND is_read = false`,
+      [storeId]
+    );
+
     res.json({
       transfers: parseInt(transfersCount.rows[0].count),
       service: parseInt(serviceCount.rows[0].count),
       quotations: parseInt(quotationsCount.rows[0].count),
       sales: parseInt(salesCount.rows[0].count),
-      fleet: parseInt(expiringDocsCount.rows[0].count) + parseInt(maintenanceDueCount.rows[0].count)
+      fleet: parseInt(expiringDocsCount.rows[0].count) + parseInt(maintenanceDueCount.rows[0].count),
+      sales_invoices: parseInt(salesInvoicesCount.rows[0].count),
+      purchase_invoices: parseInt(purchaseInvoicesCount.rows[0].count)
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch notifications" });

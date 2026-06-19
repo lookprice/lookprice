@@ -72,6 +72,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [showHtmlModal, setShowHtmlModal] = useState(false);
   const [htmlContent, setHtmlContent] = useState("");
   const [htmlLoading, setHtmlLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'rejected'>('all');
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
@@ -762,8 +763,42 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         </div>
       </div>
 
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setStatusFilter('all'); setPage(1); }}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+              statusFilter === 'all' 
+                ? 'bg-slate-800 text-white shadow-md' 
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {isTr ? "Tüm Faturalar" : "All Invoices"}
+          </button>
+          <button
+            onClick={() => { setStatusFilter('rejected'); setPage(1); }}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+              statusFilter === 'rejected' 
+                ? 'bg-rose-600 text-white shadow-md' 
+                : 'bg-white text-rose-600 border border-rose-200 hover:bg-rose-50'
+            }`}
+          >
+            <XCircle className="h-4 w-4" />
+            {isTr ? "Reddedilenler / Hatalı" : "Rejected / Error"}
+          </button>
+        </div>
+      </div>
+
       <SalesInvoiceTable 
-        invoices={invoices.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+        invoices={(() => {
+          let filtered = invoices;
+          if (statusFilter === 'rejected') {
+            filtered = filtered.filter((inv: any) => 
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status)
+            );
+          }
+          return filtered;
+        })().slice((page - 1) * itemsPerPage, page * itemsPerPage)}
         loading={loading}
         isTr={isTr}
         selectedIds={selectedIds}
@@ -778,7 +813,15 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         handleViewDetails={handleViewDetails}
         handleDelete={handleDelete}
         page={page}
-        totalPages={Math.ceil(invoices.length / itemsPerPage)}
+        totalPages={Math.ceil((() => {
+          let filtered = invoices;
+          if (statusFilter === 'rejected') {
+            filtered = filtered.filter((inv: any) => 
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status)
+            );
+          }
+          return filtered.length;
+        })() / itemsPerPage)}
         setPage={setPage}
       />
 
@@ -809,6 +852,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setInvoiceTime={setInvoiceTime}
         invoiceProfile={invoiceProfile}
         setInvoiceProfile={(val: any) => setInvoiceProfile(val)}
+        eDocumentType={eDocumentType}
+        setEDocumentType={(val: any) => setEDocumentType(val)}
         giInvoiceType={giInvoiceType}
         setGiInvoiceType={setGiInvoiceType}
         exemptionReasonCode={exemptionReasonCode}

@@ -420,7 +420,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     service: 0,
     quotations: 0,
     sales: 0,
-    fleet: 0
+    fleet: 0,
+    sales_invoices: 0,
+    purchase_invoices: 0
   });
 
   const fetchNotifications = useCallback(async () => {
@@ -596,8 +598,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
     ]},
     { type: 'category', key: "finance_operations", title: isTr ? "Finans & Operasyon" : "Finance & Operations", items: [
-      ...(!isRealEstate ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown }] : []),
-      ...(!isRealEstate ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText }] : []),
+      ...(!isRealEstate ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices }] : []),
+      ...(!isRealEstate ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' }] : []),
       { id: "companies", label: t.companies, icon: Store },
       { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},
@@ -622,7 +624,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'item', id: "system_cockpit", label: isTr ? "Kokpit" : "Cockpit", icon: LayoutDashboard },
     { type: 'category', key: "operations", title: isTr ? "Operasyonlar" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
-      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+      { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices },
       { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
       { id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
       { id: "procurements", label: t.procurements, icon: Truck },
@@ -630,7 +632,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
       { id: "quotations", label: t.quotations, icon: FileCheck },
-      { id: "sales_invoices", label: t.sales_invoices, icon: FileText },
+      { id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' },
       { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },

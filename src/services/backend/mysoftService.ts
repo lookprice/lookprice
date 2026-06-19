@@ -73,132 +73,57 @@ export class MySoftService {
   }
 
   // 2. Taxpayer Query (Mükellef Sorgulama)
-  async checkTaxpayer(vknTckn: string): Promise<{ isTaxpayer: boolean; title?: string; documentType: 'E-FATURA' | 'E-ARSIV', alias?: string }> {
+  async checkTaxpayer(vknTckn: string): Promise<{ isTaxpayer: boolean; title?: string; documentType: 'E-FATURA' | 'E-ARSIV' | 'UNKNOWN', alias?: string }> {
     try {
       const token = await this.authenticate();
       
       const config: any = {
         headers: { Authorization: `Bearer ${token}` }
       };
-      if (this.credentials.tenant_id) {
-        config.headers['TenantId'] = this.credentials.tenant_id;
-        config.headers['ApplicationId'] = this.credentials.tenant_id;
+
+      const url = `${this.baseUrl}/GeneralCard/getGibAccountModel?vknTckn=${vknTckn}`;
+      console.log(`[MySoft DEBUG] Checking GIB account at: ${url}`);
+      
+      const response = await axios.get(url, config);
+      const rawData = response.data;
+      
+      const data = rawData.Data || rawData.data;
+
+      // If data is null, they are explicitly NOT an E-Invoice user
+      if (!data) {
+         console.log(`[MySoft checkTaxpayer] Taxpayer ${vknTckn} is NOT an E-Invoice user (returned null). Gracefully returning E-ARSIV.`);
+         return { isTaxpayer: false, documentType: 'E-ARSIV' };
       }
 
-      // Try multiple variations for taxpayer check as MySoft has different API versions
-      const variations = [
-        `${this.baseUrl}/Contact/GetContactByVkn?vkn=${vknTckn}`,
-        `${this.baseUrl}/Contact/GetTaxpayerByVkn?vkn=${vknTckn}`,
-        `${this.baseUrl}/Common/GetTaxpayer?vkn=${vknTckn}`
-      ];
+      const title = data.gibAccountName || data.GibAccountName || "";
+      let alias = "";
 
-      let lastError: any = null;
-      let successCount = 0;
-
-      for (const url of variations) {
-        try {
-          console.log(`[MySoft DEBUG] Checking taxpayer at: ${url}`);
-          const response = await axios.get(url, config);
-          successCount++;
-          
-          const rawData = response.data;
-          console.log(`[MySoft DEBUG] Response for ${vknTckn}:`, JSON.stringify(rawData).substring(0, 500));
-          
-          const data = rawData.Data || rawData.data || rawData;
-          if (!data) continue;
-          
-          console.log(`[MySoft DEBUG] Data found. Type: ${typeof data}, Array? ${Array.isArray(data)}`);
-          
-          let isTaxpayer = false;
-          let title = "";
-          let alias = "";
-
-          if (Array.isArray(data)) {
-            if (data.length > 0) {
-              const bestMatch = data.find(item => item.Identifier === vknTckn || item.Vkn === vknTckn) || data[0];
-              title = bestMatch.Title || bestMatch.title || bestMatch.Name || bestMatch.name || "";
-              
-              // Handle alias which could be a string or a list
-              const rawAlias = bestMatch.Alias || bestMatch.alias || bestMatch.DefaultPkAlias || bestMatch.defaultPkAlias || bestMatch.PkAlias || bestMatch.pkAlias || "";
-              if (Array.isArray(rawAlias)) {
-                // If it's a list, look for one containing 'pk'
-                const pkAlias = rawAlias.find(a => String(a).toLowerCase().includes('pk')) || rawAlias[0];
-                alias = String(pkAlias || "");
-              } else {
-                alias = String(rawAlias);
-              }
-              
-              isTaxpayer = bestMatch.IsEInvoiceUser === true || 
-                           bestMatch.IsEInvoiceUser === "True" ||
-                           bestMatch.isEInvoiceUser === true || 
-                           bestMatch.isEInvoiceUser === "True" ||
-                           bestMatch.EInvoiceUser === true || 
-                           bestMatch.EInvoiceUser === "True" ||
-                           bestMatch.Type === 'EFATURA' || 
-                           bestMatch.type === 'EFATURA' ||
-                           (alias && alias.toLowerCase().startsWith('urn:mail:'));
-
-              if (!alias && data.length > 1) {
-                const itemWithAlias = data.find(item => item.Alias || item.alias || item.DefaultPkAlias);
-                if (itemWithAlias) {
-                  alias = String(itemWithAlias.Alias || itemWithAlias.alias || itemWithAlias.DefaultPkAlias || "");
-                }
-              }
-            }
-          } else {
-            title = data.Title || data.title || data.Name || data.name || "";
-            
-            const rawAlias = data.Alias || data.alias || data.DefaultPkAlias || data.defaultPkAlias || data.PkAlias || data.pkAlias || "";
-            if (Array.isArray(rawAlias)) {
-              const pkAlias = rawAlias.find(a => String(a).toLowerCase().includes('pk')) || rawAlias[0];
-              alias = String(pkAlias || "");
-            } else {
-              alias = String(rawAlias);
-            }
-
-            isTaxpayer = data.IsEInvoiceUser === true || 
-                         data.IsEInvoiceUser === "True" ||
-                         data.isEInvoiceUser === true || 
-                         data.isEInvoiceUser === "True" ||
-                         data.EInvoiceUser === true || 
-                         data.EInvoiceUser === "True" ||
-                         data.efaturaMukkellefi === true || 
-                         data.efaturaMukkellefi === "True" ||
-                         data.Type === 'EFATURA' || 
-                         data.type === 'EFATURA' ||
-                         (alias && alias.toLowerCase().startsWith('urn:mail:'));
-          }
-
-          if (isTaxpayer) {
-            console.log(`Taxpayer ${vknTckn} identified as E-FATURA with alias: ${alias}`);
-            return {
-              isTaxpayer: true,
-              title: title,
-              documentType: 'E-FATURA',
-              alias: alias
-            };
-          }
-        } catch (innerErr: any) {
-          console.log(`Variation ${url} failed: ${innerErr.message}`);
-          lastError = innerErr;
+      // Extract alias
+      const aliasList = data.gibAccountAliasList || data.GibAccountAliasList;
+      if (Array.isArray(aliasList) && aliasList.length > 0) {
+        // Look for a PK (Posta Kutusu) for E-Fatura
+        // gibDocumentType = 1 (E-Fatura), aliasType = 1 (PK)
+        const eFaturaPk = aliasList.find(a => a.gibDocumentType === 1 && a.aliasType === 1);
+        if (eFaturaPk) {
+           alias = eFaturaPk.alias || eFaturaPk.Alias;
+        } else {
+           // fallback to any pk
+           const fallbackPk = aliasList.find(a => a.aliasType === 1) || aliasList[0];
+           if (fallbackPk) alias = fallbackPk.alias || fallbackPk.Alias;
         }
       }
 
-      if (successCount === 0 && lastError) {
-        console.warn(`[MySoft checkTaxpayer] All query attempts failed due to errors. Re-throwing to prevent incorrect document downgrade.`);
-        throw lastError;
-      }
+      console.log(`Taxpayer ${vknTckn} identified as E-FATURA with alias: ${alias}`);
+      return {
+        isTaxpayer: true,
+        title: title,
+        documentType: 'E-FATURA',
+        alias: alias
+      };
 
-      return { isTaxpayer: false, documentType: 'E-ARSIV' };
     } catch (error: any) {
-      if (error.response?.status === 404) {
-         // This is the outer catch, but since we throw inside, we should let it propagate unless we are sure it's not a router error.
-         // Actually, if we threw from inside, it means successCount was 0 and lastError had 404.
-         // Let's print detailed message.
-         console.warn(`[MySoft checkTaxpayer Outer Catch] Query returned 404. Propagating to allow caller fallback.`);
-      }
       console.error("MySoft Taxpayer Check Error:", error.response?.data || error.message);
-      throw error;
+      return { isTaxpayer: false, documentType: 'UNKNOWN' };
     }
   }
 
@@ -564,8 +489,9 @@ export class MySoftService {
       if (eDocumentType === 'E-ARSIV' || eDocumentType === 'E-ARCHIVE') {
           console.log(`Cancelling MySoft E-Archive Invoice for ${ettn}`);
           const dateStr = new Date().toISOString().split('T')[0];
+          const storeVkn = this.credentials.vkn;
           // Use GET /InvoiceOutbox/cancelEarchiveInvoice with a valid cancelType like KEP
-          const res = await axios.get(`${this.baseUrl}/InvoiceOutbox/cancelEarchiveInvoice?invoiceETTN=${ettn}&cancelDate=${dateStr}&cancelType=KEP&notes=${encodeURIComponent(reason)}`, config);
+          const res = await axios.get(`${this.baseUrl}/InvoiceOutbox/cancelEarchiveInvoice?invoiceETTN=${ettn}&cancelDate=${dateStr}&cancelType=KEP&notes=${encodeURIComponent(reason)}&tenantIdentifierNumber=${storeVkn}`, config);
           
           if (res.data.succeed === true) {
              return {
@@ -691,13 +617,15 @@ export class MySoftService {
         `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTML`
       ];
 
+      const storeVkn = this.credentials.vkn;
       // Try variations of params
       const paramVariations: any[] = [
-        { invoiceETTN: ettn },
-        { invoiceETTN: ettn, tenantIdentifierNumber: tId },
-        { invoiceUUID: ettn },
-        { uuid: ettn },
-        { id: ettn }
+        { invoiceETTN: ettn, InvoiceETTN: ettn },
+        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: storeVkn },
+        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: tId },
+        { invoiceUUID: ettn, InvoiceUUID: ettn },
+        { uuid: ettn, UUID: ettn },
+        { id: ettn, ID: ettn }
       ];
 
       if (invoiceNumber) {

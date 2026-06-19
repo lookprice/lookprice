@@ -187,6 +187,21 @@ export async function initDb() {
         FOREIGN KEY (product_id) REFERENCES products(id)
       );
 
+      CREATE TABLE IF NOT EXISTS official_taxpayer_cache (
+        vkn TEXT PRIMARY KEY,
+        taxpayer_title TEXT,
+        alias TEXT,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_official_taxpayer_cache_vkn ON official_taxpayer_cache(vkn);
+      
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='official_taxpayer_cache' AND column_name='alias') THEN
+          ALTER TABLE official_taxpayer_cache ADD COLUMN alias TEXT;
+        END IF;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         store_id INTEGER,

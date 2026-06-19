@@ -20,7 +20,7 @@ interface PurchaseInvoiceTableProps {
   handleViewDetails: (inv: any) => void;
   handleEdit: (id: number) => void;
   handleDelete: (id: number) => void;
-  handleViewHtml?: (id: number) => void;
+  handleViewHtml?: (id: number, inv?: any) => void;
   handleUpdateTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED') => void;
   handleUpdatePaymentStatus: (id: number, status: 'paid' | 'unpaid') => void;
   page: number;
@@ -115,7 +115,12 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                     {new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}
                   </td>
                   <td className="p-4 text-xs font-bold text-slate-900">
-                    {invoice.invoice_number}
+                    <div className="flex items-center gap-2">
+                       {invoice.is_read === false && (
+                         <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title={isTr ? "Yeni (Okunmadı)" : "New (Unread)"}></span>
+                       )}
+                       <span>{invoice.invoice_number}</span>
+                    </div>
                     {invoice.e_document_type && (
                        <div className="text-[9px] text-indigo-600 font-bold mt-0.5">{invoice.e_document_type}</div>
                     )}
@@ -195,7 +200,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                       </button>
                       {handleViewHtml && (
                         <button 
-                          onClick={() => handleViewHtml(invoice.id)}
+                          onClick={() => handleViewHtml(invoice.id, invoice)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                           title={isTr ? "Fatura Görselini Aç (HTML)" : "View Invoice HTML"}
                         >

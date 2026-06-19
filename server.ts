@@ -13,7 +13,7 @@ import storeRoutes from "./routes/store";
 import fleetRoutes from "./routes/fleet";
 import paymentRoutes from "./routes/payment";
 import integrationRoutes from "./routes/integrations";
-import einvoiceRoutes from "./routes/einvoice";
+import einvoiceRoutes, { runGlobalEInvoiceSync } from "./routes/einvoice";
 import realEstateRoutes from "./routes/real_estate";
 import aiJobsRoutes from "./routes/ai_jobs.js";
 import googleDriveRoutes from "./routes/googleDrive.js";
@@ -201,6 +201,13 @@ function sanitizeFilename(originalName: string): string {
         }
       } catch (e: any) {
         console.error("Keep-alive ping failed:", e.message);
+      }
+      
+      // Also trigger invoice background sync silently
+      try {
+        await runGlobalEInvoiceSync();
+      } catch (e: any) {
+        console.error("Global E-Invoice sync failed:", e.message);
       }
     }, 5 * 60 * 1000); // 5 minutes is safer than 14
   } else {

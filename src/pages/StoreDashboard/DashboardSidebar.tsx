@@ -155,7 +155,11 @@ export const DashboardSidebar = ({
                                 <span className="tracking-tight">{item.label}</span>
                               </div>
                               {item.badge > 0 && (
-                                <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black ${activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white animate-pulse'}`}>
+                                <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black ${
+                                  item.badgeType === 'error' 
+                                    ? (activeTab === item.id ? 'bg-white text-rose-600' : 'bg-rose-600 text-white animate-pulse')
+                                    : (activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white animate-pulse')
+                                }`}>
                                   {item.badge}
                                 </span>
                               )}
@@ -186,6 +190,15 @@ export const DashboardSidebar = ({
                       <navItem.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === navItem.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
                       <span className="tracking-tight">{navItem.label}</span>
                     </div>
+                    {navItem.badge > 0 && (
+                      <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black ${
+                        navItem.badgeType === 'error' 
+                          ? (activeTab === navItem.id ? 'bg-white text-rose-600' : 'bg-rose-600 text-white animate-pulse')
+                          : (activeTab === navItem.id ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white animate-pulse')
+                      }`}>
+                        {navItem.badge}
+                      </span>
+                    )}
                   </button>
                 );
               }

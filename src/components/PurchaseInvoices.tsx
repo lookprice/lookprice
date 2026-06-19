@@ -414,13 +414,17 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       if (data.error) throw new Error(data.error);
       setSelectedInvoice(data);
       setShowDetailsModal(true);
+      if (inv.is_read === false) {
+        await api.markPurchaseInvoiceRead(inv.id, role === 'superadmin' ? storeId : undefined);
+        fetchInvoicesData(activeSearch, startDate, endDate, true);
+      }
     } catch (error: any) {
       toast.error(isTr ? "Fatura detayları yüklenemedi." : "Could not load invoice details.");
       console.error(error);
     }
   };
 
-  const handleViewHtml = async (id: number) => {
+  const handleViewHtml = async (id: number, inv?: any) => {
     setPurchaseHtmlLoading(true);
     setPurchaseIframeReady(false);
     setShowHtmlModal(true);
@@ -431,6 +435,10 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       } else {
         toast.error(isTr ? "Fatura görseli bulunamadı" : "Invoice image not found");
         setShowHtmlModal(false);
+      }
+      if (inv && inv.is_read === false) {
+        await api.markPurchaseInvoiceRead(id, role === 'superadmin' ? storeId : undefined);
+        fetchInvoicesData(activeSearch, startDate, endDate, true);
       }
     } catch (error: any) {
       toast.error(error.message);
