@@ -661,43 +661,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     <p className="text-[9px] text-gray-400 mt-1 italic leading-tight">Bu domaine gelen trafik otomatik olarak Market/Portal sayfasına yönlendirilir.</p>
                   </div>
 
-                  {/* PRESTİJLİ TEMA VE FONT AYARLARI */}
-                  <div className="border-t pt-4 mt-6">
-                    <h4 className="text-xs font-black text-slate-850 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                      <Palette className="h-4 w-4 text-emerald-500 animate-pulse" /> Premium Tema ve Akor Tanımları
-                    </h4>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Görsel Konsept Teması</label>
-                        <select 
-                          className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-slate-700"
-                          value={enrakipsizSettings.theme_style || "dark_gold"}
-                          onChange={e => setEnrakipsizSettings({...enrakipsizSettings, theme_style: e.target.value})}
-                        >
-                          {THEME_OPTIONS.map(opt => (
-                            <option key={opt.id} value={opt.id}>{opt.name}</option>
-                          ))}
-                        </select>
-                        <div className="mt-1.5 p-2 bg-amber-500/5 rounded-lg border border-amber-500/10 text-[9px] text-amber-800 leading-normal">
-                          {THEME_OPTIONS.find(o => o.id === (enrakipsizSettings.theme_style || 'dark_gold'))?.description}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Birincil Yazı Tipi / Font</label>
-                        <select 
-                          className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-slate-700"
-                          value={enrakipsizSettings.font_family || "Inter"}
-                          onChange={e => setEnrakipsizSettings({...enrakipsizSettings, font_family: e.target.value})}
-                        >
-                          {FONT_OPTIONS.map(opt => (
-                            <option key={opt.id} value={opt.id}>{opt.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                  {/* We removed the theme and font family templates as requested */}
 
                   {/* INTERAKTİF REORDERING GRIDS */}
                   <div className="border-t pt-4 mt-6">

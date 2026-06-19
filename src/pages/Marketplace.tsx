@@ -389,109 +389,25 @@ export const Marketplace = () => {
     properties: listings.filter(l => l.listing_type === "real_estate").length,
   };
 
-  const getThemeClasses = () => {
-    const theme = portalSettings?.theme_style || "dark_gold";
-    switch(theme) {
-      case "cosmic_slate":
-        return {
-          theme: "cosmic_slate",
-          shell: "bg-slate-950 text-slate-100",
-          card: "bg-slate-900/50 backdrop-blur-md border border-indigo-950/30 shadow-indigo-950/5",
-          accentText: "text-indigo-400",
-          accentBg: "bg-indigo-500",
-          accentBgHover: "hover:bg-indigo-600",
-          accentBorder: "border-indigo-500/20",
-          heroTitle: "text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-indigo-400 to-purple-400",
-          badge: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
-          button: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30",
-          announcementBar: "bg-indigo-950/80 border-indigo-900/30 text-indigo-200",
-          footer: "bg-slate-950 border-t border-indigo-950/40 text-slate-400"
-        };
-      case "editorial_serif":
-        return {
-          theme: "editorial_serif",
-          shell: "bg-[#faf9f6]/95 text-stone-900 selection:bg-stone-250",
-          card: "bg-white border border-stone-200/70 shadow-sm",
-          accentText: "text-stone-850",
-          accentBg: "bg-stone-850",
-          accentBgHover: "hover:bg-stone-900",
-          accentBorder: "border-stone-200",
-          heroTitle: "font-serif tracking-normal text-stone-950",
-          badge: "bg-stone-100 text-stone-800 border border-stone-200/50",
-          button: "bg-stone-900 hover:bg-stone-850 text-[#faf9f6]",
-          announcementBar: "bg-stone-100 border-stone-200 text-stone-800",
-          footer: "bg-[#faf9f6] border-t border-stone-200 text-stone-550"
-        };
-      case "swiss_minimal":
-        return {
-          theme: "swiss_minimal",
-          shell: "bg-white text-black selection:bg-black selection:text-white",
-          card: "bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none",
-          accentText: "text-black font-bold",
-          accentBg: "bg-black",
-          accentBgHover: "hover:bg-neutral-800",
-          accentBorder: "border-black",
-          heroTitle: "font-black tracking-tighter uppercase text-black",
-          badge: "bg-black text-white px-2 py-0.5 rounded-none text-[10px] uppercase font-bold",
-          button: "bg-black hover:bg-neutral-800 text-white font-bold rounded-none uppercase tracking-wide",
-          announcementBar: "bg-neutral-100 border-2 border-black text-black font-bold rounded-none",
-          footer: "bg-white border-t-2 border-black text-neutral-600"
-        };
-      case "deep_crimson":
-        return {
-          theme: "deep_crimson",
-          shell: "bg-[#0b0304] text-stone-100",
-          card: "bg-[#140b0d] border border-rose-950/20 shadow-lg shadow-rose-950/5",
-          accentText: "text-rose-450",
-          accentBg: "bg-rose-600",
-          accentBgHover: "hover:bg-rose-700",
-          accentBorder: "border-rose-500/20",
-          heroTitle: "text-transparent bg-clip-text bg-gradient-to-r from-rose-200 via-rose-400 to-rose-650",
-          badge: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
-          button: "bg-rose-650 hover:bg-rose-700 text-white shadow-lg shadow-rose-950/30",
-          announcementBar: "bg-rose-950/45 border-rose-950/20 text-rose-350",
-          footer: "bg-[#0b0304] border-t border-rose-950/30 text-stone-400"
-        };
-      case "dark_gold":
-      default:
-        return {
-          theme: "dark_gold",
-          shell: "bg-slate-950 text-slate-150",
-          card: "bg-slate-900/60 backdrop-blur-md border border-amber-955/20 shadow-lg shadow-amber-950/5",
-          accentText: "text-amber-500",
-          accentBg: "bg-amber-600",
-          accentBgHover: "hover:bg-amber-700",
-          accentBorder: "border-amber-500/20",
-          heroTitle: "text-transparent bg-clip-text bg-gradient-to-r from-amber-205 via-yellow-400 to-amber-500",
-          badge: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
-          button: "bg-amber-600 hover:bg-amber-700 text-slate-950 shadow-lg shadow-amber-600/30 font-bold",
-          announcementBar: "bg-amber-950/35 border-amber-950/15 text-amber-200",
-          footer: "bg-slate-950 border-t border-slate-900 text-slate-400"
-        };
-    }
+  const themeClasses = {
+    theme: "dark_gold",
+    shell: "bg-slate-950 text-slate-100",
+    card: "bg-slate-900/60 backdrop-blur-md border border-amber-500/20 shadow-lg shadow-amber-950/5",
+    accentText: "text-amber-500",
+    accentBg: "bg-amber-600",
+    accentBgHover: "hover:bg-amber-700",
+    accentBorder: "border-amber-500/20",
+    heroTitle: "text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500",
+    badge: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+    button: "bg-amber-600 hover:bg-amber-700 text-slate-950 shadow-lg shadow-amber-600/30 font-bold",
+    announcementBar: "bg-amber-950/35 border-amber-950/15 text-amber-200",
+    footer: "bg-slate-950 border-t border-slate-900 text-slate-400"
   };
 
-  const themeClasses = getThemeClasses();
-
-  const getFontFamilyStyle = () => {
-    const font = portalSettings?.font_family || "Inter";
-    switch(font) {
-      case "Space Grotesk":
-        return { fontFamily: "'Space Grotesk', sans-serif" };
-      case "Playfair Display":
-        return { fontFamily: "'Playfair Display', serif" };
-      case "JetBrains Mono":
-        return { fontFamily: "'JetBrains Mono', monospace" };
-      case "Inter":
-      default:
-        return { fontFamily: "'Inter', sans-serif" };
-    }
-  };
-
-  const fontStyle = getFontFamilyStyle();
+  const fontStyle = { fontFamily: "'Inter', sans-serif" };
 
   const fontImports = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
   `;
 
   const orderedSections = (() => {
@@ -568,7 +484,7 @@ export const Marketplace = () => {
         <div className="text-center md:text-left max-w-3xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 mb-6">
             <Sparkles className="w-3 md:w-3.5 h-3 md:h-3.5" />
-            <span>Türkiye'nin En Ayrıcalıklı Mağaza & İlan Platformu</span>
+            <span>Gerçek Portföy Yönetimi..En İyilerin Platformu.</span>
           </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4 leading-tight">
             {portalSettings.portal_title.includes("Rakipsiz") ? (
@@ -587,6 +503,326 @@ export const Marketplace = () => {
           </p>
         </div>
       </header>
+
+      {/* Filtering and Search Bento Box */}
+      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+        <div className="bg-slate-900/60 backdrop-blur-md rounded-3xl p-6 border border-slate-800 shadow-xl">
+          <div className="flex flex-col gap-6">
+            
+            {/* Search and Sort Row */}
+            <div className="flex flex-col md:flex-row gap-4 justify-between">
+              {/* Modern Search bar */}
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="İlan adı, marka, kategori veya mağaza ara..."
+                  className="w-full bg-slate-950/80 border border-slate-800 text-white rounded-2xl pl-12 pr-4 py-3.5 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/50 outline-none transition-all placeholder:text-slate-500 text-sm"
+                />
+              </div>
+
+              {/* Sorting Options */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-400 font-semibold whitespace-nowrap flex items-center gap-1">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" /> Sırala:
+                </span>
+                <select 
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-rose-500 text-xs font-semibold cursor-pointer"
+                >
+                  <option value="newest">En Son Eklenenler</option>
+                  <option value="price_asc">Fiyat: Artan</option>
+                  <option value="price_desc">Fiyat: Azalan</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Category Pills and Counts */}
+            <div className="flex flex-col gap-4 border-t border-slate-800/80 pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-2.5">
+                  {[
+                    { value: "all", label: "Tüm İlanlar", icon: Filter, count: stats.total },
+                    { value: "vehicle", label: "Oto Galeri", icon: Car, count: stats.vehicles },
+                    { value: "real_estate", label: "Emlak", icon: Home, count: stats.properties }
+                  ].map((pill) => {
+                    const Icon = pill.icon;
+                    const isActive = activeCategory === pill.value;
+                    return (
+                      <button
+                        key={pill.value}
+                        onClick={() => setActiveCategory(pill.value as CategoryFilter)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all hover:scale-[1.02] ${
+                          isActive 
+                            ? "bg-slate-200 text-slate-950 shadow-md shadow-white/5" 
+                            : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{pill.label}</span>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                          isActive ? "bg-slate-950/10 text-slate-950" : "bg-slate-800 text-slate-500"
+                        }`}>
+                          {pill.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Verified Count Banner */}
+                <div className="text-xs text-slate-400 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl px-4 py-2.5 flex items-center gap-2.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="font-medium">
+                    Mağazalarımızdan doğrudan online satın alma veya rezervasyon garantisi verilmektedir.
+                  </span>
+                </div>
+              </div>
+
+              {/* Sub-Sector Filter Row for Vehicles */}
+              {(activeCategory === "all" || activeCategory === "vehicle") && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-800/50 pt-4">
+                  <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider mr-1">Vasıta Türü:</span>
+                  {[
+                    { value: "all", label: "Tümü" },
+                    { value: "car", label: "Otomobil & Hafif Ticari" },
+                    { value: "motorcycle", label: "Motosiklet" },
+                    { value: "marine", label: "Deniz Taşıtları" },
+                    { value: "construction", label: "İş Makineleri" },
+                    { value: "agricultural", label: "Tarım Makineleri" },
+                    { value: "other", label: "Diğer Taşıtlar" }
+                  ].map((sub) => {
+                    const isSubActive = activeSubSector === sub.value;
+                    return (
+                      <button
+                        key={sub.value}
+                        onClick={() => setActiveSubSector(sub.value)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-tight transition-all hover:scale-[1.02] ${
+                          isSubActive
+                            ? "bg-rose-500 text-white border border-rose-500 shadow-sm shadow-rose-950/15"
+                            : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                        }`}
+                      >
+                        {sub.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Real Estate Filter Row / Panel */}
+              {(activeCategory === "real_estate") && (
+                <div className="border-t border-slate-800/50 pt-5 mt-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <SlidersHorizontal className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
+                       Detaylı Emlak Filtreleri
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Bölge */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Bölge / Şehir
+                      </label>
+                      <select
+                        value={reRegion}
+                        onChange={(e) => setReRegion(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tüm Bölgeler</option>
+                        {Object.keys(REAL_ESTATE_REGIONS).map((reg) => (
+                          <option key={reg} value={reg}>{reg}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Alt Bölge */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Bölge Seçeneği (İlçe/Köy)
+                      </label>
+                      <select
+                        value={reSubRegion}
+                        onChange={(e) => setReSubRegion(e.target.value)}
+                        disabled={reRegion === "all"}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40"
+                      >
+                        <option value="all">Tüm Alt Bölgeler</option>
+                        {reRegion !== "all" && REAL_ESTATE_REGIONS[reRegion as keyof typeof REAL_ESTATE_REGIONS]?.map((sub: string) => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Konut Tipi */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Grup / Emlak Tipi
+                      </label>
+                      <select
+                        value={reType}
+                        onChange={(e) => setReType(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        {Object.keys(EMLAK_TIPI_SUB_TIPLERI).map((tp) => (
+                          <option key={tp} value={tp}>{tp}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Alt Konut Tipi */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Alt Emlak Detayı
+                      </label>
+                      <select
+                        value={reSubType}
+                        onChange={(e) => setReSubType(e.target.value)}
+                        disabled={reType === "all"}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40"
+                      >
+                        <option value="all">Tüm Alt Tipler</option>
+                        {reType !== "all" && EMLAK_TIPI_SUB_TIPLERI[reType as keyof typeof EMLAK_TIPI_SUB_TIPLERI]?.map((sub: string) => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* İlan Amacı / Intent */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        İlan Statüsü / Amacı
+                      </label>
+                      <select
+                        value={reListingIntent}
+                        onChange={(e) => setReListingIntent(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="satılık">Satılık</option>
+                        <option value="kiralık">Kiralık</option>
+                        <option value="devren">Devren</option>
+                      </select>
+                    </div>
+
+                    {/* Oda Sayısı */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Oda Sayısı (Brüt)
+                      </label>
+                      <select
+                        value={reRooms}
+                        onChange={(e) => setReRooms(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="Stüdyo">Stüdyo (0+1)</option>
+                        <option value="1+1">1+1</option>
+                        <option value="2+1">2+1</option>
+                        <option value="3+1">3+1</option>
+                        <option value="4+1 veya üzeri">4+1 veya daha geniş</option>
+                      </select>
+                    </div>
+
+                    {/* Eşya Durumu */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Dahili Mobilya / Eşya
+                      </label>
+                      <select
+                        value={reFurnished}
+                        onChange={(e) => setReFurnished(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="yes">Eşyalı</option>
+                        <option value="no">Eşyasız</option>
+                        <option value="partially">Yarı Eşyalı</option>
+                      </select>
+                    </div>
+
+                    {/* Fatura Periyodu (Kiralıklar için) */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Ödeme Sıklığı / Kira Türü
+                      </label>
+                      <select
+                        value={reBillingPeriod}
+                        onChange={(e) => setReBillingPeriod(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="Aylık font-bold">Aylık Kiralama</option>
+                        <option value="Yıllık">Peşin / Yıllık Kiralama</option>
+                        <option value="Haftalık">Günlük / Haftalık Turistik</option>
+                      </select>
+                    </div>
+
+                    {/* Trafo Bedeli */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Trafo / Altyapı Katkı Payı
+                      </label>
+                      <select
+                        value={reTrafoBedeli}
+                        onChange={(e) => setReTrafoBedeli(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="ödenmiş">Ödenmiş</option>
+                        <option value="ödenmemiş">Ödenmemiş (Alıcıya Ait)</option>
+                      </select>
+                    </div>
+
+                    {/* KDV Durumu */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        KDV Durumu
+                      </label>
+                      <select
+                        value={reKdvStatus}
+                        onChange={(e) => setReKdvStatus(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="dahil">KDV Dahil</option>
+                        <option value="haric">KDV Hariç</option>
+                      </select>
+                    </div>
+
+                    {/* Çatı Terası */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        Çatı Terası
+                      </label>
+                      <select
+                        value={reCatiTerasi}
+                        onChange={(e) => setReCatiTerasi(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="all">Tümü</option>
+                        <option value="yes">Var</option>
+                        <option value="no">Yok</option>
+                      </select>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      </section>
 
       {/* Dynamic Sequential Customizer Layout Sections */}
       {orderedSections.filter(sec => sec.enabled).map((sec) => {
@@ -715,272 +951,13 @@ export const Marketplace = () => {
               </section>
             );
           case 'announcement':
-            return portalSettings?.announcement ? (
-              <section key="announcement" className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-                <div className={`p-6 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl ${themeClasses.announcementBar}`}>
-                  <div className="flex items-center gap-3.5">
-                    <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                      <Megaphone className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] tracking-widest uppercase font-black text-rose-500 block mb-0.5">DUYURU VE FIRSATLAR</span>
-                      <p className="text-sm font-semibold leading-relaxed">{portalSettings.announcement}</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            ) : null;
+            return null;
           case 'sponsors':
-            return (
-              <section key="sponsors" className="mb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Megaphone className="w-4 h-4 text-rose-500 animate-bounce" />
-                    <h2 className="text-xs uppercase font-black tracking-widest text-slate-350">
-                      Premium Marka İşbirlikleri & Sponsorlu Alanlar
-                    </h2>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-500 bg-slate-950 px-3 py-1 rounded-md border border-slate-850">
-                    REKLAM ALANI
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {premiumAds.map((ad) => {
-                    const Icon = ad.icon;
-                    return (
-                      <div 
-                        key={ad.id}
-                        onClick={() => {
-                          setSelectedAd(ad);
-                          setShowAdModal(true);
-                        }}
-                        className={`bg-gradient-to-br ${ad.color} border border-slate-800 hover:border-slate-700/80 rounded-3xl p-6 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-950/5 flex flex-col justify-between group cursor-pointer relative overflow-hidden`}
-                      >
-                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-rose-500/5 rounded-full filter blur-xl group-hover:bg-rose-500/10 transition-colors" />
-
-                        <div>
-                          <div className="flex items-center justify-between mb-4">
-                            <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest bg-slate-900 px-2 py-1 rounded border border-slate-800">
-                              {ad.broker}
-                            </span>
-                            <span className="text-[9px] font-black text-rose-450 tracking-wider">
-                              SPONSORLU
-                            </span>
-                          </div>
-
-                          <h3 className="font-extrabold text-white text-base leading-snug mb-2 group-hover:text-amber-500 transition-colors">
-                            {ad.title}
-                          </h3>
-
-                          <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                            {ad.description}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 mt-auto">
-                          <div className="flex items-center gap-2">
-                            <div className={`p-2 rounded-lg bg-slate-950 border ${ad.borderColor}`}>
-                              <Icon className="w-3.5 h-3.5" />
-                            </div>
-                            <span className="text-xs font-black text-white">{ad.profitBadge}</span>
-                          </div>
-
-                          <span className="text-[11px] font-black text-rose-450 group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                            {ad.actionText} <ChevronRight className="w-3.5 h-3.5" />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
+            return null;
           case 'vehicles':
-            return (
-              <section key="vehicles" className="mb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Car className="w-5 h-5 text-amber-500" />
-                    <h2 className="text-sm uppercase font-black tracking-wider text-slate-250">
-                      LÜKS OTO GALERİ VİTRİNİ
-                    </h2>
-                  </div>
-                  <button 
-                    onClick={() => { 
-                      setActiveCategory("vehicle"); 
-                      const section = document.getElementById("enrakipsiz-portal-head"); 
-                      if (section) section.scrollIntoView({ behavior: "smooth" }); 
-                    }} 
-                    className="text-xs text-amber-500 font-bold hover:underline"
-                  >
-                    Tüm Oto İlanlarını Gör →
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {listings.filter(l => l.listing_type === 'vehicle').slice(0, 4).map((listing: any) => (
-                    <article 
-                      key={`veh-${listing.id}`} 
-                      className={`group rounded-3xl p-4 border transition-all duration-300 flex flex-col self-stretch ${themeClasses.card}`}
-                    >
-                      <div className="aspect-[4/3] bg-slate-950 rounded-2xl mb-4 overflow-hidden relative border border-slate-800/50">
-                        {listing.image_url ? (
-                          <img 
-                            src={listing.image_url} 
-                            alt={listing.title} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-705 bg-slate-950">
-                            <Car className="w-10 h-10 opacity-30 text-rose-500" />
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-600 mt-2">Görsel Yok</span>
-                          </div>
-                        )}
-                        <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-950/90 backdrop-blur-md rounded-lg text-[9px] font-bold tracking-wider text-amber-500 border border-slate-800">
-                          {listing.category}
-                        </div>
-                      </div>
-                      
-                      <h3 className="font-bold text-white text-sm leading-snug mb-2 line-clamp-2 hover:text-amber-500 transition-colors cursor-pointer" onClick={() => setSelectedListing(listing)}>
-                        {listing.title}
-                      </h3>
-                      
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-[11px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800/80">
-                          KM: {listing.mileage ? Math.round(Number(listing.mileage) || 0).toLocaleString('tr-TR') : 'Sıfır'}
-                        </span>
-                        {listing.brand && (
-                          <span className="text-[11px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800/80 flex items-center gap-1">
-                            <Tag className="w-3 h-3 text-amber-500" />
-                            {listing.brand}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="mt-auto pt-4 border-t border-slate-800 flex justify-between items-end">
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                            {listing.store_name}
-                          </p>
-                          <p className="font-extrabold text-white text-base">
-                            {Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')} <span className="text-xs text-amber-500 font-bold">{listing.currency || 'TRY'}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 mt-4">
-                        <button 
-                          onClick={() => setSelectedListing(listing)}
-                          className="py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-305 rounded-xl text-xs font-bold transition-all"
-                        >
-                          Detaylar
-                        </button>
-                        <Link 
-                          to={`/store/${listing.store_slug}/p/${listing.barcode || listing.id}`} 
-                          target="_blank" 
-                          className="py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-90 text-slate-950 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 font-mono"
-                        >
-                          Mağazaya Git
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            );
+            return null;
           case 'properties':
-            return (
-              <section key="properties" className="mb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Home className="w-5 h-5 text-indigo-400" />
-                    <h2 className="text-sm uppercase font-black tracking-wider text-slate-250">
-                      PRESTİJLİ GAYRİMENKUL PORTFÖYÜ
-                    </h2>
-                  </div>
-                  <button 
-                    onClick={() => { 
-                      setActiveCategory("real_estate"); 
-                      const section = document.getElementById("enrakipsiz-portal-head"); 
-                      if (section) section.scrollIntoView({ behavior: "smooth" }); 
-                    }} 
-                    className="text-xs text-indigo-450 font-bold hover:underline"
-                  >
-                    Tüm Emlak İlanlarını Gör →
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {listings.filter(l => l.listing_type === 'real_estate').slice(0, 4).map((listing: any) => (
-                    <article 
-                      key={`prop-${listing.id}`} 
-                      className={`group rounded-3xl p-4 border transition-all duration-300 flex flex-col self-stretch ${themeClasses.card}`}
-                    >
-                      <div className="aspect-[4/3] bg-slate-950 rounded-2xl mb-4 overflow-hidden relative border border-slate-800/50">
-                        {listing.image_url ? (
-                          <img 
-                            src={listing.image_url} 
-                            alt={listing.title} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-705 bg-slate-950">
-                            <Home className="w-10 h-10 opacity-30 text-rose-500" />
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-600 mt-2">Görsel Yok</span>
-                          </div>
-                        )}
-                        <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-950/90 backdrop-blur-md rounded-lg text-[9px] font-bold tracking-wider text-indigo-400 border border-slate-800">
-                          {listing.category}
-                        </div>
-                      </div>
-                      
-                      <h3 className="font-bold text-white text-sm leading-snug mb-2 line-clamp-2 hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => setSelectedListing(listing)}>
-                        {listing.title}
-                      </h3>
-                      
-                      <div className="flex items-center gap-2 mb-4">
-                        {listing.brand && (
-                          <span className="text-[11px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800/80 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-indigo-400" />
-                            {listing.brand}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="mt-auto pt-4 border-t border-slate-800 flex justify-between items-end">
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                            {listing.store_name}
-                          </p>
-                          <p className="font-extrabold text-white text-base">
-                            {Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')} <span className="text-xs text-indigo-400 font-bold">{listing.currency || 'TRY'}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 mt-4">
-                        <button 
-                          onClick={() => setSelectedListing(listing)}
-                          className="py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-305 rounded-xl text-xs font-bold transition-all"
-                        >
-                          Detaylar
-                        </button>
-                        <Link 
-                          to={`/store/${listing.store_slug}/p/${listing.barcode || listing.id}`} 
-                          target="_blank" 
-                          className="py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 font-mono"
-                        >
-                          Mağazaya Git
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            );
+            return null;
           default:
             return null;
         }
@@ -989,14 +966,8 @@ export const Marketplace = () => {
       {/* Main Core Showcase Portal */}
       <main id="enrakipsiz-portal-head" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
         
-        {/* Kıbrıs İmar, Mevzuat & Bölgesel Gelişmeler Radar Feed (enrakipsiz.com) */}
-        {portalNews && portalNews.length > 0 && (
-          <section className="mb-14">
-            <RadarShowcaseSlider radarNews={portalNews} lang="tr" theme="dark" />
-          </section>
-        )}
-
         {/* Filtering and Search Bento Box */}
+        {false && (
         <section className="bg-slate-900/60 backdrop-blur-md rounded-3xl p-6 border border-slate-800 mb-10 shadow-xl">
           <div className="flex flex-col gap-6">
             
@@ -1331,6 +1302,7 @@ export const Marketplace = () => {
 
           </div>
         </section>
+        )}
 
 
 
@@ -1445,6 +1417,78 @@ export const Marketplace = () => {
             </div>
           )}
         </section>
+
+        {/* Premium Marka İşbirlikleri & Sponsorlu Alanlar */}
+        <section key="sponsors" className="mt-16 mb-14">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-rose-500 animate-bounce" />
+              <h2 className="text-xs uppercase font-black tracking-widest text-slate-350">
+                Premium Marka İşbirlikleri & Sponsorlu Alanlar
+              </h2>
+            </div>
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-950 px-3 py-1 rounded-md border border-slate-855">
+              REKLAM ALANI
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {premiumAds.map((ad) => {
+              const Icon = ad.icon;
+              return (
+                <div 
+                  key={ad.id}
+                  onClick={() => {
+                    setSelectedAd(ad);
+                    setShowAdModal(true);
+                  }}
+                  className={`bg-gradient-to-br ${ad.color} border border-slate-800 hover:border-slate-700/80 rounded-3xl p-6 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-955/5 flex flex-col justify-between group cursor-pointer relative overflow-hidden`}
+                >
+                  <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-rose-500/5 rounded-full filter blur-xl group-hover:bg-rose-500/10 transition-colors" />
+
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                        {ad.broker}
+                      </span>
+                      <span className="text-[9px] font-black text-rose-450 tracking-wider">
+                        SPONSORLU
+                      </span>
+                    </div>
+
+                    <h3 className="font-extrabold text-white text-base leading-snug mb-2 group-hover:text-amber-500 transition-colors">
+                      {ad.title}
+                    </h3>
+
+                    <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                      {ad.description}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 mt-auto">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg bg-slate-950 border ${ad.borderColor}`}>
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-black text-white">{ad.profitBadge}</span>
+                    </div>
+
+                    <span className="text-[11px] font-black text-rose-450 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                      {ad.actionText} <ChevronRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Bölgesel Canlı Radar Feed (enrakipsiz.com) */}
+        {portalNews && portalNews.length > 0 && (
+          <section className="mb-14">
+            <RadarShowcaseSlider radarNews={portalNews} lang="tr" theme="dark" />
+          </section>
+        )}
       </main>
 
       {/* Listing Detail Modal Block */}
