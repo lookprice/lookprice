@@ -556,7 +556,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     onChange={(e) => {
                       const id = Number(e.target.value);
                       const consultant = consultants.find(c => c.id === id);
-                      setFormData({...formData, responsible_consultant_id: id, responsible_agent: consultant?.name || ''});
+                      setFormData({...formData, responsible_consultant_id: id, responsible_agent: consultant?.name || '', consultant_phone: consultant?.phone || undefined});
                     }}
                   >
                     <option value="">Danışman Seçiniz</option>

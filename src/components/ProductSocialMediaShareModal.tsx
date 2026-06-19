@@ -523,37 +523,6 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       ctx.strokeStyle = 'rgba(255,255,255,0.12)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(glassX + 35, priceRowY - 25);
-      ctx.lineTo(glassX + glassW - 35, priceRowY - 25);
-      ctx.stroke();
-
-      ctx.fillStyle = '#a1a1aa';
-      ctx.font = 'bold 12px system-ui, sans-serif';
-      ctx.fillText(discountPercentage > 0 ? "KAMPANYALI FİYAT SEÇENEĞİ" : "AVANTAJLI LİSTE FİYATI", glassX + 35, priceRowY - 5);
-
-      ctx.fillStyle = '#10b981'; // emerald-450
-      ctx.font = '900 36px system-ui, sans-serif';
-      ctx.fillText(priceText, glassX + 35, priceRowY + 35);
-
-      if (oldPriceText) {
-        ctx.font = 'bold 22px system-ui, sans-serif';
-        ctx.fillStyle = '#ef4444';
-        const prLabelWidth = ctx.measureText(priceText).width;
-        const oldXLoc = glassX + 35 + prLabelWidth + 30;
-        ctx.fillText(oldPriceText, oldXLoc, priceRowY + 22);
-
-        const oldW = ctx.measureText(oldPriceText).width;
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(oldXLoc - 4, priceRowY + 14);
-        ctx.lineTo(oldXLoc + oldW + 4, priceRowY + 14);
-        ctx.stroke();
-      }
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
       ctx.moveTo(glassX + 35, priceRowY - 35);
       ctx.lineTo(glassX + glassW - 35, priceRowY - 35);
       ctx.stroke();

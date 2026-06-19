@@ -67,9 +67,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
               </th>
               <th className="p-4 font-bold">{isTr ? "Tarih" : "Date"}</th>
               <th className="p-4 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
-              <th className="p-4 font-bold">{isTr ? "İrsaliye No" : "Waybill"}</th>
               <th className="p-4 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
-              <th className="p-4 font-bold">{isTr ? "Vergi No" : "Tax No"}</th>
               <th className="p-4 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
               <th className="p-4 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
               <th className="p-4 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
@@ -122,11 +120,23 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                        <span>{invoice.invoice_number}</span>
                     </div>
                     {invoice.e_document_type && (
-                       <div className="text-[9px] text-indigo-600 font-bold mt-0.5">{invoice.e_document_type}</div>
+                       <div className="flex items-center gap-2 mt-0.5">
+                         <div className="text-[9px] text-indigo-600 font-bold uppercase">{invoice.e_document_type}</div>
+                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status === 'APPROVED' && (
+                            <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">{isTr ? 'Kabul Edildi' : 'Approved'}</span>
+                         )}
+                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status === 'REJECTED' && (
+                            <span className="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">{isTr ? 'Reddedildi' : 'Rejected'}</span>
+                         )}
+                         {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status === 'pending' && (() => {
+                           const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
+                           const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
+                           return diffDays > 8;
+                         })() && (
+                            <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider" title={isTr ? "8 günlük süreyi aştığı için yasal olarak otomatik kabul edilmiştir." : "Auto accepted legally over 8 days limit."}>{isTr ? 'Oto Kabul (8 Gün)' : 'Auto Accepted'}</span>
+                         )}
+                       </div>
                     )}
-                  </td>
-                  <td className="p-4 text-xs text-slate-500">
-                    {invoice.waybill_number || '-'}
                   </td>
                   <td className="p-4 text-xs font-medium text-slate-700">
                     <div>{invoice.company_name}</div>
@@ -137,9 +147,6 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         </span>
                       </div>
                     )}
-                  </td>
-                  <td className="p-4 text-xs text-slate-500">
-                    {invoice.tax_number || '-'}
                   </td>
                   <td className="p-4 text-xs text-slate-600 text-right font-medium">
                     {Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
@@ -173,7 +180,12 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-1">
-                      {invoice.ticari_status === 'PENDING' && (
+                      {(() => {
+                        if (invoice.status !== 'pending' || invoice.e_document_type?.toUpperCase() !== 'TICARIFATURA') return false;
+                        const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
+                        const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
+                        return diffDays <= 8;
+                      })() && (
                         <div className="flex gap-1 mr-2 px-2 border-r border-slate-100">
                           <button
                             onClick={() => handleUpdateTicariStatus(invoice.id, 'APPROVED')}

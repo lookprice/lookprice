@@ -20,6 +20,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [activeSubTab, setActiveSubTab] = useState<'agents' | 'branches' | 'pipeline'>('agents');
+  const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -126,6 +127,8 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       let res;
       if (editingAgent) {
@@ -142,10 +145,14 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
       }
     } catch (error) {
       console.error('Failed to save agent:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleSaveBranch = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       let res;
       if (editingBranch) {
@@ -162,6 +169,8 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
       }
     } catch (error) {
       console.error('Failed to save branch:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -231,23 +240,23 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
            </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-slate-100 p-1 rounded-2xl flex items-center mr-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-3 w-full md:w-auto">
+          <div className="bg-slate-100 p-1 rounded-2xl flex items-center w-full md:w-auto overflow-x-auto custom-scrollbar md:mr-4">
              <button 
               onClick={() => setActiveSubTab('agents')}
-              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'agents' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSubTab === 'agents' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
              >
                 {lang === 'tr' ? 'DANIŞMANLAR' : 'AGENTS'}
              </button>
              <button 
               onClick={() => setActiveSubTab('branches')}
-              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'branches' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSubTab === 'branches' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
              >
                 {lang === 'tr' ? 'ŞUBELER' : 'BRANCHES'}
              </button>
              <button 
               onClick={() => setActiveSubTab('pipeline')}
-              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSubTab === 'pipeline' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSubTab === 'pipeline' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
              >
                 {lang === 'tr' ? 'CRM (Pipeline)' : 'PIPELINE'}
              </button>
@@ -637,8 +646,8 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                    </div>
                  </div>
                  <div className="pt-6 flex gap-4">
-                   <button onClick={() => { setShowModal(false); setEditingAgent(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">İptal</button>
-                   <button onClick={handleSave} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">Kaydet</button>
+                   <button disabled={isSaving} onClick={() => { setShowModal(false); setEditingAgent(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors disabled:opacity-50">İptal</button>
+                   <button disabled={isSaving} onClick={handleSave} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
                  </div>
               </div>
            </motion.div>
@@ -695,8 +704,8 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                    />
                  </div>
                  <div className="pt-6 flex gap-4">
-                   <button onClick={() => { setShowBranchModal(false); setEditingBranch(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">İptal</button>
-                   <button onClick={handleSaveBranch} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">Kaydet</button>
+                   <button disabled={isSaving} onClick={() => { setShowBranchModal(false); setEditingBranch(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors disabled:opacity-50">İptal</button>
+                   <button disabled={isSaving} onClick={handleSaveBranch} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
                  </div>
               </div>
            </motion.div>

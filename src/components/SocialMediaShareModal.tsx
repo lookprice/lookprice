@@ -126,10 +126,12 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   // Dynamic Captions generator (100% Client-side robust copywriting)
   const getCaptionText = () => {
     const brandName = branding?.store_name || branding?.name || 'Seçkin Gayrimenkul';
-    const contactPhoneText = (branding?.phone || branding?.whatsapp_number) 
-      ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
-      : 'DM yoluyla iletişim kurabilirsiniz.';
     const brokerName = property.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
+    const contactPhoneText = property.consultant_phone 
+      ? `iletişim Hattı: ${property.consultant_phone}` 
+      : (branding?.phone || branding?.whatsapp_number) 
+        ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
+        : 'DM yoluyla iletişim kurabilirsiniz.';
 
     const priceLabel = isRent ? "Aylık Kira Bedeli" : "Değerleme Fiyatı";
     const statusAction = isRent ? "kiralık olarak sunulmuştur" : "satışa sunulmuştur";
