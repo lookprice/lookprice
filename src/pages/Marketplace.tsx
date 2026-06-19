@@ -115,7 +115,31 @@ export const Marketplace = () => {
   const [showAdModal, setShowAdModal] = useState(false);
   const [selectedAd, setSelectedAd] = useState<any | null>(null);
 
-  const luxurySlides = [
+  // Dynamic Customizer Portal settings state
+  const [portalSettings, setPortalSettings] = useState<any>({
+    portal_title: "Seçkin Mağazalardan Rakipsiz Teklifler & İlanlar",
+    portal_description: "Oto galeri, emlak ofisleri ve premium e-ticaret markalarının en güncel, doğrulanmış ilanlarını tek bir ekranda canlı olarak inceleyin.",
+    announcement: "",
+    primary_color: "#ea580c",
+    footer_text: "© 2026 Enrakipsiz.com. Tüm hakları saklıdır.",
+    theme_style: "dark_gold",
+    font_family: "Inter",
+    layout_sections: "[\"hero\",\"announcement\",\"sponsors\",\"vehicles\",\"properties\"]",
+    custom_css: ""
+  });
+  const [dbSlides, setDbSlides] = useState<any[]>([]);
+  const [dbAds, setDbAds] = useState<any[]>([]);
+
+  const luxurySlides = dbSlides.length > 0 ? dbSlides.map(s => ({
+    image: s.image_url,
+    title: s.title,
+    subtitle: s.subtitle || "",
+    description: s.description || "",
+    badge: s.badge || "Enrakipsiz",
+    accent: s.accent || "from-rose-500 to-amber-500",
+    type: s.type || "vehicle",
+    link_url: s.link_url || ""
+  })) : [
     {
       image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
       title: "Göz Alıcı İhtişam, Mühendislik Harikası",
@@ -145,7 +169,17 @@ export const Marketplace = () => {
     }
   ];
 
-  const premiumAds = [
+  const premiumAds = dbAds.length > 0 ? dbAds.map((ad, idx) => ({
+    id: `ad-${ad.id || idx}`,
+    title: ad.title,
+    broker: ad.broker || "SPONSOR",
+    description: ad.description || "",
+    profitBadge: ad.profit_badge || "Ayrıcalıklı Teklif",
+    actionText: ad.action_text || "İncele",
+    icon: Sparkles,
+    color: ad.accent || (idx % 3 === 0 ? "from-amber-500/10 to-amber-600/5" : idx % 3 === 1 ? "from-rose-500/10 to-rose-600/5" : "from-cyan-500/10 to-blue-600/5"),
+    borderColor: idx % 3 === 0 ? "border-amber-500/20 text-amber-400" : idx % 3 === 1 ? "border-rose-500/20 text-rose-400" : "border-cyan-500/20 text-cyan-400"
+  })) : [
     {
       id: "ad-finance",
       title: "Enrakipsiz Özel Taşıt & Konut Finansmanı",
@@ -183,6 +217,7 @@ export const Marketplace = () => {
 
   // Auto transition for luxury slider
   useEffect(() => {
+    if (luxurySlides.length === 0) return;
     const interval = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % luxurySlides.length);
     }, 6000);
@@ -201,11 +236,23 @@ export const Marketplace = () => {
     setLoading(true);
     Promise.all([
       api.getMarketplaceListings().catch(() => []),
-      api.getPublicEnrakipsizRadarNews().catch(() => [])
+      api.getPublicEnrakipsizRadarNews().catch(() => []),
+      api.getPublicEnrakipsizPortal().catch(() => null)
     ])
-    .then(([listingsRes, newsRes]) => {
+    .then(([listingsRes, newsRes, portalRes]) => {
       setListings(listingsRes || []);
       setPortalNews(newsRes || []);
+      if (portalRes && !portalRes.error) {
+        if (portalRes.settings) {
+          setPortalSettings(portalRes.settings);
+        }
+        if (portalRes.slides && portalRes.slides.length > 0) {
+          setDbSlides(portalRes.slides);
+        }
+        if (portalRes.ads && portalRes.ads.length > 0) {
+          setDbAds(portalRes.ads);
+        }
+      }
     })
     .catch(console.error)
     .finally(() => setLoading(false));
@@ -342,10 +389,148 @@ export const Marketplace = () => {
     properties: listings.filter(l => l.listing_type === "real_estate").length,
   };
 
+  const getThemeClasses = () => {
+    const theme = portalSettings?.theme_style || "dark_gold";
+    switch(theme) {
+      case "cosmic_slate":
+        return {
+          theme: "cosmic_slate",
+          shell: "bg-slate-950 text-slate-100",
+          card: "bg-slate-900/50 backdrop-blur-md border border-indigo-950/30 shadow-indigo-950/5",
+          accentText: "text-indigo-400",
+          accentBg: "bg-indigo-500",
+          accentBgHover: "hover:bg-indigo-600",
+          accentBorder: "border-indigo-500/20",
+          heroTitle: "text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-indigo-400 to-purple-400",
+          badge: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
+          button: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30",
+          announcementBar: "bg-indigo-950/80 border-indigo-900/30 text-indigo-200",
+          footer: "bg-slate-950 border-t border-indigo-950/40 text-slate-400"
+        };
+      case "editorial_serif":
+        return {
+          theme: "editorial_serif",
+          shell: "bg-[#faf9f6]/95 text-stone-900 selection:bg-stone-250",
+          card: "bg-white border border-stone-200/70 shadow-sm",
+          accentText: "text-stone-850",
+          accentBg: "bg-stone-850",
+          accentBgHover: "hover:bg-stone-900",
+          accentBorder: "border-stone-200",
+          heroTitle: "font-serif tracking-normal text-stone-950",
+          badge: "bg-stone-100 text-stone-800 border border-stone-200/50",
+          button: "bg-stone-900 hover:bg-stone-850 text-[#faf9f6]",
+          announcementBar: "bg-stone-100 border-stone-200 text-stone-800",
+          footer: "bg-[#faf9f6] border-t border-stone-200 text-stone-550"
+        };
+      case "swiss_minimal":
+        return {
+          theme: "swiss_minimal",
+          shell: "bg-white text-black selection:bg-black selection:text-white",
+          card: "bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none",
+          accentText: "text-black font-bold",
+          accentBg: "bg-black",
+          accentBgHover: "hover:bg-neutral-800",
+          accentBorder: "border-black",
+          heroTitle: "font-black tracking-tighter uppercase text-black",
+          badge: "bg-black text-white px-2 py-0.5 rounded-none text-[10px] uppercase font-bold",
+          button: "bg-black hover:bg-neutral-800 text-white font-bold rounded-none uppercase tracking-wide",
+          announcementBar: "bg-neutral-100 border-2 border-black text-black font-bold rounded-none",
+          footer: "bg-white border-t-2 border-black text-neutral-600"
+        };
+      case "deep_crimson":
+        return {
+          theme: "deep_crimson",
+          shell: "bg-[#0b0304] text-stone-100",
+          card: "bg-[#140b0d] border border-rose-950/20 shadow-lg shadow-rose-950/5",
+          accentText: "text-rose-450",
+          accentBg: "bg-rose-600",
+          accentBgHover: "hover:bg-rose-700",
+          accentBorder: "border-rose-500/20",
+          heroTitle: "text-transparent bg-clip-text bg-gradient-to-r from-rose-200 via-rose-400 to-rose-650",
+          badge: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
+          button: "bg-rose-650 hover:bg-rose-700 text-white shadow-lg shadow-rose-950/30",
+          announcementBar: "bg-rose-950/45 border-rose-950/20 text-rose-350",
+          footer: "bg-[#0b0304] border-t border-rose-950/30 text-stone-400"
+        };
+      case "dark_gold":
+      default:
+        return {
+          theme: "dark_gold",
+          shell: "bg-slate-950 text-slate-150",
+          card: "bg-slate-900/60 backdrop-blur-md border border-amber-955/20 shadow-lg shadow-amber-950/5",
+          accentText: "text-amber-500",
+          accentBg: "bg-amber-600",
+          accentBgHover: "hover:bg-amber-700",
+          accentBorder: "border-amber-500/20",
+          heroTitle: "text-transparent bg-clip-text bg-gradient-to-r from-amber-205 via-yellow-400 to-amber-500",
+          badge: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+          button: "bg-amber-600 hover:bg-amber-700 text-slate-950 shadow-lg shadow-amber-600/30 font-bold",
+          announcementBar: "bg-amber-950/35 border-amber-950/15 text-amber-200",
+          footer: "bg-slate-950 border-t border-slate-900 text-slate-400"
+        };
+    }
+  };
+
+  const themeClasses = getThemeClasses();
+
+  const getFontFamilyStyle = () => {
+    const font = portalSettings?.font_family || "Inter";
+    switch(font) {
+      case "Space Grotesk":
+        return { fontFamily: "'Space Grotesk', sans-serif" };
+      case "Playfair Display":
+        return { fontFamily: "'Playfair Display', serif" };
+      case "JetBrains Mono":
+        return { fontFamily: "'JetBrains Mono', monospace" };
+      case "Inter":
+      default:
+        return { fontFamily: "'Inter', sans-serif" };
+    }
+  };
+
+  const fontStyle = getFontFamilyStyle();
+
+  const fontImports = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@400;500;700&display=swap');
+  `;
+
+  const orderedSections = (() => {
+    let raw = [];
+    try {
+      raw = JSON.parse(portalSettings?.layout_sections || '[]');
+    } catch(e) {}
+    
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return [
+        { id: 'hero', enabled: true },
+        { id: 'announcement', enabled: true },
+        { id: 'sponsors', enabled: true },
+        { id: 'vehicles', enabled: true },
+        { id: 'properties', enabled: true }
+      ];
+    }
+    
+    if (typeof raw[0] === 'string') {
+      raw = raw.map(id => ({ id, enabled: true }));
+    }
+    
+    const standardKeys = ['hero', 'announcement', 'sponsors', 'vehicles', 'properties'];
+    standardKeys.forEach(v => {
+      if (!raw.some((item: any) => item.id === v)) {
+        raw.push({ id: v, enabled: true });
+      }
+    });
+    return raw;
+  })();
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 selection:bg-rose-500 selection:text-white font-sans antialiased">
+    <div className={`min-h-screen ${themeClasses.shell} font-sans antialiased selection:bg-rose-500`} style={fontStyle}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        ${fontImports}
+        ${portalSettings?.custom_css || ""}
+      ` }} />
       {/* Premium Obsidian Floating Navigation Bar */}
-      <nav className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800">
+      <nav className={`sticky top-0 z-40 backdrop-blur-xl border-b ${themeClasses.theme === "editorial_serif" || themeClasses.theme === "swiss_minimal" ? "bg-white/80 border-stone-200" : "bg-slate-900/80 border-slate-800"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/" className="group flex items-center gap-2">
@@ -385,139 +570,421 @@ export const Marketplace = () => {
             <Sparkles className="w-3 md:w-3.5 h-3 md:h-3.5" />
             <span>Türkiye'nin En Ayrıcalıklı Mağaza & İlan Platformu</span>
           </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight">
-            Seçkin Mağazalardan <br className="hidden md:inline" />
-            <span className="bg-gradient-to-r from-rose-400 via-orange-400 to-amber-300 text-transparent bg-clip-text">
-              Rakipsiz Teklifler & İlanlar
-            </span>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4 leading-tight">
+            {portalSettings.portal_title.includes("Rakipsiz") ? (
+              <>
+                Seçkin Mağazalardan <br className="hidden md:inline" />
+                <span className="bg-gradient-to-r from-rose-400 via-orange-400 to-amber-300 text-transparent bg-clip-text">
+                  Rakipsiz Teklifler & İlanlar
+                </span>
+              </>
+            ) : (
+              <span className={themeClasses.heroTitle}>{portalSettings.portal_title}</span>
+            )}
           </h1>
           <p className="text-slate-400 text-sm md:text-base max-w-2xl leading-relaxed">
-            Oto galeri, emlak ofisleri ve premium e-ticaret markalarının en güncel, doğrulanmış ilanlarını tek bir ekranda canlı olarak inceleyin.
+            {portalSettings.portal_description}
           </p>
         </div>
       </header>
 
-      {/* Ultra Lux Carousel Banner Slider Section */}
-      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-        <div className="relative h-[480px] rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl shadow-rose-950/20 bg-slate-950 group">
-          
-          {/* Individual Slides */}
-          {luxurySlides.map((slide, idx) => {
-            const isActive = idx === activeSlide;
+      {/* Dynamic Sequential Customizer Layout Sections */}
+      {orderedSections.filter(sec => sec.enabled).map((sec) => {
+        switch(sec.id) {
+          case 'hero':
             return (
-              <div
-                key={idx}
-                className={`absolute inset-0 transition-all duration-1000 ease-in-out flex flex-col justify-end p-8 md:p-16 ${
-                  isActive ? "opacity-100 scale-100 z-10" : "opacity-0 scale-95 pointer-events-none z-0"
-                }`}
-              >
-                {/* Background Image with Ambient Glow Overlays */}
-                <div className="absolute inset-0">
-                  <img
-                    src={slide.image}
-                    alt={slide.title}
-                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-[8000ms]"
-                    referrerPolicy="no-referrer"
-                  />
-                  {/* Subtle vignette/gradient mapping */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-slate-950/40" />
-                </div>
+              <section key="hero" className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+                <div className={`relative h-[480px] rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl bg-slate-105 group ${themeClasses.card}`}>
+                  
+                  {/* Individual Slides */}
+                  {luxurySlides.map((slide, idx) => {
+                    const isActive = idx === activeSlide;
+                    return (
+                      <div
+                        key={idx}
+                        className={`absolute inset-0 transition-all duration-1000 ease-in-out flex flex-col justify-end p-8 md:p-16 ${
+                          isActive ? "opacity-100 scale-100 z-10" : "opacity-0 scale-95 pointer-events-none z-0"
+                        }`}
+                      >
+                        {/* Background Image with Ambient Glow Overlays */}
+                        <div className="absolute inset-0">
+                          <img
+                            src={slide.image}
+                            alt={slide.title}
+                            className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-[8000ms]"
+                            referrerPolicy="no-referrer"
+                          />
+                          {/* Subtle vignette/gradient mapping */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-955/65 to-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-slate-950/40" />
+                        </div>
 
-                {/* Content Overlay Sheet */}
-                <div className="relative z-10 max-w-2xl text-left space-y-4">
-                  <div className="inline-flex items-center gap-2">
-                    <span className={`px-3.5 py-1 text-[10px] font-black tracking-widest uppercase rounded-full text-white bg-gradient-to-r ${slide.accent} shadow-md`}>
-                      {slide.badge}
-                    </span>
-                    <span className="px-2.5 py-1 bg-slate-900/90 text-[10px] font-bold tracking-widest text-slate-300 uppercase rounded-full border border-slate-800">
-                      ÖNERİLEN
+                        {/* Content Overlay Sheet */}
+                        <div className="relative z-10 max-w-2xl text-left space-y-4">
+                          <div className="inline-flex items-center gap-2">
+                            <span className={`px-3.5 py-1 text-[10px] font-black tracking-widest uppercase rounded-full text-white bg-gradient-to-r ${slide.accent} shadow-md`}>
+                              {slide.badge}
+                            </span>
+                            <span className="px-2.5 py-1 bg-slate-900/90 text-[10px] font-bold tracking-widest text-slate-300 uppercase rounded-full border border-slate-800">
+                              ÖNERİLEN
+                            </span>
+                          </div>
+
+                          <p className="text-xs md:text-sm font-extrabold tracking-widest text-rose-450 uppercase drop-shadow">
+                            {slide.subtitle}
+                          </p>
+
+                          <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-md">
+                            {slide.title}
+                          </h2>
+
+                          <p className="text-slate-300 text-xs md:text-sm max-w-lg leading-relaxed drop-shadow">
+                            {slide.description}
+                          </p>
+
+                          <div className="pt-3 flex gap-3">
+                            <button
+                              onClick={() => {
+                                setActiveCategory(slide.type as any);
+                                const section = document.getElementById("enrakipsiz-portal-head");
+                                if (section) section.scrollIntoView({ behavior: "smooth" });
+                              }}
+                              className="px-6 py-3 bg-white text-slate-950 text-xs font-black rounded-xl uppercase tracking-wider hover:bg-slate-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 font-mono"
+                            >
+                              Koleksiyonu İncele
+                              <MoveRight className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedAd({
+                                  title: slide.title,
+                                  broker: slide.badge,
+                                  description: slide.description,
+                                  profitBadge: slide.subtitle,
+                                  icon: Sparkles
+                                });
+                                setShowAdModal(true);
+                              }}
+                              className="px-6 py-3 bg-slate-900/80 backdrop-blur border border-slate-700 hover:bg-slate-800 text-white text-xs font-black rounded-xl uppercase tracking-wider hover:scale-[1.02] active:scale-[0.98] transition-all font-mono"
+                            >
+                              Hızlı Teklif Al
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Left Arrow Controller */}
+                  <button
+                    onClick={handlePrevSlide}
+                    className="absolute left-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-slate-900/60 backdrop-blur-md rounded-full border border-slate-800 hover:border-slate-600 hover:bg-slate-950/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 active:scale-95"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+
+                  {/* Right Arrow Controller */}
+                  <button
+                    onClick={handleNextSlide}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-slate-900/60 backdrop-blur-md rounded-full border border-slate-800 hover:border-slate-600 hover:bg-slate-950/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 active:scale-95"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+
+                  {/* Progressive Bottom Bar Markers */}
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                    {luxurySlides.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveSlide(idx)}
+                        className={`h-1.5 rounded-full transition-all duration-500 relative ${
+                          idx === activeSlide ? "w-8 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Luxury Watermark branding corner */}
+                  <div className="absolute top-6 right-6 z-20 px-3 py-1.5 rounded-lg bg-slate-950/85 backdrop-blur border border-slate-800 pointer-events-none select-none">
+                    <span className="text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-rose-400 to-amber-400 text-transparent bg-clip-text">
+                      ENRAKİPSİZ PRESTIGE SELECTION
                     </span>
                   </div>
 
-                  <p className="text-xs md:text-sm font-extrabold tracking-widest text-rose-400 uppercase drop-shadow">
-                    {slide.subtitle}
-                  </p>
-
-                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-md">
-                    {slide.title}
-                  </h2>
-
-                  <p className="text-slate-300 text-xs md:text-sm max-w-lg leading-relaxed drop-shadow">
-                    {slide.description}
-                  </p>
-
-                  <div className="pt-3 flex gap-3">
-                    <button
-                      onClick={() => {
-                        setActiveCategory(slide.type as any);
-                        const section = document.getElementById("enrakipsiz-portal-head");
-                        if (section) section.scrollIntoView({ behavior: "smooth" });
-                      }}
-                      className="px-6 py-3 bg-white text-slate-950 text-xs font-black rounded-xl uppercase tracking-wider hover:bg-slate-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
-                    >
-                      Koleksiyonu İncele
-                      <MoveRight className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedAd({
-                          title: slide.title,
-                          broker: slide.badge,
-                          description: slide.description,
-                          profitBadge: slide.subtitle,
-                          icon: Sparkles
-                        });
-                        setShowAdModal(true);
-                      }}
-                      className="px-6 py-3 bg-slate-900/80 backdrop-blur border border-slate-700 hover:bg-slate-800 text-white text-xs font-black rounded-xl uppercase tracking-wider hover:scale-[1.02] active:scale-[0.98] transition-all"
-                    >
-                      Hızlı Teklif Al
-                    </button>
-                  </div>
                 </div>
-              </div>
+              </section>
             );
-          })}
+          case 'announcement':
+            return portalSettings?.announcement ? (
+              <section key="announcement" className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+                <div className={`p-6 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl ${themeClasses.announcementBar}`}>
+                  <div className="flex items-center gap-3.5">
+                    <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      <Megaphone className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] tracking-widest uppercase font-black text-rose-500 block mb-0.5">DUYURU VE FIRSATLAR</span>
+                      <p className="text-sm font-semibold leading-relaxed">{portalSettings.announcement}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            ) : null;
+          case 'sponsors':
+            return (
+              <section key="sponsors" className="mb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 text-rose-500 animate-bounce" />
+                    <h2 className="text-xs uppercase font-black tracking-widest text-slate-350">
+                      Premium Marka İşbirlikleri & Sponsorlu Alanlar
+                    </h2>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-950 px-3 py-1 rounded-md border border-slate-850">
+                    REKLAM ALANI
+                  </span>
+                </div>
 
-          {/* Left Arrow Controller */}
-          <button
-            onClick={handlePrevSlide}
-            className="absolute left-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-slate-900/60 backdrop-blur-md rounded-full border border-slate-800 hover:border-slate-600 hover:bg-slate-950/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 active:scale-95"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {premiumAds.map((ad) => {
+                    const Icon = ad.icon;
+                    return (
+                      <div 
+                        key={ad.id}
+                        onClick={() => {
+                          setSelectedAd(ad);
+                          setShowAdModal(true);
+                        }}
+                        className={`bg-gradient-to-br ${ad.color} border border-slate-800 hover:border-slate-700/80 rounded-3xl p-6 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-950/5 flex flex-col justify-between group cursor-pointer relative overflow-hidden`}
+                      >
+                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-rose-500/5 rounded-full filter blur-xl group-hover:bg-rose-500/10 transition-colors" />
 
-          {/* Right Arrow Controller */}
-          <button
-            onClick={handleNextSlide}
-            className="absolute right-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-slate-900/60 backdrop-blur-md rounded-full border border-slate-800 hover:border-slate-600 hover:bg-slate-950/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 active:scale-95"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                              {ad.broker}
+                            </span>
+                            <span className="text-[9px] font-black text-rose-450 tracking-wider">
+                              SPONSORLU
+                            </span>
+                          </div>
 
-          {/* Progressive Bottom Bar Markers */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-            {luxurySlides.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActiveSlide(idx)}
-                className={`h-1.5 rounded-full transition-all duration-500 ${
-                  idx === activeSlide ? "w-8 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
-                }`}
-              />
-            ))}
-          </div>
+                          <h3 className="font-extrabold text-white text-base leading-snug mb-2 group-hover:text-amber-500 transition-colors">
+                            {ad.title}
+                          </h3>
 
-          {/* Luxury Watermark branding corner */}
-          <div className="absolute top-6 right-6 z-20 px-3 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur border border-slate-800 pointer-events-none select-none">
-            <span className="text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-rose-400 to-amber-400 text-transparent bg-clip-text">
-              ENRAKİPSİZ PRESTIGE SELECTION
-            </span>
-          </div>
+                          <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                            {ad.description}
+                          </p>
+                        </div>
 
-        </div>
-      </section>
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 mt-auto">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-2 rounded-lg bg-slate-950 border ${ad.borderColor}`}>
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="text-xs font-black text-white">{ad.profitBadge}</span>
+                          </div>
+
+                          <span className="text-[11px] font-black text-rose-450 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                            {ad.actionText} <ChevronRight className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          case 'vehicles':
+            return (
+              <section key="vehicles" className="mb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Car className="w-5 h-5 text-amber-500" />
+                    <h2 className="text-sm uppercase font-black tracking-wider text-slate-250">
+                      LÜKS OTO GALERİ VİTRİNİ
+                    </h2>
+                  </div>
+                  <button 
+                    onClick={() => { 
+                      setActiveCategory("vehicle"); 
+                      const section = document.getElementById("enrakipsiz-portal-head"); 
+                      if (section) section.scrollIntoView({ behavior: "smooth" }); 
+                    }} 
+                    className="text-xs text-amber-500 font-bold hover:underline"
+                  >
+                    Tüm Oto İlanlarını Gör →
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {listings.filter(l => l.listing_type === 'vehicle').slice(0, 4).map((listing: any) => (
+                    <article 
+                      key={`veh-${listing.id}`} 
+                      className={`group rounded-3xl p-4 border transition-all duration-300 flex flex-col self-stretch ${themeClasses.card}`}
+                    >
+                      <div className="aspect-[4/3] bg-slate-950 rounded-2xl mb-4 overflow-hidden relative border border-slate-800/50">
+                        {listing.image_url ? (
+                          <img 
+                            src={listing.image_url} 
+                            alt={listing.title} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-705 bg-slate-950">
+                            <Car className="w-10 h-10 opacity-30 text-rose-500" />
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-600 mt-2">Görsel Yok</span>
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-950/90 backdrop-blur-md rounded-lg text-[9px] font-bold tracking-wider text-amber-500 border border-slate-800">
+                          {listing.category}
+                        </div>
+                      </div>
+                      
+                      <h3 className="font-bold text-white text-sm leading-snug mb-2 line-clamp-2 hover:text-amber-500 transition-colors cursor-pointer" onClick={() => setSelectedListing(listing)}>
+                        {listing.title}
+                      </h3>
+                      
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-[11px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800/80">
+                          KM: {listing.mileage ? Math.round(Number(listing.mileage) || 0).toLocaleString('tr-TR') : 'Sıfır'}
+                        </span>
+                        {listing.brand && (
+                          <span className="text-[11px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800/80 flex items-center gap-1">
+                            <Tag className="w-3 h-3 text-amber-500" />
+                            {listing.brand}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="mt-auto pt-4 border-t border-slate-800 flex justify-between items-end">
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                            {listing.store_name}
+                          </p>
+                          <p className="font-extrabold text-white text-base">
+                            {Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')} <span className="text-xs text-amber-500 font-bold">{listing.currency || 'TRY'}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        <button 
+                          onClick={() => setSelectedListing(listing)}
+                          className="py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-305 rounded-xl text-xs font-bold transition-all"
+                        >
+                          Detaylar
+                        </button>
+                        <Link 
+                          to={`/store/${listing.store_slug}/p/${listing.barcode || listing.id}`} 
+                          target="_blank" 
+                          className="py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-90 text-slate-950 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 font-mono"
+                        >
+                          Mağazaya Git
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            );
+          case 'properties':
+            return (
+              <section key="properties" className="mb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Home className="w-5 h-5 text-indigo-400" />
+                    <h2 className="text-sm uppercase font-black tracking-wider text-slate-250">
+                      PRESTİJLİ GAYRİMENKUL PORTFÖYÜ
+                    </h2>
+                  </div>
+                  <button 
+                    onClick={() => { 
+                      setActiveCategory("real_estate"); 
+                      const section = document.getElementById("enrakipsiz-portal-head"); 
+                      if (section) section.scrollIntoView({ behavior: "smooth" }); 
+                    }} 
+                    className="text-xs text-indigo-450 font-bold hover:underline"
+                  >
+                    Tüm Emlak İlanlarını Gör →
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {listings.filter(l => l.listing_type === 'real_estate').slice(0, 4).map((listing: any) => (
+                    <article 
+                      key={`prop-${listing.id}`} 
+                      className={`group rounded-3xl p-4 border transition-all duration-300 flex flex-col self-stretch ${themeClasses.card}`}
+                    >
+                      <div className="aspect-[4/3] bg-slate-950 rounded-2xl mb-4 overflow-hidden relative border border-slate-800/50">
+                        {listing.image_url ? (
+                          <img 
+                            src={listing.image_url} 
+                            alt={listing.title} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-705 bg-slate-950">
+                            <Home className="w-10 h-10 opacity-30 text-rose-500" />
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-600 mt-2">Görsel Yok</span>
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-950/90 backdrop-blur-md rounded-lg text-[9px] font-bold tracking-wider text-indigo-400 border border-slate-800">
+                          {listing.category}
+                        </div>
+                      </div>
+                      
+                      <h3 className="font-bold text-white text-sm leading-snug mb-2 line-clamp-2 hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => setSelectedListing(listing)}>
+                        {listing.title}
+                      </h3>
+                      
+                      <div className="flex items-center gap-2 mb-4">
+                        {listing.brand && (
+                          <span className="text-[11px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-md border border-slate-800/80 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-indigo-400" />
+                            {listing.brand}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="mt-auto pt-4 border-t border-slate-800 flex justify-between items-end">
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                            {listing.store_name}
+                          </p>
+                          <p className="font-extrabold text-white text-base">
+                            {Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')} <span className="text-xs text-indigo-400 font-bold">{listing.currency || 'TRY'}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        <button 
+                          onClick={() => setSelectedListing(listing)}
+                          className="py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-305 rounded-xl text-xs font-bold transition-all"
+                        >
+                          Detaylar
+                        </button>
+                        <Link 
+                          to={`/store/${listing.store_slug}/p/${listing.barcode || listing.id}`} 
+                          target="_blank" 
+                          className="py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 font-mono"
+                        >
+                          Mağazaya Git
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            );
+          default:
+            return null;
+        }
+      })}
 
       {/* Main Core Showcase Portal */}
       <main id="enrakipsiz-portal-head" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
@@ -865,72 +1332,7 @@ export const Marketplace = () => {
           </div>
         </section>
 
-        {/* Intermediate Ad Placement Bento Grids (Reklam Gelirleri & Sponsorluk Alanları) */}
-        <section className="mb-14">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Megaphone className="w-4 h-4 text-rose-500 animate-bounce" />
-              <h2 className="text-xs uppercase font-black tracking-widest text-slate-300">
-                Premium Marka İşbirlikleri & Sponsorlu Alanlar
-              </h2>
-            </div>
-            <span className="text-[10px] font-bold text-slate-500 bg-slate-950 px-3 py-1 rounded-md border border-slate-850">
-              REKLAM ALANI
-            </span>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {premiumAds.map((ad) => {
-              const Icon = ad.icon;
-              return (
-                <div 
-                  key={ad.id}
-                  onClick={() => {
-                    setSelectedAd(ad);
-                    setShowAdModal(true);
-                  }}
-                  className={`bg-gradient-to-br ${ad.color} border border-slate-800 hover:border-slate-700/80 rounded-3xl p-6 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-950/5 flex flex-col justify-between group cursor-pointer relative overflow-hidden`}
-                >
-                  {/* Subtle decorative absolute circle */}
-                  <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-rose-500/5 rounded-full filter blur-xl group-hover:bg-rose-500/10 transition-colors" />
-
-                  <div>
-                    {/* Badge and Sponsor indicator */}
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest bg-slate-950 px-2 py-1 rounded border border-slate-850">
-                        {ad.broker}
-                      </span>
-                      <span className="text-[9px] font-black text-rose-400 tracking-wider">
-                        SPONSORLU
-                      </span>
-                    </div>
-
-                    <h3 className="font-extrabold text-white text-base leading-snug mb-2 group-hover:text-rose-400 transition-colors">
-                      {ad.title}
-                    </h3>
-
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                      {ad.description}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 mt-auto">
-                    <div className="flex items-center gap-2">
-                      <div className={`p-2 rounded-lg bg-slate-950 border ${ad.borderColor}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs font-black text-white">{ad.profitBadge}</span>
-                    </div>
-
-                    <span className="text-[11px] font-black text-rose-400 group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                      {ad.actionText} <ChevronRight className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
 
         {/* Listings Grid */}
         <section className="relative">

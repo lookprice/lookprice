@@ -24,7 +24,14 @@ import {
   Megaphone,
   Sparkles,
   ExternalLink,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ChevronUp,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Palette,
+  Type,
+  Layout
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from "motion/react";
@@ -72,9 +79,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     portal_title: "",
     portal_description: "",
     announcement: "",
-    primary_color: "#4f46e5",
+    primary_color: "#ea580c",
     footer_text: "",
-    portal_domain: ""
+    portal_domain: "",
+    theme_style: "dark_gold",
+    font_family: "Inter",
+    layout_sections: "[\"hero\",\"announcement\",\"sponsors\",\"vehicles\",\"properties\"]",
+    custom_css: ""
   });
   const [enrakipsizSlides, setEnrakipsizSlides] = useState<any[]>([]);
   const [enrakipsizAds, setEnrakipsizAds] = useState<any[]>([]);
@@ -87,6 +98,80 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [showSlideModal, setShowSlideModal] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
 
+  const THEME_OPTIONS = [
+    { id: 'dark_gold', name: '👑 Noble Gold / Siyah & Amber', description: 'Geleneksel Enrakipsiz tonları; asil altın ve zengin amber dokusu' },
+    { id: 'cosmic_slate', name: '🌌 Cosmic Slate / Gece Mavisi & Nebula', description: 'Yüksek teknoloji ürünü derin kozmik grafit ve ince geçişli mor tonları' },
+    { id: 'editorial_serif', name: '📚 Editorial Serif / Fildişi & Antik', description: 'Zamanın ötesinde klasik bir dergi tasarımı, zarif antik çizgiler ve serif yazı tipi' },
+    { id: 'swiss_minimal', name: '▫️ Swiss Minimal / Brutalist Siyah-Beyaz', description: 'İsviçreli minimalist akım; sıfır gürültü, cesur başlıklar, yüksek okunaklılık' },
+    { id: 'deep_crimson', name: '🍷 Deep Crimson / Kadife Kırmızı', description: 'Güçlü ve göz alıcı zengin şarap kırmızısı ve asil koyu kadife esintisi' }
+  ];
+
+  const FONT_OPTIONS = [
+    { id: 'Inter', name: 'Inter (Modern Sans-Serif)' },
+    { id: 'Space Grotesk', name: 'Space Grotesk (Tech)' },
+    { id: 'Playfair Display', name: 'Playfair Display (Zarif Klasik)' },
+    { id: 'JetBrains Mono', name: 'JetBrains Mono (Sert & Minimal)' }
+  ];
+
+  const getParsedSections = (): { id: string; enabled: boolean }[] => {
+    let parsed: any[] = [];
+    try {
+      parsed = JSON.parse(enrakipsizSettings.layout_sections || '[]');
+    } catch(e) {}
+    
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      parsed = [
+        { id: 'hero', enabled: true },
+        { id: 'announcement', enabled: true },
+        { id: 'sponsors', enabled: true },
+        { id: 'vehicles', enabled: true },
+        { id: 'properties', enabled: true }
+      ];
+    } else {
+      const standardKeys = ['hero', 'announcement', 'sponsors', 'vehicles', 'properties'];
+      if (typeof parsed[0] === 'string') {
+        parsed = parsed.map((id: string) => ({ id, enabled: true }));
+      }
+      standardKeys.forEach(k => {
+        if (!parsed.some(item => item.id === k)) {
+          parsed.push({ id: k, enabled: true });
+        }
+      });
+    }
+    return parsed;
+  };
+
+  const updateSections = (newSections: { id: string; enabled: boolean }[]) => {
+    setEnrakipsizSettings((prev: any) => ({
+      ...prev,
+      layout_sections: JSON.stringify(newSections)
+    }));
+  };
+
+  const moveSection = (index: number, direction: 'up' | 'down') => {
+    const list = getParsedSections();
+    if (direction === 'up' && index > 0) {
+      const temp = list[index];
+      list[index] = list[index - 1];
+      list[index - 1] = temp;
+    } else if (direction === 'down' && index < list.length - 1) {
+      const temp = list[index];
+      list[index] = list[index + 1];
+      list[index + 1] = temp;
+    }
+    updateSections(list);
+  };
+
+  const toggleSectionEnabled = (id: string) => {
+    const list = getParsedSections().map(item => {
+      if (item.id === id) {
+        return { ...item, enabled: !item.enabled };
+      }
+      return item;
+    });
+    updateSections(list);
+  };
+
   const fetchEnrakipsizData = async () => {
     try {
       setLoadingEnrakipsiz(true);
@@ -96,9 +181,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           portal_title: "Göz Alıcı İhtişam, Mühendislik Harikası",
           portal_description: "Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.",
           announcement: "Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.",
-          primary_color: "#4f46e5",
+          primary_color: "#ea580c",
           footer_text: "© 2026 Enrakipsiz.com. Tüm hakları saklıdır.",
-          portal_domain: "enrakipsiz.com"
+          portal_domain: "enrakipsiz.com",
+          theme_style: "dark_gold",
+          font_family: "Inter",
+          layout_sections: "[\"hero\",\"announcement\",\"sponsors\",\"vehicles\",\"properties\"]",
+          custom_css: ""
         });
         setEnrakipsizSlides(res.slides || []);
         setEnrakipsizAds(res.ads || []);
@@ -572,10 +661,129 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     <p className="text-[9px] text-gray-400 mt-1 italic leading-tight">Bu domaine gelen trafik otomatik olarak Market/Portal sayfasına yönlendirilir.</p>
                   </div>
 
+                  {/* PRESTİJLİ TEMA VE FONT AYARLARI */}
+                  <div className="border-t pt-4 mt-6">
+                    <h4 className="text-xs font-black text-slate-850 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <Palette className="h-4 w-4 text-emerald-500 animate-pulse" /> Premium Tema ve Akor Tanımları
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Görsel Konsept Teması</label>
+                        <select 
+                          className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-slate-700"
+                          value={enrakipsizSettings.theme_style || "dark_gold"}
+                          onChange={e => setEnrakipsizSettings({...enrakipsizSettings, theme_style: e.target.value})}
+                        >
+                          {THEME_OPTIONS.map(opt => (
+                            <option key={opt.id} value={opt.id}>{opt.name}</option>
+                          ))}
+                        </select>
+                        <div className="mt-1.5 p-2 bg-amber-500/5 rounded-lg border border-amber-500/10 text-[9px] text-amber-800 leading-normal">
+                          {THEME_OPTIONS.find(o => o.id === (enrakipsizSettings.theme_style || 'dark_gold'))?.description}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Birincil Yazı Tipi / Font</label>
+                        <select 
+                          className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-slate-700"
+                          value={enrakipsizSettings.font_family || "Inter"}
+                          onChange={e => setEnrakipsizSettings({...enrakipsizSettings, font_family: e.target.value})}
+                        >
+                          {FONT_OPTIONS.map(opt => (
+                            <option key={opt.id} value={opt.id}>{opt.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* INTERAKTİF REORDERING GRIDS */}
+                  <div className="border-t pt-4 mt-6">
+                    <h4 className="text-xs font-black text-slate-850 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Layout className="h-4 w-4 text-indigo-500" /> Amiral Gemisi Kaptan Izgarası
+                    </h4>
+                    <p className="text-[10px] text-gray-400 mb-3 italic">
+                      Modülleri yukarı/aşağı taşıyarak sitenizin hiyerarşisini anında yönlendirebilirsiniz. Göz ikonu ile modülü gizleyin/gösterin.
+                    </p>
+
+                    <div className="space-y-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                      {(() => {
+                        const sectionLabels: { [key: string]: string } = {
+                          hero: "✨ Lüks Slayt Gösterisi & Arama",
+                          announcement: "📣 Finans & Takas Duyuru Barı",
+                          sponsors: "🏆 Sponsor Network Reklamları",
+                          vehicles: "🚗 Premium Otomobil Vitrini",
+                          properties: "🏡 Seçkin Gayrimenkul Vitrini"
+                        };
+                        return getParsedSections().map((sec, idx, arr) => {
+                          const label = sectionLabels[sec.id] || sec.id;
+                          return (
+                            <div 
+                              key={sec.id} 
+                              className={`flex items-center justify-between p-2 rounded-xl border text-[11px] font-semibold transition-all ${
+                                sec.enabled 
+                                  ? "bg-white border-slate-200 text-slate-700 shadow-sm" 
+                                  : "bg-slate-100 border-slate-200 text-slate-400 line-through"
+                              }`}
+                            >
+                              <span className="truncate pr-2">{label}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => moveSection(idx, 'up')}
+                                  className="p-1 hover:bg-slate-100 rounded text-slate-650 disabled:opacity-20"
+                                  title="Yukarı Taşı"
+                                >
+                                  <ChevronUp className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === arr.length - 1}
+                                  onClick={() => moveSection(idx, 'down')}
+                                  className="p-1 hover:bg-slate-100 rounded text-slate-650 disabled:opacity-20"
+                                  title="Aşağı Taşı"
+                                >
+                                  <ChevronDown className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSectionEnabled(sec.id)}
+                                  className={`p-1 rounded ${
+                                    sec.enabled 
+                                      ? "bg-slate-100 text-slate-700 hover:bg-slate-200" 
+                                      : "bg-rose-50 text-rose-500 hover:bg-rose-100"
+                                  }`}
+                                  title={sec.enabled ? "Gizle" : "Göster"}
+                                >
+                                  {sec.enabled ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* CUSTOM CSS FIELD */}
+                  <div className="border-t pt-4 mt-6">
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Butik Ek Stil CSS (Custom CSS)</label>
+                    <textarea 
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-mono h-24 whitespace-pre"
+                      value={enrakipsizSettings.custom_css || ""}
+                      onChange={e => setEnrakipsizSettings({...enrakipsizSettings, custom_css: e.target.value})}
+                      placeholder="/* Örn: .brand-title { color: gold !important; } */"
+                    />
+                    <p className="text-[8.5px] text-gray-400 mt-1 italic leading-tight">Siteniz üzerindeki tüm kuralları ezmek için özel stil tanımlayabilirsiniz.</p>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={savingSettings}
-                    className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-sm transition-all text-xs disabled:bg-indigo-400"
+                    className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-sm transition-all text-xs disabled:bg-indigo-400 mt-6"
                   >
                     {savingSettings ? "Kaydediliyor..." : "Portal Ayarlarını Kaydet"}
                   </button>

@@ -356,12 +356,16 @@ async function ensureEnrakipsizTables() {
   const settingsCheck = await pool.query("SELECT id FROM enrakipsiz_settings WHERE id = 1");
   if (settingsCheck.rows.length === 0) {
     await pool.query(`
-      INSERT INTO enrakipsiz_settings (id, portal_title, portal_description, announcement, primary_color, footer_text, portal_domain)
-      VALUES (1, 'Göz Alıcı İhtişam, Mühendislik Harikası', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '#4f46e5', '© 2026 Enrakipsiz.com. Tüm hakları saklıdır.', 'enrakipsiz.com')
+      INSERT INTO enrakipsiz_settings (id, portal_title, portal_description, announcement, primary_color, footer_text, portal_domain, theme_style, font_family, layout_sections, custom_css)
+      VALUES (1, 'Göz Alıcı İhtişam, Mühendislik Harikası', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '#ea580c', '© 2026 Enrakipsiz.com. Tüm hakları saklıdır.', 'enrakipsiz.com', 'dark_gold', 'Inter', '["hero","announcement","sponsors","vehicles","properties"]', '')
     `);
   } else {
     // Ensure column exists for existing tables
     await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS portal_domain TEXT").catch(() => {});
+    await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS theme_style TEXT DEFAULT 'dark_gold'").catch(() => {});
+    await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS font_family TEXT DEFAULT 'Inter'").catch(() => {});
+    await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS layout_sections TEXT DEFAULT '[\"hero\",\"announcement\",\"sponsors\",\"vehicles\",\"properties\"]'").catch(() => {});
+    await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS custom_css TEXT DEFAULT ''").catch(() => {});
   }
 
   await pool.query(`
@@ -439,14 +443,45 @@ router.get("/enrakipsiz/settings", async (req: any, res) => {
 });
 
 router.post("/enrakipsiz/settings", async (req: any, res) => {
-  const { portal_title, portal_description, announcement, primary_color, footer_text, portal_domain } = req.body;
+  const { 
+    portal_title, 
+    portal_description, 
+    announcement, 
+    primary_color, 
+    footer_text, 
+    portal_domain,
+    theme_style,
+    font_family,
+    layout_sections,
+    custom_css
+  } = req.body;
   try {
     await ensureEnrakipsizTables();
     await pool.query(`
       UPDATE enrakipsiz_settings
-      SET portal_title = $1, portal_description = $2, announcement = $3, primary_color = $4, footer_text = $5, portal_domain = $6
+      SET portal_title = $1, 
+          portal_description = $2, 
+          announcement = $3, 
+          primary_color = $4, 
+          footer_text = $5, 
+          portal_domain = $6,
+          theme_style = $7,
+          font_family = $8,
+          layout_sections = $9,
+          custom_css = $10
       WHERE id = 1
-    `, [portal_title, portal_description, announcement, primary_color, footer_text, portal_domain]);
+    `, [
+      portal_title, 
+      portal_description, 
+      announcement, 
+      primary_color, 
+      footer_text, 
+      portal_domain,
+      theme_style || 'dark_gold',
+      font_family || 'Inter',
+      layout_sections || '["hero","announcement","sponsors","vehicles","properties"]',
+      custom_css || ''
+    ]);
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });

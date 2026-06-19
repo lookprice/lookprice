@@ -285,6 +285,8 @@ export interface RealEstateProperty {
   authorized_branch_id?: number;
   responsible_agent?: string;
   responsible_consultant_id?: number;
+  consultant_phone?: string;
+  consultant_email?: string;
   sharing_scope?: 'shared_pool' | 'branch_private' | 'private';
   reserved_by_branch?: string;
   reservation_notes?: string;

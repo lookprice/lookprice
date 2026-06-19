@@ -12,6 +12,7 @@ export class MySoftService {
     password?: string;
     api_token?: string;
     tenant_id?: string;
+    vkn?: string;
     sender_alias?: string;
     receiver_alias?: string;
     earchive_username?: string;

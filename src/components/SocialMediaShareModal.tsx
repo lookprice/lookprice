@@ -294,24 +294,31 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
     // Render minimalist header on a single row Y
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-    ctx.font = '900 26px system-ui, sans-serif';
-    ctx.letterSpacing = '4px';
-    const storeFallbackName = (branding?.store_name || branding?.name || 'SEÇKİN EMLAK');
-    const brandNameUpper = (storeFallbackName.toLowerCase().includes('lookprice') ? 'SEÇKİN EMLAK' : storeFallbackName).toUpperCase();
-    ctx.fillText(brandNameUpper, borderPadding + 50, borderPadding + 69);
+    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
+    const agentNameUpper = `👤 ${(property.responsible_agent || branding?.owner_name || 'DANIŞMAN').toUpperCase()}`;
+    ctx.fillText(agentNameUpper, borderPadding + 50, borderPadding + 69);
 
-    // Reference ID badge on top right - aligned perfectly to the same row Y!
+    // Reference ID badge in the CENTER on top
     const refNo = `LP-${property.reference_no || property.id}`;
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#ea580c' : '#111827';
-    ctx.fillRect(width - borderPadding - 220, borderPadding + 32, 170, 48);
+    ctx.fillRect((width / 2) - 95, borderPadding + 32, 190, 48);
     ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#f97316' : '#d97706';
     ctx.lineWidth = 2;
-    ctx.strokeRect(width - borderPadding - 220, borderPadding + 32, 170, 48);
+    ctx.strokeRect((width / 2) - 95, borderPadding + 32, 190, 48);
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 16px monospace';
     ctx.letterSpacing = '1px';
     ctx.textAlign = 'center';
-    ctx.fillText(refNo, width - borderPadding - 135, borderPadding + 62);
+    ctx.fillText(refNo, width / 2, borderPadding + 62);
+    ctx.textAlign = 'left';
+
+    // Contact number on the right side
+    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
+    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    const contactTextUpper = `📞 ${property.consultant_phone || branding?.phone || branding?.whatsapp_number || 'YETKİLİ'}`;
+    ctx.fillText(contactTextUpper, width - borderPadding - 50, borderPadding + 69);
     ctx.textAlign = 'left';
 
     // Image layout logic
@@ -553,15 +560,19 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.lineTo(width - borderPadding - 50, footerY - 20);
       ctx.stroke();
 
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#a1a1aa';
-      ctx.font = 'bold 13px system-ui, sans-serif';
-      ctx.fillText(`PORTFÖY SORUMLUSU: ${property.responsible_agent || branding?.owner_name || 'YETKİLİ TEMSİLCİ'}`, borderPadding + 50, footerY + 15);
+      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
+      ctx.font = '900 24px system-ui, sans-serif';
+      ctx.letterSpacing = '2px';
+      ctx.textAlign = 'left';
+      const rawStoreName = branding?.store_name || branding?.name || 'PREMIUM VIP EMLAK';
+      const storeNameDisplay = (rawStoreName.toLowerCase().includes('lookprice') ? 'PREMIUM VIP EMLAK' : rawStoreName).toUpperCase();
+      ctx.fillText(storeNameDisplay, borderPadding + 50, footerY + 15);
       
       ctx.textAlign = 'right';
-      const actualStoreName = branding?.store_name || branding?.name || 'PREMIUM VIP REAL ESTATE';
-      const cleanStoreContact = actualStoreName.toLowerCase().includes('lookprice') ? 'ETKİN DANIŞMAN' : actualStoreName;
-      const footerPhone = branding?.phone || branding?.whatsapp_number ? `İLETİŞİM: ${branding.phone || branding.whatsapp_number}` : `PORTFÖY DANIŞMANI: ${cleanStoreContact}`;
-      ctx.fillText(footerPhone, width - borderPadding - 50, footerY + 15);
+      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(69, 26, 3, 0.8)' : 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '900 20px system-ui, sans-serif';
+      ctx.letterSpacing = '1px';
+      ctx.fillText('ENRAKİPSİZ.COM', width - borderPadding - 50, footerY + 15);
       ctx.textAlign = 'left';
 
       // Start the download

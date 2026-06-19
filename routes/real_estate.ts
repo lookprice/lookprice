@@ -448,29 +448,49 @@ router.delete('/properties/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
 
+  const client = await pool.connect();
   try {
-    let result;
+    await client.query('BEGIN');
+
+    // Check ownership/permissions first
+    let hasAccess = false;
     if (req.user.role === 'superadmin') {
-      result = await pool.query(
-        `DELETE FROM real_estate_properties WHERE id = $1 RETURNING *`,
-        [id]
-      );
+      hasAccess = true;
     } else {
-      result = await pool.query(
-        `DELETE FROM real_estate_properties 
-         WHERE id = $1 AND (store_id = $2 OR store_id IN (SELECT id FROM stores WHERE parent_id = $2))
-         RETURNING *`,
+      const checkRes = await client.query(
+        `SELECT id FROM real_estate_properties 
+         WHERE id = $1 AND (store_id = $2 OR store_id IN (SELECT id FROM stores WHERE parent_id = $2))`,
         [id, storeId]
       );
+      if (checkRes.rows.length > 0) {
+        hasAccess = true;
+      }
     }
-    
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Property not found' });
+
+    if (!hasAccess) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Property not found or unauthorized' });
     }
-    res.json({ message: 'Property deleted', deleted: result.rows[0] });
-  } catch (error) {
+
+    // Now delete from child tables to prevent foreign key violation
+    await client.query(`DELETE FROM property_tasks WHERE property_id = $1`, [id]);
+    await client.query(`DELETE FROM property_audit_log WHERE property_id = $1`, [id]);
+    await client.query(`DELETE FROM portfolio_transactions WHERE property_id = $1`, [id]);
+
+    // Finally delete from the main table
+    const result = await client.query(
+      `DELETE FROM real_estate_properties WHERE id = $1 RETURNING *`,
+      [id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ message: 'Property deleted', deleted: result?.rows[0] });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
     console.error('Error deleting property:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
+  } finally {
+    client.release();
   }
 });
 

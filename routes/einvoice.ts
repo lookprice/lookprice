@@ -72,6 +72,7 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
 router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => {
   const { invoiceId } = req.params;
   let storeId = req.user.store_id; 
+  let ettn: string | undefined = undefined;
   console.log(`[INVOICE-SEND-ENTRY] InvoiceID: ${invoiceId}, UserStoreId: ${storeId}`);
   try {
     // 1. Fetch the invoice first to identify the correct storeId
@@ -215,7 +216,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     
     // Ensure ETTN and Document Number are present and atomic
     let documentNumber = invoice.document_number;
-    let ettn = invoice.ettn;
+    ettn = invoice.ettn;
     
     // Determine expected prefix based on CORRECTED docType
     const expectedPrefix = docType === 'E-FATURA' ? (settings.einvoice_prefix || 'GAP') : (settings.earchive_prefix || 'GEA');
