@@ -1056,6 +1056,52 @@ export async function initDb() {
         FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS e_waybills (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+        customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+        waybill_number TEXT NOT NULL,
+        waybill_date DATE NOT NULL,
+        waybill_time TEXT,
+        actual_date DATE NOT NULL,
+        actual_time TEXT,
+        prefix TEXT DEFAULT 'IRS',
+        scenario TEXT DEFAULT 'TEMEL IRSALİYE',
+        waybill_type TEXT DEFAULT 'SEVK',
+        driver_name TEXT,
+        driver_surname TEXT,
+        driver_vkn TEXT,
+        plate_number TEXT,
+        trailer_plate TEXT,
+        notes TEXT,
+        status TEXT DEFAULT 'draft',
+        message TEXT,
+        ettn TEXT,
+        is_invoiced BOOLEAN DEFAULT FALSE,
+        invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL,
+        total_amount DECIMAL(12,2) DEFAULT 0,
+        tax_amount DECIMAL(12,2) DEFAULT 0,
+        grand_total DECIMAL(12,2) DEFAULT 0,
+        currency TEXT DEFAULT 'TRY',
+        exchange_rate DECIMAL(12,4) DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS e_waybill_items (
+        id SERIAL PRIMARY KEY,
+        waybill_id INTEGER NOT NULL REFERENCES e_waybills(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+        product_name TEXT NOT NULL,
+        barcode TEXT,
+        quantity REAL NOT NULL,
+        unit_code TEXT DEFAULT 'Adet',
+        unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+        tax_rate DECIMAL(5,2) NOT NULL DEFAULT 20,
+        tax_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+        total_price DECIMAL(12,2) NOT NULL DEFAULT 0
+      );
+
       CREATE TABLE IF NOT EXISTS audit_logs (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,

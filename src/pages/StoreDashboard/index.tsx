@@ -84,6 +84,7 @@ const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
 const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
 const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ default: m.RadarAlertsTab })));
 const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
+const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
 
 import ShippingSlip from "../../components/ShippingSlip";
 
@@ -600,6 +601,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "finance_operations", title: isTr ? "Finans & Operasyon" : "Finance & Operations", items: [
       ...(!isRealEstate ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices }] : []),
       ...(!isRealEstate ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' }] : []),
+      ...(!isRealEstate ? [{ id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck }] : []),
       { id: "companies", label: t.companies, icon: Store },
       { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},
@@ -633,6 +635,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
       { id: "quotations", label: t.quotations, icon: FileCheck },
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' },
+      { id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck },
       { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },
@@ -816,6 +819,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   api={api} 
                   branding={branding} 
                   onFetchDetails={handleFetchSalesInvoiceDetails} 
+                />
+              )}
+              {activeTab === "e_waybills" && !isRealEstate && (
+                <EWaybillsTab
+                  storeId={currentStoreId}
+                  lang={lang}
+                  api={api}
+                  branding={branding}
                 />
               )}
               {activeTab === "quotations" && (
