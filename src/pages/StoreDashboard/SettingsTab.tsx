@@ -531,6 +531,7 @@ const SettingsTab = ({
           bulkPriceForm={bulkPriceForm} 
           setBulkPriceForm={setBulkPriceForm} 
           handleBulkPriceSubmit={handleBulkPriceSubmit} 
+          products={products}
         />
       )}
 

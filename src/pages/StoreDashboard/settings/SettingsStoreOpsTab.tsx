@@ -23,6 +23,7 @@ interface SettingsStoreOpsTabProps {
   bulkPriceForm: any;
   setBulkPriceForm: (val: any) => void;
   handleBulkPriceSubmit: (e: React.FormEvent) => void;
+  products?: any[];
 }
 
 export const SettingsStoreOpsTab = ({
@@ -34,9 +35,52 @@ export const SettingsStoreOpsTab = ({
   isPortfolio,
   bulkPriceForm,
   setBulkPriceForm,
-  handleBulkPriceSubmit
+  handleBulkPriceSubmit,
+  products = []
 }: SettingsStoreOpsTabProps) => {
   const t = translations || {};
+
+  const allStoreCategories = React.useMemo(() => {
+    if (!products || !Array.isArray(products)) return [];
+    const set = new Set<string>();
+    products.forEach((p: any) => {
+      if (p.category) set.add(p.category.trim());
+    });
+    return Array.from(set).sort((a,b) => a.localeCompare(b, "tr"));
+  }, [products]);
+
+  const allStoreSubCategories = React.useMemo(() => {
+    if (!products || !Array.isArray(products)) return [];
+    const set = new Set<string>();
+    products.forEach((p: any) => {
+      if (p.sub_category) set.add(p.sub_category.trim());
+    });
+    return Array.from(set).sort((a,b) => a.localeCompare(b, "tr"));
+  }, [products]);
+
+  const getOtherAssignedCategories = (currIdx: number) => {
+    const map: Record<string, string> = {};
+    (branding.shipping_profiles || []).forEach((p: any, idx: number) => {
+      if (idx === currIdx) return;
+      const cats = p.categories_str ? p.categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+      cats.forEach((cat: string) => {
+        map[cat] = p.name || `Profil #${idx + 1}`;
+      });
+    });
+    return map;
+  };
+
+  const getOtherAssignedSubCategories = (currIdx: number) => {
+    const map: Record<string, string> = {};
+    (branding.shipping_profiles || []).forEach((p: any, idx: number) => {
+      if (idx === currIdx) return;
+      const subs = p.sub_categories_str ? p.sub_categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+      subs.forEach((sub: string) => {
+        map[sub] = p.name || `Profil #${idx + 1}`;
+      });
+    });
+    return map;
+  };
 
   return (
     <motion.div 
@@ -254,34 +298,126 @@ export const SettingsStoreOpsTab = ({
                      />
                      <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold font-sans" />
                   </div>
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Kategoriler (Grup Atama)</label>
-                      <input 
-                        value={profile.categories_str || ''} 
-                        onChange={(e) => { 
-                          const p = [...branding.shipping_profiles]; 
-                          p[index].categories_str = e.target.value; 
-                          onBrandingChange('shipping_profiles', p); 
-                        }} 
-                        placeholder="örn: Giyim, Ayakkabı, Kozmetik" 
-                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold font-sans" 
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Alt Kategoriler (Grup Atama)</label>
-                      <input 
-                        value={profile.sub_categories_str || ''} 
-                        onChange={(e) => { 
-                          const p = [...branding.shipping_profiles]; 
-                          p[index].sub_categories_str = e.target.value; 
-                          onBrandingChange('shipping_profiles', p); 
-                        }} 
-                        placeholder="örn: Sweatshirt, Bot, Parfüm" 
-                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold font-sans" 
-                      />
-                    </div>
-                  </div>
+                  {(() => {
+                    const otherAssignedCats = getOtherAssignedCategories(index);
+                    const otherAssignedSubs = getOtherAssignedSubCategories(index);
+                    const selectedCats = profile.categories_str ? profile.categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                    const selectedSubs = profile.sub_categories_str ? profile.sub_categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+
+                    return (
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Kategoriler (Grup Atama)</label>
+                          <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
+                            {selectedCats.map((cat: string) => (
+                              <span key={cat} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100 shadow-sm">
+                                {cat}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = selectedCats.filter((c: string) => c !== cat);
+                                    const p = [...branding.shipping_profiles];
+                                    p[index].categories_str = updated.join(', ');
+                                    onBrandingChange('shipping_profiles', p);
+                                  }}
+                                  className="text-indigo-400 hover:text-indigo-600 font-bold focus:outline-none transition-colors ml-1 w-3.5 h-3.5 rounded-full hover:bg-indigo-100 flex items-center justify-center text-[10px]"
+                                >
+                                  &times;
+                                </button>
+                              </span>
+                            ))}
+                            {selectedCats.length === 0 && (
+                              <span className="text-xs text-slate-400 italic py-0.5">{lang === 'tr' ? "Kategori seçilmedi" : "No category selected"}</span>
+                            )}
+                          </div>
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              const p = [...branding.shipping_profiles];
+                              const updated = [...selectedCats, val];
+                              p[index].categories_str = updated.join(', ');
+                              onBrandingChange('shipping_profiles', p);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold font-sans outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                          >
+                            <option value="">{lang === 'tr' ? "+ Kategori Seç..." : "+ Choose Category..."}</option>
+                            {allStoreCategories.map((cat: string) => {
+                              const isAssignedToCurrent = selectedCats.includes(cat);
+                              const assignedToProfile = otherAssignedCats[cat];
+                              if (isAssignedToCurrent) return null;
+                              return (
+                                <option
+                                  key={cat}
+                                  value={cat}
+                                  disabled={!!assignedToProfile}
+                                  className={assignedToProfile ? "text-slate-400 italic" : "text-slate-800 font-medium"}
+                                >
+                                  {cat} {assignedToProfile ? `(Zaten Atandı: ${assignedToProfile})` : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Alt Kategoriler (Grup Atama)</label>
+                          <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
+                            {selectedSubs.map((sub: string) => (
+                              <span key={sub} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 text-xs font-bold border border-amber-100 shadow-sm">
+                                {sub}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = selectedSubs.filter((s: string) => s !== sub);
+                                    const p = [...branding.shipping_profiles];
+                                    p[index].sub_categories_str = updated.join(', ');
+                                    onBrandingChange('shipping_profiles', p);
+                                  }}
+                                  className="text-amber-400 hover:text-amber-600 font-bold focus:outline-none transition-colors ml-1 w-3.5 h-3.5 rounded-full hover:bg-amber-100 flex items-center justify-center text-[10px]"
+                                >
+                                  &times;
+                                </button>
+                              </span>
+                            ))}
+                            {selectedSubs.length === 0 && (
+                              <span className="text-xs text-slate-400 italic py-0.5">{lang === 'tr' ? "Alt kategori seçilmedi" : "No subcategory selected"}</span>
+                            )}
+                          </div>
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              const p = [...branding.shipping_profiles];
+                              const updated = [...selectedSubs, val];
+                              p[index].sub_categories_str = updated.join(', ');
+                              onBrandingChange('shipping_profiles', p);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold font-sans outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                          >
+                            <option value="">{lang === 'tr' ? "+ Alt Kategori Seç..." : "+ Choose Sub-Category..."}</option>
+                            {allStoreSubCategories.map((sub: string) => {
+                              const isAssignedToCurrent = selectedSubs.includes(sub);
+                              const assignedToProfile = otherAssignedSubs[sub];
+                              if (isAssignedToCurrent) return null;
+                              return (
+                                <option
+                                  key={sub}
+                                  value={sub}
+                                  disabled={!!assignedToProfile}
+                                  className={assignedToProfile ? "text-slate-400 italic" : "text-slate-800 font-medium"}
+                                >
+                                  {sub} {assignedToProfile ? `(Zaten Atandı: ${assignedToProfile})` : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button 
                   type="button"
