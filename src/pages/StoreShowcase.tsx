@@ -941,21 +941,48 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         const itemPrice = Number(item.price) || 0;
         let shippingCost = 0;
 
+        let matchedProfile: any = null;
+
         if (item.shipping_profile_id && store.shipping_profiles) {
-          const profile = store.shipping_profiles.find(
+          matchedProfile = store.shipping_profiles.find(
             (p: any) => String(p.id) === String(item.shipping_profile_id),
           );
-          if (profile) {
-            let profileCost = Number(profile.cost) || 0;
-            if (profile.currency && profile.currency !== store.currency) {
-              const sRate = await getExchangeRate(
-                profile.currency,
-                store.currency,
-              );
-              profileCost = profileCost * sRate;
+        }
+
+        // Fallback to Category / Subcategory collective matching if no specific product profile is assigned
+        if (!matchedProfile && store.shipping_profiles) {
+          const itemCat = String(item.category || "").trim().toLowerCase();
+          const itemSubcat = String(item.sub_category || "").trim().toLowerCase();
+
+          for (const p of store.shipping_profiles) {
+            // Check subcategory match first
+            if (p.sub_categories_str && itemSubcat) {
+              const subcats = p.sub_categories_str.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+              if (subcats.includes(itemSubcat)) {
+                matchedProfile = p;
+                break; // Found matching subcategory, prioritize this
+              }
             }
-            shippingCost = profileCost;
+            // Check category match
+            if (p.categories_str && itemCat) {
+              const cats = p.categories_str.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+              if (cats.includes(itemCat)) {
+                matchedProfile = p;
+              }
+            }
           }
+        }
+
+        if (matchedProfile) {
+          let profileCost = Number(matchedProfile.cost) || 0;
+          if (matchedProfile.currency && matchedProfile.currency !== store.currency) {
+            const sRate = await getExchangeRate(
+              matchedProfile.currency,
+              store.currency,
+            );
+            profileCost = profileCost * sRate;
+          }
+          shippingCost = profileCost;
         }
 
         if (shippingCost > maxShippingCost) {

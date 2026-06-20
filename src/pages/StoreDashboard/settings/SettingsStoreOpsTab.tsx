@@ -254,6 +254,34 @@ export const SettingsStoreOpsTab = ({
                      />
                      <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold font-sans" />
                   </div>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Kategoriler (Grup Atama)</label>
+                      <input 
+                        value={profile.categories_str || ''} 
+                        onChange={(e) => { 
+                          const p = [...branding.shipping_profiles]; 
+                          p[index].categories_str = e.target.value; 
+                          onBrandingChange('shipping_profiles', p); 
+                        }} 
+                        placeholder="örn: Giyim, Ayakkabı, Kozmetik" 
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold font-sans" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Alt Kategoriler (Grup Atama)</label>
+                      <input 
+                        value={profile.sub_categories_str || ''} 
+                        onChange={(e) => { 
+                          const p = [...branding.shipping_profiles]; 
+                          p[index].sub_categories_str = e.target.value; 
+                          onBrandingChange('shipping_profiles', p); 
+                        }} 
+                        placeholder="örn: Sweatshirt, Bot, Parfüm" 
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold font-sans" 
+                      />
+                    </div>
+                  </div>
                 </div>
                 <button 
                   type="button"

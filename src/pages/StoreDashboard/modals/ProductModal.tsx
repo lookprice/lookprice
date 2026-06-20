@@ -443,6 +443,31 @@ export const ProductModal = ({
               />
             </div>
 
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "Kargo Seçeneği / Kargo Profili (Ürün Özelinde)" : "Shipping Profile"}
+              </label>
+              <div className="relative">
+                <select
+                  name="shipping_profile_id"
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none text-xs h-[50px]"
+                  defaultValue={editingProduct?.shipping_profile_id || ""}
+                >
+                  <option value="">{isTr ? "Varsayılan (Kategori / Alt Kategori veya Ücretsiz)" : "Default (Category / Sub Category or Free)"}</option>
+                  {(branding?.shipping_profiles || []).map((profile: any) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || (isTr ? "İsimsiz Profil" : "Unnamed Profile")} - {profile.cost} {profile.currency}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-1.5 col-span-2 bg-slate-50 p-4 rounded-3xl border border-slate-150">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                 {isTr ? "Ürün Görseli (Canlı Fotoğraf veya URL)" : "Product Image (Live Photo or URL)"}
