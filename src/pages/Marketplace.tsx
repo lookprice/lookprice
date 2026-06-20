@@ -1403,11 +1403,11 @@ export const Marketplace = () => {
                       Detaylar
                     </button>
                     <Link 
-                      to={`/store/${listing.store_slug}/p/${listing.barcode || listing.id}`} 
+                      to={`${window.location.hostname.includes("enrakipsiz") ? "/s" : "/store"}/${listing.store_slug}/p/${listing.barcode || listing.id}`} 
                       target="_blank" 
                       className="py-2.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
                     >
-                      Mağazaya Git
+                      Detayları İncele
                       <ExternalLink className="w-3 h-3" />
                     </Link>
                   </div>
@@ -1690,11 +1690,11 @@ export const Marketplace = () => {
               {/* Action Sheet */}
               <div className="mt-auto space-y-2 pt-6 border-t border-slate-800">
                 <Link 
-                  to={`/store/${selectedListing.store_slug}/p/${selectedListing.barcode || selectedListing.id}`} 
+                  to={`${window.location.hostname.includes("enrakipsiz") ? "/s" : "/store"}/${selectedListing.store_slug}/p/${selectedListing.barcode || selectedListing.id}`} 
                   target="_blank"
                   className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 hover:scale-[1.01] active:scale-[0.99] hover:shadow-xl hover:shadow-rose-950/35 text-white text-center rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2"
                 >
-                  Mağazayı Ziyaret Et (İlan Detayı)
+                  Detayları İncele
                   <ExternalLink className="w-4 h-4" />
                 </Link>
                 <button 

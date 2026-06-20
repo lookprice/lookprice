@@ -38,6 +38,7 @@ import { SalesInvoiceHtmlModal } from "./dashboard/invoices/sales/SalesInvoiceHt
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
+import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
 export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
@@ -75,6 +76,10 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [statusFilter, setStatusFilter] = useState<'all' | 'rejected'>('all');
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
+
+  // e-Waybill (e-İrsaliye) states
+  const [showWaybillModal, setShowWaybillModal] = useState(false);
+  const [waybillInvoice, setWaybillInvoice] = useState<any>(null);
 
   // Form States
   const [customerId, setCustomerId] = useState("");
@@ -823,6 +828,13 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           return filtered.length;
         })() / itemsPerPage)}
         setPage={setPage}
+        handleOpenWaybillModal={(id) => {
+          const inv = invoices.find((invoice: any) => invoice.id === id);
+          if (inv) {
+            setWaybillInvoice(inv);
+            setShowWaybillModal(true);
+          }
+        }}
       />
 
       <SalesInvoiceFormModal 
@@ -935,6 +947,19 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         isTr={isTr}
         onSubmit={handleQuickCariSubmit}
         initialValue={quickCariSearchInitial}
+      />
+
+      <SalesInvoiceWaybillModal 
+        isOpen={showWaybillModal}
+        onClose={() => {
+          setShowWaybillModal(false);
+          setWaybillInvoice(null);
+        }}
+        invoice={waybillInvoice}
+        isTr={isTr}
+        onRefresh={() => {
+          fetchInvoicesData();
+        }}
       />
 
       {/* Floating Bulk Action Bar */}

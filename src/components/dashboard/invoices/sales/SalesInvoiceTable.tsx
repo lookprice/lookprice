@@ -9,7 +9,8 @@ import {
   FileSearch, 
   CloudUpload, 
   XCircle, 
-  RefreshCw 
+  RefreshCw,
+  Truck
 } from 'lucide-react';
 
 interface SalesInvoiceTableProps {
@@ -30,6 +31,7 @@ interface SalesInvoiceTableProps {
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
+  handleOpenWaybillModal?: (id: number) => void;
 }
 
 export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
@@ -49,7 +51,8 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   handleDelete,
   page,
   totalPages,
-  setPage
+  setPage,
+  handleOpenWaybillModal
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -165,7 +168,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         const isEFatura = computedDocType === 'E-FATURA';
 
                         return (
-                          <div className="flex flex-col gap-1 mt-1">
+                          <div className="flex flex-col gap-1 mt-1 font-sans">
                             <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
                               isEFatura ? 'border-purple-200 bg-purple-50 text-purple-700' : 
                               'border-blue-200 bg-blue-50 text-blue-700'
@@ -183,6 +186,29 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                  isApproved ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
                                  isRejected ? (isTr ? 'REDDEDİLDİ/İPTAL' : 'REJECTED/CANCELLED') :
                                  inv.integration_status}
+                              </div>
+                            )}
+                            {inv.waybill_number && (
+                              <div className="flex flex-col gap-1.5 mt-1 pt-1 border-t border-slate-100">
+                                <span className="text-[8px] font-black tracking-wider text-slate-400 uppercase">
+                                  {isTr ? 'SEVK İRSALİYESİ' : 'WAYBILL'}
+                                </span>
+                                <div className="inline-flex px-1.5 py-0.5 rounded text-[9px] font-black tracking-widest border border-indigo-200 bg-indigo-50 text-indigo-700">
+                                  {inv.waybill_number}
+                                </div>
+                                {inv.waybill_status && (
+                                  <div className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold tracking-tight border w-fit ${
+                                    inv.waybill_status === 'SUCCESS' ? 'border-emerald-200 bg-emerald-50 text-emerald-600' :
+                                    inv.waybill_status === 'QUEUED' ? 'border-amber-200 bg-amber-50 text-amber-600' :
+                                    inv.waybill_status === 'ERROR' ? 'border-rose-200 bg-rose-50 text-rose-600' :
+                                    'border-slate-200 bg-slate-50 text-slate-600'
+                                  }`}>
+                                    {inv.waybill_status === 'SUCCESS' ? (isTr ? 'BAŞARILI' : 'SUCCESS') :
+                                     inv.waybill_status === 'QUEUED' ? (isTr ? 'İLETİLİYOR' : 'QUEUED') :
+                                     inv.waybill_status === 'ERROR' ? (isTr ? 'HATA' : 'ERROR') :
+                                     inv.waybill_status}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -245,6 +271,20 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             title={isTr ? "GİB Durumunu Sorgula" : "Check Integrator Status"}
                           >
                             <RefreshCw className="h-4 w-4" />
+                          </button>
+                        )}
+                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && (
+                          <button 
+                            onClick={() => handleOpenWaybillModal && handleOpenWaybillModal(inv.id)}
+                            className={`p-2 rounded-xl transition-all ${
+                              inv.waybill_status === 'SUCCESS' ? 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50' :
+                              inv.waybill_status === 'QUEUED' ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50' :
+                              inv.waybill_status === 'ERROR' ? 'text-red-500 hover:text-red-700 hover:bg-red-50' :
+                              'text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50'
+                            }`}
+                            title={isTr ? "e-İrsaliye İşlemleri (Taşıma / Sevk)" : "e-Waybill Actions"}
+                          >
+                            <Truck className="h-4 w-4" />
                           </button>
                         )}
                         <button 

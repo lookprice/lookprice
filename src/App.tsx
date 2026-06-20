@@ -156,7 +156,18 @@ export default function App() {
       return (
         <div className="min-h-screen bg-gray-50 font-sans">
           <React.Suspense fallback={<SuspenseLoader />}>
+            <Toaster position="top-center" richColors />
             <Routes>
+              {/* Support viewing specific store showcase and products directly on portal domain */}
+              <Route path="/s/:slug/p/:barcode" element={<StoreShowcase />} />
+              <Route path="/s/:slug" element={<StoreShowcase />} />
+              <Route path="/store/:slug/p/:barcode" element={<StoreShowcase />} />
+              <Route path="/store/:slug" element={<StoreShowcase />} />
+              <Route path="/s/:slug/profile" element={<StoreShowcase />} />
+              <Route path="/s/:slug/orders" element={<StoreShowcase />} />
+              <Route path="/s/:slug/return" element={<StoreShowcase />} />
+              
+              {/* Default fallback is the Marketplace portal */}
               <Route path="*" element={<Marketplace />} />
             </Routes>
           </React.Suspense>

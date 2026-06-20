@@ -4732,14 +4732,19 @@ router.get("/purchase-invoices", async (req: any, res) => {
 
 router.get("/purchase-invoices/:id", async (req: any, res) => {
   try {
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-    const invoiceResult = await pool.query(
-      `SELECT pi.*, c.title as company_name 
-       FROM purchase_invoices pi 
-       LEFT JOIN companies c ON pi.company_id = c.id 
-       WHERE pi.id = $1 AND pi.store_id = $2`,
-      [req.params.id, storeId]
-    );
+    let query = `
+      SELECT pi.*, c.title as company_name 
+      FROM purchase_invoices pi 
+      LEFT JOIN companies c ON pi.company_id = c.id 
+      WHERE pi.id = $1
+    `;
+    let params = [req.params.id];
+    if (req.user.role !== "superadmin") {
+      query += " AND pi.store_id = $2";
+      params.push(req.user.store_id);
+    }
+    
+    const invoiceResult = await pool.query(query, params);
     
     if (invoiceResult.rows.length === 0) {
       return res.status(404).json({ error: "Invoice not found" });
@@ -4924,22 +4929,28 @@ router.put("/purchase-invoices/:id", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, payment_status, currency, exchange_rate, is_tax_inclusive, is_expense, expense_category } = req.body;
-
-    const isTaxIncl = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
-
-    // 1. Get old invoice and items to revert stock
-    const oldInvoiceResult = await client.query(
-      "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2",
-      [req.params.id, storeId]
-    );
+    let oldInvoiceResult;
+    if (req.user.role === "superadmin") {
+      oldInvoiceResult = await client.query(
+        "SELECT * FROM purchase_invoices WHERE id = $1",
+        [req.params.id]
+      );
+    } else {
+      oldInvoiceResult = await client.query(
+        "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2",
+        [req.params.id, req.user.store_id]
+      );
+    }
     
     if (oldInvoiceResult.rows.length === 0) {
       throw new Error("Invoice not found");
     }
     
     const oldInvoice = oldInvoiceResult.rows[0];
+    const storeId = oldInvoice.store_id;
+    const { company_id, invoice_number, waybill_number, invoice_date, notes, items, payment_method, payment_status, currency, exchange_rate, is_tax_inclusive, is_expense, expense_category } = req.body;
+
+    const isTaxIncl = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
     const oldItemsResult = await client.query(
       "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1",
       [req.params.id]
@@ -5100,19 +5111,27 @@ router.post("/purchase-invoices/:id/status", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     const { status, reason } = req.body;
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
 
     // 1. Get the invoice to check if it's an e-invoice and get ETTN/UUID
-    const invRes = await client.query(
-      "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2",
-      [req.params.id, storeId]
-    );
+    let invRes;
+    if (req.user.role === "superadmin") {
+      invRes = await client.query(
+        "SELECT * FROM purchase_invoices WHERE id = $1",
+        [req.params.id]
+      );
+    } else {
+      invRes = await client.query(
+        "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2",
+        [req.params.id, req.user.store_id]
+      );
+    }
 
     if (invRes.rows.length === 0) {
       throw new Error("Invoice not found");
     }
 
     const invoice = invRes.rows[0];
+    const storeId = invoice.store_id;
 
     // 2. Update local status
     await client.query(
@@ -5152,11 +5171,13 @@ router.post("/purchase-invoices/:id/status", async (req: any, res) => {
 router.patch("/purchase-invoices/:id/payment-status", async (req: any, res) => {
   try {
     const { status } = req.body;
-    const storeId = req.user.store_id;
-    await pool.query(
-      "UPDATE purchase_invoices SET payment_status = $1 WHERE id = $2 AND store_id = $3",
-      [status, req.params.id, storeId]
-    );
+    let query = "UPDATE purchase_invoices SET payment_status = $1 WHERE id = $2";
+    let params = [status, req.params.id];
+    if (req.user.role !== "superadmin") {
+      query += " AND store_id = $3";
+      params.push(req.user.store_id);
+    }
+    await pool.query(query, params);
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -5165,11 +5186,13 @@ router.patch("/purchase-invoices/:id/payment-status", async (req: any, res) => {
 
 router.patch("/purchase-invoices/:id/read", async (req: any, res) => {
   try {
-    const storeId = req.user.role === 'superadmin' ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-    await pool.query(
-      "UPDATE purchase_invoices SET is_read = TRUE WHERE id = $1 AND store_id = $2",
-      [req.params.id, storeId]
-    );
+    let query = "UPDATE purchase_invoices SET is_read = TRUE WHERE id = $1";
+    let params = [req.params.id];
+    if (req.user.role !== "superadmin") {
+      query += " AND store_id = $2";
+      params.push(req.user.store_id);
+    }
+    await pool.query(query, params);
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -5181,17 +5204,24 @@ router.delete("/purchase-invoices/:id", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-
-    const invoiceResult = await client.query(
-      "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2",
-      [req.params.id, storeId]
-    );
+    let invoiceResult;
+    if (req.user.role === "superadmin") {
+      invoiceResult = await client.query(
+        "SELECT * FROM purchase_invoices WHERE id = $1",
+        [req.params.id]
+      );
+    } else {
+      invoiceResult = await client.query(
+        "SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2",
+        [req.params.id, req.user.store_id]
+      );
+    }
     
     if (invoiceResult.rows.length === 0) {
       throw new Error("Invoice not found");
     }
     
+    const storeId = invoiceResult.rows[0].store_id;
     const invoiceNumber = invoiceResult.rows[0].invoice_number;
     
     // Get invoice items to revert stock

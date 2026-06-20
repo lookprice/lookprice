@@ -667,6 +667,20 @@ export async function initDb() {
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS invoice_profile TEXT DEFAULT 'TICARIFATURA';
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS integration_status TEXT;
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS integration_message TEXT;
+
+      -- E-Waybill (e-İrsaliye) integration columns
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_ettn TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_status TEXT DEFAULT 'draft';
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_message TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_driver_name TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_driver_surname TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_driver_vkn TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_plate_number TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_trailer_plate TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_actual_date DATE;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_actual_time TEXT;
+      ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_prefix TEXT DEFAULT 'IRS';
+
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS waybill_number TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS payment_method TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS ettn TEXT;
