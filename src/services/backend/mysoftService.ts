@@ -447,28 +447,37 @@ export class MySoftService {
       const config: any = {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Accept": "application/json"
+        },
+        params: {
+          invoiceETTN: ettn,
+          reason: reason || (status === 'APPROVED' ? 'Fatura tarafımızca kabul edilmiştir.' : 'Fatura reddedilmiştir.'),
+          notes: reason || (status === 'APPROVED' ? 'Fatura tarafımızca kabul edilmiştir.' : 'Fatura reddedilmiştir.')
         }
       };
-      
-      const payload = {
-        uuid: ettn,
-        responseStatus: status === 'APPROVED' ? 'KABUL' : 'RED',
-        reason: reason || (status === 'APPROVED' ? 'Fatura tarafımızca kabul edilmiştir.' : 'Fatura reddedilmiştir.')
-      };
 
-      console.log(`Sending MySoft Application Response for ${ettn} at: ${this.baseUrl}/InvoiceInbox/saveApplicationResponse`);
-      
-      const response = await axios.post(`${this.baseUrl}/InvoiceInbox/saveApplicationResponse`, payload, config);
+      if (this.credentials.tenant_id) {
+        config.headers['TenantId'] = this.credentials.tenant_id;
+        config.headers['ApplicationId'] = this.credentials.tenant_id;
+      }
+      if (this.credentials.vkn) {
+        config.params.tenantIdentifierNumber = this.credentials.vkn;
+      }
 
-      if (response.data.succeed === true) {
+      const endpoint = status === 'APPROVED' ? 'AcceptInvoice' : 'DenyInvoice';
+      console.log(`Sending MySoft Application Response (${status}) for ${ettn} via GET to: ${this.baseUrl}/InvoiceInbox/${endpoint}`);
+      
+      const response = await axios.get(`${this.baseUrl}/InvoiceInbox/${endpoint}`, config);
+
+      const isSucceed = response.data?.succeed === true || response.data?.Succeed === true;
+      if (isSucceed) {
          return {
             isSuccess: true,
-            message: response.data.message || "Yanıt başarıyla iletildi."
+            message: response.data.message || response.data.Message || "Yanıt başarıyla iletildi."
          };
       }
       
-      throw new Error(response.data.message || "Uygulama yanıtı iletilemedi.");
+      throw new Error(response.data?.message || response.data?.Message || "Uygulama yanıtı iletilemedi.");
     } catch (error: any) {
       const apiError = error.response?.data?.message || error.response?.data?.Message || error.message;
       console.error("MySoft Application Response Error:", apiError);
