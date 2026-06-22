@@ -551,19 +551,21 @@ export class MySoftService {
       };
       
       const tId = this.credentials.tenant_id;
+      const storeVkn = this.credentials.vkn;
       
       // Try a few variations for detail fetch based on documentation and successful list patterns
       const variations = [
         // 1. getInvoiceInboxModel (Common MySoft endpoint for structured data)
+        { url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxModel`, method: 'GET', params: { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn } },
         { url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxModel`, method: 'GET', params: { invoiceETTN: ettn, tenantIdentifierNumber: null } },
         { url: `${this.baseUrl}/InvoiceInbox/getInvoiceInboxModel`, method: 'GET', params: { invoiceETTN: ettn, tenantIdentifierNumber: tId } },
         
         // 2. Older / alternate endpoints
-        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxDetail`, method: 'GET', params: { uuid: ettn } },
-        { url: `${this.baseUrl}/Invoice/GetInvoiceByUuid`, method: 'GET', params: { uuid: ettn } },
+        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxDetail`, method: 'GET', params: { uuid: ettn, tenantIdentifierNumber: storeVkn } },
+        { url: `${this.baseUrl}/Invoice/GetInvoiceByUuid`, method: 'GET', params: { uuid: ettn, tenantIdentifierNumber: storeVkn } },
         
         // 3. Document details fetch (often returns UBL or JSON model)
-        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceDetailByUuid`, method: 'GET', params: { uuid: ettn } },
+        { url: `${this.baseUrl}/InvoiceInbox/GetInvoiceDetailByUuid`, method: 'GET', params: { uuid: ettn, tenantIdentifierNumber: storeVkn } },
         { url: `${this.baseUrl}/InvoiceInbox/GetInvoice`, method: 'GET', params: { id: ettn } }
       ];
       

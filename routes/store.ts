@@ -4750,14 +4750,108 @@ router.get("/purchase-invoices/:id", async (req: any, res) => {
       return res.status(404).json({ error: "Invoice not found" });
     }
     
-    const itemsResult = await pool.query(
+    const invoice = invoiceResult.rows[0];
+    
+    let itemsResult = await pool.query(
       "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1",
       [req.params.id]
     );
     
-    const invoice = invoiceResult.rows[0];
-    invoice.items = itemsResult.rows;
+    let items = itemsResult.rows;
+
+    // On-the-fly sync of items for imported e-invoices with empty or placeholder lines
+    if (invoice.ettn && (!items || items.length === 0 || (items.length === 1 && (items[0].product_name === 'Bilinmeyen Ürün' || items[0].product_name === 'Bilinmeyen' || items[0].barcode?.startsWith('AUTO-') || items[0].product_name?.includes('ZZ-KUR') || items[0].product_name?.includes('FARKI'))))) {
+       try {
+         const service = await getEInvoiceService(invoice.store_id);
+         if (service) {
+           console.log(`[ON-THE-FLY-ITEMS-SYNC] Fetching details for invoice ETTN: ${invoice.ettn}`);
+           const details = await service.getInvoiceDetailsByUuid(invoice.ettn);
+           if (details) {
+              let rawLines = details.detailList || details.InvoiceLines || details.lines || details.InvoiceLine || details.Lines || details.invoiceLines || [];
+              if (rawLines && !Array.isArray(rawLines)) {
+                rawLines = [rawLines];
+              }
+              if (Array.isArray(rawLines) && rawLines.length > 0) {
+                 console.log(`[ON-THE-FLY-ITEMS-SYNC] Found ${rawLines.length} lines. Clearing old stale lines and rebuilding...`);
+                 
+                 // Clear old placeholder items
+                 await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [invoice.id]);
+                 
+                 for (const line of rawLines) {
+                   const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || 'Bilinmeyen Ürün';
+                   
+                   let extractedCodeObj = line.detailItem?.buyersItemIdentificationId || line.detailItem?.sellersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.detailItem?.sellersItemIdentification || line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.sellersItemIdentification || line.buyersItemIdentification;
+                   let productBarcodeCode = typeof extractedCodeObj === 'string' ? extractedCodeObj.trim() : (typeof extractedCodeObj === 'number' ? String(extractedCodeObj) : null);
+                   if (productBarcodeCode === '') productBarcodeCode = null;
+
+                   const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 1;
+                   const qty = Number(String(qtyRaw).replace(',', '.')) || 1;
+                   
+                   const upRaw = line.unitPrice || line.Price?.PriceAmount?.['#text'] || line.Price?.PriceAmount || line.Price || line.unitPrice || line.unit_price || 0;
+                   const up = Number(String(upRaw).replace(',', '.')) || 0;
+                   
+                   const trRaw = line.taxTotal?.taxSubtotalList?.[0]?.percent || line.TaxTotal?.TaxSubtotal?.Percent?.['#text'] || line.TaxTotal?.TaxSubtotal?.Percent || line.TaxRate || line.taxRate || line.tax_rate || 20;
+                   const tr = Number(String(trRaw).replace(',', '.')) || 20;
+                   
+                   const lineTotal = qty * up;
+                   const taxAmount = (lineTotal * tr) / 100;
+
+                   // Try to find matching product
+                   let prodMatch;
+                   if (productBarcodeCode) {
+                      prodMatch = await pool.query(
+                        "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3 OR barcode = $4)",
+                        [invoice.store_id, productName, productName, productBarcodeCode]
+                      );
+                   } else {
+                      prodMatch = await pool.query(
+                        "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3)",
+                        [invoice.store_id, productName, productName]
+                      );
+                   }
+                   
+                   let productId = prodMatch.rows.length > 0 ? prodMatch.rows[0].id : null;
+                   let finalBarcode = prodMatch.rows.length > 0 ? prodMatch.rows[0].barcode : productBarcodeCode;
+
+                   if (!productId) {
+                     finalBarcode = productBarcodeCode ? productBarcodeCode : `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                     const existingProd = await pool.query("SELECT id FROM products WHERE barcode = $1 AND store_id = $2", [finalBarcode, invoice.store_id]);
+                     if (existingProd.rows.length > 0) {
+                       productId = existingProd.rows[0].id;
+                     } else {
+                       const newProdRes = await pool.query(
+                         `INSERT INTO products 
+                          (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+                         [invoice.store_id, productName, finalBarcode, 0, up, tr, 0, invoice.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+                       );
+                       productId = newProdRes.rows[0].id;
+                     }
+                   }
+
+                   await pool.query(
+                     `INSERT INTO purchase_invoice_items 
+                      (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
+                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                     [invoice.id, productId, productName, finalBarcode, qty, up, tr, taxAmount, lineTotal]
+                   );
+                 }
+
+                 // Refetch items list
+                 const refetched = await pool.query(
+                   "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1",
+                   [invoice.id]
+                 );
+                 items = refetched.rows;
+              }
+           }
+         }
+       } catch (err: any) {
+         console.error("[ON-THE-FLY-ITEMS-SYNC] Failed to fetch: ", err.message);
+       }
+    }
     
+    invoice.items = items;
     res.json(invoice);
   } catch (e: any) {
     res.status(400).json({ error: e.message });
