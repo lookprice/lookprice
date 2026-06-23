@@ -107,6 +107,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   ];
 
   const FONT_OPTIONS = [
+    { id: 'Golos Text', name: 'Golos Text (Premium Swiss / Corporate)' },
+    { id: 'Montserrat', name: 'Montserrat (Swiss Modern Display)' },
     { id: 'Inter', name: 'Inter (Modern Sans-Serif)' },
     { id: 'Space Grotesk', name: 'Space Grotesk (Tech)' },
     { id: 'Playfair Display', name: 'Playfair Display (Zarif Klasik)' },

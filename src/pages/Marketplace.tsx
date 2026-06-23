@@ -404,10 +404,15 @@ export const Marketplace = () => {
     footer: "bg-slate-950 border-t border-slate-900 text-slate-400"
   };
 
-  const fontStyle = { fontFamily: "'Inter', sans-serif" };
+  const activeFontFamily = portalSettings?.font_family || "Golos Text";
+  const fontStyle = { 
+    fontFamily: activeFontFamily === "Inter" 
+      ? "'Golos Text', 'Inter', sans-serif" 
+      : `'${activeFontFamily}', sans-serif`
+  };
 
   const fontImports = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
   `;
 
   const orderedSections = (() => {

@@ -155,6 +155,26 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                 </button>
                 <button
                   onClick={() => {
+                    setShareVehicle(vehicle);
+                    setIsShareModalOpen(true);
+                  }}
+                  className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center active:scale-95"
+                  title="Paylaş"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setAutoContractVehicle(vehicle);
+                    setIsAutoContractOpen(true);
+                  }}
+                  className="p-2.5 bg-violet-50 text-violet-600 rounded-xl border border-violet-100 hover:bg-violet-100 transition-all flex items-center justify-center active:scale-95"
+                  title="Sözleşme Oluştur"
+                >
+                  <FileSignature className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
                     setFormData({
                       plate: vehicle.plate,
                       brand: vehicle.brand,

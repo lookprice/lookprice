@@ -26,7 +26,7 @@ export const SalesInvoiceStats: React.FC<SalesInvoiceStatsProps> = ({
         </div>
         <div>
           <p className="text-sm font-medium text-slate-500">{isTr ? "Hesaplanan Vergi" : "Calculated Tax"}</p>
-          <p className="text-2xl font-black text-slate-900">
+          <p className="text-2xl font-semibold text-slate-800">
             {totalCalculatedTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -38,7 +38,7 @@ export const SalesInvoiceStats: React.FC<SalesInvoiceStatsProps> = ({
         </div>
         <div>
           <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Satış Matrahı" : "Total Sales Subtotal"}</p>
-          <p className="text-2xl font-black text-slate-900">
+          <p className="text-2xl font-semibold text-slate-800">
             {totalSalesAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -50,7 +50,7 @@ export const SalesInvoiceStats: React.FC<SalesInvoiceStatsProps> = ({
         </div>
         <div>
           <p className="text-sm font-medium text-slate-500">{isTr ? "Toplam Genel Toplam" : "Total Grand Total"}</p>
-          <p className="text-2xl font-black text-slate-900">
+          <p className="text-2xl font-semibold text-slate-800">
             {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>

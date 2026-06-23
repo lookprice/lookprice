@@ -92,7 +92,7 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                         {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600 text-center">%{item.tax_rate}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-slate-900 text-right">
+                      <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
                         {(Number(item.total_price) + Number(item.tax_amount)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
                       </td>
                     </tr>
@@ -122,9 +122,9 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                   <span className="text-slate-500">{isTr ? 'KDV Toplam' : 'VAT Total'}</span>
                   <span className="font-medium">{Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                 </div>
-                <div className="flex justify-between text-lg font-bold border-t border-slate-200 pt-2">
+                <div className="flex justify-between text-lg font-semibold border-t border-slate-200 pt-2">
                   <span>{isTr ? 'Genel Toplam' : 'Grand Total'}</span>
-                  <span className="text-indigo-600">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
+                  <span className="text-indigo-600 font-semibold">{Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</span>
                 </div>
               </div>
             </div>

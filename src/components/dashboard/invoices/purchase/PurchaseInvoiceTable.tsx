@@ -154,7 +154,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                   <td className="p-4 text-xs text-slate-600 text-right font-medium">
                     {Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="p-4 text-xs font-bold text-slate-900 text-right">
+                  <td className="p-4 text-xs font-semibold text-slate-800 text-right">
                     {Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="p-4 text-xs text-slate-500 text-center font-bold">

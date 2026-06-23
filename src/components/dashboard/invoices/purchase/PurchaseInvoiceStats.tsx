@@ -27,8 +27,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
           <Percent className="h-6 w-6 text-indigo-600" />
         </div>
         <div>
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
-          <p className="text-xl font-black text-slate-900 tracking-tighter">
+          <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
+          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
             {totalDeductibleTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -39,8 +39,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
           <TrendingUp className="h-6 w-6 text-emerald-600" />
         </div>
         <div>
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
-          <p className="text-xl font-black text-slate-900 tracking-tighter">
+          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
+          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
             {totalPurchaseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -51,8 +51,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
           <CreditCard className="h-6 w-6 text-rose-600" />
         </div>
         <div>
-          <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{isTr ? "GİDERLER" : "EXPENSES"}</p>
-          <p className="text-xl font-black text-slate-900 tracking-tighter">
+          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">{isTr ? "GİDERLER" : "EXPENSES"}</p>
+          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
             {totalExpenseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
@@ -63,8 +63,8 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
           <Package className="h-6 w-6 text-white" />
         </div>
         <div>
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
-          <p className="text-xl font-black text-slate-900 tracking-tighter">
+          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
+          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
             {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>

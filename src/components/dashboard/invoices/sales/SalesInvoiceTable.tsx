@@ -218,21 +218,21 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                     <td className="px-3 py-4">
                       <div className="flex items-center gap-2">
                         {inv.company_id ? <Building2 className="h-3.5 w-3.5 text-indigo-500" /> : <UserIcon className="h-3.5 w-3.5 text-slate-400" />}
-                        <div className="text-sm font-bold text-slate-700">{inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}</div>
+                        <div className="text-sm font-medium text-slate-700">{inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}</div>
                       </div>
                     </td>
                     <td className="px-3 py-4 text-right">
-                      <div className="text-sm font-bold text-slate-700">
+                      <div className="text-sm font-medium text-slate-700">
                         {Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-3 py-4 text-right">
-                      <div className="text-sm font-bold text-slate-600">
+                      <div className="text-sm font-medium text-slate-600">
                         {Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-3 py-4 text-right">
-                      <div className="text-sm font-black text-slate-900">
+                      <div className="text-sm font-semibold text-slate-800">
                         {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>

@@ -294,7 +294,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
     // Render minimalist header on a single row Y
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.font = '900 24px \'Montserrat\', sans-serif';
     ctx.letterSpacing = '1px';
     const agentNameUpper = `👤 ${(property.responsible_agent || branding?.owner_name || 'DANIŞMAN').toUpperCase()}`;
     ctx.fillText(agentNameUpper, borderPadding + 50, borderPadding + 69);
@@ -315,7 +315,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
     // Contact number on the right side
     ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.font = '900 24px \'Montserrat\', sans-serif';
     ctx.textAlign = 'right';
     const contactTextUpper = `📞 ${property.consultant_phone || branding?.phone || branding?.whatsapp_number || 'YETKİLİ'}`;
     ctx.fillText(contactTextUpper, width - borderPadding - 50, borderPadding + 69);
@@ -464,7 +464,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillRect(borderPadding + 50, contentYStart, 160, 36);
 
       ctx.fillStyle = selectedTheme === 'luxury_dark' || selectedTheme === 'modern_indigo' ? '#000000' : '#ffffff';
-      ctx.font = 'bold 15px system-ui, sans-serif';
+      ctx.font = 'bold 15px \'Montserrat\', sans-serif';
       ctx.textAlign = 'center';
       const categoryLabel = (property.type === 'residence' ? 'KONUT' : property.type === 'commercial' ? 'TİCARİ' : 'ARSA');
       ctx.fillText(categoryLabel, borderPadding + 130, contentYStart + 24);
@@ -477,7 +477,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.strokeRect(borderPadding + 225, contentYStart, 260, 36);
 
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ffffff';
-      ctx.font = 'bold 14px system-ui, sans-serif';
+      ctx.font = 'bold 14px \'Golos Text\', sans-serif';
       ctx.fillText(`📍 ${propertyLocation.toUpperCase()} (${regionText.toUpperCase()})`, borderPadding + 245, contentYStart + 23);
 
       // Style and draw high resolution callout card for Story vertical ratio
@@ -491,7 +491,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         ctx.strokeRect(borderPadding + 50, cardY, width - (borderPadding * 2) - 100, cardH);
 
         ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ca8a04';
-        ctx.font = '900 16px system-ui, sans-serif';
+        ctx.font = '900 16px \'Montserrat\', sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText("KIBRIS'IN EN SEÇKİN PORTFÖY DEĞERLERİ İLE EŞSİZ YATIRIM FIRSATI!", width / 2, cardY + 46);
         ctx.textAlign = 'left';
@@ -519,17 +519,17 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
       // Price text overlay
       ctx.fillStyle = selectedTheme === 'minimal_carbon' ? '#09090b' : '#ffffff';
-      ctx.font = 'bold 15px system-ui, sans-serif';
+      ctx.font = 'bold 15px \'Montserrat\', sans-serif';
       ctx.letterSpacing = '1px';
       ctx.fillText(property.listing_intent === 'rent' ? "AYLIK KİRA BEDELİ" : "LİSTE SATIŞ BEDELİ", borderPadding + 80, priceBlockY + 40);
 
-      ctx.font = '900 45px system-ui, sans-serif';
+      ctx.font = '900 45px \'Montserrat\', sans-serif';
       ctx.fillText(priceText, borderPadding + 80, priceBlockY + 84);
 
       // Bullet features badges
       const specY = selectedRatio === 'square' ? priceBlockY - 45 : priceBlockY - 90;
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ffffff';
-      ctx.font = '800 21px system-ui, sans-serif';
+      ctx.font = '800 21px \'Golos Text\', sans-serif';
 
       let specString = ``;
       if (property.subtype) specString += `🏠 ${property.subtype}  •  `;
@@ -561,7 +561,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.stroke();
 
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-      ctx.font = '900 24px system-ui, sans-serif';
+      ctx.font = '900 24px \'Montserrat\', sans-serif';
       ctx.letterSpacing = '2px';
       ctx.textAlign = 'left';
       const rawStoreName = branding?.store_name || branding?.name || 'PREMIUM VIP EMLAK';
@@ -570,7 +570,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       
       ctx.textAlign = 'right';
       ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(69, 26, 3, 0.8)' : 'rgba(255, 255, 255, 0.7)';
-      ctx.font = '900 20px system-ui, sans-serif';
+      ctx.font = '900 20px \'Montserrat\', sans-serif';
       ctx.letterSpacing = '1px';
       ctx.fillText('ENRAKİPSİZ.COM', width - borderPadding - 50, footerY + 15);
       ctx.textAlign = 'left';

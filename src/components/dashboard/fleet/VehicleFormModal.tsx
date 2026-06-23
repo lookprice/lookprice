@@ -248,6 +248,20 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                     <option value="sold">{t.sold}</option>
                   </select>
                 </div>
+                <div className="space-y-1 flex flex-col justify-end pb-1">
+                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="is_on_enrakipsiz"
+                      checked={!!formData.is_on_enrakipsiz}
+                      onChange={(e) => setFormData({ ...formData, is_on_enrakipsiz: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <label htmlFor="is_on_enrakipsiz" className="text-xs font-bold text-indigo-950 cursor-pointer select-none">
+                      EnRakipsiz.com'da Yayınla
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
