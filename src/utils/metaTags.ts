@@ -10,6 +10,16 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
     const host = req.get('host') || "";
     const normalizedHost = host.startsWith("www.") ? host.substring(4) : host;
 
+    // Portal SEO Handling
+    if (normalizedHost === "enrakipsiz.com") {
+      return `
+        <title>EnRakipsiz | KKTC'nin En Büyük Portföy Portalı</title>
+        <meta name="description" content="KKTC'nin en geniş emlak, araç ve ürün portföyüne enrakipsiz.com ile ulaşın." />
+        <meta property="og:title" content="EnRakipsiz | KKTC'nin En Büyük Portföy Portalı" />
+        <meta property="og:description" content="KKTC'nin en geniş emlak, araç ve ürün portföyüne enrakipsiz.com ile ulaşın." />
+      `;
+    }
+
     // Determine store based on URL slug or Custom Domain
     if (sMatch) {
       const slug = sMatch[1];
@@ -279,24 +289,41 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
         }
       }
     } else {
-      // 4. Default Store Homepage / Portfolio Meta Tags (Targeting "Rodel Investment", "Rodel Emlak", "Kıbrıs", etc.)
+      // 4. Default Store Homepage / Portfolio Meta Tags
+      const sector = metaSettings.sector || 'general';
       const isRealEstate = store.name.toLowerCase().includes("emlak") || 
                            store.name.toLowerCase().includes("investment") || 
                            store.name.toLowerCase().includes("gayrimenkul") || 
                            store.name.toLowerCase().includes("portfolio") || 
-                           metaSettings.sector === "real_estate";
+                           sector === "real_estate";
       
-      const defaultKeywords = isRealEstate
-        ? `${store.name}, rodel investment, rodel emlak, rodel investment kıbrıs, kıbrıs emlak, kıbrıs satılık villa, kıbrıs kiralık daire, girne emlak, kktc satılık ev, girne satılık villa, kktc investment, kıbrıs gayrimenkul`
-        : `${store.name}, ecommerce, online pos, sales`;
+      const isAutomotive = store.name.toLowerCase().includes("oto") || 
+                           store.name.toLowerCase().includes("galeri") ||
+                           sector === "automotive";
 
-      const storeDesc = store.description || `${store.name} - Professional Real Estate and investment services in Northern Cyprus. Find luxury villas, apartments, and land for sale in Girne, Lefkoşa and İskele.`;
+      let defaultTitle = `${store.name}`;
+      let defaultDesc = store.description || `${store.name} hizmetleri.`;
+      let defaultKeywords = `${store.name}, ecommerce, online store`;
+
+      if (isRealEstate) {
+        defaultTitle += ` | ${store.hero_title || 'KKTC Real Estate & Properties'}`;
+        defaultDesc = store.description || `${store.name} - Professional Real Estate and investment services in Northern Cyprus. Find luxury villas, apartments, and land for sale in Girne, Lefkoşa and İskele.`;
+        defaultKeywords = `${store.name}, rodel investment, rodel emlak, kıbrıs emlak, kıbrıs satılık villa, kıbrıs kiralık daire, girne emlak, kktc satılık ev, girne satılık villa, kktc investment, kıbrıs gayrimenkul`;
+      } else if (isAutomotive) {
+        defaultTitle += ` | ${store.hero_title || 'KKTC Automotive & Vehicles'}`;
+        defaultDesc = store.description || `${store.name} - Professional automotive services in Northern Cyprus. Find reliable cars, vehicles for sale, and automotive solutions.`;
+        defaultKeywords = `${store.name}, kıbrıs oto, kktc araba, satılık araba kıbrıs, ikinci el araba, oto galeri, kıbrıs araç`;
+      } else {
+        defaultTitle += ` | ${store.hero_title || 'Online Store'}`;
+        defaultDesc = store.description || `${store.name} - Quality products and shopping services.`;
+        defaultKeywords = `${store.name}, ecommerce, online shop, quality products, alışveriş`;
+      }
 
       const storeSchema = {
         "@context": "https://schema.org",
-        "@type": isRealEstate ? "RealEstateAgent" : "LocalBusiness",
+        "@type": isRealEstate ? "RealEstateAgent" : (isAutomotive ? "AutomotiveBusiness" : "LocalBusiness"),
         "name": store.name,
-        "description": storeDesc,
+        "description": defaultDesc,
         "url": storeUrl,
         "logo": store.logo_url || undefined,
         "image": store.logo_url || undefined,
@@ -309,22 +336,22 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
 
       tags += `
         <!-- Custom Storefront SEO Meta Tags -->
-        <title>${store.name} | ${store.hero_title || 'KKTC Real Estate & Properties'}</title>
-        <meta name="description" content="${storeDesc.substring(0, 160)}" />
+        <title>${defaultTitle}</title>
+        <meta name="description" content="${defaultDesc.substring(0, 160)}" />
         <meta name="keywords" content="${defaultKeywords}" />
         <meta name="robots" content="index, follow" />
 
         <!-- Open Graph / Meta Commerce -->
         <meta property="og:type" content="website" />
         <meta property="og:url" content="${storeUrl}" />
-        <meta property="og:title" content="${store.name} | ${store.hero_title || 'KKTC Real Estate & Properties'}" />
-        <meta property="og:description" content="${storeDesc.substring(0, 160)}" />
+        <meta property="og:title" content="${defaultTitle}" />
+        <meta property="og:description" content="${defaultDesc.substring(0, 160)}" />
         ${store.logo_url ? `<meta property="og:image" content="${store.logo_url}" />` : ''}
 
         <!-- Twitter -->
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="${store.name}" />
-        <meta name="twitter:description" content="${storeDesc.substring(0, 160)}" />
+        <meta name="twitter:title" content="${defaultTitle}" />
+        <meta name="twitter:description" content="${defaultDesc.substring(0, 160)}" />
         ${store.logo_url ? `<meta name="twitter:image" content="${store.logo_url}" />` : ''}
 
         <!-- Local Business Schema -->

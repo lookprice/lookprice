@@ -275,6 +275,49 @@ function sanitizeFilename(originalName: string): string {
         });
       };
 
+      // Portal Sitemap Handling
+      if (host === "enrakipsiz.com" || host === "www.enrakipsiz.com") {
+        const storeBaseUrl = `${protocol}://${host}`;
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${escapeXml(storeBaseUrl)}/</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>\n`;
+
+        // Vehicles
+        const vehiclesRes = await pool.query(
+          "SELECT id, updated_at FROM vehicles WHERE is_on_enrakipsiz = true AND status <> 'sold'"
+        );
+        vehiclesRes.rows.forEach((v: any) => {
+          xml += `  <url>
+    <loc>${escapeXml(`${storeBaseUrl}/p/v_${v.id}`)}</loc>
+    <lastmod>${v.updated_at ? new Date(v.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>\n`;
+        });
+
+        // Real estates
+        const realEstateRes = await pool.query(
+          "SELECT id, updated_at FROM real_estate_properties WHERE is_on_enrakipsiz = true AND status <> 'sold'"
+        );
+        realEstateRes.rows.forEach((r: any) => {
+          xml += `  <url>
+    <loc>${escapeXml(`${storeBaseUrl}/p/re_${r.id}`)}</loc>
+    <lastmod>${r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>\n`;
+        });
+
+        xml += `</urlset>`;
+        res.header('Content-Type', 'application/xml; charset=utf-8');
+        return res.send(xml);
+      }
+
       // Smart check: If this request comes from a custom store domain (not the main platform domains)
       const isPlatformHost = host === "lookprice.net" || 
                              host === "www.lookprice.net" || 
