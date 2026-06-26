@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, FileText, Calendar, CheckCircle2, ShieldCheck, Upload } from 'lucide-react';
+import { X, FileText, Calendar, CheckCircle2, ShieldCheck, Upload, Trash2 } from 'lucide-react';
 import { Vehicle } from '../../../types';
+import { MultiImageUploader } from '../../MultiImageUploader';
 
 interface DocumentFormModalProps {
   isOpen: boolean;
@@ -120,6 +121,55 @@ export const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
                 />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+                  {isTr ? 'Evrak Belgesi / Görseli (Canlı Foto / Dosya)' : 'Document Attachment (Live Photo / File)'}
+                </label>
+                {formData.document_url ? (
+                  <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100 overflow-hidden">
+                        {formData.document_url.match(/\.(jpeg|jpg|gif|png|webp)/i) ? (
+                          <img src={formData.document_url} alt="Evrak" className="w-full h-full object-cover" />
+                        ) : (
+                          <FileText className="w-6 h-6 text-indigo-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">{isTr ? 'Belge Yüklendi' : 'Document Attached'}</p>
+                        <a 
+                          href={formData.document_url} 
+                          target="_blank" 
+                          referrerPolicy="no-referrer"
+                          rel="noreferrer" 
+                          className="text-[10px] font-semibold text-blue-600 hover:underline"
+                        >
+                          {isTr ? 'Görüntüle' : 'View Document'}
+                        </a>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, document_url: '' })}
+                      className="p-2 text-rose-500 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-xl transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                    <MultiImageUploader
+                      lang={lang}
+                      onImagesUploaded={(urls) => {
+                        if (urls.length > 0) {
+                          setFormData({ ...formData, document_url: urls[0] });
+                        }
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

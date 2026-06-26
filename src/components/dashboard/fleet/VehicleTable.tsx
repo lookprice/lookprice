@@ -175,6 +175,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                 </button>
                 <button
                   onClick={() => {
+                    setSelectedVehicle(vehicle);
                     setFormData({
                       plate: vehicle.plate,
                       brand: vehicle.brand,

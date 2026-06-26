@@ -737,6 +737,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
             <button
               onClick={() => {
                 setEditingVehicle(null);
+                setSelectedVehicle(null);
                 setFormData({
                   plate: '', brand: '', model: '', year: new Date().getFullYear(),
                   type: 'company', chassis_number: '', engine_number: '',
@@ -802,7 +803,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
 
       <VehicleFormModal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setSelectedVehicle(null);
+        }}
         selectedVehicle={selectedVehicle}
         formData={formData}
         setFormData={setFormData}

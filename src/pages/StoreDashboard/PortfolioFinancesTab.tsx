@@ -21,20 +21,46 @@ import {
 import { useLanguage } from "../../contexts/LanguageContext";
 import { usePortfolioFinances, PortfolioTransaction } from "../../hooks/usePortfolioFinances";
 import { useRealEstate } from "../../hooks/useRealEstate";
+import { api } from "../../services/api";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from "recharts";
 
 interface PortfolioFinancesTabProps {
   storeId: number;
+  isAutomotive?: boolean;
+  isRealEstate?: boolean;
 }
 
-export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabProps) {
+export default function PortfolioFinancesTab({ 
+  storeId, 
+  isAutomotive = false, 
+  isRealEstate = false 
+}: PortfolioFinancesTabProps) {
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
 
+  const activeAutomotive = isAutomotive;
+  const activeRealEstate = isRealEstate || (!isAutomotive && !isRealEstate);
+
   const { properties, loading: loadingProperties } = useRealEstate(storeId);
   const { transactions, loading: loadingFinances, addTransaction, deleteTransaction } = usePortfolioFinances(storeId);
+
+  // Vehicles for automotive finances
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+
+  useEffect(() => {
+    if (activeAutomotive) {
+      setLoadingVehicles(true);
+      api.getVehicles(storeId)
+        .then(res => {
+          setVehicles(Array.isArray(res) ? res : []);
+        })
+        .catch(err => console.error("Error fetching vehicles for finances:", err))
+        .finally(() => setLoadingVehicles(false));
+    }
+  }, [storeId, activeAutomotive]);
 
   // States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -42,43 +68,85 @@ export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabPr
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currencyFilter, setCurrencyFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [portfolioSearch, setPortfolioSearch] = useState("");
 
   // Form State
   const [formData, setFormData] = useState({
     type: "income" as "income" | "expense",
-    category: "commission",
+    category: activeAutomotive ? "car_sales" : "commission",
     title: "",
     amount: "",
-    currency: "GBP", // Default to GBP since Cyprus properties are heavily GBP-based
+    currency: activeAutomotive ? "TRY" : "GBP", // Default GBP for Cyprus properties, TRY for Cyprus/Turkish autos by default
     date: new Date().toISOString().split("T")[0],
     property_id: "" as string | number,
     description: ""
   });
 
   const categories = {
-    income: [
-      { id: "commission", label: isTr ? "Emlak Satış Komisyonu" : "Real Estate Sales Commission" },
-      { id: "rental_placement", label: isTr ? "Kiralama Hizmet Bedeli" : "Rental Placement Fee" },
-      { id: "consulting", label: isTr ? "Danışmanlık Hizmet Bedeli" : "Consulting Service Fee" },
-      { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
-    ],
-    expense: [
-      { id: "advertising", label: isTr ? "Portal İlan Ücretleri (Sahibinden vb.)" : "Listing Portal Fees" },
-      { id: "rent_utilities", label: isTr ? "Ofis Kirası & Faturalar" : "Office Rent & Utilities" },
-      { id: "agent_commission", label: isTr ? "Personel / Danışman Primi" : "Agent/Staff Commission" },
-      { id: "marketing", label: isTr ? "Tanıtım, Afiş & Tabela Gideri" : "Marketing, Banner & Printing" },
-      { id: "vehicle", label: isTr ? "Ulaşım, Taşıt & Yakıt Gideri" : "Transportation & Fuel" },
-      { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
-    ]
+    income: activeAutomotive 
+      ? [
+          { id: "car_sales", label: isTr ? "Araç Satış Geliri" : "Vehicle Sales Income" },
+          { id: "commission", label: isTr ? "Oto Satış Komisyonu" : "Vehicle Sales Commission" },
+          { id: "car_rental", label: isTr ? "Araç Kiralama Geliri" : "Car Rental Income" },
+          { id: "consulting", label: isTr ? "Ekspertiz & Danışmanlık" : "Appraisal & Consulting" },
+          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
+        ]
+      : [
+          { id: "commission", label: isTr ? "Emlak Satış Komisyonu" : "Real Estate Sales Commission" },
+          { id: "rental_placement", label: isTr ? "Kiralama Hizmet Bedeli" : "Rental Placement Fee" },
+          { id: "consulting", label: isTr ? "Danışmanlık Hizmet Bedeli" : "Consulting Service Fee" },
+          { id: "other", label: isTr ? "Diğer Gelirler" : "Other Income" }
+        ],
+    expense: activeAutomotive
+      ? [
+          { id: "car_purchase", label: isTr ? "Stok Araç Alım Bedeli" : "Vehicle Inventory Purchase" },
+          { id: "vehicle_maintenance", label: isTr ? "Araç Bakım, Onarım & Ekspertiz" : "Vehicle Maintenance & Appraisal" },
+          { id: "advertising", label: isTr ? "Portal İlan Ücretleri (Sahibinden vb.)" : "Listing Portal Fees" },
+          { id: "rent_utilities", label: isTr ? "Ofis/Galeri Kirası & Faturalar" : "Gallery Rent & Utilities" },
+          { id: "agent_commission", label: isTr ? "Satış Personeli Primi" : "Agent/Sales Commission" },
+          { id: "marketing", label: isTr ? "Reklam & Tanıtım Giderleri" : "Marketing & Printing" },
+          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
+        ]
+      : [
+          { id: "advertising", label: isTr ? "Portal İlan Ücretleri (Sahibinden vb.)" : "Listing Portal Fees" },
+          { id: "rent_utilities", label: isTr ? "Ofis Kirası & Faturalar" : "Office Rent & Utilities" },
+          { id: "agent_commission", label: isTr ? "Personel / Danışman Primi" : "Agent/Staff Commission" },
+          { id: "marketing", label: isTr ? "Tanıtım, Afiş & Tabela Gideri" : "Marketing, Banner & Printing" },
+          { id: "vehicle", label: isTr ? "Ulaşım, Taşıt & Yakıt Gideri" : "Transportation & Fuel" },
+          { id: "other", label: isTr ? "Diğer Giderler" : "Other Expenses" }
+        ]
   };
 
   // Auto-set category when type changes
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
-      category: prev.type === "income" ? "commission" : "advertising"
+      category: prev.type === "income" 
+        ? (activeAutomotive ? "car_sales" : "commission") 
+        : (activeAutomotive ? "car_purchase" : "advertising")
     }));
-  }, [formData.type]);
+  }, [formData.type, activeAutomotive]);
+
+  // Filter properties or vehicles based on portfolioSearch
+  const filteredPortfolioItems = (() => {
+    const searchLower = portfolioSearch.toLowerCase().trim();
+    if (activeAutomotive) {
+      if (!searchLower) return vehicles;
+      return vehicles.filter(v => 
+        (v.plate && v.plate.toLowerCase().includes(searchLower)) ||
+        (v.brand && v.brand.toLowerCase().includes(searchLower)) ||
+        (v.model && v.model.toLowerCase().includes(searchLower)) ||
+        (v.year && String(v.year).includes(searchLower))
+      );
+    } else {
+      if (!searchLower) return properties;
+      return properties.filter(p => 
+        (p.title && p.title.toLowerCase().includes(searchLower)) ||
+        (p.location && p.location.toLowerCase().includes(searchLower)) ||
+        (p.id && String(p.id).includes(searchLower))
+      );
+    }
+  })();
 
   // Handle Form Submit
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,12 +169,13 @@ export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabPr
       });
       toast.success(isTr ? "Finansal kayıt başarıyla eklendi." : "Financial record added successfully.");
       setShowAddModal(false);
+      setPortfolioSearch("");
       setFormData({
         type: "income",
-        category: "commission",
+        category: activeAutomotive ? "car_sales" : "commission",
         title: "",
         amount: "",
-        currency: "GBP",
+        currency: activeAutomotive ? "TRY" : "GBP",
         date: new Date().toISOString().split("T")[0],
         property_id: "",
         description: ""
@@ -669,21 +738,32 @@ export default function PortfolioFinancesTab({ storeId }: PortfolioFinancesTabPr
                   />
                 </div>
 
-                {/* Linked Real Estate Property Dropdown */}
+                {/* Linked Portfolio Item Search & Select */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center justify-between">
-                    <span>{isTr ? "İLİŞKİLİ EMLAK İLANI (İSTEĞE BAĞLI)" : "LINKED LISTING (OPTIONAL)"}</span>
-                    <span className="text-[9px] text-indigo-500 lowercase">komisyon takibi için</span>
+                    <span>{isTr ? `İLİŞKİLİ ${activeAutomotive ? 'ARAÇ' : 'İLAN'} (İSTEĞE BAĞLI)` : `LINKED ${activeAutomotive ? 'VEHICLE' : 'LISTING'} (OPTIONAL)`}</span>
                   </label>
+                  
+                  {/* Search Input for thousands of items */}
+                  <input
+                    type="text"
+                    placeholder={isTr ? "Portföyde ara (plaka, marka, model veya başlık)..." : "Search in portfolio..."}
+                    value={portfolioSearch}
+                    onChange={(e) => setPortfolioSearch(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl font-medium text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 mb-2"
+                  />
+
                   <select
                     value={formData.property_id}
                     onChange={(e) => setFormData(p => ({ ...p, property_id: e.target.value }))}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl font-semibold text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   >
-                    <option value="">{isTr ? "İlişkili İlan Yok" : "No Linked Listing"}</option>
-                    {properties.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.title} ({Math.round(Number(p.price) || 0).toLocaleString('tr-TR')} {p.currency})
+                    <option value="">{isTr ? "İlişkili Portföy Yok" : "No Linked Item"}</option>
+                    {filteredPortfolioItems.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {activeAutomotive 
+                          ? `${item.plate} - ${item.brand} ${item.model} (${item.year})` 
+                          : `${item.title} (${Math.round(Number(item.price) || 0).toLocaleString('tr-TR')} ${item.currency})`}
                       </option>
                     ))}
                   </select>

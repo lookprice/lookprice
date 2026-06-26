@@ -715,9 +715,11 @@ router.get('/transactions', authenticate, async (req: any, res) => {
 const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
   try {
     const result = await pool.query(
-      `SELECT t.*, p.title as property_title 
+      `SELECT t.*, 
+              COALESCE(p.title, CONCAT(v.plate, ' - ', v.brand, ' ', v.model)) as property_title 
        FROM portfolio_transactions t
        LEFT JOIN real_estate_properties p ON t.property_id = p.id
+       LEFT JOIN vehicles v ON t.property_id = v.id
        WHERE t.store_id = $1
        ORDER BY t.date DESC, t.id DESC`,
       [storeId]
