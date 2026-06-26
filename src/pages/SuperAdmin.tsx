@@ -31,7 +31,10 @@ import {
   EyeOff,
   Palette,
   Type,
-  Layout
+  Layout,
+  Globe,
+  Award,
+  GripVertical
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from "motion/react";
@@ -40,6 +43,101 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import { DEVELOPED_COUNTRIES } from "../constants";
 import ErrorBoundary from "../components/ErrorBoundary";
+
+interface StoreFeaturedRowProps {
+  store: any;
+  onSave: (id: number, isFeatured: boolean, order: number, title: string) => void;
+  isSaving: boolean;
+}
+
+const StoreFeaturedRow: React.FC<StoreFeaturedRowProps> = ({ store, onSave, isSaving }) => {
+  const [isFeatured, setIsFeatured] = useState(!!store.is_enrakipsiz_featured);
+  const [order, setOrder] = useState(store.enrakipsiz_featured_order || 0);
+  const [title, setTitle] = useState(store.enrakipsiz_featured_title || "");
+
+  useEffect(() => {
+    setIsFeatured(!!store.is_enrakipsiz_featured);
+    setOrder(store.enrakipsiz_featured_order || 0);
+    setTitle(store.enrakipsiz_featured_title || "");
+  }, [store]);
+
+  return (
+    <div className={`p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+      isFeatured ? 'bg-amber-50/20 border-amber-200/60 shadow-[0_2px_8px_rgba(245,158,11,0.04)]' : 'bg-white border-gray-150'
+    }`}>
+      <div className="flex items-center gap-3 min-w-[200px] max-w-sm">
+        {store.logo_url ? (
+          <img src={store.logo_url} alt={store.name} className="h-10 w-10 object-contain rounded-lg border bg-white p-0.5" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="h-10 w-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-xs">
+            {store.name ? store.name.substring(0,2).toUpperCase() : 'MA'}
+          </div>
+        )}
+        <div>
+          <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+            {store.name}
+            {isFeatured && <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5">⭐ SPONSOR</span>}
+          </h4>
+          <span className="text-[10px] text-slate-400 font-mono">@{store.slug}</span>
+        </div>
+      </div>
+
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Toggle Switch */}
+        <div className="flex items-center gap-2">
+          <input 
+            type="checkbox" 
+            id={`feat-${store.id}`}
+            checked={isFeatured}
+            onChange={(e) => setIsFeatured(e.target.checked)}
+            className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 cursor-pointer"
+          />
+          <label htmlFor={`feat-${store.id}`} className="text-xs font-bold text-slate-600 cursor-pointer select-none">
+            Vitrin Sponsoru Yap
+          </label>
+        </div>
+
+        {/* Custom Title Slogan */}
+        <div>
+          <input 
+            type="text"
+            placeholder="Örn: KKTC Emlak & Yatırım Lideri"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={!isFeatured}
+            className="w-full p-2 border border-gray-200 rounded-xl text-xs disabled:bg-gray-50 disabled:text-gray-400 font-medium"
+          />
+        </div>
+
+        {/* Sort Order */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-gray-400 uppercase">Sıra:</span>
+          <input 
+            type="number"
+            value={order}
+            onChange={(e) => setOrder(parseInt(e.target.value) || 0)}
+            disabled={!isFeatured}
+            className="w-20 p-2 border border-gray-200 rounded-xl text-xs font-mono disabled:bg-gray-50 disabled:text-gray-400"
+          />
+        </div>
+      </div>
+
+      <div className="shrink-0">
+        <button
+          onClick={() => onSave(store.id, isFeatured, order, title)}
+          disabled={isSaving}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 w-full md:w-auto justify-center ${
+            isFeatured 
+              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' 
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          {isSaving ? "..." : "Güncelle"}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface SuperAdminDashboardProps {
   token: string;
@@ -85,10 +183,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     theme_style: "dark_gold",
     font_family: "Inter",
     layout_sections: "[\"hero\",\"announcement\",\"sponsors\",\"vehicles\",\"properties\"]",
-    custom_css: ""
+    custom_css: "",
+    seo_title: "",
+    seo_description: "",
+    seo_keywords: "",
+    google_analytics_id: "",
+    google_tag_manager_id: "",
+    google_search_console_id: ""
   });
   const [enrakipsizSlides, setEnrakipsizSlides] = useState<any[]>([]);
   const [enrakipsizAds, setEnrakipsizAds] = useState<any[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [loadingEnrakipsiz, setLoadingEnrakipsiz] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   
@@ -97,6 +203,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [editingAd, setEditingAd] = useState<any | null>(null);
   const [showSlideModal, setShowSlideModal] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
+  const [featuredSearchTerm, setFeaturedSearchTerm] = useState("");
+  const [showOnlySponsors, setShowOnlySponsors] = useState(false);
 
   const THEME_OPTIONS = [
     { id: 'dark_gold', name: '👑 Noble Gold / Siyah & Amber', description: 'Geleneksel Enrakipsiz tonları; asil altın ve zengin amber dokusu' },
@@ -164,6 +272,22 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     updateSections(list);
   };
 
+  const handleDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIdx) return;
+    const list = getParsedSections();
+    const draggedItem = list[draggedIndex];
+    const remainingItems = list.filter((_, i) => i !== draggedIndex);
+    const updated = [
+      ...remainingItems.slice(0, targetIdx),
+      draggedItem,
+      ...remainingItems.slice(targetIdx)
+    ];
+    updateSections(updated);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   const toggleSectionEnabled = (id: string) => {
     const list = getParsedSections().map(item => {
       if (item.id === id) {
@@ -180,8 +304,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       const res = await api.getEnrakipsizSettings();
       if (res && !res.error) {
         setEnrakipsizSettings(res.settings || {
-          portal_title: "Göz Alıcı İhtişam, Mühendislik Harikası",
-          portal_description: "Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.",
+          portal_title: "Seçkin Mağazalardan Rakipsiz Teklifler & İlanlar",
+          portal_description: "Oto galeri, emlak ofisleri ve premium e-ticaret markalarının en güncel, doğrulanmış ilanlarını tek bir ekranda canlı olarak inceleyin.",
           announcement: "Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.",
           primary_color: "#ea580c",
           footer_text: "© 2026 Enrakipsiz.com. Tüm hakları saklıdır.",
@@ -189,7 +313,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           theme_style: "dark_gold",
           font_family: "Inter",
           layout_sections: "[\"hero\",\"announcement\",\"sponsors\",\"vehicles\",\"properties\"]",
-          custom_css: ""
+          custom_css: "",
+          seo_title: "",
+          seo_description: "",
+          seo_keywords: "",
+          google_analytics_id: "",
+          google_tag_manager_id: "",
+          google_search_console_id: ""
         });
         setEnrakipsizSlides(res.slides || []);
         setEnrakipsizAds(res.ads || []);
@@ -222,6 +352,32 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       alert("Hata oluştu");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const [savingFeaturedStoreId, setSavingFeaturedStoreId] = useState<number | null>(null);
+
+  const handleSaveStoreFeatured = async (storeId: number, isFeatured: boolean, order: number, title: string) => {
+    try {
+      setSavingFeaturedStoreId(storeId);
+      const res = await api.updateStoreEnrakipsizFeatured(storeId, {
+        is_enrakipsiz_featured: isFeatured,
+        enrakipsiz_featured_order: order,
+        enrakipsiz_featured_title: title
+      });
+      if (res && !res.error) {
+        // Refresh stores list
+        const updatedStores = await api.getStores();
+        setStores(updatedStores);
+        alert(lang === 'tr' ? "Mağaza sponsor vitrin ayarları başarıyla kaydedildi!" : "Store sponsor showcase settings saved successfully!");
+      } else {
+        alert("Hata: " + (res?.error || "Ayarlar güncellenemedi."));
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Hata: " + err.message);
+    } finally {
+      setSavingFeaturedStoreId(null);
     }
   };
 
@@ -346,7 +502,14 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     plan: "free" as const,
     parent_id: "" as string | number,
     store_type: "product" as "product" | "real_estate" | "motor_vehicle",
-    sub_sector: undefined as 'car' | 'motorcycle' | 'marine' | 'construction' | 'agricultural' | 'other' | undefined
+    sub_sector: undefined as 'car' | 'motorcycle' | 'marine' | 'construction' | 'agricultural' | 'other' | undefined,
+    status: "approved",
+    is_approved: true,
+    max_products: 100,
+    max_properties: 20,
+    max_vehicles: 20,
+    max_users: 5,
+    max_customers: 50
   });
 
   const planLimits = {
@@ -422,7 +585,14 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
         plan: "free",
         parent_id: "",
         store_type: "product",
-        sub_sector: undefined
+        sub_sector: undefined,
+        status: "approved",
+        is_approved: true,
+        max_products: 100,
+        max_properties: 20,
+        max_vehicles: 20,
+        max_users: 5,
+        max_customers: 50
       });
       fetchData();
     } catch (error) {
@@ -598,7 +768,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                       className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
                       value={enrakipsizSettings.portal_title || ""}
                       onChange={e => setEnrakipsizSettings({...enrakipsizSettings, portal_title: e.target.value})}
-                      placeholder="Göz Alıcı İhtişam, Mühendislik Harikası"
+                      placeholder="Seçkin Mağazalardan Rakipsiz Teklifler & İlanlar"
                     />
                   </div>
 
@@ -667,70 +837,179 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
 
                   {/* INTERAKTİF REORDERING GRIDS */}
                   <div className="border-t pt-4 mt-6">
-                    <h4 className="text-xs font-black text-slate-850 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <Layout className="h-4 w-4 text-indigo-500" /> Amiral Gemisi Kaptan Izgarası
+                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Layout className="h-4 w-4 text-indigo-500 animate-pulse" /> 5. Sürükle-Bırak Portal Sayfa Düzeni (Layout Builder)
                     </h4>
-                    <p className="text-[10px] text-gray-400 mb-3 italic">
-                      Modülleri yukarı/aşağı taşıyarak sitenizin hiyerarşisini anında yönlendirebilirsiniz. Göz ikonu ile modülü gizleyin/gösterin.
+                    <p className="text-[10px] text-gray-500 mb-3 leading-relaxed">
+                      Portaldaki modüllerin yerleşim sırasını <strong>sürükleyip bırakarak</strong> veya yön butonlarıyla serbestçe değiştirebilirsiniz. Göz ikonu ile modülü gizleyin/gösterin.
                     </p>
 
-                    <div className="space-y-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                    <div className="space-y-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
                       {(() => {
-                        const sectionLabels: { [key: string]: string } = {
-                          hero: "✨ Lüks Slayt Gösterisi & Arama",
-                          announcement: "📣 Finans & Takas Duyuru Barı",
-                          sponsors: "🏆 Sponsor Network Reklamları",
-                          vehicles: "🚗 Premium Otomobil Vitrini",
-                          properties: "🏡 Seçkin Gayrimenkul Vitrini"
+                        const sectionLabels: { [key: string]: { title: string; desc: string } } = {
+                          hero: { title: "✨ Lüks Slayt Gösterisi & Arama", desc: "Hero slider, arama motoru, ilan filtreleri" },
+                          announcement: { title: "📣 Finans & Takas Duyuru Barı", desc: "Kredi oranları ve takas ilanları şeridi" },
+                          sponsors: { title: "🏆 Sponsor Network Reklamları", desc: "Seçkin mağaza logoları ve ortaklık kartları" },
+                          vehicles: { title: "🚗 Premium Otomobil Vitrini", desc: "Vasıta ilanları, marka logoları ve vitrin" },
+                          properties: { title: "🏡 Seçkin Gayrimenkul Vitrini", desc: "Emlak ilanları, harita ve portföy vitrini" }
                         };
                         return getParsedSections().map((sec, idx, arr) => {
-                          const label = sectionLabels[sec.id] || sec.id;
+                          const info = sectionLabels[sec.id] || { title: sec.id, desc: "" };
+                          const isDragged = draggedIndex === idx;
+                          const isDragOver = dragOverIndex === idx;
                           return (
                             <div 
                               key={sec.id} 
-                              className={`flex items-center justify-between p-2 rounded-xl border text-[11px] font-semibold transition-all ${
-                                sec.enabled 
-                                  ? "bg-white border-slate-200 text-slate-700 shadow-sm" 
+                              draggable="true"
+                              onDragStart={(e) => {
+                                setDraggedIndex(idx);
+                                e.dataTransfer.effectAllowed = "move";
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                if (dragOverIndex !== idx) setDragOverIndex(idx);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedIndex(null);
+                                setDragOverIndex(null);
+                              }}
+                              onDrop={(e) => handleDrop(e, idx)}
+                              className={`flex items-center justify-between p-3 rounded-xl border text-[11px] font-semibold transition-all duration-200 select-none ${
+                                isDragged 
+                                  ? "opacity-30 border-dashed border-indigo-400 bg-indigo-50/20 scale-95" 
+                                  : isDragOver
+                                  ? "border-t-2 border-t-indigo-600 bg-indigo-50/10 scale-[1.01] shadow-md"
+                                  : sec.enabled 
+                                  ? "bg-white border-slate-200 text-slate-700 shadow-sm hover:border-slate-300" 
                                   : "bg-slate-100 border-slate-200 text-slate-400 line-through"
                               }`}
                             >
-                              <span className="truncate pr-2">{label}</span>
-                              <div className="flex items-center gap-1 shrink-0">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <div className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-650 transition-colors shrink-0" title="Sürükle">
+                                  <GripVertical className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="block truncate font-bold text-slate-800">{info.title}</span>
+                                  {info.desc && (
+                                    <span className={`block text-[9px] font-medium leading-tight mt-0.5 ${sec.enabled ? "text-slate-400" : "text-slate-400"}`}>
+                                      {info.desc}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 ml-2">
                                 <button
                                   type="button"
                                   disabled={idx === 0}
                                   onClick={() => moveSection(idx, 'up')}
-                                  className="p-1 hover:bg-slate-100 rounded text-slate-650 disabled:opacity-20"
+                                  className="p-1 hover:bg-slate-100 rounded text-slate-650 disabled:opacity-20 transition-colors"
                                   title="Yukarı Taşı"
                                 >
-                                  <ChevronUp className="h-3 w-3" />
+                                  <ChevronUp className="h-3.5 w-3.5" />
                                 </button>
                                 <button
                                   type="button"
                                   disabled={idx === arr.length - 1}
                                   onClick={() => moveSection(idx, 'down')}
-                                  className="p-1 hover:bg-slate-100 rounded text-slate-650 disabled:opacity-20"
+                                  className="p-1 hover:bg-slate-100 rounded text-slate-650 disabled:opacity-20 transition-colors"
                                   title="Aşağı Taşı"
                                 >
-                                  <ChevronDown className="h-3 w-3" />
+                                  <ChevronDown className="h-3.5 w-3.5" />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => toggleSectionEnabled(sec.id)}
-                                  className={`p-1 rounded ${
+                                  className={`p-1 rounded transition-colors ${
                                     sec.enabled 
                                       ? "bg-slate-100 text-slate-700 hover:bg-slate-200" 
                                       : "bg-rose-50 text-rose-500 hover:bg-rose-100"
                                   }`}
                                   title={sec.enabled ? "Gizle" : "Göster"}
                                 >
-                                  {sec.enabled ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                  {sec.enabled ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                                 </button>
                               </div>
                             </div>
                           );
                         });
                       })()}
+                    </div>
+                  </div>
+
+                  {/* SEO & GOOGLE ANALYTICS AYARLARI */}
+                  <div className="border-t pt-4 mt-6 space-y-4">
+                    <h4 className="text-xs font-black text-slate-850 uppercase tracking-wider flex items-center gap-1.5 text-emerald-600">
+                      <Globe className="h-4 w-4" /> SEO & Google Analytics Kaptan Köşkü
+                    </h4>
+                    <p className="text-[10px] text-gray-400 italic">
+                      enrakipsiz.com için Google arama motoru optimizasyonunu, anahtar kelimeleri ve analytics izleme kodlarını buradan yönetin.
+                    </p>
+
+                    <div>
+                      <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">SEO Sayfa Başlığı (Meta Title)</label>
+                      <input 
+                        type="text" 
+                        className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                        value={enrakipsizSettings.seo_title || ""}
+                        onChange={e => setEnrakipsizSettings({...enrakipsizSettings, seo_title: e.target.value})}
+                        placeholder="Örn: EnRakipsiz | KKTC'nin En Büyük Portföy Portalı"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">SEO Sayfa Açıklaması (Meta Description)</label>
+                      <textarea 
+                        className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs h-20"
+                        value={enrakipsizSettings.seo_description || ""}
+                        onChange={e => setEnrakipsizSettings({...enrakipsizSettings, seo_description: e.target.value})}
+                        placeholder="Örn: KKTC'nin en seçkin emlak yalı ve lüks vasıta ilanları..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">SEO Anahtar Kelimeler (Meta Keywords)</label>
+                      <input 
+                        type="text" 
+                        className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                        value={enrakipsizSettings.seo_keywords || ""}
+                        onChange={e => setEnrakipsizSettings({...enrakipsizSettings, seo_keywords: e.target.value})}
+                        placeholder="Örn: kktc emlak, satilik araba, luks yali"
+                      />
+                    </div>
+
+                    <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 space-y-3">
+                      <div>
+                        <label className="block text-[9px] font-bold text-emerald-700 uppercase mb-1">Google Analytics ID</label>
+                        <input 
+                          type="text" 
+                          className="w-full p-2 bg-white border border-emerald-200 rounded-lg text-xs font-mono"
+                          value={enrakipsizSettings.google_analytics_id || ""}
+                          onChange={e => setEnrakipsizSettings({...enrakipsizSettings, google_analytics_id: e.target.value})}
+                          placeholder="G-XXXXXXXXXX"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-bold text-emerald-700 uppercase mb-1">Google Tag Manager ID</label>
+                        <input 
+                          type="text" 
+                          className="w-full p-2 bg-white border border-emerald-200 rounded-lg text-xs font-mono"
+                          value={enrakipsizSettings.google_tag_manager_id || ""}
+                          onChange={e => setEnrakipsizSettings({...enrakipsizSettings, google_tag_manager_id: e.target.value})}
+                          placeholder="GTM-XXXXXX"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-bold text-emerald-700 uppercase mb-1">Google Search Console Verification ID</label>
+                        <input 
+                          type="text" 
+                          className="w-full p-2 bg-white border border-emerald-200 rounded-lg text-xs font-mono"
+                          value={enrakipsizSettings.google_search_console_id || ""}
+                          onChange={e => setEnrakipsizSettings({...enrakipsizSettings, google_search_console_id: e.target.value})}
+                          placeholder="google-site-verification token..."
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -919,6 +1198,78 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                       </div>
                     ))
                   )}
+                </div>
+              </div>
+
+              {/* FEATURED SPONSOR STORES MANAGEMENT (5. MADDE) */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+                  <div>
+                    <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+                      <Award className="h-5 w-5 text-amber-500" /> Mağaza Vitrini & Sponsor Ortaklar (Showcase)
+                    </h3>
+                    <p className="text-[10px] text-gray-450 font-semibold mt-0.5">
+                      enrakipsiz.com portalı anasayfasında sergilenecek prestijli sponsor mağazaları, özel unvanlarını ve sıralamalarını belirleyin
+                    </p>
+                  </div>
+                  
+                  {/* Search and Filter Tools */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                      <input 
+                        type="text"
+                        placeholder="Mağaza ara..."
+                        value={featuredSearchTerm}
+                        onChange={(e) => setFeaturedSearchTerm(e.target.value)}
+                        className="pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs w-44 focus:bg-white transition-all font-medium"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setShowOnlySponsors(!showOnlySponsors)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                        showOnlySponsors 
+                          ? 'bg-amber-100 border-amber-300 text-amber-800' 
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {showOnlySponsors ? "Sadece Sponsorlar" : "Tümünü Göster"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                  {(() => {
+                    const filtered = stores.filter(store => {
+                      const matchesSearch = store.name?.toLowerCase().includes(featuredSearchTerm.toLowerCase()) || 
+                                            store.slug?.toLowerCase().includes(featuredSearchTerm.toLowerCase());
+                      const matchesFeatured = !showOnlySponsors || !!store.is_enrakipsiz_featured;
+                      return matchesSearch && matchesFeatured;
+                    });
+
+                    if (filtered.length === 0) {
+                      return <div className="py-8 text-center text-xs text-gray-450 font-bold">Kayıtlı uygun mağaza bulunamadı.</div>;
+                    }
+
+                    // Sort: featured first, then by featured_order, then by name
+                    const sorted = [...filtered].sort((a, b) => {
+                      if (a.is_enrakipsiz_featured && !b.is_enrakipsiz_featured) return -1;
+                      if (!a.is_enrakipsiz_featured && b.is_enrakipsiz_featured) return 1;
+                      if (a.is_enrakipsiz_featured && b.is_enrakipsiz_featured) {
+                        return (a.enrakipsiz_featured_order || 0) - (b.enrakipsiz_featured_order || 0);
+                      }
+                      return a.name?.localeCompare(b.name);
+                    });
+
+                    return sorted.map(store => (
+                      <StoreFeaturedRow 
+                        key={store.id} 
+                        store={store} 
+                        onSave={handleSaveStoreFeatured}
+                        isSaving={savingFeaturedStoreId === store.id}
+                      />
+                    ));
+                  })()}
                 </div>
               </div>
 
@@ -1230,11 +1581,27 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                             </div>
                           </td>
                           <td className="px-4 md:px-6 py-4">
-                            <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
-                              isExpired ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                            }`}>
-                              {isExpired ? 'Süresi Doldu' : 'Aktif'}
-                            </span>
+                            <div className="flex flex-col space-y-1">
+                              <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase w-max ${
+                                isExpired ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                              }`}>
+                                {isExpired ? 'Süresi Doldu' : 'Lisans Aktif'}
+                              </span>
+                              
+                              {store.status === 'suspended' || store.is_approved === false ? (
+                                <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase bg-rose-100 text-rose-700 w-max">
+                                  Askıya Alındı
+                                </span>
+                              ) : store.status === 'pending' ? (
+                                <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase bg-amber-100 text-amber-700 w-max">
+                                  Onay Bekliyor
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700 w-max">
+                                  Mağaza Onaylı
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 md:px-6 py-4 text-right">
                             <div className="flex items-center justify-end space-x-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -1743,6 +2110,86 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
                     ))}
                   </select>
                 </div>
+
+                {/* Mağaza Onay, Kota ve Sektörel Limit Modülü */}
+                <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                  <h3 className="text-xs font-bold text-indigo-600 uppercase mb-3 flex items-center">
+                    🛡️ MAĞAZA ONAY, KOTA & LİMİT AYARLARI
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mağaza Onay Durumu</label>
+                      <select 
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold" 
+                        value={editingStore.status || "approved"} 
+                        onChange={e => {
+                          const status = e.target.value;
+                          setEditingStore({
+                            ...editingStore, 
+                            status,
+                            is_approved: status === "approved"
+                          });
+                        }}
+                      >
+                        <option value="approved">✅ Onaylı & Aktif</option>
+                        <option value="pending">⏳ Onay Bekliyor</option>
+                        <option value="suspended">🚫 Askıya Alındı</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Maksimum Kullanıcı Kotası</label>
+                      <input 
+                        type="number" 
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={editingStore.max_users !== undefined ? editingStore.max_users : 5} 
+                        onChange={e => setEditingStore({...editingStore, max_users: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Maksimum Ürün Sınırı</label>
+                      <input 
+                        type="number" 
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={editingStore.max_products !== undefined ? editingStore.max_products : 100} 
+                        onChange={e => setEditingStore({...editingStore, max_products: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Gayrimenkul Portföy Sınırı</label>
+                      <input 
+                        type="number" 
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={editingStore.max_properties !== undefined ? editingStore.max_properties : 20} 
+                        onChange={e => setEditingStore({...editingStore, max_properties: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Vasıta / Araç İlan Sınırı</label>
+                      <input 
+                        type="number" 
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={editingStore.max_vehicles !== undefined ? editingStore.max_vehicles : 20} 
+                        onChange={e => setEditingStore({...editingStore, max_vehicles: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cari Hesap / Müşteri Kotası</label>
+                      <input 
+                        type="number" 
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                        value={editingStore.max_customers !== undefined ? editingStore.max_customers : 50} 
+                        onChange={e => setEditingStore({...editingStore, max_customers: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="md:col-span-2 flex space-x-2 mt-2">
                   <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm">{st.update}</button>
                   <button type="button" onClick={() => setEditingStore(null)} className="flex-1 bg-gray-100 text-gray-900 py-2 rounded-lg font-bold text-sm">{st.close}</button>

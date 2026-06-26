@@ -542,6 +542,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     fetchData();
   }, [slug, customer?.id]);
 
+  useEffect(() => {
+    if (store?.id) {
+      fetch("/api/public/analytics/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_id: store.id,
+          entity_type: "store_home",
+          entity_id: null,
+          event_type: "impression",
+          referer: document.referrer || null
+        })
+      }).catch(e => console.error("Telemetry failed:", e));
+    }
+  }, [store?.id]);
+
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {

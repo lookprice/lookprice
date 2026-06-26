@@ -9,8 +9,7 @@ import {
   FileSearch, 
   CloudUpload, 
   XCircle, 
-  RefreshCw,
-  Truck
+  RefreshCw
 } from 'lucide-react';
 
 interface SalesInvoiceTableProps {
@@ -31,7 +30,6 @@ interface SalesInvoiceTableProps {
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
-  handleOpenWaybillModal?: (id: number) => void;
 }
 
 export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
@@ -51,8 +49,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   handleDelete,
   page,
   totalPages,
-  setPage,
-  handleOpenWaybillModal
+  setPage
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -273,20 +270,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             <RefreshCw className="h-4 w-4" />
                           </button>
                         )}
-                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && (
-                          <button 
-                            onClick={() => handleOpenWaybillModal && handleOpenWaybillModal(inv.id)}
-                            className={`p-2 rounded-xl transition-all ${
-                              inv.waybill_status === 'SUCCESS' ? 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50' :
-                              inv.waybill_status === 'QUEUED' ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50' :
-                              inv.waybill_status === 'ERROR' ? 'text-red-500 hover:text-red-700 hover:bg-red-50' :
-                              'text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50'
-                            }`}
-                            title={isTr ? "e-İrsaliye İşlemleri (Taşıma / Sevk)" : "e-Waybill Actions"}
-                          >
-                            <Truck className="h-4 w-4" />
-                          </button>
-                        )}
+
                         <button 
                           onClick={() => handleViewHtml(inv.id)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"

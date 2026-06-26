@@ -714,6 +714,15 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS meta_settings JSONB DEFAULT '{"enabled": false, "pixel_id": "", "catalog_id": ""}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS google_merchant_settings JSONB DEFAULT '{"enabled": false, "merchant_id": ""}';
 
+      -- Mağaza Onay, Kota ve Sektörel Limit Modülü Sütunları
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS max_products INTEGER DEFAULT 100;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS max_properties INTEGER DEFAULT 20;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS max_vehicles INTEGER DEFAULT 20;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 5;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS max_customers INTEGER DEFAULT 50;
+
       CREATE TABLE IF NOT EXISTS amazon_orders (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,
@@ -1538,7 +1547,21 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS store_analytics_events (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id INTEGER,
+        event_type VARCHAR(50) NOT NULL,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        referer TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       -- Index creations for dramatic speedups (scale-friendly index-only/index-scan lookups)
+      CREATE INDEX IF NOT EXISTS idx_store_analytics_store_id ON store_analytics_events (store_id);
+      CREATE INDEX IF NOT EXISTS idx_store_analytics_event_type ON store_analytics_events (event_type);
       CREATE INDEX IF NOT EXISTS idx_stores_slug_lower ON stores (LOWER(slug));
       CREATE INDEX IF NOT EXISTS idx_stores_parent_id ON stores (parent_id);
       CREATE INDEX IF NOT EXISTS idx_products_store_id ON products (store_id);

@@ -129,6 +129,7 @@ export const Marketplace = () => {
   });
   const [dbSlides, setDbSlides] = useState<any[]>([]);
   const [dbAds, setDbAds] = useState<any[]>([]);
+  const [featuredStores, setFeaturedStores] = useState<any[]>([]);
 
   const luxurySlides = dbSlides.length > 0 ? dbSlides.map(s => ({
     image: s.image_url,
@@ -139,35 +140,7 @@ export const Marketplace = () => {
     accent: s.accent || "from-rose-500 to-amber-500",
     type: s.type || "vehicle",
     link_url: s.link_url || ""
-  })) : [
-    {
-      image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
-      title: "Göz Alıcı İhtişam, Mühendislik Harikası",
-      subtitle: "YENİ NESİL SÜPER SPOR COUPE COIL",
-      description: "Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.",
-      badge: "Prestige Motors",
-      accent: "from-rose-500 to-amber-500",
-      type: "vehicle"
-    },
-    {
-      image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
-      title: "Prestij Sahibi Seçkin Malikaneler",
-      subtitle: "DENİZE SIFIR AKDENİZ VE BOĞAZ YALILARI",
-      description: "Eşsiz manzaralara, tam güvenlik donanımına ve modern mimari çizgilere sahip en değerli akredite portföy.",
-      badge: "Elite Properties",
-      accent: "from-amber-400 to-yellow-500",
-      type: "real_estate"
-    },
-    {
-      image: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1200&q=80",
-      title: "Özgürlüğün İki Tekerlekli Hali",
-      subtitle: "ULTRA PRESTİJLİ CHOPPER & RACING MOTOSİKLETLER",
-      description: "Akdeniz'in en seçkin motorlu taşıt mağazalarından özel seri cruiser, chopper ve yüksek performanslı motosikletler.",
-      badge: "Prestige Cycle",
-      accent: "from-blue-500 to-indigo-505",
-      type: "vehicle"
-    }
-  ];
+  })) : [];
 
   const premiumAds = dbAds.length > 0 ? dbAds.map((ad, idx) => ({
     id: `ad-${ad.id || idx}`,
@@ -251,6 +224,9 @@ export const Marketplace = () => {
         }
         if (portalRes.ads && portalRes.ads.length > 0) {
           setDbAds(portalRes.ads);
+        }
+        if (portalRes.featured_stores) {
+          setFeaturedStores(portalRes.featured_stores);
         }
       }
     })
@@ -833,6 +809,7 @@ export const Marketplace = () => {
       {orderedSections.filter(sec => sec.enabled).map((sec) => {
         switch(sec.id) {
           case 'hero':
+            if (luxurySlides.length === 0) return null;
             return (
               <section key="hero" className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
                 <div className={`relative h-[480px] rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl bg-slate-105 group ${themeClasses.card}`}>
@@ -1422,6 +1399,77 @@ export const Marketplace = () => {
             </div>
           )}
         </section>
+
+        {/* Öne Çıkan Seçkin Mağazalar / Sponsor Vitrini (5. MADDE) */}
+        {featuredStores && featuredStores.length > 0 && (
+          <section className="mt-16 mb-14">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                <h2 className="text-xs uppercase font-black tracking-widest text-slate-350">
+                  Seçkin Mağaza Vitrin Ortaklarımız
+                </h2>
+              </div>
+              <span className="text-[10px] font-black text-amber-500 bg-amber-950/40 px-3 py-1 rounded-md border border-amber-800">
+                PRO SPONSOR
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredStores.map((store) => (
+                <Link
+                  key={store.id}
+                  to={`/s/${store.slug}`}
+                  className="bg-slate-900/60 backdrop-blur border border-slate-800 hover:border-amber-500/50 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-950/10 flex flex-col justify-between h-56 group"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      {store.logo_url ? (
+                        <img 
+                          src={store.logo_url} 
+                          alt={store.name} 
+                          className="h-9 w-24 object-contain rounded bg-white p-1 border border-slate-800" 
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="h-9 w-9 rounded-lg bg-slate-850 border border-slate-800 flex items-center justify-center font-black text-xs text-amber-500">
+                          {store.name ? store.name.substring(0, 2).toUpperCase() : "MA"}
+                        </div>
+                      )}
+                      
+                      <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">
+                        {store.sub_sector === "vehicle" ? "🚗 Vasıta" : store.sub_sector === "real_estate" ? "🏠 Emlak" : "🛍️ Ticaret"}
+                      </span>
+                    </div>
+
+                    <h3 className="font-extrabold text-white text-sm tracking-tight mb-1 group-hover:text-amber-500 transition-colors line-clamp-1">
+                      {store.name}
+                    </h3>
+
+                    {store.enrakipsiz_featured_title ? (
+                      <p className="text-xs text-amber-400 font-bold leading-tight mb-2 italic">
+                        "{store.enrakipsiz_featured_title}"
+                      </p>
+                    ) : null}
+
+                    <p className="text-[11px] text-slate-400 line-clamp-2 leading-snug">
+                      {store.description || `${store.name} seçkin portföyü ve özel fırsatları ile hizmetinizdedir.`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-850 mt-4">
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      @{store.slug}
+                    </span>
+                    <span className="text-xs font-black text-amber-500 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                      Portföyü İncele <MoveRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Premium Marka İşbirlikleri & Sponsorlu Alanlar */}
         <section key="sponsors" className="mt-16 mb-14">

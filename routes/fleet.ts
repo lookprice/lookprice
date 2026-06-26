@@ -105,6 +105,15 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
   const storeId = req.body.store_id || req.user.store_id;
 
   try {
+    // Check limit
+    const limitRes = await pool.query("SELECT max_vehicles FROM stores WHERE id = $1", [storeId]);
+    const maxVehicles = limitRes.rows[0]?.max_vehicles ?? 20;
+    const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM vehicles WHERE store_id = $1", [storeId]);
+    const currentCount = currentCountRes.rows[0].count;
+    if (currentCount >= maxVehicles) {
+      return res.status(400).json({ error: `Sektörel vasıta ilan limitine (${maxVehicles}) ulaşıldı. Lütfen limitlerinizi yükseltin.` });
+    }
+
     const result = await pool.query(
       `INSERT INTO vehicles (
         store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,

@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key";
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const userRes = await pool.query(`
-    SELECT u.*, s.slug as store_slug 
+    SELECT u.*, s.slug as store_slug, s.status as store_status, s.is_approved as store_is_approved
     FROM users u 
     LEFT JOIN stores s ON u.store_id = s.id 
     WHERE u.email = $1
@@ -20,6 +20,22 @@ router.post("/login", async (req, res) => {
   const user = userRes.rows[0];
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  // Check store approval/suspension status for store users
+  if (user.role !== "superadmin" && user.store_id) {
+    if (user.store_is_approved === false || user.store_status === "suspended") {
+      return res.status(403).json({ 
+        error: "store_suspended", 
+        message: "Mağazanız askıya alınmıştır veya onaylanmamıştır. Lütfen sistem yöneticisi ile iletişime geçiniz." 
+      });
+    }
+    if (user.store_status === "pending") {
+      return res.status(403).json({ 
+        error: "store_pending", 
+        message: "Mağazanız şu anda onay beklemektedir. Lütfen onaylanmasını bekleyiniz." 
+      });
+    }
   }
   
   const token = jwt.sign({ 

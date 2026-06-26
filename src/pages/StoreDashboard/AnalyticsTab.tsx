@@ -539,6 +539,67 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
         </div>
       </div>
 
+      {/* Telemetry & Clicks Analytics section */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              📈 {lang === 'tr' ? 'Ziyaretçi Etkileşimi & Tıklama Takibi (Telemetry)' : 'Visitor Telemetry & Clicks'}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+              {lang === 'tr' ? 'Canlı Gösterim, Detay İnceleme ve İletişim Tıklamaları' : 'Live Impressions, Detail Views, and Communication Clicks'}
+            </p>
+          </div>
+          <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded uppercase tracking-wider">
+            {lang === 'tr' ? 'Gerçek Zamanlı' : 'Real-time'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{lang === 'tr' ? 'Sayfa Gösterimi' : 'Page Impressions'}</p>
+            <p className="text-2xl font-black text-slate-900 mono-data">{analytics?.total_impressions || 0}</p>
+          </div>
+          <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{lang === 'tr' ? 'Detay İnceleme' : 'Product Views'}</p>
+            <p className="text-2xl font-black text-slate-900 mono-data">{analytics?.total_detail_views || 0}</p>
+          </div>
+          <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{lang === 'tr' ? 'WhatsApp Clicks' : 'WhatsApp Clicks'}</p>
+            <p className="text-2xl font-black text-emerald-600 mono-data">{analytics?.whatsapp_clicks || 0}</p>
+          </div>
+          <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{lang === 'tr' ? 'Telefon Aramaları' : 'Phone Clicks'}</p>
+            <p className="text-2xl font-black text-blue-600 mono-data">{analytics?.phone_clicks || 0}</p>
+          </div>
+        </div>
+
+        {analytics?.daily_events && analytics.daily_events.length > 0 && (
+          <div className="h-48 w-full mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={analytics.daily_events}>
+                <defs>
+                  <linearGradient id="colorImp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorClk" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} />
+                <YAxis stroke="#94a3b8" fontSize={10} />
+                <Tooltip />
+                <Area type="monotone" name={lang === 'tr' ? 'Gösterim' : 'Impressions'} dataKey="impressions" stroke="#6366f1" fillOpacity={1} fill="url(#colorImp)" />
+                <Area type="monotone" name={lang === 'tr' ? 'Tıklama' : 'Clicks'} dataKey="clicks" stroke="#10b981" fillOpacity={1} fill="url(#colorClk)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
       <div className="os-panel p-8">
         <div className="flex items-center justify-between mb-8">
           <div className="space-y-1">

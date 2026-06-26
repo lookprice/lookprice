@@ -1528,6 +1528,36 @@ router.get("/analytics", async (req: any, res) => {
         });
     }
 
+    // Telemetry and Click Analytics query
+    const totalImpressions = (await pool.query("SELECT COUNT(*)::INT as count FROM store_analytics_events WHERE store_id = $1 AND event_type = 'impression'", [storeId])).rows[0].count;
+    const totalDetailViews = (await pool.query("SELECT COUNT(*)::INT as count FROM store_analytics_events WHERE store_id = $1 AND event_type = 'view'", [storeId])).rows[0].count;
+    const whatsappClicks = (await pool.query("SELECT COUNT(*)::INT as count FROM store_analytics_events WHERE store_id = $1 AND event_type = 'whatsapp_click'", [storeId])).rows[0].count;
+    const phoneClicks = (await pool.query("SELECT COUNT(*)::INT as count FROM store_analytics_events WHERE store_id = $1 AND event_type = 'phone_click'", [storeId])).rows[0].count;
+
+    // Daily trends for impressions & clicks in the last 7 days
+    const dailyEvents = await pool.query(`
+      SELECT TO_CHAR(d.date, 'DD/MM') as date, 
+             COALESCE(imp.count, 0)::INT as impressions,
+             COALESCE(clk.count, 0)::INT as clicks
+      FROM (
+        SELECT (CURRENT_DATE - (n || ' days')::INTERVAL)::DATE as date
+        FROM generate_series(0, 6) n
+      ) d
+      LEFT JOIN (
+        SELECT DATE(created_at) as ev_date, COUNT(*)::INT as count
+        FROM store_analytics_events
+        WHERE store_id = $1 AND event_type = 'impression'
+        GROUP BY DATE(created_at)
+      ) imp ON d.date = imp.ev_date
+      LEFT JOIN (
+        SELECT DATE(created_at) as ev_date, COUNT(*)::INT as count
+        FROM store_analytics_events
+        WHERE store_id = $1 AND event_type IN ('click', 'whatsapp_click', 'phone_click', 'quote_click')
+        GROUP BY DATE(created_at)
+      ) clk ON d.date = clk.ev_date
+      ORDER BY d.date ASC
+    `, [storeId]);
+
     const dailyScans = await pool.query(`
       SELECT TO_CHAR(d.date, 'DD/MM') as date, COALESCE(s.count, 0)::INT as count FROM (
         SELECT (CURRENT_DATE - (n || ' days')::INTERVAL)::DATE as date
@@ -1787,7 +1817,14 @@ router.get("/analytics", async (req: any, res) => {
       audit_logs: prAuditLogs,
       performance_chart_data: performanceChartData,
       alerts: portfolioAlerts,
-      strategic_insights: strategicInsights
+      strategic_insights: strategicInsights,
+
+      // Telemetry fields
+      total_impressions: totalImpressions,
+      total_detail_views: totalDetailViews,
+      whatsapp_clicks: whatsappClicks,
+      phone_clicks: phoneClicks,
+      daily_events: dailyEvents.rows
     });
   } catch (error) {
     console.error("Analytics error:", error);
@@ -1811,6 +1848,15 @@ router.post("/users", async (req: any, res) => {
   const { email, password, role } = req.body;
   const hashedPassword = bcrypt.hashSync(password, 10);
   try {
+    // Check limit
+    const limitRes = await pool.query("SELECT max_users FROM stores WHERE id = $1", [storeId]);
+    const maxUsers = limitRes.rows[0]?.max_users ?? 5;
+    const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM users WHERE store_id = $1", [storeId]);
+    const currentCount = currentCountRes.rows[0].count;
+    if (currentCount >= maxUsers) {
+      return res.status(400).json({ error: `Kullanıcı/Personel limitine (${maxUsers}) ulaşıldı. Lütfen limitlerinizi yükseltin.` });
+    }
+
     await pool.query("INSERT INTO users (store_id, email, password, role) VALUES ($1, $2, $3, $4)", [storeId, email, hashedPassword, role]);
     res.json({ success: true });
   } catch (e) {
@@ -3261,6 +3307,15 @@ router.post("/companies", async (req: any, res) => {
   const title = String(req.body.title || "").trim();
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
+    // Check limit
+    const limitRes = await pool.query("SELECT max_customers FROM stores WHERE id = $1", [storeId]);
+    const maxCustomers = limitRes.rows[0]?.max_customers ?? 50;
+    const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM companies WHERE store_id = $1", [storeId]);
+    const currentCount = currentCountRes.rows[0].count;
+    if (currentCount >= maxCustomers) {
+      return res.status(400).json({ error: `Cari hesap limitine (${maxCustomers}) ulaşıldı. Lütfen limitlerinizi yükseltin.` });
+    }
+
     const existing = await pool.query("SELECT * FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER($2)", [storeId, title]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: "Bu isimde bir cari hesap zaten mevcut." });

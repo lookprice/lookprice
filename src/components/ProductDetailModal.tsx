@@ -194,6 +194,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   }, [product?.price, product?.currency, store?.currency]);
 
   useEffect(() => {
+    if (product?.id && store?.id) {
+      const typeOfProduct = store.store_type === "real_estate" ? "property" : (store.store_type === "motor_vehicle" ? "vehicle" : "product");
+      fetch("/api/public/analytics/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_id: store.id,
+          entity_type: typeOfProduct,
+          entity_id: product.id,
+          event_type: "view",
+          referer: window.location.href
+        })
+      }).catch(e => console.error("Telemetry failed:", e));
+    }
+  }, [product?.id, store?.id]);
+
+  useEffect(() => {
     const effectiveSlug = store?.slug || slug;
     if (product?.barcode && effectiveSlug) {
       setLoadingBranches(true);
@@ -696,6 +713,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 onClick={() => {
                   const phone = store?.whatsapp_number || store?.phone;
                   if (phone) {
+                    // Send click event to telemetry
+                    fetch("/api/public/analytics/event", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        store_id: store.id,
+                        entity_type: store.store_type === "real_estate" ? "property" : (store.store_type === "motor_vehicle" ? "vehicle" : "product"),
+                        entity_id: product.id,
+                        event_type: "whatsapp_click",
+                        referer: window.location.href
+                      })
+                    }).catch(e => console.error(e));
+
                     const message = lang === "tr" 
                       ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
                       : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
@@ -726,6 +756,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   onClick={() => {
                     const phone = store?.whatsapp_number || store?.phone;
                     if (phone) {
+                      // Send click event to telemetry
+                      fetch("/api/public/analytics/event", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          store_id: store.id,
+                          entity_type: "vehicle",
+                          entity_id: product.id,
+                          event_type: "whatsapp_click",
+                          referer: window.location.href
+                        })
+                      }).catch(e => console.error(e));
+
                       const tradeMessage = lang === "tr"
                         ? `Merhaba, #${product.id} portföy numaralı ${product.name} aracınız için Takas Teklifi göndermek istiyorum. \n\nLütfen aracımın bilgilerini ve görsellerini buradan size iletiyorum: `
                         : `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending my vehicle information and photos here: `;

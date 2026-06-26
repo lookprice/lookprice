@@ -355,6 +355,15 @@ router.post('/properties', authenticate, async (req: any, res) => {
   const ownerInfo = property.owner_info || {};
   
   try {
+    // Check limit
+    const limitRes = await pool.query("SELECT max_properties FROM stores WHERE id = $1", [storeId]);
+    const maxProperties = limitRes.rows[0]?.max_properties ?? 20;
+    const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM real_estate_properties WHERE store_id = $1", [storeId]);
+    const currentCount = currentCountRes.rows[0].count;
+    if (currentCount >= maxProperties) {
+      return res.status(400).json({ error: `Sektörel ilan limitine (${maxProperties}) ulaşıldı. Lütfen limitlerinizi yükseltin.` });
+    }
+
     const result = await pool.query(
       `INSERT INTO real_estate_properties (
         store_id, title, description, price, currency, location, type, room_count, square_meters, 

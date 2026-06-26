@@ -266,6 +266,7 @@ export const api = {
   saveEnrakipsizAd: (data: any) => api.post("/api/admin/enrakipsiz/ads", data),
   deleteEnrakipsizAd: (id: number) => api.delete(`/api/admin/enrakipsiz/ads/${id}`),
   getPublicEnrakipsizPortal: () => api.get("/api/public/enrakipsiz/portal"),
+  updateStoreEnrakipsizFeatured: (id: number, data: any) => api.post(`/api/admin/stores/${id}/enrakipsiz-featured`, data),
 
   uploadFile: (formData: FormData) => api.upload("/api/upload", formData),
   

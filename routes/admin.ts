@@ -40,12 +40,30 @@ router.get("/stores", async (req: any, res) => {
 });
 
 router.post("/stores", async (req: any, res) => {
-  const { name, slug, address, contact_person, phone, country, email, subscription_end, admin_email, admin_password, default_currency, language, plan, parent_id, store_type, sub_sector } = req.body;
+  const { 
+    name, slug, address, contact_person, phone, country, email, subscription_end, 
+    admin_email, admin_password, default_currency, language, plan, parent_id, store_type, sub_sector,
+    status, is_approved, max_products, max_properties, max_vehicles, max_users, max_customers 
+  } = req.body;
   try {
     await pool.query("BEGIN");
     const storeRes = await pool.query(
-      "INSERT INTO stores (name, slug, address, contact_person, phone, country, email, subscription_end, default_currency, language, plan, parent_id, store_type, sub_sector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id",
-      [name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || null]
+      `INSERT INTO stores (
+        name, slug, address, contact_person, phone, country, email, subscription_end, 
+        default_currency, language, plan, parent_id, store_type, sub_sector,
+        status, is_approved, max_products, max_properties, max_vehicles, max_users, max_customers
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
+      [
+        name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, 
+        default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || null,
+        status !== undefined ? status : 'approved',
+        is_approved !== undefined ? is_approved : true,
+        max_products !== undefined ? Number(max_products) : 100,
+        max_properties !== undefined ? Number(max_properties) : 20,
+        max_vehicles !== undefined ? Number(max_vehicles) : 20,
+        max_users !== undefined ? Number(max_users) : 5,
+        max_customers !== undefined ? Number(max_customers) : 50
+      ]
     );
     const storeId = storeRes.rows[0].id;
     const hashedPassword = bcrypt.hashSync(admin_password, 10);
@@ -59,14 +77,31 @@ router.post("/stores", async (req: any, res) => {
 });
 
 router.put("/stores/:id", async (req: any, res) => {
-  const { name, slug, address, contact_person, phone, country, email, subscription_end, default_currency, language, admin_password, plan, parent_id, store_type, sub_sector } = req.body;
+  const { 
+    name, slug, address, contact_person, phone, country, email, subscription_end, 
+    default_currency, language, admin_password, plan, parent_id, store_type, sub_sector,
+    status, is_approved, max_products, max_properties, max_vehicles, max_users, max_customers 
+  } = req.body;
   try {
     await pool.query("BEGIN");
     await pool.query(`
       UPDATE stores 
-      SET name = $1, slug = $2, address = $3, contact_person = $4, phone = $5, country = $6, email = $7, subscription_end = $8, default_currency = $9, language = $10, plan = $11, parent_id = $12, store_type = $13, sub_sector = $14
-      WHERE id = $15
-    `, [name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || null, req.params.id]);
+      SET name = $1, slug = $2, address = $3, contact_person = $4, phone = $5, country = $6, email = $7, subscription_end = $8, 
+          default_currency = $9, language = $10, plan = $11, parent_id = $12, store_type = $13, sub_sector = $14,
+          status = $15, is_approved = $16, max_products = $17, max_properties = $18, max_vehicles = $19, max_users = $20, max_customers = $21
+      WHERE id = $22
+    `, [
+      name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, 
+      default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || null,
+      status !== undefined ? status : 'approved',
+      is_approved !== undefined ? is_approved : true,
+      max_products !== undefined ? Number(max_products) : 100,
+      max_properties !== undefined ? Number(max_properties) : 20,
+      max_vehicles !== undefined ? Number(max_vehicles) : 20,
+      max_users !== undefined ? Number(max_users) : 5,
+      max_customers !== undefined ? Number(max_customers) : 50,
+      req.params.id
+    ]);
 
     if (admin_password) {
       const hashedPassword = bcrypt.hashSync(admin_password, 10);
@@ -81,6 +116,22 @@ router.put("/stores/:id", async (req: any, res) => {
     res.json({ success: true });
   } catch (e: any) {
     await pool.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/stores/:id/enrakipsiz-featured", async (req: any, res) => {
+  const { is_enrakipsiz_featured, enrakipsiz_featured_order, enrakipsiz_featured_title } = req.body;
+  try {
+    await pool.query(`
+      UPDATE stores
+      SET is_enrakipsiz_featured = $1,
+          enrakipsiz_featured_order = $2,
+          enrakipsiz_featured_title = $3
+      WHERE id = $4
+    `, [is_enrakipsiz_featured, enrakipsiz_featured_order || 0, enrakipsiz_featured_title || null, req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
     res.status(400).json({ error: e.message });
   }
 });
@@ -357,7 +408,7 @@ async function ensureEnrakipsizTables() {
   if (settingsCheck.rows.length === 0) {
     await pool.query(`
       INSERT INTO enrakipsiz_settings (id, portal_title, portal_description, announcement, primary_color, footer_text, portal_domain, theme_style, font_family, layout_sections, custom_css)
-      VALUES (1, 'Göz Alıcı İhtişam, Mühendislik Harikası', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '#ea580c', '© 2026 Enrakipsiz.com. Tüm hakları saklıdır.', 'enrakipsiz.com', 'dark_gold', 'Inter', '["hero","announcement","sponsors","vehicles","properties"]', '')
+      VALUES (1, 'Seçkin Mağazalardan Rakipsiz Teklifler & İlanlar', 'Oto galeri, emlak ofisleri ve premium e-ticaret markalarının en güncel, doğrulanmış ilanlarını tek bir ekranda canlı olarak inceleyin.', 'Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.', '#ea580c', '© 2026 Enrakipsiz.com. Tüm hakları saklıdır.', 'enrakipsiz.com', 'dark_gold', 'Inter', '["hero","announcement","sponsors","vehicles","properties"]', '')
     `);
   } else {
     // Ensure column exists for existing tables
@@ -367,6 +418,19 @@ async function ensureEnrakipsizTables() {
     await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS layout_sections TEXT DEFAULT '[\"hero\",\"announcement\",\"sponsors\",\"vehicles\",\"properties\"]'").catch(() => {});
     await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS custom_css TEXT DEFAULT ''").catch(() => {});
   }
+
+  // Ensure SEO & Analytic columns exist in enrakipsiz_settings
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_title TEXT").catch(() => {});
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_description TEXT").catch(() => {});
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_keywords TEXT").catch(() => {});
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS google_analytics_id TEXT").catch(() => {});
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS google_tag_manager_id TEXT").catch(() => {});
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS google_search_console_id TEXT").catch(() => {});
+
+  // Ensure Featured Stores columns exist in stores table
+  await pool.query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_enrakipsiz_featured BOOLEAN DEFAULT FALSE").catch(() => {});
+  await pool.query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS enrakipsiz_featured_order INTEGER DEFAULT 0").catch(() => {});
+  await pool.query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS enrakipsiz_featured_title TEXT").catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS enrakipsiz_slides (
@@ -407,7 +471,6 @@ async function ensureEnrakipsizTables() {
     await pool.query(`
       INSERT INTO enrakipsiz_slides (image_url, title, subtitle, description, badge, accent, type, is_active)
       VALUES 
-      ('https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80', 'Göz Alıcı İhtişam, Mühendislik Harikası', 'YENİ NESİL SÜPER SPOR COUPE COIL', 'Seçkin oto galerilerimizin sertifikalı ultra lüks, eşsiz kondisyondaki araç koleksiyonunu doğrudan inceleyin.', 'Prestige Motors', 'from-rose-500 to-amber-500', 'vehicle', TRUE),
       ('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80', 'Prestij Sahibi Seçkin Malikaneler', 'DENİZE SIFIR AKDENİZ VE BOĞAZ YALILARI', 'Eşsiz manzaralara, tam güvenlik donanımına ve modern mimari çizgilere sahip en değerli akredite portföy.', 'Elite Properties', 'from-amber-400 to-yellow-500', 'real_estate', TRUE),
       ('https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=1200&q=80', 'Zamanın Ötesinde Bir Başyapıt', 'HAUTE-HORLOGERIE SINIRLI SAYI SAATLER', 'Dünya mirası butik markaların özel koleksiyoncu serisi mekanik saatlerini ve nadide aksesuarlarını keşfedin.', 'Grand Boutique', 'from-purple-500 to-pink-500', 'product', TRUE)
     `);
@@ -453,7 +516,13 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
     theme_style,
     font_family,
     layout_sections,
-    custom_css
+    custom_css,
+    seo_title,
+    seo_description,
+    seo_keywords,
+    google_analytics_id,
+    google_tag_manager_id,
+    google_search_console_id
   } = req.body;
   try {
     await ensureEnrakipsizTables();
@@ -468,7 +537,13 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
           theme_style = $7,
           font_family = $8,
           layout_sections = $9,
-          custom_css = $10
+          custom_css = $10,
+          seo_title = $11,
+          seo_description = $12,
+          seo_keywords = $13,
+          google_analytics_id = $14,
+          google_tag_manager_id = $15,
+          google_search_console_id = $16
       WHERE id = 1
     `, [
       portal_title, 
@@ -480,7 +555,13 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
       theme_style || 'dark_gold',
       font_family || 'Inter',
       layout_sections || '["hero","announcement","sponsors","vehicles","properties"]',
-      custom_css || ''
+      custom_css || '',
+      seo_title || null,
+      seo_description || null,
+      seo_keywords || null,
+      google_analytics_id || null,
+      google_tag_manager_id || null,
+      google_search_console_id || null
     ]);
     res.json({ success: true });
   } catch (e: any) {

@@ -12,12 +12,58 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
 
     // Portal SEO Handling
     if (normalizedHost === "enrakipsiz.com") {
-      return `
-        <title>EnRakipsiz | KKTC'nin En Büyük Portföy Portalı</title>
-        <meta name="description" content="KKTC'nin en geniş emlak, araç ve ürün portföyüne enrakipsiz.com ile ulaşın." />
-        <meta property="og:title" content="EnRakipsiz | KKTC'nin En Büyük Portföy Portalı" />
-        <meta property="og:description" content="KKTC'nin en geniş emlak, araç ve ürün portföyüne enrakipsiz.com ile ulaşın." />
+      const portalSettingsRes = await pool.query("SELECT * FROM enrakipsiz_settings WHERE id = 1");
+      const portalSettings = portalSettingsRes.rows[0] || {};
+      
+      const title = portalSettings.seo_title || portalSettings.portal_title || "EnRakipsiz | KKTC'nin En Büyük Portföy Portalı";
+      const desc = portalSettings.seo_description || portalSettings.portal_description || "KKTC'nin en geniş emlak, araç ve ürün portföyüne enrakipsiz.com ile ulaşın.";
+      const keywords = portalSettings.seo_keywords || "kktc emlak, kktc oto galeri, emlak ilanları, satılık araba, enrakipsiz";
+      const gaId = portalSettings.google_analytics_id;
+      const gtmId = portalSettings.google_tag_manager_id;
+      const gscId = portalSettings.google_search_console_id;
+
+      let tags = `
+        <title>${title}</title>
+        <meta name="description" content="${desc}" />
+        <meta name="keywords" content="${keywords}" />
+        <meta property="og:title" content="${title}" />
+        <meta property="og:description" content="${desc}" />
       `;
+
+      if (gscId) {
+        tags += `\n        <meta name="google-site-verification" content="${gscId}" />`;
+      }
+
+      if (gaId) {
+        tags += `
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${gaId}');
+        </script>
+        `;
+      }
+
+      if (gtmId) {
+        tags += `
+        <!-- Google Tag Manager -->
+        <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','${gtmId}');</script>
+        <!-- End Google Tag Manager -->
+        <!-- Google Tag Manager (noscript) -->
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
+        height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+        <!-- End Google Tag Manager (noscript) -->
+        `;
+      }
+
+      return tags;
     }
 
     // Determine store based on URL slug or Custom Domain

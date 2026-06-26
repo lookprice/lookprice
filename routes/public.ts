@@ -31,6 +31,36 @@ router.get("/fix-db", async (req, res) => {
   res.json({ success: true });
 });
 
+router.post("/analytics/event", async (req, res) => {
+  const { store_id, entity_type, entity_id, event_type, referer } = req.body;
+  if (!store_id || !entity_type || !event_type) {
+    return res.status(400).json({ error: "Missing required analytics fields" });
+  }
+
+  try {
+    const ip = req.ip || req.headers["x-forwarded-for"] || "";
+    const userAgent = req.headers["user-agent"] || "";
+    
+    await pool.query(
+      `INSERT INTO store_analytics_events (store_id, entity_type, entity_id, event_type, ip_address, user_agent, referer)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        Number(store_id),
+        String(entity_type),
+        entity_id ? Number(entity_id) : null,
+        String(event_type),
+        String(ip).substring(0, 45),
+        String(userAgent),
+        referer ? String(referer) : null
+      ]
+    );
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Public analytics logging failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/debug-stores", async (req, res) => {
   const result = await pool.query("SELECT * FROM stores WHERE name ILIKE '%GAP%'");
   res.json(result.rows);
@@ -175,10 +205,19 @@ router.get("/enrakipsiz/portal", async (req, res) => {
     const slides = await pool.query("SELECT * FROM enrakipsiz_slides WHERE is_active = TRUE ORDER BY id ASC");
     const ads = await pool.query("SELECT * FROM enrakipsiz_ads WHERE is_active = TRUE ORDER BY id ASC");
     
+    // Fetch featured sponsor stores
+    const featuredStores = await pool.query(`
+      SELECT id, name, slug, logo_url, sub_sector, description, is_enrakipsiz_featured, enrakipsiz_featured_order, enrakipsiz_featured_title, branding
+      FROM stores
+      WHERE is_enrakipsiz_featured = true
+      ORDER BY enrakipsiz_featured_order ASC, name ASC
+    `);
+    
     res.json({
       settings: settings.rows[0],
       slides: slides.rows,
-      ads: ads.rows
+      ads: ads.rows,
+      featured_stores: featuredStores.rows
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -558,13 +597,20 @@ router.get("/store/:slug", async (req, res) => {
       hero_title, hero_subtitle, hero_image_url, about_text, description,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
       address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles, custom_domain,
-      branding, page_layout, menu_links
+      branding, page_layout, menu_links, status, is_approved
     FROM stores 
     WHERE LOWER(slug) = LOWER($1)
   `, [slug]);
   let store = storeRes.rows[0];
 
   if (store) {
+    if (store.is_approved === false || store.status === 'suspended') {
+      return res.status(403).json({ error: 'store_suspended', message: 'Bu mağaza geçici olarak askıya alınmıştır veya onaylanmamıştır.' });
+    }
+    if (store.status === 'pending') {
+      return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
+    }
+
     const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'page_layout', 'menu_links'];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
