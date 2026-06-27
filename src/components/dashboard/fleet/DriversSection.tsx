@@ -109,7 +109,7 @@ export const DriversSection: React.FC<DriversSectionProps> = ({
                   </div>
                 </div>
                 {!isViewer && (
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => {
                         setSelectedDriver(driver);

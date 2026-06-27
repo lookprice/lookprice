@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ClipboardList,
   Fuel,
-  Info
+  Info,
+  Settings
 } from 'lucide-react';
 import { 
   Vehicle, 
@@ -57,6 +58,7 @@ interface VehicleDetailModalProps {
   handleDeleteDocument: (id: number) => void;
   handleDeleteMaintenance: (id: number) => void;
   handleUpdateAssignment: (id: number, endMileage: number) => void;
+  onEditVehicle?: () => void;
 }
 
 export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
@@ -84,7 +86,8 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
   onAddIncident,
   handleDeleteDocument,
   handleDeleteMaintenance,
-  handleUpdateAssignment
+  handleUpdateAssignment,
+  onEditVehicle
 }) => {
   if (!isOpen || !vehicle) return null;
   const isTr = lang === 'tr';
@@ -123,6 +126,15 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {!isViewer && onEditVehicle && (
+              <button
+                onClick={onEditVehicle}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-2xl text-xs font-black uppercase tracking-wider transition-all active:scale-95"
+              >
+                <Settings className="w-4 h-4" />
+                {isTr ? 'Araç Bilgilerini Düzenle' : 'Edit Vehicle Info'}
+              </button>
+            )}
             <div className="hidden sm:flex flex-col items-end mr-4">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{isTr ? 'KAYIT NO' : 'RECORD ID'}</span>
               <span className="text-xs font-black text-gray-900 tracking-wider">#{vehicle.id}</span>

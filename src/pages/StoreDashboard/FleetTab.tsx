@@ -414,6 +414,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         return;
       }
       setAllMaintenance([...(allMaintenance || []), res]);
+      if (selectedVehicle && Number(vehicle_id) === selectedVehicle.id) {
+        setMaintenance([...(maintenance || []), res]);
+      }
       setShowAddMaintenanceModal(false);
     } catch (error) {
       alert(t.errorOccurred);
@@ -430,6 +433,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         return;
       }
       setAllAssignments([...(allAssignments || []), res]);
+      if (selectedVehicle && Number(vehicle_id) === selectedVehicle.id) {
+        setAssignments([...(assignments || []), res]);
+      }
       setShowAddAssignmentModal(false);
     } catch (error) {
       alert(t.errorOccurred);
@@ -446,6 +452,11 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         return;
       }
       setAllMileage([...(allMileage || []), res]);
+      if (selectedVehicle && Number(vehicle_id) === selectedVehicle.id) {
+        setMileageLogs([...(mileageLogs || []), res]);
+        setSelectedVehicle({ ...selectedVehicle, current_mileage: res.mileage });
+        setVehicles(prev => (prev || []).map(v => v.id === selectedVehicle.id ? { ...v, current_mileage: res.mileage } : v));
+      }
       setShowAddMileageModal(false);
     } catch (error) {
       alert(t.errorOccurred);
@@ -462,6 +473,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         return;
       }
       setAllIncidents([...(allIncidents || []), res]);
+      if (selectedVehicle && Number(vehicle_id) === selectedVehicle.id) {
+        setIncidents([...(incidents || []), res]);
+      }
       setShowAddIncidentModal(false);
     } catch (error) {
       alert(t.errorOccurred);
@@ -478,6 +492,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         return;
       }
       setAllDocuments([...(allDocuments || []), res]);
+      if (selectedVehicle && Number(vehicle_id) === selectedVehicle.id) {
+        setDocuments([...(documents || []), res]);
+      }
       setShowAddDocumentModal(false);
     } catch (error) {
       alert(t.errorOccurred);
@@ -487,7 +504,18 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
   const handleSubmitDriver = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedDriver) {
-      // Update logic if needed
+      try {
+        const res = await api.updateDriver(selectedDriver.id, driverFormData);
+        if (res.error) {
+          alert(res.error);
+          return;
+        }
+        setDrivers((drivers || []).map(d => d.id === selectedDriver.id ? res : d));
+        setShowAddDriverModal(false);
+        setSelectedDriver(null);
+      } catch (error) {
+        alert(t.errorOccurred);
+      }
     } else {
       await handleCreateDriver(e);
     }
@@ -504,7 +532,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
       }
       setVehicles((vehicles || []).map(v => v.id === selectedVehicle.id ? res : v));
       setShowAddModal(false);
-      setSelectedVehicle(null);
+      setSelectedVehicle(res);
     } catch (error) {
       alert(t.errorOccurred);
     }
@@ -775,7 +803,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         t={t}
       />
 
-      <div className="flex flex-wrap items-center gap-2 bg-gray-100/50 p-1.5 rounded-2xl w-fit">
+      <div className="flex items-center gap-1.5 bg-gray-100/50 p-1.5 rounded-2xl overflow-x-auto max-w-full no-scrollbar whitespace-nowrap scroll-smooth shrink-0">
         {[
           { id: 'vehicles', icon: Car, label: t.vehicles },
           { id: 'drivers', icon: UserCheck, label: t.drivers },
@@ -838,14 +866,103 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         getStatusColor={getStatusColor}
         getStatusText={getStatusText}
         generateVehicleTitle={generateVehicleTitle}
-        onAddDocument={() => {}}
-        onAddMaintenance={() => {}}
-        onAddAssignment={() => {}}
-        onAddMileage={() => {}}
-        onAddIncident={() => {}}
+        onAddDocument={() => {
+          if (!selectedVehicle) return;
+          setDocumentFormData({
+            vehicle_id: selectedVehicle.id,
+            type: '',
+            expiry_date: '',
+            document_number: '',
+            issue_date: '',
+            document_url: '',
+            notes: ''
+          });
+          setShowAddDocumentModal(true);
+        }}
+        onAddMaintenance={() => {
+          if (!selectedVehicle) return;
+          setMaintenanceFormData({
+            vehicle_id: selectedVehicle.id,
+            type: '',
+            date: '',
+            status: 'planned',
+            cost: 0,
+            currency: 'TRY',
+            provider_name: '',
+            notes: ''
+          });
+          setShowAddMaintenanceModal(true);
+        }}
+        onAddAssignment={() => {
+          if (!selectedVehicle) return;
+          setAssignmentFormData({
+            vehicle_id: selectedVehicle.id,
+            user_email: '',
+            start_date: '',
+            start_mileage: selectedVehicle.current_mileage || 0,
+            status: 'active'
+          });
+          setShowAddAssignmentModal(true);
+        }}
+        onAddMileage={() => {
+          if (!selectedVehicle) return;
+          setMileageFormData({
+            vehicle_id: selectedVehicle.id,
+            date: '',
+            mileage: selectedVehicle.current_mileage || 0
+          });
+          setShowAddMileageModal(true);
+        }}
+        onAddIncident={() => {
+          if (!selectedVehicle) return;
+          setIncidentFormData({
+            vehicle_id: selectedVehicle.id,
+            type: '',
+            date: '',
+            description: '',
+            cost: 0
+          });
+          setShowAddIncidentModal(true);
+        }}
         handleDeleteDocument={handleDeleteDocument}
         handleDeleteMaintenance={handleDeleteMaintenance}
         handleUpdateAssignment={handleUpdateAssignment}
+        onEditVehicle={() => {
+          if (!selectedVehicle) return;
+          setFormData({
+            plate: selectedVehicle.plate,
+            brand: selectedVehicle.brand,
+            model: selectedVehicle.model,
+            year: selectedVehicle.year,
+            type: selectedVehicle.type,
+            chassis_number: selectedVehicle.chassis_number || '',
+            engine_number: selectedVehicle.engine_number || '',
+            current_mileage: selectedVehicle.current_mileage || 0,
+            status: selectedVehicle.status || 'active',
+            package_name: selectedVehicle.package_name || '',
+            transmission: selectedVehicle.transmission || 'manual',
+            fuel_type: selectedVehicle.fuel_type || 'gasoline',
+            color: selectedVehicle.color || '',
+            body_type: selectedVehicle.body_type || '',
+            paint_report: typeof selectedVehicle.paint_report === 'string' ? selectedVehicle.paint_report : JSON.stringify(selectedVehicle.paint_report || {}),
+            tramer_amount: selectedVehicle.tramer_amount || 0,
+            tramer_currency: selectedVehicle.tramer_currency || 'GBP',
+            buying_price: selectedVehicle.buying_price || 0,
+            buying_currency: selectedVehicle.buying_currency || 'GBP',
+            currency: selectedVehicle.currency || 'GBP',
+            expenses: typeof selectedVehicle.expenses === 'string' ? selectedVehicle.expenses : JSON.stringify(selectedVehicle.expenses || []),
+            target_profit_margin: selectedVehicle.target_profit_margin || 0,
+            description: selectedVehicle.description || '',
+            market_story: selectedVehicle.market_story || '',
+            technical_description: selectedVehicle.technical_description || '',
+            is_trade_in_available: selectedVehicle.is_trade_in_available || false,
+            images: selectedVehicle.images || [],
+            virtual_tour_url: selectedVehicle.virtual_tour_url || '',
+            ai_tour_enabled: selectedVehicle.ai_tour_enabled || false,
+            is_on_enrakipsiz: selectedVehicle.is_on_enrakipsiz || false
+          });
+          setShowAddModal(true);
+        }}
       />
 
       <AutoContractModal

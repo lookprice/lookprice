@@ -29,6 +29,25 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
 
+const INCOTERMS_LIST = [
+  { code: "CFR", labelTr: "CFR - Masraflar ve Navlun", labelEn: "CFR - Cost and Freight" },
+  { code: "CIF", labelTr: "CIF - Masraflar, Sigorta ve Navlun", labelEn: "CIF - Cost, Insurance and Freight" },
+  { code: "CIP", labelTr: "CIP - Taşıma ve Sigorta Ödenmiş Olarak", labelEn: "CIP - Carriage and Insurance Paid To" },
+  { code: "CPT", labelTr: "CPT - Taşıma Ödenmiş Olarak", labelEn: "CPT - Carriage Paid To" },
+  { code: "DAF", labelTr: "DAF - Sınırda Teslim", labelEn: "DAF - Delivered At Frontier" },
+  { code: "DAP", labelTr: "DAP - Belirlenen Yerde Teslim", labelEn: "DAP - Delivered At Place" },
+  { code: "DAT", labelTr: "DAT - Terminalde Teslim", labelEn: "DAT - Delivered At Terminal" },
+  { code: "DDP", labelTr: "DDP - Gümrük Vergileri Ödenmiş Olarak", labelEn: "DDP - Delivered Duty Paid" },
+  { code: "DDU", labelTr: "DDU - Gümrük Resmi Ödenmemiş Olarak Teslim", labelEn: "DDU - Delivered Duty Unpaid" },
+  { code: "DEQ", labelTr: "DEQ - Rıhtımda Teslim (Gümrük Vergi ve Harçları Dahil)", labelEn: "DEQ - Delivered Ex Quay" },
+  { code: "DES", labelTr: "DES - Gemide Teslim", labelEn: "DES - Delivered Ex Ship" },
+  { code: "DPU", labelTr: "DPU - Belirlenen Yerde Boşaltılmış Olarak Teslim", labelEn: "DPU - Delivered at Place Unloaded" },
+  { code: "EXW", labelTr: "EXW - İşyerinde Teslim", labelEn: "EXW - Ex Works" },
+  { code: "FAS", labelTr: "FAS - Gemi Doğrultusunda Masrafsız", labelEn: "FAS - Free Alongside Ship" },
+  { code: "FCA", labelTr: "FCA - Taşıyıcıya Masrafsız", labelEn: "FCA - Free Carrier" },
+  { code: "FOB", labelTr: "FOB - Gemide Masrafsız", labelEn: "FOB - Free On Board" }
+];
+
 export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const isTr = lang === 'tr';
 
@@ -1174,8 +1193,10 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                           onChange={(e) => setDeliveryTerm(e.target.value)}
                           className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none bg-white font-bold"
                         >
-                          {["CFR", "CIF", "FOB", "EXW", "DDP", "CPT", "FCA", "DAT", "DAP", "CIP", "FAS"].map(term => (
-                            <option key={term} value={term}>{term}</option>
+                          {INCOTERMS_LIST.map(term => (
+                            <option key={term.code} value={term.code}>
+                              {isTr ? term.labelTr : term.labelEn}
+                            </option>
                           ))}
                         </select>
                       </div>
