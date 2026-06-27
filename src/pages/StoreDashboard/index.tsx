@@ -599,9 +599,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
     ]},
     { type: 'category', key: "finance_operations", title: isTr ? "Finans & Operasyon" : "Finance & Operations", items: [
-      ...(!isRealEstate ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices }] : []),
-      ...(!isRealEstate ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' }] : []),
-      ...(!isRealEstate ? [{ id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck }] : []),
+      ...(!isPortfolio ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices }] : []),
+      ...(!isPortfolio ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' }] : []),
+      ...(!isPortfolio ? [{ id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck }] : []),
       { id: "companies", label: t.companies, icon: Store },
       { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
     ]},
@@ -811,7 +811,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeId={currentStoreId!} 
                 />
               )}
-              {activeTab === "sales_invoices" && !isRealEstate && (
+              {activeTab === "sales_invoices" && !isPortfolio && (
                 <SalesInvoices 
                   storeId={currentStoreId} 
                   role={user.role} 
@@ -821,7 +821,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onFetchDetails={handleFetchSalesInvoiceDetails} 
                 />
               )}
-              {activeTab === "e_waybills" && !isRealEstate && (
+              {activeTab === "e_waybills" && !isPortfolio && (
                 <EWaybillsTab
                   storeId={currentStoreId}
                   lang={lang}
@@ -863,7 +863,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               {activeTab === "procurements" && (
                 <ProcurementTab storeId={currentStoreId!} isViewer={isViewer} />
               )}
-              {activeTab === "purchase_invoices" && !isRealEstate && (
+              {activeTab === "purchase_invoices" && !isPortfolio && (
                 <PurchaseInvoices 
                   storeId={currentStoreId} 
                   role={user.role} 
@@ -963,7 +963,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 />
               )}
               {activeTab === "portfolio_finances" && (
-                <PortfolioFinancesTab storeId={currentStoreId!} />
+                <PortfolioFinancesTab 
+                  storeId={currentStoreId!} 
+                  isAutomotive={isAutomotive} 
+                  isRealEstate={isRealEstate}
+                />
               )}
             </Suspense>
           </motion.div>

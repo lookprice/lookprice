@@ -37,7 +37,7 @@ This file outlines strict engineering, performance, and naming directives that m
 
 ## 3. Sektörel İzolasyon ve Ortak Yönetim Koruma Kuralları
 
-- **Katı Sektörel İzolasyon (Gayrimenkul / Otomotiv / Perakende)**:
+- **Sektörel İzolasyon (İlan Odaklı Portföy Mağazaları)**: Oto Galeri (Motorlu Araçlar) ve Emlak Portföy mağazalarında 'Alış/Satış Faturaları' ve 'e-İrsaliye' modülleri tamamen gizlenmelidir. Bu özellikler sadece genel perakende mağazaları için aktif tutulmalıdır. Bu kural tüm geliştiriciler için zorunludur.
   - **Gayrimenkul (Emlak)**, **Otomotiv (Motorlu Araçlar)** ve **Genel Ürün Yönetimi** modülleri kod düzeyinde tamamen izole kalmalıdır.
   - Bir sektörel modüle veya genel ürün alt yapısına yapılan müdahaleler, diğer modüllerin veri yapılarını, API uçlarını, ilan/form şablonlarını veya durum yönetimlerini kesinlikle etkilememelidir.
   - Emlak ve Otomotiv modüllerine ait özel bileşenler (`SectorSpecs`, `RealEstateModal`, vb.) bağımsız yapıdadır ve ortak ürün tablolarına geçildiğinde bu sectoral alanlar bozulmadan korunmalıdır.

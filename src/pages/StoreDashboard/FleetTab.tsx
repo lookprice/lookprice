@@ -353,6 +353,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Submitting vehicle form, formData:", formData);
     if (selectedVehicle) {
       await handleUpdateVehicle(e);
     } else {
