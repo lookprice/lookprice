@@ -11,6 +11,7 @@ interface AssignmentFormModalProps {
   setFormData: (data: any) => void;
   handleSubmit: (e: React.FormEvent) => void;
   vehicles: Vehicle[];
+  drivers?: any[];
 }
 
 export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
@@ -20,11 +21,13 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
   formData,
   setFormData,
   handleSubmit,
-  vehicles
+  vehicles,
+  drivers = []
 }) => {
   if (!isOpen) return null;
 
   const isTr = lang === 'tr';
+  const [assignType, setAssignType] = React.useState<'driver' | 'email'>(formData.driver_id ? 'driver' : formData.user_email ? 'email' : 'driver');
 
   return (
     <AnimatePresence>
@@ -64,19 +67,69 @@ export const AssignmentFormModal: React.FC<AssignmentFormModalProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
-                   {isTr ? 'Sürücü E-posta' : 'Driver Email'}
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="ornek@mail.com"
-                  value={formData.user_email || ''}
-                  onChange={(e) => setFormData({ ...formData, user_email: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
-                />
+              {/* Toggle Selection Mode */}
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssignType('driver');
+                    setFormData({ ...formData, user_email: '', driver_id: '' });
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${assignType === 'driver' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  {isTr ? 'Kayıtlı Sürücü Seç' : 'Choose Registered Driver'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssignType('email');
+                    setFormData({ ...formData, driver_id: '', user_email: '' });
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${assignType === 'email' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  {isTr ? 'E-posta ile Ata' : 'Assign via Email'}
+                </button>
               </div>
+
+              {assignType === 'driver' ? (
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+                    {isTr ? 'Sürücü Seçin' : 'Select Driver'}
+                  </label>
+                  <select
+                    required
+                    value={formData.driver_id || ''}
+                    onChange={(e) => {
+                      const selectedDriver = drivers.find(d => String(d.id) === e.target.value);
+                      setFormData({ 
+                        ...formData, 
+                        driver_id: e.target.value ? Number(e.target.value) : '',
+                        user_email: selectedDriver?.email || ''
+                      });
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                  >
+                    <option value="">{isTr ? 'Sürücü Seçin' : 'Select Driver'}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.name} {d.phone ? `(${d.phone})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+                     {isTr ? 'Sürücü E-posta' : 'Driver Email'}
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="ornek@mail.com"
+                    value={formData.user_email || ''}
+                    onChange={(e) => setFormData({ ...formData, user_email: e.target.value, driver_id: '' })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

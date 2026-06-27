@@ -22,7 +22,8 @@ import {
   Divide,
   XCircle,
   FileText,
-  MapPin
+  MapPin,
+  Ship
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
@@ -88,6 +89,17 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const [items, setItems] = useState<any[]>([]);
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
+  // Saved drivers and vehicles from fleet
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+
+  // Cargo/Courier Shipment states
+  const [isCargoShipment, setIsCargoShipment] = useState(false);
+  const [deliveryTerm, setDeliveryTerm] = useState("CFR");
+  const [transportMode, setTransportMode] = useState("1");
+  const [cargoCarrier, setCargoCarrier] = useState("Aras Kargo");
+  const [cargoNo, setCargoNo] = useState("");
+
   // Product Dropdown inside line items helper
   const [productSearch, setProductSearch] = useState("");
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
@@ -114,6 +126,22 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       // 4. Fetch products
       const prodRes = await api.getProducts(storeId);
       setProducts(prodRes || []);
+
+      // 5. Fetch drivers
+      try {
+        const driversRes = await api.getDrivers(storeId);
+        setDrivers(driversRes || []);
+      } catch (err) {
+        console.error("Drivers fetch failed:", err);
+      }
+
+      // 6. Fetch vehicles
+      try {
+        const vehiclesRes = await api.getVehicles(storeId);
+        setVehicles(vehiclesRes || []);
+      } catch (err) {
+        console.error("Vehicles fetch failed:", err);
+      }
 
     } catch (err) {
       console.error(err);
@@ -148,6 +176,11 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     setCurrency(branding?.default_currency || "TRY");
     setExchangeRate("1");
     setDeliveryAddress("");
+    setIsCargoShipment(false);
+    setDeliveryTerm("CFR");
+    setTransportMode("1");
+    setCargoCarrier("Aras Kargo");
+    setCargoNo("");
     setItems([{ tempId: Date.now(), product_id: "", product_name: "", barcode: "", quantity: 1, unit_code: "Adet", unit_price: 0, tax_rate: 20 }]);
     setShowFormModal(true);
   };
@@ -178,6 +211,11 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       setCurrency(data.currency || "TRY");
       setExchangeRate(String(data.exchange_rate || 1));
       setDeliveryAddress(data.delivery_address || "");
+      setIsCargoShipment(!!data.is_cargo_shipment);
+      setDeliveryTerm(data.delivery_term || "CFR");
+      setTransportMode(data.transport_mode || "1");
+      setCargoCarrier(data.carrier_name || "Aras Kargo");
+      setCargoNo(data.tracking_number || "");
       
       const loadedItems = (data.items || []).map((i: any) => ({
         ...i,
@@ -218,7 +256,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       return;
     }
 
-    if (!plateNumber.trim()) {
+    if (!isCargoShipment && !plateNumber.trim()) {
       toast.error(isTr ? "GİB Şema kuralları gereği Araç Plaka Numarası doldurulması zorunludur." : "Plate Number is mandatory for GİB rules.");
       return;
     }
@@ -239,16 +277,21 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       prefix,
       scenario,
       waybill_type: waybillType,
-      driver_name: driverName,
-      driver_surname: driverSurname,
-      driver_vkn: driverVkn,
-      plate_number: plateNumber,
-      trailer_plate: trailerPlate,
+      driver_name: isCargoShipment ? "" : driverName,
+      driver_surname: isCargoShipment ? "" : driverSurname,
+      driver_vkn: isCargoShipment ? "" : driverVkn,
+      plate_number: isCargoShipment ? "" : plateNumber,
+      trailer_plate: isCargoShipment ? "" : trailerPlate,
       notes,
       currency,
       exchange_rate: Number(exchangeRate) || 1,
       delivery_address: deliveryAddress,
-      items: cleanedItems
+      items: cleanedItems,
+      delivery_term: isCargoShipment ? deliveryTerm : null,
+      transport_mode: isCargoShipment ? transportMode : null,
+      carrier_name: isCargoShipment ? cargoCarrier : null,
+      tracking_number: isCargoShipment ? cargoNo : null,
+      is_cargo_shipment: isCargoShipment
     };
 
     try {
@@ -978,72 +1021,226 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                 })()}
 
                 {/* section 2: Shipment carrier driver plate logitics info details */}
-                <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-3 flex items-center gap-1">
-                    <Truck className="h-4 w-4 text-indigo-500" />
-                    {isTr ? "Taşıyıcı / Sürücü ve Araç Plaka Bilgileri" : "Carrier Logistics & Truck Driver info"}
-                  </h3>
+                <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                      <Truck className="h-4 w-4 text-indigo-500" />
+                      {isTr ? "Lojistik / Sevkiyat Bilgileri" : "Logistics & Despatch Details"}
+                    </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Sürücü Adı" : "Driver Name"}</label>
-                      <input
-                        type="text"
-                        value={driverName}
-                        onChange={(e) => setDriverName(e.target.value)}
-                        placeholder="Örn: Ahmet"
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Sürücü Soyadı" : "Driver Surname"}</label>
-                      <input
-                        type="text"
-                        value={driverSurname}
-                        onChange={(e) => setDriverSurname(e.target.value)}
-                        placeholder="Örn: Yılmaz"
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Sürücü TCKN / VKN" : "Driver ID/VKN"}</label>
-                      <input
-                        type="text"
-                        maxLength={11}
-                        value={driverVkn}
-                        onChange={(e) => setDriverVkn(e.target.value.replace(/\D/g, ''))}
-                        placeholder="11111111111"
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white font-mono"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-500 block">
-                        {isTr ? "Araç Plaka No *" : "Plate Number *"}
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={plateNumber}
-                        onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-                        placeholder="Örn: 34ABC123"
-                        className="w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white font-bold"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Dorse / Treyler Plaka" : "Trailer Plate"}</label>
-                      <input
-                        type="text"
-                        value={trailerPlate}
-                        onChange={(e) => setTrailerPlate(e.target.value.toUpperCase())}
-                        placeholder="Örn: 34XYZ99"
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white"
-                      />
+                    {/* Sliding Mode Segmented Tab */}
+                    <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto border border-slate-200/50">
+                      <button
+                        type="button"
+                        onClick={() => setIsCargoShipment(false)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${!isCargoShipment ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      >
+                        <UserIcon className="h-3 w-3" />
+                        {isTr ? "Kendi Sürücü/Aracımız" : "Self Logistics"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCargoShipment(true)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${isCargoShipment ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      >
+                        <Ship className="h-3 w-3" />
+                        {isTr ? "Kargo Firması ile Sevk" : "Cargo Shipment"}
+                      </button>
                     </div>
                   </div>
+
+                  {!isCargoShipment ? (
+                    <div className="space-y-4 animate-fadeIn">
+                      {/* Fleet Quick Selection */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-slate-100">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">
+                            {isTr ? "⚡ Hızlı Sürücü Seçimi (Filo)" : "⚡ Quick Driver Selection (Fleet)"}
+                          </label>
+                          <select
+                            onChange={(e) => {
+                              const selectedDriver = drivers.find(d => String(d.id) === e.target.value);
+                              if (selectedDriver) {
+                                const names = (selectedDriver.name || "").trim().split(" ");
+                                const sName = names.slice(-1)[0] || "";
+                                const fName = names.slice(0, -1).join(" ") || selectedDriver.name || "";
+                                setDriverName(fName);
+                                setDriverSurname(sName);
+                                setDriverVkn(selectedDriver.national_id || selectedDriver.license_number || "");
+                                toast.success(isTr ? `Sürücü ${selectedDriver.name} bilgileri dolduruldu.` : `Driver ${selectedDriver.name} filled.`);
+                              }
+                            }}
+                            className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none bg-indigo-50/30 hover:bg-indigo-50/50 transition font-bold"
+                          >
+                            <option value="">{isTr ? "-- Kayıtlı Sürücülerden Seç --" : "-- Choose from Saved Drivers --"}</option>
+                            {drivers.map(d => (
+                              <option key={d.id} value={d.id}>{d.name} {d.phone ? `(${d.phone})` : ''}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">
+                            {isTr ? "⚡ Hızlı Araç Seçimi (Filo)" : "⚡ Quick Vehicle Selection (Fleet)"}
+                          </label>
+                          <select
+                            onChange={(e) => {
+                              const selectedVehicle = vehicles.find(v => String(v.id) === e.target.value);
+                              if (selectedVehicle) {
+                                setPlateNumber(selectedVehicle.plate || "");
+                                toast.success(isTr ? `Araç Plaka ${selectedVehicle.plate} dolduruldu.` : `Vehicle plate ${selectedVehicle.plate} filled.`);
+                              }
+                            }}
+                            className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none bg-indigo-50/30 hover:bg-indigo-50/50 transition font-bold"
+                          >
+                            <option value="">{isTr ? "-- Kayıtlı Araçlardan Seç --" : "-- Choose from Saved Vehicles --"}</option>
+                            {vehicles.map(v => (
+                              <option key={v.id} value={v.id}>{v.plate} ({v.brand} {v.model})</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Self logistics inputs */}
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Sürücü Adı" : "Driver Name"}</label>
+                          <input
+                            type="text"
+                            value={driverName}
+                            onChange={(e) => setDriverName(e.target.value)}
+                            placeholder="Örn: Ahmet"
+                            className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white"
+                          />
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Sürücü Soyadı" : "Driver Surname"}</label>
+                          <input
+                            type="text"
+                            value={driverSurname}
+                            onChange={(e) => setDriverSurname(e.target.value)}
+                            placeholder="Örn: Yılmaz"
+                            className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Sürücü TCKN / VKN" : "Driver ID/VKN"}</label>
+                          <input
+                            type="text"
+                            maxLength={11}
+                            value={driverVkn}
+                            onChange={(e) => setDriverVkn(e.target.value.replace(/\D/g, ''))}
+                            placeholder="11111111111"
+                            className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-500 block">
+                            {isTr ? "Araç Plaka No *" : "Plate Number *"}
+                          </label>
+                          <input
+                            type="text"
+                            required={!isCargoShipment}
+                            value={plateNumber}
+                            onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
+                            placeholder="Örn: 34ABC123"
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white font-bold"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-500 block">{isTr ? "Dorse / Treyler Plaka" : "Trailer Plate"}</label>
+                          <input
+                            type="text"
+                            value={trailerPlate}
+                            onChange={(e) => setTrailerPlate(e.target.value.toUpperCase())}
+                            placeholder="Örn: 34XYZ99"
+                            className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 animate-fadeIn">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-500 block">
+                          {isTr ? "Teslim Şartı (Incoterms)" : "Delivery Term (Incoterms)"}
+                        </label>
+                        <select
+                          value={deliveryTerm}
+                          onChange={(e) => setDeliveryTerm(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none bg-white font-bold"
+                        >
+                          {["CFR", "CIF", "FOB", "EXW", "DDP", "CPT", "FCA", "DAT", "DAP", "CIP", "FAS"].map(term => (
+                            <option key={term} value={term}>{term}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-500 block">
+                          {isTr ? "Gönderim Şekli" : "Shipping Method"}
+                        </label>
+                        <select
+                          value={transportMode}
+                          onChange={(e) => setTransportMode(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none bg-white font-bold"
+                        >
+                          <option value="1">{isTr ? "1. Karayolu" : "1. Road Transport"}</option>
+                          <option value="2">{isTr ? "2. Denizyolu" : "2. Sea Transport"}</option>
+                          <option value="3">{isTr ? "3. Havayolu" : "3. Air Transport"}</option>
+                          <option value="4">{isTr ? "4. Demiryolu" : "4. Rail Transport"}</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-500 block">
+                          {isTr ? "Kargo Firması" : "Cargo Company"}
+                        </label>
+                        <select
+                          value={cargoCarrier}
+                          onChange={(e) => setCargoCarrier(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm outline-none bg-white font-bold"
+                        >
+                          {["Aras Kargo", "Yurtiçi Kargo", "MNG Kargo", "Sürat Kargo", "PTT Kargo", "UPS Hızlı Kargo", "DHL Express", "FedEx", "TNT", "Diğer"].map(carrier => (
+                            <option key={carrier} value={carrier}>{carrier}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-500 block">
+                          {isTr ? "Kargo Takip No" : "Cargo Tracking No"}
+                        </label>
+                        <input
+                          type="text"
+                          required={isCargoShipment}
+                          value={cargoNo}
+                          onChange={(e) => setCargoNo(e.target.value)}
+                          placeholder={isTr ? "Takip no girin..." : "Enter tracking number..."}
+                          className="w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white font-bold"
+                        />
+                      </div>
+
+                      {cargoCarrier === "Diğer" && (
+                        <div className="col-span-1 md:col-span-4 space-y-1 animate-fadeIn">
+                          <label className="text-xs font-semibold text-slate-500 block">
+                            {isTr ? "Özel Kargo Firması Adı *" : "Custom Cargo Company Name *"}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder={isTr ? "Firma adını yazın..." : "Enter custom company..."}
+                            onChange={(e) => setCargoCarrier(e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 transition bg-white font-medium"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* section 3: Line items table */}
@@ -1334,13 +1531,30 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                   </div>
 
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
-                    <span className="text-xs font-semibold text-slate-400 block">{isTr ? "ARAÇ VE PLAKALAR" : "TRUCK PLATES"}</span>
-                    <strong className="text-sm text-slate-800 block">
-                      {selectedWaybill.plate_number || "Plaka Belirtilmedi"}
-                    </strong>
-                    <span className="text-xs text-slate-500 block">
-                      {selectedWaybill.driver_name ? `${selectedWaybill.driver_name} ${selectedWaybill.driver_surname}` : "Sürücü Yok"}
-                    </span>
+                    {selectedWaybill.is_cargo_shipment ? (
+                      <>
+                        <span className="text-xs font-semibold text-slate-400 block">{isTr ? "KARGO / SEVK DETAYI" : "CARGO SHIPMENT DETAILS"}</span>
+                        <strong className="text-sm text-slate-800 block">
+                          {selectedWaybill.carrier_name || "Belirtilmedi"}
+                        </strong>
+                        <span className="text-xs text-slate-500 block font-mono">
+                          {isTr ? "Takip No: " : "Track No: "} {selectedWaybill.tracking_number || "Girilmedi"}
+                        </span>
+                        <span className="text-[10px] text-indigo-600 block font-bold">
+                          {selectedWaybill.delivery_term || "CFR"} - {selectedWaybill.transport_mode === '1' ? (isTr ? 'Karayolu' : 'Road') : selectedWaybill.transport_mode === '2' ? (isTr ? 'Denizyolu' : 'Sea') : selectedWaybill.transport_mode === '3' ? (isTr ? 'Havayolu' : 'Air') : (isTr ? 'Demiryolu' : 'Rail')}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xs font-semibold text-slate-400 block">{isTr ? "ARAÇ VE PLAKALAR" : "TRUCK PLATES"}</span>
+                        <strong className="text-sm text-slate-800 block">
+                          {selectedWaybill.plate_number || "Plaka Belirtilmedi"}
+                        </strong>
+                        <span className="text-xs text-slate-500 block">
+                          {selectedWaybill.driver_name ? `${selectedWaybill.driver_name} ${selectedWaybill.driver_surname}` : "Sürücü Yok"}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 

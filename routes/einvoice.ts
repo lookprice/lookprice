@@ -9,6 +9,20 @@ import { numberToTurkishWords } from "../src/utils/dashboardUtils";
 
 const router = express.Router();
 
+// Self-Healing database schema updates for e_waybills cargo fields
+(async () => {
+  try {
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS delivery_term TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS transport_mode TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS carrier_name TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS tracking_number TEXT;`);
+    await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS is_cargo_shipment BOOLEAN DEFAULT FALSE;`);
+    console.log("Self-healing schema verification: e_waybills cargo columns processed successfully.");
+  } catch (error) {
+    console.error("Self-healing schema error for e_waybills:", error);
+  }
+})();
+
 // Get the E-Invoice service instance based on Store Settings
 export const getEInvoiceService = async (storeId: number) => {
   console.log(`[getEInvoiceService] Fetching settings for storeId: ${storeId}`);
@@ -433,6 +447,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        docTime: formattedTime,
        ettn: ettn,
        docNo: documentNumber,
+       note: invoice.notes || "",
        currencyCode: (invoice.currency || 'TRY').toUpperCase(),
        currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
        tenantIdentifierNumber: storeTaxNumber,
@@ -1066,21 +1081,27 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
 
     let invoiceRes;
     if (invoiceType === 'sales') {
-        invoiceRes = await pool.query("SELECT ettn, document_number FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
     } else {
-        invoiceRes = await pool.query("SELECT ettn, document_number FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
     }
     
     if (invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
-    const { ettn, document_number } = invoiceRes.rows[0];
+    const { ettn, document_number, notes } = invoiceRes.rows[0];
     if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
 
     const service = await getEInvoiceService(storeId);
     
     if ('getInvoiceHtml' in service) {
       console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}`);
-      const html = await (service as any).getInvoiceHtml(ettn, document_number);
+      let html = await (service as any).getInvoiceHtml(ettn, document_number);
+      
+      if (notes) {
+        const noteHtml = `<div class="invoice-notes" style="margin-top: 20px; border-top: 1px solid #ccc; padding: 10px;"><strong>Notlar / Açıklamalar:</strong><p>${notes}</p></div>`;
+        html = html.replace('</body>', `${noteHtml}</body>`);
+      }
+      
       console.log(`[HTML-FETCH] HTML fetched for ${invoiceId}`);
       return res.json({ html });
     }
@@ -1695,7 +1716,12 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
     currency,
     exchange_rate,
     delivery_address,
-    items
+    items,
+    delivery_term,
+    transport_mode,
+    carrier_name,
+    tracking_number,
+    is_cargo_shipment
   } = req.body;
 
   if (!items || items.length === 0) {
@@ -1734,8 +1760,9 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
         store_id, company_id, customer_id, waybill_number, waybill_date, waybill_time,
         actual_date, actual_time, prefix, scenario, waybill_type,
         driver_name, driver_surname, driver_vkn, plate_number, trailer_plate,
-        notes, status, total_amount, tax_amount, grand_total, currency, exchange_rate, delivery_address
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', $18, $19, $20, $21, $22, $23)
+        notes, status, total_amount, tax_amount, grand_total, currency, exchange_rate, delivery_address,
+        delivery_term, transport_mode, carrier_name, tracking_number, is_cargo_shipment
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING id`,
       [
         storeId,
@@ -1760,7 +1787,12 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
         grandTotal,
         currency || 'TRY',
         exchange_rate || 1,
-        delivery_address || null
+        delivery_address || null,
+        delivery_term || null,
+        transport_mode || null,
+        carrier_name || null,
+        tracking_number || null,
+        !!is_cargo_shipment
       ]
     );
 
@@ -1828,7 +1860,12 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
     currency,
     exchange_rate,
     delivery_address,
-    items
+    items,
+    delivery_term,
+    transport_mode,
+    carrier_name,
+    tracking_number,
+    is_cargo_shipment
   } = req.body;
 
   if (!items || items.length === 0) {
@@ -1885,8 +1922,9 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
         company_id = $1, customer_id = $2, waybill_number = $3, waybill_date = $4, waybill_time = $5,
         actual_date = $6, actual_time = $7, prefix = $8, scenario = $9, waybill_type = $10,
         driver_name = $11, driver_surname = $12, driver_vkn = $13, plate_number = $14, trailer_plate = $15,
-        notes = $16, total_amount = $17, tax_amount = $18, grand_total = $19, currency = $20, exchange_rate = $21, delivery_address = $22
-      WHERE id = $23 AND store_id = $24`,
+        notes = $16, total_amount = $17, tax_amount = $18, grand_total = $19, currency = $20, exchange_rate = $21, delivery_address = $22,
+        delivery_term = $23, transport_mode = $24, carrier_name = $25, tracking_number = $26, is_cargo_shipment = $27
+      WHERE id = $28 AND store_id = $29`,
       [
         company_id || null,
         customer_id || null,
@@ -1910,6 +1948,11 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
         currency || 'TRY',
         exchange_rate || 1,
         delivery_address || null,
+        delivery_term || null,
+        transport_mode || null,
+        carrier_name || null,
+        tracking_number || null,
+        !!is_cargo_shipment,
         id,
         storeId
       ]

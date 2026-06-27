@@ -894,6 +894,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         setFormData={setAssignmentFormData}
         handleSubmit={handleCreateAssignment}
         vehicles={vehicles || []}
+        drivers={drivers || []}
       />
 
       <MileageFormModal

@@ -21,9 +21,10 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'none';`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS buying_currency TEXT DEFAULT 'TRY';`);
-    console.log("Self-healing schema verification: vehicles table columns processed successfully.");
+    await pool.query(`ALTER TABLE drivers ADD COLUMN IF NOT EXISTS national_id TEXT;`);
+    console.log("Self-healing schema verification: vehicles and drivers table columns processed successfully.");
   } catch (error) {
-    console.error("Self-healing schema error for vehicles table:", error);
+    console.error("Self-healing schema error for tables:", error);
   }
 })();
 
@@ -382,7 +383,27 @@ router.get('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
 
 router.post('/vehicles/:id/assignments', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { user_id, driver_id, start_date, start_mileage, notes } = req.body;
+  let { user_id, driver_id, user_email, start_date, start_mileage, notes } = req.body;
+
+  // Try to resolve user_id or driver_id if they aren't provided but user_email/email is
+  if (!user_id && !driver_id && user_email) {
+    try {
+      // 1. Try to find user by email
+      const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [user_email]);
+      if (userRes.rows.length > 0) {
+        user_id = userRes.rows[0].id;
+      } else {
+        // 2. Try to find driver by email
+        const driverRes = await pool.query('SELECT id FROM drivers WHERE email = $1', [user_email]);
+        if (driverRes.rows.length > 0) {
+          driver_id = driverRes.rows[0].id;
+        }
+      }
+    } catch (e) {
+      console.error('Error resolving user_email for assignment:', e);
+    }
+  }
+
   if ((!user_id && !driver_id) || !start_date) {
     return res.status(400).json({ error: 'Missing required fields: user_id or driver_id and start_date are required' });
   }
@@ -513,13 +534,13 @@ router.get('/drivers', authenticate, async (req: any, res) => {
 });
 
 router.post('/drivers', authenticate, async (req: any, res) => {
-  const { name, license_number, license_class, blood_type, phone, email, address, status } = req.body;
+  const { name, license_number, license_class, blood_type, phone, email, address, status, national_id } = req.body;
   const storeId = req.body.store_id || req.user.store_id;
   try {
     const result = await pool.query(
-      `INSERT INTO drivers (store_id, name, license_number, license_class, blood_type, phone, email, address, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [storeId, name, license_number, license_class, blood_type, phone, email, address, status || 'active']
+      `INSERT INTO drivers (store_id, name, license_number, license_class, blood_type, phone, email, address, status, national_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [storeId, name, license_number, license_class, blood_type, phone, email, address, status || 'active', national_id || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -530,13 +551,13 @@ router.post('/drivers', authenticate, async (req: any, res) => {
 
 router.put('/drivers/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const { name, license_number, license_class, blood_type, phone, email, address, status } = req.body;
+  const { name, license_number, license_class, blood_type, phone, email, address, status, national_id } = req.body;
   try {
     const result = await pool.query(
       `UPDATE drivers 
-       SET name = $1, license_number = $2, license_class = $3, blood_type = $4, phone = $5, email = $6, address = $7, status = $8
+       SET name = $1, license_number = $2, license_class = $3, blood_type = $4, phone = $5, email = $6, address = $7, status = $8, national_id = $10
        WHERE id = $9 RETURNING *`,
-      [name, license_number, license_class, blood_type, phone, email, address, status, id]
+      [name, license_number, license_class, blood_type, phone, email, address, status, id, national_id || null]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Driver not found' });
     res.json(result.rows[0]);

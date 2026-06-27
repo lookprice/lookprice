@@ -112,20 +112,33 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
-                  {isTr ? 'Kan Grubu' : 'Blood Type'}
-                </label>
-                <select
-                  value={formData.blood_type || ''}
-                  onChange={(e) => setFormData({ ...formData, blood_type: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
-                >
-                  <option value="">Seçin</option>
-                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-'].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+                    {isTr ? 'T.C. Kimlik / Pasaport No' : 'National ID / Passport No'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.national_id || ''}
+                    onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+                    {isTr ? 'Kan Grubu' : 'Blood Type'}
+                  </label>
+                  <select
+                    value={formData.blood_type || ''}
+                    onChange={(e) => setFormData({ ...formData, blood_type: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold"
+                  >
+                    <option value="">{isTr ? 'Seçin' : 'Select'}</option>
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>

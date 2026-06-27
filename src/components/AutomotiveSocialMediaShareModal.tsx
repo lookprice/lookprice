@@ -442,7 +442,23 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
               sHeight = imgPtr.width / targetAspect;
               sy = (imgPtr.height - sHeight) / 2;
             }
+            ctx.save();
+            // Polish & Shine filter: Increase brightness, contrast and saturation dynamically
+            ctx.filter = "brightness(1.12) contrast(1.05) saturate(1.12)";
             ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
+            
+            // Draw a subtle diagonal glare sheen on the canvas image to give that "glass/metal polish" premium glossiness
+            const sheenGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+            sheenGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
+            sheenGrad.addColorStop(0.42, "rgba(255, 255, 255, 0)");
+            sheenGrad.addColorStop(0.5, "rgba(255, 255, 255, 0.15)"); // smooth glossy shine
+            sheenGrad.addColorStop(0.58, "rgba(255, 255, 255, 0)");
+            sheenGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+            ctx.fillStyle = sheenGrad;
+            ctx.globalCompositeOperation = "overlay";
+            ctx.fillRect(x, y, w, h);
+            
+            ctx.restore();
           } catch (err) {
             drawFallbackBlock(x, y, w, h, emoji);
           }
@@ -715,19 +731,23 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                 }}
               >
                 
-                {/* Full Bleed Image / Collage Grid */}
+                 {/* Full Bleed Image / Collage Grid */}
                 <div className="absolute inset-0 w-full h-full z-0 select-none pointer-events-none">
                   {isCollage && vehicle.images && (vehicle.images[1] || vehicle.images[2]) ? (
                     <div className="w-full h-full flex flex-row">
                       {/* Left Main (67%) */}
                       <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
                         {vehicle.images[0] ? (
-                          <img 
-                            src={vehicle.images[0]} 
-                            alt={vehicleTitle} 
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
+                          <div className="relative w-full h-full overflow-hidden">
+                            <img 
+                              src={vehicle.images[0]} 
+                              alt={vehicleTitle} 
+                              className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                              referrerPolicy="no-referrer"
+                            />
+                            {/* Polish Diagonal Glare Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                          </div>
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-450 bg-slate-900">🚗</div>
                         )}
@@ -736,24 +756,32 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                       <div className="w-[33%] h-full flex flex-col">
                         <div className="flex-1 relative border-b border-black/30 overflow-hidden">
                           {vehicle.images[1] ? (
-                            <img 
-                              src={vehicle.images[1]} 
-                              alt="Görsel 2" 
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
+                            <div className="relative w-full h-full overflow-hidden">
+                              <img 
+                                src={vehicle.images[1]} 
+                                alt="Görsel 2" 
+                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                referrerPolicy="no-referrer"
+                              />
+                              {/* Polish Diagonal Glare Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                            </div>
                           ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
                           )}
                         </div>
                         <div className="flex-1 relative overflow-hidden">
                           {vehicle.images[2] ? (
-                            <img 
-                              src={vehicle.images[2]} 
-                              alt="Görsel 3" 
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
+                            <div className="relative w-full h-full overflow-hidden">
+                              <img 
+                                src={vehicle.images[2]} 
+                                alt="Görsel 3" 
+                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                referrerPolicy="no-referrer"
+                              />
+                              {/* Polish Diagonal Glare Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                            </div>
                           ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
                           )}
@@ -763,12 +791,16 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                   ) : (
                     // Full bleed single cover image
                     vehicle.images && vehicle.images[0] ? (
-                      <img 
-                        src={vehicle.images[0]} 
-                        alt={vehicleTitle} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+                      <div className="relative w-full h-full overflow-hidden">
+                        <img 
+                          src={vehicle.images[0]} 
+                          alt={vehicleTitle} 
+                          className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                          referrerPolicy="no-referrer"
+                        />
+                        {/* Polish Diagonal Glare Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                      </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
                         <span className="text-4xl">🚗</span>

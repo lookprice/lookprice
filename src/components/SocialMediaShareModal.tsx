@@ -344,7 +344,23 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
               sHeight = imgPtr.width / targetAspect;
               sy = (imgPtr.height - sHeight) / 2;
             }
+            ctx.save();
+            // Polish & Shine filter: Increase brightness, contrast and saturation dynamically
+            ctx.filter = "brightness(1.12) contrast(1.05) saturate(1.12)";
             ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
+            
+            // Draw a subtle diagonal glare sheen on the canvas image to give that "glass/metal polish" premium glossiness
+            const sheenGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+            sheenGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
+            sheenGrad.addColorStop(0.42, "rgba(255, 255, 255, 0)");
+            sheenGrad.addColorStop(0.5, "rgba(255, 255, 255, 0.15)"); // smooth glossy shine
+            sheenGrad.addColorStop(0.58, "rgba(255, 255, 255, 0)");
+            sheenGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+            ctx.fillStyle = sheenGrad;
+            ctx.globalCompositeOperation = "overlay";
+            ctx.fillRect(x, y, w, h);
+            
+            ctx.restore();
           } catch (err) {
             drawFallbackBlock(x, y, w, h, emoji);
           }
@@ -488,7 +504,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillStyle = '#cbd5e1'; // slate-300
       ctx.font = '500 16px system-ui, sans-serif';
       ctx.fillText(`📐 Alan Ölçüsü: ${sqmText || 'Belirtilmedi'}`, glassX + 30, glassY + 122);
-      ctx.fillText(`📜 Koçan Türü: ${titleType}`, glassX + 30, glassY + 160);
+      if (isRent) {
+        ctx.fillText(`💵 Kapora: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}`, glassX + 30, glassY + 160);
+      } else {
+        ctx.fillText(`📜 Koçan Türü: ${titleType}`, glassX + 30, glassY + 160);
+      }
 
       // Agent watermark watermark bottom center of glass card or top
       ctx.font = '900 11px system-ui, sans-serif';
@@ -595,12 +615,16 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       {/* Left Main (67%) */}
                       <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
                         {property.images[0] ? (
-                          <img 
-                            src={property.images[0]} 
-                            alt={propertyTitle} 
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
+                          <div className="relative w-full h-full overflow-hidden">
+                            <img 
+                              src={property.images[0]} 
+                              alt={propertyTitle} 
+                              className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                              referrerPolicy="no-referrer"
+                            />
+                            {/* Polish Diagonal Glare Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                          </div>
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-450 bg-slate-900">🏠</div>
                         )}
@@ -609,24 +633,32 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       <div className="w-[33%] h-full flex flex-col">
                         <div className="flex-1 relative border-b border-black/30 overflow-hidden">
                           {property.images[1] ? (
-                            <img 
-                              src={property.images[1]} 
-                              alt="Görsel 2" 
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
+                            <div className="relative w-full h-full overflow-hidden">
+                              <img 
+                                src={property.images[1]} 
+                                alt="Görsel 2" 
+                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                referrerPolicy="no-referrer"
+                              />
+                              {/* Polish Diagonal Glare Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                            </div>
                           ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
                           )}
                         </div>
                         <div className="flex-1 relative overflow-hidden">
                           {property.images[2] ? (
-                            <img 
-                              src={property.images[2]} 
-                              alt="Görsel 3" 
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
+                            <div className="relative w-full h-full overflow-hidden">
+                              <img 
+                                src={property.images[2]} 
+                                alt="Görsel 3" 
+                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                referrerPolicy="no-referrer"
+                              />
+                              {/* Polish Diagonal Glare Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                            </div>
                           ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
                           )}
@@ -636,12 +668,16 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   ) : (
                     // Full bleed single cover image
                     property.images && property.images[0] ? (
-                      <img 
-                        src={property.images[0]} 
-                        alt={propertyTitle} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+                      <div className="relative w-full h-full overflow-hidden">
+                        <img 
+                          src={property.images[0]} 
+                          alt={propertyTitle} 
+                          className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                          referrerPolicy="no-referrer"
+                        />
+                        {/* Polish Diagonal Glare Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                      </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
                         <span className="text-4xl">🏠</span>
@@ -702,7 +738,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       <span className="text-[7.5px] font-extrabold text-slate-400 block truncate uppercase mb-1">{regionText}</span>
                       <div className="h-[1px] bg-white/10 my-1" />
                       <span className="text-[7.5px] font-bold text-slate-300 block truncate">📐 Alan: {sqmText || 'Belirtilmedi'}</span>
-                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">📜 Koçan: {titleType}</span>
+                      {isRent ? (
+                        <span className="text-[7.5px] font-bold text-slate-300 block truncate">💵 Kapora: {property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}</span>
+                      ) : (
+                        <span className="text-[7.5px] font-bold text-slate-300 block truncate">📜 Koçan: {titleType}</span>
+                      )}
                     </div>
                   </div>
 
