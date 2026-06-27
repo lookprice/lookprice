@@ -27,7 +27,7 @@ interface AutomotiveSocialMediaShareModalProps {
   branding?: any;
 }
 
-type TemplateTheme = 'luxury_dark' | 'sporty_red' | 'neon_cyber' | 'minimal_carbon';
+type TemplateTheme = 'luxury_dark' | 'sporty_red' | 'neon_cyber' | 'minimal_carbon' | 'hertz_style' | 'rangerover_style';
 type AspectRatio = 'square' | 'story';
 type CaptionTone = 'luxury' | 'technical' | 'friendly';
 
@@ -160,10 +160,43 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           priceBg: 'bg-white text-zinc-900',
           footerBg: 'bg-zinc-950/80 border-t border-zinc-800'
         };
+      case 'hertz_style':
+        return {
+          bg: 'bg-white',
+          textTitle: 'text-black font-extrabold',
+          textBody: 'text-black',
+          accentBorder: 'border-yellow-400',
+          pillBg: 'bg-yellow-400 text-black',
+          priceBg: 'bg-yellow-400 text-black',
+          footerBg: 'bg-yellow-400'
+        };
+      case 'rangerover_style':
+        return {
+          bg: 'bg-zinc-900',
+          textTitle: 'text-white font-extrabold',
+          textBody: 'text-white',
+          accentBorder: 'border-white',
+          pillBg: 'bg-white text-black',
+          priceBg: 'bg-white text-black',
+          footerBg: 'bg-zinc-900'
+        };
     }
   };
 
   const themeConfig = getThemeClasses();
+
+  const getCanvasThemeColors = (theme: TemplateTheme) => {
+    switch (theme) {
+      case 'luxury_dark': return { border: '#d97706', text: '#f59e0b', phone: '#fbbf24', sticker: '#d97706', glassBorder: 'rgba(217,119,6,0.35)', pill: '#d97706' };
+      case 'sporty_red': return { border: '#dc2626', text: '#ef4444', phone: '#f87171', sticker: '#ef4444', glassBorder: 'rgba(239,68,68,0.4)', pill: '#ef4444' };
+      case 'neon_cyber': return { border: '#06b6d4', text: '#22d3ee', phone: '#22d3ee', sticker: '#0284c7', glassBorder: 'rgba(6,182,212,0.4)', pill: '#06b6d4' };
+      case 'hertz_style': return { border: '#eab308', text: '#000000', phone: '#000000', sticker: '#eab308', glassBorder: 'rgba(234,179,8,0.4)', pill: '#eab308' };
+      case 'rangerover_style': return { border: '#ffffff', text: '#ffffff', phone: '#ffffff', sticker: '#ffffff', glassBorder: 'rgba(255,255,255,0.4)', pill: '#ffffff' };
+      default: return { border: '#e4e4e7', text: '#ffffff', phone: '#ffffff', sticker: '#0284c7', glassBorder: 'rgba(255,255,255,0.18)', pill: '#64748b' };
+    }
+  };
+
+  const canvasColors = getCanvasThemeColors(selectedTheme);
 
   // Dynamic Captions generator (100% Client-side robust copywriting for vehicles)
   const getCaptionText = () => {
@@ -278,13 +311,22 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       gradient.addColorStop(0, '#030712'); // gray-950
       gradient.addColorStop(0.5, '#1e1b4b'); // indigo-950
       gradient.addColorStop(1, '#3b0764'); // purple-950
+    } else if (selectedTheme === 'hertz_style') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+    } else if (selectedTheme === 'rangerover_style') {
+      gradient.addColorStop(0, '#18181b'); // zinc-900
+      gradient.addColorStop(0.5, '#09090b'); // zinc-950
+      gradient.addColorStop(1, '#1c1c1f');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
     } else {
       gradient.addColorStop(0, '#18181b'); // zinc-900
       gradient.addColorStop(0.5, '#09090b'); // zinc-950
       gradient.addColorStop(1, '#1c1c1f');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
     }
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
 
     // Dynamic framing closer to edge = 16px instead of 30px to maximize image layout
     const borderPadding = 16;
@@ -306,9 +348,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     ctx.stroke();
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
-                    selectedTheme === 'sporty_red' ? '#ef4444' :
-                    selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
+    ctx.fillStyle = canvasColors.text;
     ctx.font = '900 28px system-ui, sans-serif';
     ctx.letterSpacing = '5px';
     const brandName = storeName.toUpperCase();
@@ -321,9 +361,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
     // Draw phone top-right text
     ctx.textAlign = 'right';
-    ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#fbbf24' :
-                    selectedTheme === 'sporty_red' ? '#f87171' :
-                    selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
+    ctx.fillStyle = canvasColors.phone;
     ctx.font = 'bold 20px monospace';
     const contactPhoneText = branding?.phone || branding?.whatsapp_number || 'PREMIUM GALERİ';
     ctx.fillText(contactPhoneText, width - borderPadding - 30, borderPadding + 68);
@@ -458,7 +496,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       const stickerX = width - borderPadding - 100;
       const stickerY = imgY + 80;
       
-      ctx.fillStyle = selectedTheme === 'sporty_red' ? '#ef4444' : selectedTheme === 'luxury_dark' ? '#d97706' : '#0284c7';
+      ctx.fillStyle = canvasColors.sticker;
       ctx.beginPath();
       ctx.arc(stickerX, stickerY, 55, 0, Math.PI * 2);
       ctx.fill();
@@ -491,9 +529,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       }
       ctx.fill();
 
-      ctx.strokeStyle = selectedTheme === 'luxury_dark' ? 'rgba(217,119,6,0.35)' :
-                        selectedTheme === 'sporty_red' ? 'rgba(239,68,68,0.4)' :
-                        selectedTheme === 'neon_cyber' ? 'rgba(6,182,212,0.4)' : 'rgba(255,255,255,0.18)';
+      ctx.strokeStyle = canvasColors.glassBorder;
       ctx.lineWidth = 3;
       ctx.stroke();
 
@@ -505,9 +541,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       const modelText = `${vehicle.year || '2026'} MODEL`;
       const modelWidth = ctx.measureText(modelText).width + 30;
 
-      ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#d97706' :
-                      selectedTheme === 'sporty_red' ? '#ef4444' :
-                      selectedTheme === 'neon_cyber' ? '#06b6d4' : '#64748b';
+      ctx.fillStyle = canvasColors.pill;
       ctx.beginPath();
       if ((ctx as any).roundRect) {
         (ctx as any).roundRect(glassX + 35, pillY, modelWidth, 34, 8);
@@ -889,6 +923,20 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
               >
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-zinc-700 to-neutral-900 mb-1" />
                 <span className="text-[9px] font-bold">Kömür Karbon</span>
+              </button>
+              <button 
+                onClick={() => setSelectedTheme('hertz_style')}
+                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'hertz_style' ? 'bg-yellow-400 border-yellow-600 text-black ring-2 ring-yellow-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
+              >
+                <div className="w-5 h-5 rounded-full bg-yellow-400 mb-1" />
+                <span className="text-[9px] font-bold">Hertz Tarzı</span>
+              </button>
+              <button 
+                onClick={() => setSelectedTheme('rangerover_style')}
+                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'rangerover_style' ? 'bg-zinc-900 border-white text-white ring-2 ring-white/20 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
+              >
+                <div className="w-5 h-5 rounded-full bg-zinc-900 mb-1" />
+                <span className="text-[9px] font-bold">Lüks Minimal</span>
               </button>
             </div>
 

@@ -8,10 +8,13 @@ import { toast } from 'sonner';
 
 interface TeamCrmTabProps {
   storeId?: number;
+  isAutomotive?: boolean;
+  isRealEstate?: boolean;
 }
 
-export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
+export const TeamCrmTab = ({ storeId, isAutomotive = false, isRealEstate = true }: TeamCrmTabProps) => {
   const { lang } = useLanguage();
+  const isTr = lang === 'tr';
   const [agents, setAgents] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +41,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
     slug: ''
   });
 
-  const [properties, setProperties] = useState<any[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
 
   const [deals, setDeals] = useState<any[]>(() => {
@@ -50,6 +53,28 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
         console.error(err);
       }
     }
+    
+    if (isAutomotive) {
+      return [
+        {
+          id: 'd1',
+          title: 'Sedan Araç Arayışı',
+          description: 'Otomatik vites, düşük kilometreli, servis bakımlı araç. 2020 ve üzeri modeller.',
+          agent_name: 'Mehmet B.',
+          budget: '1.2M TL Bütçe',
+          stage: 'Yeni Talep / Aday'
+        },
+        {
+          id: 'd2',
+          title: 'Ticari Panelvan',
+          description: 'İşletme için uygun, geniş hacimli panelvan arayışı.',
+          agent_name: 'Ayşe Y.',
+          budget: 'Kiralık',
+          stage: 'Yeni Talep / Aday'
+        }
+      ];
+    }
+    
     return [
       {
         id: 'd1',
@@ -66,22 +91,6 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
         agent_name: 'Ayşe Y.',
         budget: 'Kiralık',
         stage: 'Yeni Talep / Aday'
-      },
-      {
-        id: 'd3',
-        title: 'Yatırımlık Daire',
-        description: 'Şişli civarı, kısa dönem kiralamaya (Airbnb vb.) uygun veya ofis olabilecek yatırım.',
-        agent_name: 'Can K.',
-        budget: '4M TL Bütçe',
-        stage: 'Yeni Talep / Aday'
-      },
-      {
-        id: 'd4',
-        title: 'Lüks Rezidans Toplantısı',
-        description: 'Maslak, 3+1 residence için ofiste toplantı gerçekleştirilecek.',
-        agent_name: 'Merkez Şube',
-        budget: 'Bugün 14:00',
-        stage: 'Görüşme / Analiz'
       }
     ];
   });
@@ -111,14 +120,14 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [agentsData, branchesData, propertiesData] = await Promise.all([
+      const [agentsData, branchesData, itemsData] = await Promise.all([
         api.getConsultants(storeId),
         api.getBranches(storeId),
-        api.getProperties(storeId)
+        isAutomotive ? api.getVehicles(storeId) : api.getProperties(storeId)
       ]);
       setAgents(Array.isArray(agentsData) ? agentsData : []);
       setBranches(Array.isArray(branchesData) ? branchesData : []);
-      setProperties(Array.isArray(propertiesData) ? propertiesData : []);
+      setPortfolioItems(Array.isArray(itemsData) ? itemsData : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -357,7 +366,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                    <div className="text-center p-3 rounded-2xl bg-amber-50/30 cursor-pointer hover:bg-amber-100/50 transition-colors" onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id)}>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{lang==='tr'? 'Aktif İlan':'Listings'}</p>
                       <p className="font-black text-amber-700 text-lg">
-                        {properties.filter((p: any) => p.responsible_consultant_id === agent.id).length}
+                        {portfolioItems.filter((item: any) => item.responsible_consultant_id === agent.id).length}
                       </p>
                    </div>
                 </div>
@@ -368,17 +377,17 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                       {lang === 'tr' ? 'Yetkili Olduğu Portföyler' : 'Assigned Portfolios'}
                     </h4>
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                      {properties.filter((p: any) => p.responsible_consultant_id === agent.id).map((prop: any) => (
+                      {portfolioItems.filter((item: any) => item.responsible_consultant_id === agent.id).map((item: any) => (
                         <div 
-                          key={prop.id} 
+                          key={item.id} 
                           onClick={() => {
-                            setEditingProperty(prop);
+                            setEditingProperty(item);
                             setIsRealEstateModalOpen(true);
                           }}
                           className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-400 hover:bg-indigo-50/20 transition-all group cursor-pointer active:scale-[0.98]"
                         >
-                          {prop.image_url ? (
-                            <img src={prop.image_url} alt={prop.title} className="w-10 h-10 rounded-lg object-cover" />
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={isAutomotive ? `${item.brand} ${item.model}` : item.title} className="w-10 h-10 rounded-lg object-cover" />
                           ) : (
                             <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-300">
                               <Building2 className="w-4 h-4" />
@@ -386,18 +395,18 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors flex items-center gap-1.5 justify-between">
-                              <span className="truncate">{prop.title}</span>
+                              <span className="truncate">{isAutomotive ? `${item.plate} - ${item.brand} ${item.model}` : item.title}</span>
                               <span className="text-[10px] text-indigo-600 font-extrabold flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                 ✍️ Düzenle
                               </span>
                             </p>
                             <p className="text-[10px] font-black text-slate-400 truncate uppercase mt-0.5">
-                              {prop.currency} {Math.round(Number(prop.price) || 0).toLocaleString('tr-TR')} • {prop.location}
+                              {isAutomotive ? `${item.year} • ${item.price} ${item.currency}` : `${item.currency} ${Math.round(Number(item.price) || 0).toLocaleString('tr-TR')} • ${item.location}`}
                             </p>
                           </div>
                         </div>
                       ))}
-                      {properties.filter((p: any) => p.responsible_consultant_id === agent.id).length === 0 && (
+                      {portfolioItems.filter((item: any) => item.responsible_consultant_id === agent.id).length === 0 && (
                         <p className="text-xs text-slate-400 font-medium pb-2">
                           {lang === 'tr' ? 'Henüz portföy atanmamış.' : 'No portfolio assigned yet.'}
                         </p>
@@ -798,7 +807,7 @@ export const TeamCrmTab = ({ storeId }: TeamCrmTabProps) => {
           userRole="admin"
           onSave={async (updatedProp) => {
             try {
-              setProperties(prev => prev.map(p => p.id === updatedProp.id ? updatedProp : p));
+              setPortfolioItems(prev => prev.map(p => p.id === updatedProp.id ? updatedProp : p));
               setIsRealEstateModalOpen(false);
               setEditingProperty(null);
             } catch (err) {

@@ -131,6 +131,7 @@ export default function PortfolioFinancesTab({
   const filteredPortfolioItems = (() => {
     const searchLower = portfolioSearch.toLowerCase().trim();
     if (activeAutomotive) {
+      console.log("Filtering vehicles, count:", vehicles.length, "search:", searchLower);
       if (!searchLower) return vehicles;
       return vehicles.filter(v => 
         (v.plate && v.plate.toLowerCase().includes(searchLower)) ||
@@ -139,6 +140,7 @@ export default function PortfolioFinancesTab({
         (v.year && String(v.year).includes(searchLower))
       );
     } else {
+      console.log("Filtering properties, count:", properties.length, "search:", searchLower);
       if (!searchLower) return properties;
       return properties.filter(p => 
         (p.title && p.title.toLowerCase().includes(searchLower)) ||
