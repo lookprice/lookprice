@@ -33,16 +33,64 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const [clientIdentity, setClientIdentity] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [commissionAmount, setCommissionAmount] = useState("2.5");
+  const [depositAmount, setDepositAmount] = useState("");
   const [contractDate, setContractDate] = useState(new Date().toISOString().split('T')[0]);
   const [signedName, setSignedName] = useState("");
   const [isSigned, setIsSigned] = useState(false);
   const [previewMode, setPreviewMode] = useState<'editor' | 'code'>('editor');
+
+  const numberToWords = (n: string) => {
+    const num = parseInt(n.replace(/\./g, ''));
+    if (isNaN(num)) return '';
+
+    const currencyNames: { [key: string]: string } = {
+      GBP: 'Sterlin',
+      USD: 'Dolar',
+      EUR: 'Euro',
+      TRY: 'Türk Lirası',
+      TL: 'Türk Lirası'
+    };
+    const currencySuffix = currencyNames[vehicle?.currency?.toUpperCase()] || 'Türk Lirası';
+
+    if (num === 0) {
+      return 'Sıfır ' + currencySuffix;
+    }
+
+    const birler = ['', 'Bir', 'İki', 'Üç', 'Dört', 'Beş', 'Altı', 'Yedi', 'Sekiz', 'Dokuz'];
+    const onlar = ['', 'On', 'Yirmi', 'Otuz', 'Kırk', 'Elli', 'Altmış', 'Yetmiş', 'Seksen', 'Doksan'];
+    const basamak = ['', 'Bin', 'Milyon', 'Milyar'];
+    
+    let words = '';
+    let i = 0;
+    let tempNum = num;
+
+    while (tempNum > 0) {
+        let b = tempNum % 1000;
+        if (b > 0) {
+            let s = '';
+            let y = Math.floor(b / 100);
+            let o = Math.floor((b % 100) / 10);
+            let bi = b % 10;
+            
+            if (y > 0) s += (y > 1 ? birler[y] : '') + 'Yüz';
+            s += onlar[o] + birler[bi];
+            
+            if (i === 1 && b === 1) s = 'Bin';
+            else s += basamak[i];
+            words = s + words;
+        }
+        tempNum = Math.floor(tempNum / 1000);
+        i++;
+    }
+    return words + ' ' + currencySuffix;
+  };
 
   if (!isOpen || !vehicle) return null;
 
   const vehicleDetails = `${vehicle.brand} ${vehicle.model} (${vehicle.year}) • Plaka: ${vehicle.plate || 'Belirtilmedi'} • Şasi: ${vehicle.chassis_number || 'Belirtilmedi'} • KM: ${(vehicle.current_mileage || 0).toLocaleString()}`;
   const currencySymbol = vehicle.currency === 'GBP' ? '£' : vehicle.currency === 'USD' ? '$' : vehicle.currency === 'EUR' ? '€' : '₺';
   const priceFormatted = `${currencySymbol}${(vehicle.selling_price || vehicle.buying_price || 0).toLocaleString()}`;
+  const depositFormatted = depositAmount ? `${depositAmount} ${currencySymbol} (${numberToWords(depositAmount)})` : '[Kapora Tutarı]';
 
   const renderConsignmentHtml = () => `
 <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
@@ -154,7 +202,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ALINAN KAPORA TUTARI</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #e11d48;">%10 VEYA BELİRLENEN KAPORA</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #e11d48;">${depositFormatted}</td>
     </tr>
   </table>
 
@@ -179,31 +227,40 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const htmlContent = contractType === 'consignment' ? renderConsignmentHtml() : renderBookingHtml();
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.write(`
         <html>
           <head>
             <title>${contractType === 'consignment' ? 'Araç Emanet Sözleşmesi' : 'Araç Rezervasyon Protokolü'}</title>
             <style>
-              body { font-family: sans-serif; background: white; margin: 0; }
+              body { font-family: sans-serif; background: white; margin: 40px; color: #1e293b; }
               @media print {
-                body { padding: 0; }
+                body { margin: 0; padding: 20px; }
               }
             </style>
           </head>
           <body>
             ${htmlContent}
-            <script>
-              window.onload = function() {
-                window.print();
-                window.close();
-              }
-            </script>
           </body>
         </html>
       `);
-      printWindow.document.close();
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
     }
   };
 
@@ -319,6 +376,17 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
                       className="w-full bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none"
                       value={commissionAmount}
                       onChange={(e) => setCommissionAmount(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Kapora Tutarı</label>
+                    <input 
+                      type="text"
+                      className="w-full bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="Örn: 10.000"
                     />
                   </div>
 

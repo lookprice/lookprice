@@ -180,6 +180,19 @@ export const CompanyModal = ({
               />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-rose-500 uppercase tracking-wider ml-1">
+                {isTr ? "Sevk Adresi (2. Alternatif Adres)" : "Delivery / Dispatch Address (2nd Address)"}
+              </label>
+              <textarea
+                name="delivery_address"
+                rows={2}
+                placeholder={isTr ? "Sevkiyat ve irsaliyeler için ikinci alternatif adres" : "Alternative delivery address"}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-semibold text-slate-800"
+                defaultValue={editingCompany?.delivery_address || ""}
+              />
+            </div>
+
             {!editingCompany && (
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">

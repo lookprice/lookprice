@@ -126,9 +126,12 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           textTitle: 'text-amber-400 font-extrabold',
           textBody: 'text-zinc-300',
           accentBorder: 'border-amber-500/30',
-          pillBg: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+          pillBg: 'bg-amber-550/15 text-amber-300 border-amber-500/20',
           priceBg: 'bg-gradient-to-r from-amber-650 to-amber-500 text-white',
-          footerBg: 'bg-slate-950/60 border-t border-slate-800'
+          footerBg: 'bg-slate-950/60 border-t border-slate-800',
+          accentHex: '#fbbf24', // amber-400
+          accentBg: 'bg-amber-400 text-black',
+          accentText: 'text-amber-400'
         };
       case 'sporty_red':
         return {
@@ -136,9 +139,12 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           textTitle: 'text-red-500 font-extrabold',
           textBody: 'text-zinc-300',
           accentBorder: 'border-red-600/30',
-          pillBg: 'bg-red-500/10 text-red-400 border-red-500/20',
+          pillBg: 'bg-red-500/15 text-red-400 border-red-500/20',
           priceBg: 'bg-gradient-to-r from-red-700 to-red-500 text-white',
-          footerBg: 'bg-neutral-950/80 border-t border-red-950/40'
+          footerBg: 'bg-neutral-950/80 border-t border-red-950/40',
+          accentHex: '#dc2626', // red-600
+          accentBg: 'bg-red-650 text-white',
+          accentText: 'text-red-500'
         };
       case 'neon_cyber':
         return {
@@ -146,9 +152,12 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           textTitle: 'text-cyan-400 font-extrabold',
           textBody: 'text-cyan-100',
           accentBorder: 'border-cyan-500/30',
-          pillBg: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
+          pillBg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/20',
           priceBg: 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white',
-          footerBg: 'bg-purple-950/60 border-t border-purple-900/30'
+          footerBg: 'bg-purple-950/60 border-t border-purple-900/30',
+          accentHex: '#06b6d4', // cyan-500
+          accentBg: 'bg-cyan-500 text-black',
+          accentText: 'text-cyan-400'
         };
       case 'minimal_carbon':
         return {
@@ -158,7 +167,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           accentBorder: 'border-zinc-700',
           pillBg: 'bg-zinc-800 text-zinc-100 border-zinc-700',
           priceBg: 'bg-white text-zinc-900',
-          footerBg: 'bg-zinc-950/80 border-t border-zinc-800'
+          footerBg: 'bg-zinc-950/80 border-t border-zinc-800',
+          accentHex: '#e4e4e7', // zinc-200
+          accentBg: 'bg-zinc-200 text-black',
+          accentText: 'text-zinc-200'
         };
       case 'hertz_style':
         return {
@@ -168,7 +180,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           accentBorder: 'border-yellow-400',
           pillBg: 'bg-yellow-400 text-black',
           priceBg: 'bg-yellow-400 text-black',
-          footerBg: 'bg-yellow-400'
+          footerBg: 'bg-yellow-400',
+          accentHex: '#fbbf24', // yellow-400
+          accentBg: 'bg-yellow-455 text-black',
+          accentText: 'text-yellow-400'
         };
       case 'rangerover_style':
         return {
@@ -178,7 +193,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
           accentBorder: 'border-white',
           pillBg: 'bg-white text-black',
           priceBg: 'bg-white text-black',
-          footerBg: 'bg-zinc-900'
+          footerBg: 'bg-zinc-900',
+          accentHex: '#ffffff', // white
+          accentBg: 'bg-white text-black',
+          accentText: 'text-white'
         };
     }
   };
@@ -187,12 +205,13 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
   const getCanvasThemeColors = (theme: TemplateTheme) => {
     switch (theme) {
-      case 'luxury_dark': return { border: '#d97706', text: '#f59e0b', phone: '#fbbf24', sticker: '#d97706', glassBorder: 'rgba(217,119,6,0.35)', pill: '#d97706' };
-      case 'sporty_red': return { border: '#dc2626', text: '#ef4444', phone: '#f87171', sticker: '#ef4444', glassBorder: 'rgba(239,68,68,0.4)', pill: '#ef4444' };
-      case 'neon_cyber': return { border: '#06b6d4', text: '#22d3ee', phone: '#22d3ee', sticker: '#0284c7', glassBorder: 'rgba(6,182,212,0.4)', pill: '#06b6d4' };
-      case 'hertz_style': return { border: '#eab308', text: '#000000', phone: '#000000', sticker: '#eab308', glassBorder: 'rgba(234,179,8,0.4)', pill: '#eab308' };
+      case 'luxury_dark': return { border: '#fbbf24', text: '#fbbf24', phone: '#fbbf24', sticker: '#fbbf24', glassBorder: 'rgba(251,191,36,0.35)', pill: '#fbbf24' };
+      case 'sporty_red': return { border: '#dc2626', text: '#dc2626', phone: '#dc2626', sticker: '#dc2626', glassBorder: 'rgba(220,38,38,0.35)', pill: '#dc2626' };
+      case 'neon_cyber': return { border: '#22d3ee', text: '#22d3ee', phone: '#22d3ee', sticker: '#22d3ee', glassBorder: 'rgba(34,211,238,0.35)', pill: '#22d3ee' };
+      case 'minimal_carbon': return { border: '#e4e4e7', text: '#e4e4e7', phone: '#e4e4e7', sticker: '#e4e4e7', glassBorder: 'rgba(228,228,231,0.35)', pill: '#e4e4e7' };
+      case 'hertz_style': return { border: '#eab308', text: '#eab308', phone: '#eab308', sticker: '#eab308', glassBorder: 'rgba(234,179,8,0.4)', pill: '#eab308' };
       case 'rangerover_style': return { border: '#ffffff', text: '#ffffff', phone: '#ffffff', sticker: '#ffffff', glassBorder: 'rgba(255,255,255,0.4)', pill: '#ffffff' };
-      default: return { border: '#e4e4e7', text: '#ffffff', phone: '#ffffff', sticker: '#0284c7', glassBorder: 'rgba(255,255,255,0.18)', pill: '#64748b' };
+      default: return { border: '#ffffff', text: '#ffffff', phone: '#ffffff', sticker: '#ffffff', glassBorder: 'rgba(255,255,255,0.18)', pill: '#64748b' };
     }
   };
 
@@ -303,14 +322,20 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       gradient.addColorStop(0, '#020617'); // slate-950
       gradient.addColorStop(0.5, '#0f172a'); // slate-900
       gradient.addColorStop(1, '#090d16');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
     } else if (selectedTheme === 'sporty_red') {
       gradient.addColorStop(0, '#09090b'); // zinc-950
       gradient.addColorStop(0.5, '#1c1917'); // stone-900
       gradient.addColorStop(1, '#450a0a'); // red-950 (warm sporty undertone)
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
     } else if (selectedTheme === 'neon_cyber') {
       gradient.addColorStop(0, '#030712'); // gray-950
       gradient.addColorStop(0.5, '#1e1b4b'); // indigo-950
       gradient.addColorStop(1, '#3b0764'); // purple-950
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
     } else if (selectedTheme === 'hertz_style') {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
@@ -328,44 +353,11 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       ctx.fillRect(0, 0, width, height);
     }
 
-    // Dynamic framing closer to edge = 16px instead of 30px to maximize image layout
+    // Dynamic framing closer to edge = 16px to maximize image layout
     const borderPadding = 16;
-    ctx.strokeStyle = selectedTheme === 'luxury_dark' ? '#d97706' : // amber-600
-                      selectedTheme === 'sporty_red' ? '#dc2626' : // red-600
-                      selectedTheme === 'neon_cyber' ? '#06b6d4' : '#e4e4e7'; // cyan or white/zinc
+    ctx.strokeStyle = canvasColors.border;
     ctx.lineWidth = 12;
     ctx.strokeRect(borderPadding, borderPadding, width - (borderPadding * 2), height - (borderPadding * 2));
-
-    // Draw Store Branding Header inside the Canvas
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-    ctx.fillRect(borderPadding, borderPadding, width - (borderPadding * 2), 100);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(borderPadding, borderPadding + 100);
-    ctx.lineTo(width - borderPadding, borderPadding + 100);
-    ctx.stroke();
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = canvasColors.text;
-    ctx.font = '900 28px system-ui, sans-serif';
-    ctx.letterSpacing = '5px';
-    const brandName = storeName.toUpperCase();
-    ctx.fillText(brandName, borderPadding + 30, borderPadding + 58);
-
-    ctx.fillStyle = '#a1a1aa';
-    ctx.font = '800 13px system-ui, sans-serif';
-    ctx.letterSpacing = '2px';
-    ctx.fillText("PREMIUM GALLERY SHOWCASE", borderPadding + 30, borderPadding + 84);
-
-    // Draw phone top-right text
-    ctx.textAlign = 'right';
-    ctx.fillStyle = canvasColors.phone;
-    ctx.font = 'bold 20px monospace';
-    const contactPhoneText = branding?.phone || branding?.whatsapp_number || 'PREMIUM GALERİ';
-    ctx.fillText(contactPhoneText, width - borderPadding - 30, borderPadding + 68);
-    ctx.textAlign = 'left'; // Reset
 
     // Parallel asynchronous loading of images
     const imageUrls: string[] = [];
@@ -433,9 +425,9 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       const sideImg2 = loadedImages[2];
 
       const imgX = borderPadding;
-      const imgY = borderPadding + 100;
+      const imgY = borderPadding;
       const imgWidth = width - (borderPadding * 2);
-      const imgHeight = selectedRatio === 'square' ? height - 130 : 1260; // story reaches up to 1380
+      const imgHeight = height - (borderPadding * 2);
 
       const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number, emoji: string) => {
         if (imgPtr) {
@@ -484,193 +476,174 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
       ctx.restore();
 
-      // Subtle black gradient overlay on the bottom portion of image
-      const imgGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 480, imgX, imgY + imgHeight);
-      imgGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      imgGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
-      imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
-      ctx.fillStyle = imgGrad;
-      ctx.fillRect(imgX, imgY + imgHeight - 480, imgWidth, 480);
+      // Vignette overlays for maximum contrast
+      // Top vignette
+      const topGrad = ctx.createLinearGradient(imgX, imgY, imgX, imgY + 300);
+      topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+      topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(imgX, imgY, imgWidth, 300);
 
-      // Draw floating luxury sticker top right inside the image block
-      const stickerX = width - borderPadding - 100;
-      const stickerY = imgY + 80;
-      
-      ctx.fillStyle = canvasColors.sticker;
+      // Bottom vignette
+      const bottomGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 650, imgX, imgY + imgHeight);
+      bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      bottomGrad.addColorStop(0.35, 'rgba(0,0,0,0.6)');
+      bottomGrad.addColorStop(1, 'rgba(0,0,0,0.98)');
+      ctx.fillStyle = bottomGrad;
+      ctx.fillRect(imgX, imgY + imgHeight - 650, imgWidth, 650);
+
+      // TOP-LEFT: Oblique bold status banner
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = canvasColors.border; // accent color
+      ctx.font = 'italic 900 62px system-ui, sans-serif';
+      ctx.fillText(vehicle.is_trade_in_available ? 'TAKASLI' : 'SATILIK', imgX + 50, imgY + 110);
+      ctx.restore();
+
+      // TOP-RIGHT: Accent Tag + Price block
+      const badgeText = `${vehicle.year || '2026'} ${transmissionText}`.toUpperCase();
+      ctx.font = '900 24px system-ui, sans-serif';
+      const badgeW = ctx.measureText(badgeText).width + 45;
+      const badgeH = 55;
+      const badgeX = width - borderPadding - 50 - badgeW;
+      const badgeY = imgY + 50;
+
+      // Draw solid accent background for badge
+      ctx.fillStyle = canvasColors.border;
       ctx.beginPath();
-      ctx.arc(stickerX, stickerY, 55, 0, Math.PI * 2);
+      if ((ctx as any).roundRect) {
+        (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+      } else {
+        ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+      }
       ctx.fill();
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
+      // Text inside badge (black)
+      ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
-      ctx.font = 'bold 12px system-ui, sans-serif';
-      ctx.fillText(vehicle.is_trade_in_available ? "TAKASLI" : "ORİJİNAL", stickerX, stickerY - 10);
-      ctx.font = '900 28px system-ui, sans-serif';
-      ctx.fillText(vehicle.year ? `${vehicle.year}` : "AUTO", stickerX, stickerY + 16);
-      ctx.textAlign = 'left';
+      ctx.fillText(badgeText, badgeX + (badgeW / 2), badgeY + 37);
 
-      // --- TEXT CONTENT GLASS CARD OVERLAY ---
-      const glassX = borderPadding + 30;
-      const glassY = selectedRatio === 'square' ? 730 : 1085;
-      const glassW = width - (borderPadding * 2) - 60;
-      const glassH = 290;
+      // Semi-transparent dark Price Tag below badge
+      const priceTagW = 260;
+      const priceTagH = 75;
+      const priceTagX = width - borderPadding - 50 - priceTagW;
+      const priceTagY = badgeY + badgeH + 15;
 
-      // Draw glass card container
-      ctx.fillStyle = 'rgba(8, 11, 22, 0.92)'; // premium slate backdrop
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
       ctx.beginPath();
       if ((ctx as any).roundRect) {
-        (ctx as any).roundRect(glassX, glassY, glassW, glassH, 24);
+        (ctx as any).roundRect(priceTagX, priceTagY, priceTagW, priceTagH, 6);
       } else {
-        ctx.rect(glassX, glassY, glassW, glassH);
+        ctx.fillRect(priceTagX, priceTagY, priceTagW, priceTagH);
       }
       ctx.fill();
 
-      ctx.strokeStyle = canvasColors.glassBorder;
+      ctx.strokeStyle = canvasColors.border;
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Pills starts at X = glassX + 40, Y = glassY + 30
-      const pillY = glassY + 30;
-      ctx.font = 'bold 13px system-ui, sans-serif';
+      // Price text inside Price Tag (accent color)
+      ctx.fillStyle = canvasColors.border;
+      ctx.font = '950 32px system-ui, sans-serif';
+      ctx.fillText(priceText, priceTagX + (priceTagW / 2), priceTagY + 48);
+      ctx.textAlign = 'left'; // restore default
 
-      // Year / Model Pill
-      const modelText = `${vehicle.year || '2026'} MODEL`;
-      const modelWidth = ctx.measureText(modelText).width + 30;
-
-      ctx.fillStyle = canvasColors.pill;
-      ctx.beginPath();
-      if ((ctx as any).roundRect) {
-        (ctx as any).roundRect(glassX + 35, pillY, modelWidth, 34, 8);
-      } else {
-        ctx.fillRect(glassX + 35, pillY, modelWidth, 34);
-      }
-      ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 13px system-ui, sans-serif';
-      ctx.fillText(modelText, glassX + 50, pillY + 22);
-
-      let nextPillX = glassX + 35 + modelWidth + 15;
-
-      // Transmission Pill
-      const transText = transmissionText.toUpperCase();
-      ctx.font = 'bold 13px system-ui, sans-serif';
-      const transWidth = ctx.measureText(transText).width + 30;
-
-      ctx.fillStyle = 'rgba(79, 70, 229, 0.15)';
-      ctx.strokeStyle = 'rgba(79, 70, 229, 0.45)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      if ((ctx as any).roundRect) {
-        (ctx as any).roundRect(nextPillX, pillY, transWidth, 34, 8);
-      } else {
-        ctx.rect(nextPillX, pillY, transWidth, 34);
-      }
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#818cf8';
-      ctx.fillText(transText, nextPillX + 15, pillY + 22);
-      nextPillX += transWidth + 15;
-
-      // Mileage / KM Pill
-      if (mileageText) {
-        const milText = mileageText.toUpperCase();
-        ctx.font = 'bold 13px system-ui, sans-serif';
-        const milWidth = ctx.measureText(milText).width + 30;
-
-        ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.45)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        if ((ctx as any).roundRect) {
-          (ctx as any).roundRect(nextPillX, pillY, milWidth, 34, 8);
-        } else {
-          ctx.rect(nextPillX, pillY, milWidth, 34);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#22d3ee';
-        ctx.fillText(milText, nextPillX + 15, pillY + 22);
-      }
-
-      // Title Drawing
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '950 30px system-ui, sans-serif';
-      const titleLines = wrapText(vehicleTitle, glassW - 70);
-      let titleYLine = glassY + 98;
-      titleLines.forEach((line, idx) => {
-        if (idx < 2) {
-          ctx.fillText(line, glassX + 35, titleYLine);
-          titleYLine += 42;
-        }
-      });
-
-      // Price block at bottom of glass block
-      const priceRowY = glassY + 225;
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(glassX + 35, priceRowY - 25);
-      ctx.lineTo(glassX + glassW - 35, priceRowY - 25);
-      ctx.stroke();
-
-      ctx.fillStyle = '#a1a1aa';
-      ctx.font = 'bold 12px system-ui, sans-serif';
-      ctx.fillText("GALERİ LİSTE SATIŞ FİYATI", glassX + 35, priceRowY - 5);
-
-      ctx.fillStyle = '#10b981'; // emerald-400
-      ctx.font = '900 36px system-ui, sans-serif';
-      ctx.fillText(priceText, glassX + 35, priceRowY + 35);
-
-      // Guarantee badge on right alignment
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#fbbf24'; // amber-400
-      ctx.font = 'bold 15px system-ui, sans-serif';
-      ctx.fillText("⭐ %100 SATICI GÜVENCESİ", glassX + glassW - 35, priceRowY + 25);
-      ctx.textAlign = 'left'; // Restore alignment
-
-      // Story Special Callout Box below the visual frame
+      // SPECIAL STORY PROMOTION LINE (Story ratio only)
       if (selectedRatio === 'story') {
-        const calloutY = 1420;
-        const calloutH = 340;
+        const promoY = 820;
+        const promoW = 600;
+        const promoH = 150;
+        const promoX = (width - promoW) / 2;
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
         ctx.beginPath();
         if ((ctx as any).roundRect) {
-          (ctx as any).roundRect(80, calloutY, width - 160, calloutH, 20);
+          (ctx as any).roundRect(promoX, promoY, promoW, promoH, 16);
         } else {
-          ctx.rect(80, calloutY, width - 160, calloutH);
+          ctx.fillRect(promoX, promoY, promoW, promoH);
         }
         ctx.fill();
 
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = canvasColors.border;
+        ctx.lineWidth = 3;
         ctx.stroke();
 
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#fbbf24';
+        ctx.fillStyle = '#ffffff';
         ctx.font = '900 24px system-ui, sans-serif';
-        ctx.fillText("⭐ SEKTÖREL GÜVENCE & RANDEVU", width / 2, calloutY + 70);
+        ctx.fillText("SEÇKİN GALERİ GÜVENCESİ", width / 2, promoY + 55);
 
-        ctx.fillStyle = '#e4e4e7';
+        ctx.fillStyle = '#cbd5e1';
         ctx.font = 'semibold 18px system-ui, sans-serif';
-        const strLinesText = [
-          `Bu yüksek kondisyonlu seçkin portföy, orijinal faturası ve`,
-          `güncel test ekspertiz raporu ile adresinize teslim edilebilir.`,
-          `Hızlı destek, sipariş ve randevu için bize hemen ulaşın.`
-        ];
-        strLinesText.forEach((lnText, lnIdx) => {
-          ctx.fillText(lnText, width / 2, calloutY + 130 + (lnIdx * 45));
-        });
+        ctx.fillText("Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!", width / 2, promoY + 100);
         ctx.textAlign = 'left'; // restore
       }
+
+      // BOTTOM-LEFT: Solid box with the store name
+      const storeBoxH = 75;
+      ctx.font = '900 28px system-ui, sans-serif';
+      const storeBoxW = Math.max(220, ctx.measureText(storeName.toUpperCase()).width + 50);
+      const storeBoxX = imgX + 50;
+      const storeBoxY = imgY + imgHeight - 50 - storeBoxH;
+
+      ctx.fillStyle = canvasColors.border;
+      ctx.beginPath();
+      if ((ctx as any).roundRect) {
+        (ctx as any).roundRect(storeBoxX, storeBoxY, storeBoxW, storeBoxH, 6);
+      } else {
+        ctx.fillRect(storeBoxX, storeBoxY, storeBoxW, storeBoxH);
+      }
+      ctx.fill();
+
+      // Store name text (black)
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.fillText(storeName.toUpperCase(), storeBoxX + (storeBoxW / 2), storeBoxY + 47);
+      ctx.textAlign = 'left';
+
+      // BOTTOM-RIGHT: Specs Glass Card
+      const specsW = 420;
+      const specsH = 210;
+      const specsX = width - borderPadding - 50 - specsW;
+      const specsY = imgY + imgHeight - 50 - specsH;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.9)';
+      ctx.beginPath();
+      if ((ctx as any).roundRect) {
+        (ctx as any).roundRect(specsX, specsY, specsW, specsH, 12);
+      } else {
+        ctx.fillRect(specsX, specsY, specsW, specsH);
+      }
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Brand Title
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 26px system-ui, sans-serif';
+      ctx.fillText(vehicle.brand.toUpperCase(), specsX + 30, specsY + 45);
+
+      // Model Title
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '800 20px system-ui, sans-serif';
+      ctx.fillText(vehicle.model.toUpperCase(), specsX + 30, specsY + 78);
+
+      // Line separator
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.beginPath();
+      ctx.moveTo(specsX + 30, specsY + 95);
+      ctx.lineTo(specsX + specsW - 30, specsY + 95);
+      ctx.stroke();
+
+      // Details list
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 18px system-ui, sans-serif';
+      ctx.fillText(`📐 KM: ${mileageText || 'Düşük Km'}`, specsX + 30, specsY + 130);
+      ctx.fillText(`⚙️ Şanzıman: ${transmissionText}`, specsX + 30, specsY + 163);
+      ctx.fillText(`⛽ Yakıt: ${fuelText}`, specsX + 30, specsY + 195);
 
       // Trigger actual download of canvas
       try {
@@ -735,158 +708,133 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
             <div className="flex justify-center items-center py-4">
               <div 
                 ref={previewContainerRef}
-                className={`relative w-full max-w-[340px] rounded-2xl overflow-hidden shadow-2xl border-4 ${themeConfig.accentBorder} ${themeConfig.bg} transition-all duration-300 flex flex-col`}
-                style={{ aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16' }}
+                className="relative w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl border-4 border-black/80 transition-all duration-300 flex flex-col bg-slate-950 font-sans"
+                style={{ 
+                  aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16',
+                  borderColor: themeConfig.accentHex 
+                }}
               >
-                {/* Brand Header (Sits beautifully at the top) */}
-                <div className="p-3 bg-black/45 backdrop-blur-md border-b border-white/10 flex justify-between items-center z-10 w-full">
-                  <div className="truncate pr-2">
-                    <h3 className={`text-[11px] font-black tracking-wider uppercase leading-none select-none ${themeConfig.textTitle}`}>
-                      {storeName}
-                    </h3>
-                    <span className="text-[7.5px] font-black tracking-widest text-zinc-400 uppercase mt-0.5 block select-none">
-                      PREMIUM GALLERY
-                    </span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] font-mono font-black text-amber-400 bg-amber-500/10 border border-amber-500/25 px-1.5 py-0.5 rounded select-none">
-                      {branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Main Visual Image centerpiece (Occupies 100% of rest of card height) */}
-                <div className="relative flex-1 w-full bg-slate-900 overflow-hidden flex flex-col justify-end">
-                  {/* Image full bleed background with Collage layout support */}
+                
+                {/* Full Bleed Image / Collage Grid */}
+                <div className="absolute inset-0 w-full h-full z-0 select-none pointer-events-none">
                   {isCollage && vehicle.images && (vehicle.images[1] || vehicle.images[2]) ? (
-                    <div className="absolute inset-0 w-full h-full flex flex-row">
-                      {/* Left Side: Main Vehicle Image (67% width) */}
-                      <div className="w-[67%] h-full border-r border-white/10 overflow-hidden relative">
+                    <div className="w-full h-full flex flex-row">
+                      {/* Left Main (67%) */}
+                      <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
                         {vehicle.images[0] ? (
                           <img 
                             src={vehicle.images[0]} 
                             alt={vehicleTitle} 
-                            className="w-full h-full object-cover select-none"
+                            className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-slate-600 bg-slate-800 text-xs">Orijinal</div>
+                          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-450 bg-slate-900">🚗</div>
                         )}
                       </div>
-                      
-                      {/* Right Side: Stacked secondary pictures (33% width) */}
-                      <div className="w-[33%] h-full flex flex-col border-l border-white/10">
-                        <div className="flex-1 border-b border-white/10 overflow-hidden relative">
+                      {/* Right stacked (33%) */}
+                      <div className="w-[33%] h-full flex flex-col">
+                        <div className="flex-1 relative border-b border-black/30 overflow-hidden">
                           {vehicle.images[1] ? (
                             <img 
                               src={vehicle.images[1]} 
                               alt="Görsel 2" 
-                              className="w-full h-full object-cover select-none"
+                              className="w-full h-full object-cover"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-slate-500 bg-slate-850">Görsel 2</div>
+                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
                           )}
                         </div>
-                        <div className="flex-1 overflow-hidden relative">
+                        <div className="flex-1 relative overflow-hidden">
                           {vehicle.images[2] ? (
                             <img 
                               src={vehicle.images[2]} 
                               alt="Görsel 3" 
-                              className="w-full h-full object-cover select-none"
+                              className="w-full h-full object-cover"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-slate-500 bg-slate-850">Görsel 3</div>
+                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
                           )}
                         </div>
                       </div>
                     </div>
                   ) : (
-                    // Regular single image
+                    // Full bleed single cover image
                     vehicle.images && vehicle.images[0] ? (
                       <img 
                         src={vehicle.images[0]} 
                         alt={vehicleTitle} 
-                        className="absolute inset-0 w-full h-full object-cover select-none"
+                        className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-800">
-                        <span className="text-4xl mb-1">🚗</span>
-                        <span className="text-[10px] font-bold">Görsel Eklenmemiş</span>
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
+                        <span className="text-4xl">🚗</span>
                       </div>
                     )
                   )}
 
-                  {/* Gradient Overlay for exceptional legibility and contrast */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
-
-                  {/* Floating Luxury Sticker inside the Preview */}
-                  {vehicle.is_trade_in_available ? (
-                    <span className="absolute top-3 right-3 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-mono text-[9px] font-black px-2.5 py-1 rounded-full select-none uppercase shadow-lg z-20">
-                      TAKAS İMKANI!
-                    </span>
-                  ) : (
-                    <span className="absolute top-3 right-3 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-mono text-[9px] font-black px-2.5 py-1 rounded-full select-none uppercase shadow-lg z-20">
-                      %100 ORİJİNAL
-                    </span>
-                  )}
-
-                  {/* PREMIUM OVERLAY INFO BLOC (Always visible, clean spacing) */}
-                  <div className="relative z-10 p-2.5 m-2.5 bg-slate-950/80 backdrop-blur-md border border-white/10 rounded-xl flex flex-col gap-1.5">
-                    
-                    {/* Pills row (Specs) - NO STOCKS! */}
-                    <div className="flex gap-1 flex-wrap select-none">
-                      {vehicle.year && (
-                        <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
-                          {vehicle.year} MODEL
-                        </span>
-                      )}
-                      <span className="text-[7.5px] font-bold px-1.5 py-0.5 rounded-md border border-indigo-500/25 bg-indigo-500/10 text-indigo-300 uppercase">
-                        {transmissionText}
-                      </span>
-                      {mileageText && (
-                        <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded-md border border-cyan-500/25 bg-cyan-500/10 text-cyan-300 uppercase">
-                          {mileageText}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Product Title */}
-                    <h4 className={`text-[11.5px] leading-snug font-extrabold uppercase line-clamp-2 select-text ${themeConfig.textTitle}`}>
-                      {vehicle.brand} {vehicle.model}
-                    </h4>
-
-                    {/* Price and Action Section */}
-                    <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/10">
-                      <div>
-                        <span className="block text-[6.5px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-                          GALERİ LİSTE FİYATI
-                        </span>
-                        <div className="flex items-baseline gap-1.5 leading-none">
-                          <span className="text-xs font-black text-emerald-400">{priceText}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Premium Assurance Tag */}
-                      <span className="text-[7.5px] font-extrabold text-[#fbbf24] bg-amber-400/15 border border-amber-400/20 px-1.5 py-0.5 rounded select-none uppercase shrink-0">
-                        SATIŞ GÜVENCESİ
-                      </span>
-                    </div>
-
-                  </div>
+                  {/* Dark vignette gradient overlays for high text readability */}
+                  <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/70 to-transparent" />
                 </div>
 
-                {/* Callout box for Vertical Ratio Story - sits beautifully below the centerpiece */}
-                {selectedRatio === 'story' && (
-                  <div className="p-3 mx-2.5 mb-2.5 bg-white/5 border border-white/10 rounded-xl text-center flex flex-col justify-center items-center">
-                    <span className="text-[8.5px] font-black tracking-wider text-[#fbbf24] mb-0.5 uppercase">⭐ EKSPERTİZ GÜVENCESİ</span>
-                    <p className="text-[8.5px] text-slate-350 leading-normal">
-                      Kondisyon ve temizlik testleri yapılmış bu araca <strong>{storeName}</strong> güvencesiyle hemen sahip olabilirsiniz!
-                    </p>
+                {/* --- CONTENT LAYER --- */}
+                <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 flex-1">
+                  {/* TOP ROW elements */}
+                  <div className="flex justify-between items-start gap-3">
+                    {/* Top Left: Oblique bold status banner */}
+                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                      <span className={`text-[22px] italic font-black tracking-tighter uppercase ${themeConfig.accentText}`}>
+                        {vehicle.is_trade_in_available ? 'TAKASLI' : 'SATILIK'}
+                      </span>
+                    </div>
+
+                    {/* Top Right: Accent Tag + Price block */}
+                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px]">
+                      {/* Accent Block Tag */}
+                      <div className={`px-2.5 py-1 rounded-sm shadow-md text-black font-black text-[9px] tracking-widest leading-none ${themeConfig.accentBg}`}>
+                        {`${vehicle.year ? vehicle.year + ' ' : ''}${transmissionText}`.toUpperCase()}
+                      </div>
+
+                      {/* Semi-transparent dark Price Tag */}
+                      <div className="bg-black/85 text-center border px-2 py-1.5 rounded-sm shadow-md flex items-center justify-center leading-none" style={{ borderColor: themeConfig.accentHex }}>
+                        <span className="text-[12px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
+                          {priceText}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                )}
+
+                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) */}
+                  {selectedRatio === 'story' && (
+                    <div className="my-auto px-4 py-3 bg-black/80 border rounded-xl text-center flex flex-col justify-center items-center backdrop-blur-xs shadow-xl" style={{ borderColor: themeConfig.accentHex }}>
+                      <span className="text-[9px] font-black block mb-0.5 uppercase tracking-wider text-white">SEÇKİN GALERİ GÜVENCESİ</span>
+                      <p className="text-[8px] max-w-[180px] leading-tight text-slate-300 font-medium">Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!</p>
+                    </div>
+                  )}
+
+                  {/* BOTTOM ROW elements */}
+                  <div className="flex justify-between items-end gap-3 mt-auto">
+                    {/* Bottom Left: Bold Store name inside solid box */}
+                    <div className={`px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate ${themeConfig.accentBg}`}>
+                      {storeName}
+                    </div>
+
+                    {/* Bottom Right: Specs Glass Card */}
+                    <div className="bg-black/90 border border-white/10 px-3 py-2.5 rounded-sm shadow-xl flex flex-col min-w-[140px] max-w-[160px] leading-tight select-none">
+                      <span className="text-[9px] font-black text-white block truncate">{vehicle.brand.toUpperCase()}</span>
+                      <span className="text-[7.5px] font-extrabold text-slate-400 block truncate uppercase mb-1">{vehicle.model.toUpperCase()}</span>
+                      <div className="h-[1px] bg-white/10 my-1" />
+                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">📐 KM: {mileageText || 'Düşük Km'}</span>
+                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">⚙️ Şanzıman: {transmissionText}</span>
+                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">⛽ Yakıt: {fuelText}</span>
+                    </div>
+                  </div>
+
+                </div>
 
               </div>
             </div>

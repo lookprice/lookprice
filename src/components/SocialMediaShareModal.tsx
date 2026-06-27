@@ -56,6 +56,14 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(parsed));
   };
 
+  const storeNameDisplay = React.useMemo(() => {
+    const rawStoreName = branding?.store_name || branding?.name;
+    if (!rawStoreName || rawStoreName.toLowerCase().trim() === 'lookprice' || rawStoreName.toLowerCase().trim() === 'lookprice premium gallery') {
+      return 'Seçkin Emlak';
+    }
+    return rawStoreName;
+  }, [branding]);
+
   useEffect(() => {
     if (copySuccess) {
       const timer = setTimeout(() => setCopySuccess(false), 2000);
@@ -80,43 +88,56 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     switch (selectedTheme) {
       case 'luxury_dark':
         return {
-          bg: 'bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950',
-          textTitle: 'text-amber-400 font-extrabold',
-          textBody: 'text-zinc-300',
-          accentBorder: 'border-amber-500/30',
-          pillBg: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-          priceBg: 'bg-gradient-to-r from-amber-600/90 to-amber-500/90 text-white',
-          footerBg: 'bg-slate-950/60 border-t border-slate-800'
+          bg: 'bg-slate-950',
+          accentText: 'text-yellow-400',
+          accentHex: '#facc15',
+          accentBg: 'bg-yellow-400',
+          accentBorder: 'border-yellow-400/50',
+          textTitle: 'text-yellow-400 font-extrabold',
+          textBody: 'text-zinc-350',
+          pillBg: 'bg-yellow-400/10 text-yellow-300 border-yellow-500/20',
+          priceBg: 'bg-yellow-400 text-black',
+          footerBg: 'bg-slate-950/80 border-t border-slate-800'
         };
       case 'cyprus_warm':
         return {
-          bg: 'bg-gradient-to-br from-amber-50 via-orange-50/50 to-stone-100',
-          textTitle: 'text-amber-900 font-extrabold',
-          textBody: 'text-stone-700',
-          accentBorder: 'border-orange-500/20',
-          pillBg: 'bg-orange-500/10 text-orange-950 border-orange-500/10',
-          priceBg: 'bg-gradient-to-r from-orange-600 to-amber-700 text-white',
-          footerBg: 'bg-orange-100 border-t border-orange-200'
+          bg: 'bg-orange-950',
+          accentText: 'text-orange-500',
+          accentHex: '#f97316',
+          accentBg: 'bg-orange-500',
+          accentBorder: 'border-orange-500/50',
+          textTitle: 'text-orange-500 font-extrabold',
+          textBody: 'text-orange-100',
+          pillBg: 'bg-orange-500/15 text-orange-350 border-orange-500/20',
+          priceBg: 'bg-orange-500 text-white',
+          footerBg: 'bg-orange-950/80 border-t border-orange-900'
         };
       case 'modern_indigo':
         return {
-          bg: 'bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900',
+          bg: 'bg-indigo-950',
+          accentText: 'text-cyan-400',
+          accentHex: '#06b6d4',
+          accentBg: 'bg-cyan-500',
+          accentBorder: 'border-cyan-500/50',
           textTitle: 'text-cyan-400 font-extrabold',
           textBody: 'text-indigo-100',
-          accentBorder: 'border-cyan-500/30',
-          pillBg: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
-          priceBg: 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white',
-          footerBg: 'bg-indigo-950/60 border-t border-indigo-900'
+          pillBg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/20',
+          priceBg: 'bg-cyan-500 text-black',
+          footerBg: 'bg-indigo-950/80 border-t border-indigo-900'
         };
       case 'minimal_carbon':
+        default:
         return {
-          bg: 'bg-gradient-to-br from-zinc-900 via-neutral-900 to-zinc-950',
+          bg: 'bg-zinc-900',
+          accentText: 'text-white',
+          accentHex: '#ffffff',
+          accentBg: 'bg-white',
+          accentBorder: 'border-zinc-700',
           textTitle: 'text-white font-extrabold',
           textBody: 'text-zinc-300',
-          accentBorder: 'border-zinc-700',
-          pillBg: 'bg-zinc-800 text-zinc-100 border-zinc-700',
-          priceBg: 'bg-white text-zinc-955',
-          footerBg: 'bg-zinc-950/80 border-t border-zinc-800'
+          pillBg: 'bg-zinc-800 text-zinc-100 border-zinc-750',
+          priceBg: 'bg-white text-zinc-950',
+          footerBg: 'bg-zinc-950/80 border-t border-zinc-850'
         };
     }
   };
@@ -251,77 +272,13 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     canvas.width = width;
     canvas.height = height;
 
-    // Draw high quality background gradient
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    if (selectedTheme === 'luxury_dark') {
-      gradient.addColorStop(0, '#020617'); // slate-950
-      gradient.addColorStop(0.5, '#0f172a'); // slate-900
-      gradient.addColorStop(1, '#090d16');
-    } else if (selectedTheme === 'cyprus_warm') {
-      gradient.addColorStop(0, '#fffbf7'); // soft light amber
-      gradient.addColorStop(0.6, '#fef3c7'); // warm amber-100
-      gradient.addColorStop(1, '#fadbbb');
-    } else if (selectedTheme === 'modern_indigo') {
-      gradient.addColorStop(0, '#030712'); // gray-950
-      gradient.addColorStop(0.5, '#1e1b4b'); // indigo-950
-      gradient.addColorStop(1, '#080a15');
-    } else {
-      gradient.addColorStop(0, '#18181b'); // zinc-900
-      gradient.addColorStop(0.5, '#09090b'); // zinc-950
-      gradient.addColorStop(1, '#1c1c1f');
-    }
-    ctx.fillStyle = gradient;
+    const accentColor = themeConfig.accentHex;
+
+    // Background base fill (solid dark or matching)
+    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#1c0d02' : '#090d16';
     ctx.fillRect(0, 0, width, height);
 
-    // Apply beautiful vector ambient lighting or abstract geometric accents
-    ctx.strokeStyle = selectedTheme === 'luxury_dark' ? 'rgba(245, 158, 11, 0.15)' :
-                      selectedTheme === 'cyprus_warm' ? 'rgba(234, 88, 12, 0.1)' :
-                      selectedTheme === 'modern_indigo' ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < 4; i++) {
-      ctx.arc(width / 2, height / 2, 200 + i * 150, 0, Math.PI * 2);
-    }
-    ctx.stroke();
-
-    // Dynamic framing closer to edge = 16px instead of 30px to maximize image layout
-    const borderPadding = 16;
-    ctx.strokeStyle = selectedTheme === 'luxury_dark' ? '#d97706' : // amber-600
-                      selectedTheme === 'cyprus_warm' ? '#ea580c' : // orange-600
-                      selectedTheme === 'modern_indigo' ? '#06b6d4' : '#e4e4e7'; // cyan or white
-    ctx.lineWidth = 12;
-    ctx.strokeRect(borderPadding, borderPadding, width - (borderPadding * 2), height - (borderPadding * 2));
-
-    // Render minimalist header on a single row Y
-    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-    ctx.font = '900 24px \'Montserrat\', sans-serif';
-    ctx.letterSpacing = '1px';
-    const agentNameUpper = `👤 ${(property.responsible_agent || branding?.owner_name || 'DANIŞMAN').toUpperCase()}`;
-    ctx.fillText(agentNameUpper, borderPadding + 50, borderPadding + 69);
-
-    // Reference ID badge in the CENTER on top
-    const refNo = `LP-${property.reference_no || property.id}`;
-    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#ea580c' : '#111827';
-    ctx.fillRect((width / 2) - 95, borderPadding + 32, 190, 48);
-    ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#f97316' : '#d97706';
-    ctx.lineWidth = 2;
-    ctx.strokeRect((width / 2) - 95, borderPadding + 32, 190, 48);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 16px monospace';
-    ctx.letterSpacing = '1px';
-    ctx.textAlign = 'center';
-    ctx.fillText(refNo, width / 2, borderPadding + 62);
-    ctx.textAlign = 'left';
-
-    // Contact number on the right side
-    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-    ctx.font = '900 24px \'Montserrat\', sans-serif';
-    ctx.textAlign = 'right';
-    const contactTextUpper = `📞 ${property.consultant_phone || branding?.phone || branding?.whatsapp_number || 'YETKİLİ'}`;
-    ctx.fillText(contactTextUpper, width - borderPadding - 50, borderPadding + 69);
-    ctx.textAlign = 'left';
-
-    // Image layout logic
+    // Image URL loading list
     const imageUrls: string[] = [];
     if (property.images && property.images[0]) imageUrls.push(property.images[0]);
     if (isCollage && property.images && property.images[1]) imageUrls.push(property.images[1]);
@@ -362,39 +319,17 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.restore();
     };
 
-    const wrapText = (text: string, maxWidth: number) => {
-      const words = text.split(" ");
-      const lines = [];
-      let currentLine = words[0];
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const widthCheck = ctx.measureText(currentLine + " " + word).width;
-        if (widthCheck < maxWidth) {
-          currentLine += " " + word;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
-        }
-      }
-      lines.push(currentLine);
-      return lines;
-    };
-
     Promise.all(imageUrls.map(loadImg)).then((loadedImages) => {
       const imgElement = loadedImages[0];
       const sideImg1 = loadedImages[1];
       const sideImg2 = loadedImages[2];
 
-      // Set target dimensions & positioning for image box based on aspect ratio
-      const imgX = borderPadding + 50;
-      const imgY = borderPadding + 110;
-      const imgWidth = width - (borderPadding * 2) - 100;
-      const imgHeight = selectedRatio === 'square' ? 610 : 1100;
-
-      // Draw shadow background for image path
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.3)';
-      ctx.fillRect(imgX, imgY, imgWidth, imgHeight);
+      // Draw property image as FULL BLEED (occupies entire canvas)
+      const borderPadding = 16;
+      const imgX = 0;
+      const imgY = 0;
+      const imgWidth = width;
+      const imgHeight = height;
 
       const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number, emoji: string) => {
         if (imgPtr) {
@@ -419,161 +354,169 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       };
 
       ctx.save();
-      ctx.rect(imgX, imgY, imgWidth, imgHeight);
-      ctx.clip();
-
       if (isCollage && (sideImg1 || sideImg2)) {
-        // Collage grid: Left main image (67%), Right stacked column (33%)
-        const mainW = Math.round(imgWidth * 0.67);
+        // Collage Grid: Left main image 67% width, Right side stacked vertically 33% width
+        const mainW = Math.round(width * 0.67);
         const gapSize = 8;
-        const sideXWidth = imgWidth - mainW - gapSize;
-        const sideH = Math.round((imgHeight - gapSize) / 2);
+        const sideXWidth = width - mainW - gapSize;
+        const sideH = Math.round((height - gapSize) / 2);
 
-        // Main Left
-        drawSingleImageCover(imgElement, imgX, imgY, mainW, imgHeight, "🏠");
+        // Main left
+        drawSingleImageCover(imgElement, 0, 0, mainW, height, "🏠");
 
-        // Side stacked
-        drawSingleImageCover(sideImg1, imgX + mainW + gapSize, imgY, sideXWidth, sideH, "📸");
-        drawSingleImageCover(sideImg2, imgX + mainW + gapSize, imgY + sideH + gapSize, sideXWidth, sideH, "📸");
+        // Side stacked right
+        drawSingleImageCover(sideImg1, mainW + gapSize, 0, sideXWidth, sideH, "📸");
+        drawSingleImageCover(sideImg2, mainW + gapSize, sideH + gapSize, sideXWidth, sideH, "📸");
       } else {
-        // Regular single cover
-        drawSingleImageCover(imgElement, imgX, imgY, imgWidth, imgHeight, "🏠");
+        // Full bleed single cover image
+        drawSingleImageCover(imgElement, 0, 0, width, height, "🏠");
       }
-
       ctx.restore();
 
-      // Subtle black gradient overlays on the bottom of the image for premium depth
-      const imgGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 150, imgX, imgY + imgHeight);
-      imgGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
-      ctx.fillStyle = imgGrad;
-      ctx.fillRect(imgX, imgY + imgHeight - 150, imgWidth, 150);
+      // Subtle dark vignette/gradient overlays to guarantee text readability
+      // Top vignette
+      const topGrad = ctx.createLinearGradient(0, 0, 0, 320);
+      topGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+      topGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(0, 0, width, 320);
 
-      // Draw high resolution elegant frame around image
-      ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#fed7aa' : 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(imgX, imgY, imgWidth, imgHeight);
+      // Bottom vignette
+      const botGrad = ctx.createLinearGradient(0, height - 420, 0, height);
+      botGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      botGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.65)');
+      botGrad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+      ctx.fillStyle = botGrad;
+      ctx.fillRect(0, height - 420, width, 420);
 
-      // --- TEXT CONTENT AREA ---
-      const contentYStart = imgY + imgHeight + 50;
+      // Outer border matching theme accent
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 14;
+      ctx.strokeRect(borderPadding / 2, borderPadding / 2, width - borderPadding, height - borderPadding);
 
-      // Type Badge
-      ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
-                      selectedTheme === 'cyprus_warm' ? '#ea580c' :
-                      selectedTheme === 'modern_indigo' ? '#22d3ee' : '#d4d4d8';
-      ctx.fillRect(borderPadding + 50, contentYStart, 160, 36);
+      // --- BRANDING ELEMENT 1: TOP LEFT HIGH-IMPACT OBLIQUE STATUS ---
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = accentColor;
+      ctx.font = 'italic 900 75px system-ui, sans-serif';
+      ctx.fillText(isRent ? 'KİRALIK' : 'SATILIK', borderPadding + 40, borderPadding + 110);
+      ctx.restore();
 
-      ctx.fillStyle = selectedTheme === 'luxury_dark' || selectedTheme === 'modern_indigo' ? '#000000' : '#ffffff';
-      ctx.font = 'bold 15px \'Montserrat\', sans-serif';
-      ctx.textAlign = 'center';
+      // --- BRANDING ELEMENT 2: TOP RIGHT ACCENT INFORMATION TAG ---
       const categoryLabel = (property.type === 'residence' ? 'KONUT' : property.type === 'commercial' ? 'TİCARİ' : 'ARSA');
-      ctx.fillText(categoryLabel, borderPadding + 130, contentYStart + 24);
+      const tagText = `${roomsText ? roomsText + ' ' : ''}${categoryLabel}`.toUpperCase();
+      
+      ctx.font = '900 22px system-ui, sans-serif';
+      const tagWidth = ctx.measureText(tagText).width + 50;
+      const tagX = width - borderPadding - tagWidth - 30;
+      const tagY = borderPadding + 40;
+      const tagH = 64;
+
+      // Draw Tag background box
+      ctx.fillStyle = accentColor;
+      ctx.fillRect(tagX, tagY, tagWidth, tagH);
+
+      // Draw Tag Text inside (Black text on colored background for maximum contrast, classic Hertz style!)
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.fillText(tagText, tagX + tagWidth / 2, tagY + 41);
       ctx.textAlign = 'left';
 
-      // Location badge next to it
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#fff7ed' : 'rgba(255, 255, 255, 0.08)';
-      ctx.fillRect(borderPadding + 225, contentYStart, 260, 36);
-      ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#ffedd5' : 'rgba(255, 255, 255, 0.15)';
-      ctx.strokeRect(borderPadding + 225, contentYStart, 260, 36);
+      // --- BRANDING ELEMENT 3: SEMI-TRANSPARENT DARK PRICE PLATE UNDER TAG ---
+      const priceCardX = tagX;
+      const priceCardY = tagY + tagH + 12;
+      const priceCardW = tagWidth;
+      const priceCardH = 80;
 
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ffffff';
-      ctx.font = 'bold 14px \'Golos Text\', sans-serif';
-      ctx.fillText(`📍 ${propertyLocation.toUpperCase()} (${regionText.toUpperCase()})`, borderPadding + 245, contentYStart + 23);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.fillRect(priceCardX, priceCardY, priceCardW, priceCardH);
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(priceCardX, priceCardY, priceCardW, priceCardH);
 
-      // Style and draw high resolution callout card for Story vertical ratio
+      // Price text
+      ctx.fillStyle = accentColor;
+      ctx.font = '900 34px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(priceText, priceCardX + priceCardW / 2, priceCardY + 52);
+      ctx.textAlign = 'left';
+
+      // --- BRANDING ELEMENT 4: BOTTOM LEFT SOLID HERTZ-STYLE LOGO BOX ---
+      const logoText = storeNameDisplay.toUpperCase();
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.letterSpacing = '1px';
+      const logoW = ctx.measureText(logoText).width + 50;
+      const logoH = 75;
+      const logoX = borderPadding + 30;
+      const logoY = height - borderPadding - logoH - 35;
+
+      // Hertz Yellow/Accent background
+      ctx.fillStyle = accentColor;
+      ctx.fillRect(logoX, logoY, logoW, logoH);
+
+      // Bold black text logo
+      ctx.fillStyle = '#000000';
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(logoText, logoX + logoW / 2, logoY + 46);
+      ctx.textAlign = 'left';
+
+      // --- BRANDING ELEMENT 5: BOTTOM RIGHT STRUCTURAL SPECS GRID (GLASS CARD) ---
+      const glassW = 520;
+      const glassH = 200;
+      const glassX = width - borderPadding - glassW - 30;
+      const glassY = height - borderPadding - glassH - 35;
+
+      // Draw glass card background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+      ctx.fillRect(glassX, glassY, glassW, glassH);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(glassX, glassY, glassW, glassH);
+
+      // Draw specs text elegantly
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.fillText(`📍 ${propertyLocation.toUpperCase()}`, glassX + 30, glassY + 45);
+
+      ctx.font = 'bold 15px system-ui, sans-serif';
+      ctx.fillStyle = '#94a3b8'; // slate-400
+      ctx.fillText(regionText.toUpperCase(), glassX + 30, glassY + 80);
+
+      ctx.fillStyle = '#cbd5e1'; // slate-300
+      ctx.font = '500 16px system-ui, sans-serif';
+      ctx.fillText(`📐 Alan Ölçüsü: ${sqmText || 'Belirtilmedi'}`, glassX + 30, glassY + 122);
+      ctx.fillText(`📜 Koçan Türü: ${titleType}`, glassX + 30, glassY + 160);
+
+      // Agent watermark watermark bottom center of glass card or top
+      ctx.font = '900 11px system-ui, sans-serif';
+      ctx.fillStyle = accentColor;
+      ctx.letterSpacing = '1px';
+      ctx.textAlign = 'right';
+      ctx.fillText(`LP-${property.reference_no || property.id}`, glassX + glassW - 30, glassY + 43);
+      ctx.textAlign = 'left';
+
+      // --- BRANDING ELEMENT 6: SPECIAL STORY ONLY PROMOTION LINE ---
       if (selectedRatio === 'story') {
-        const cardY = contentYStart + 70;
-        const cardH = 80;
-        ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(234, 88, 12, 0.08)' : 'rgba(245, 158, 11, 0.08)';
-        ctx.fillRect(borderPadding + 50, cardY, width - (borderPadding * 2) - 100, cardH);
-        ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? 'rgba(234, 88, 12, 0.2)' : 'rgba(245, 158, 11, 0.2)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(borderPadding + 50, cardY, width - (borderPadding * 2) - 100, cardH);
+        const promoY = 880;
+        const promoH = 140;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(50, promoY, width - 100, promoH);
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, promoY, width - 100, promoH);
 
-        ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ca8a04';
-        ctx.font = '900 16px \'Montserrat\', sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText("KIBRIS'IN EN SEÇKİN PORTFÖY DEĞERLERİ İLE EŞSİZ YATIRIM FIRSATI!", width / 2, cardY + 46);
+        ctx.fillText("KIBRIS'IN EN DEĞERLİ BÖLGESİNDE EŞSİZ GAYRİMENKUL FIRSATI!", width / 2, promoY + 55);
+        ctx.fillStyle = accentColor;
+        ctx.font = '900 20px system-ui, sans-serif';
+        ctx.fillText("Detaylı bilgi ve yerinde özel sunum için bize hemen ulaşın.", width / 2, promoY + 100);
         ctx.textAlign = 'left';
       }
-
-      // Price Tag (Huge accent block)
-      const priceBlockY = selectedRatio === 'square' ? 940 : 1660;
-      
-      const priceGradient = ctx.createLinearGradient(80, priceBlockY, width - 80, priceBlockY);
-      if (selectedTheme === 'luxury_dark') {
-        priceGradient.addColorStop(0, '#ca8a04'); // amber-600
-        priceGradient.addColorStop(1, '#eab308'); // amber-500
-      } else if (selectedTheme === 'cyprus_warm') {
-        priceGradient.addColorStop(0, '#c2410c'); // orange-700
-        priceGradient.addColorStop(1, '#ea580c'); // orange-600
-      } else if (selectedTheme === 'modern_indigo') {
-        priceGradient.addColorStop(0, '#4f46e5'); // indigo-600
-        priceGradient.addColorStop(1, '#06b6d4'); // cyan-500
-      } else {
-        priceGradient.addColorStop(0, '#ffffff');
-        priceGradient.addColorStop(1, '#e4e4e7');
-      }
-      ctx.fillStyle = priceGradient;
-      ctx.fillRect(borderPadding + 50, priceBlockY, width - (borderPadding * 2) - 100, 100);
-
-      // Price text overlay
-      ctx.fillStyle = selectedTheme === 'minimal_carbon' ? '#09090b' : '#ffffff';
-      ctx.font = 'bold 15px \'Montserrat\', sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText(property.listing_intent === 'rent' ? "AYLIK KİRA BEDELİ" : "LİSTE SATIŞ BEDELİ", borderPadding + 80, priceBlockY + 40);
-
-      ctx.font = '900 45px \'Montserrat\', sans-serif';
-      ctx.fillText(priceText, borderPadding + 80, priceBlockY + 84);
-
-      // Bullet features badges
-      const specY = selectedRatio === 'square' ? priceBlockY - 45 : priceBlockY - 90;
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#7c2d12' : '#ffffff';
-      ctx.font = '800 21px \'Golos Text\', sans-serif';
-
-      let specString = ``;
-      if (property.subtype) specString += `🏠 ${property.subtype}  •  `;
-      if (property.square_meters) specString += `📐 ${property.square_meters} m² Net  •  `;
-      if (property.room_count) specString += `🛏️ ${property.room_count} Oda  •  `;
-      if (isRent) {
-        specString += property.furnished ? `🛋️ Eşyalı` : `📦 Eşyasız`;
-        if (property.deposit !== undefined && property.deposit > 0) {
-          specString += `  •  💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}`;
-        }
-        if (property.billing_period) {
-          const bpText = property.billing_period === 'yearly' ? 'Yıllık' :
-                         property.billing_period === '3-monthly' ? '3 Aylık' :
-                         property.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık';
-          specString += ` (${bpText})`;
-        }
-      } else {
-        specString += `📜 ${titleType}`;
-      }
-      ctx.fillText(specString, borderPadding + 50, specY);
-
-      // Footer
-      const footerY = height - 60;
-      ctx.strokeStyle = selectedTheme === 'cyprus_warm' ? '#fed7aa' : 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(borderPadding + 50, footerY - 20);
-      ctx.lineTo(width - borderPadding - 50, footerY - 20);
-      ctx.stroke();
-
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#451a03' : '#ffffff';
-      ctx.font = '900 24px \'Montserrat\', sans-serif';
-      ctx.letterSpacing = '2px';
-      ctx.textAlign = 'left';
-      const rawStoreName = branding?.store_name || branding?.name || 'PREMIUM VIP EMLAK';
-      const storeNameDisplay = (rawStoreName.toLowerCase().includes('lookprice') ? 'PREMIUM VIP EMLAK' : rawStoreName).toUpperCase();
-      ctx.fillText(storeNameDisplay, borderPadding + 50, footerY + 15);
-      
-      ctx.textAlign = 'right';
-      ctx.fillStyle = selectedTheme === 'cyprus_warm' ? 'rgba(69, 26, 3, 0.8)' : 'rgba(255, 255, 255, 0.7)';
-      ctx.font = '900 20px \'Montserrat\', sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText('ENRAKİPSİZ.COM', width - borderPadding - 50, footerY + 15);
-      ctx.textAlign = 'left';
 
       // Start the download
       try {
@@ -638,161 +581,131 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
             <div className="flex justify-center items-center py-4">
               <div 
                 ref={previewContainerRef}
-                className={`relative w-full max-w-[340px] rounded-2xl overflow-hidden shadow-xl border-4 ${themeConfig.accentBorder} ${themeConfig.bg} transition-all duration-300 flex flex-col`}
-                style={{ aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16' }}
+                className="relative w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl border-4 border-black/80 transition-all duration-300 flex flex-col bg-slate-950 font-sans"
+                style={{ 
+                  aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16',
+                  borderColor: themeConfig.accentHex 
+                }}
               >
                 
-                {/* Minimalist Header */}
-                <div className="px-3.5 py-1.5 flex justify-between items-center z-10 border-b border-white/5 bg-slate-950/15">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <h3 className={`text-[8.5px] font-black truncate max-w-[120px] leading-none select-none uppercase tracking-widest ${themeConfig.textTitle}`}>
-                      👤 {property.responsible_agent || branding?.owner_name || 'Danışman'}
-                    </h3>
-                  </div>
-                  <span className={`${themeConfig.pillBg} font-mono text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase select-none shrink-0 border`}>
-                    LP-{property.reference_no || property.id}
-                  </span>
-                  <div className="flex items-center text-right shrink-0">
-                    <h3 className={`text-[8.5px] font-black leading-none select-none tracking-widest ${themeConfig.textTitle}`}>
-                      📞 {property.consultant_phone || branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}
-                    </h3>
-                  </div>
-                </div>
-
-                {/* Property Image Cover Block */}
-                <div className="px-3 mt-1 flex-1 flex flex-col justify-center min-h-0">
-                  <div className={`relative w-full rounded-xl overflow-hidden bg-slate-850/50 border border-slate-700 transition-all ${
-                    selectedRatio === 'story' ? 'h-[250px] sm:h-[320px]' : 'h-[195px] sm:h-[245px]'
-                  }`}>
-                    {isCollage && property.images && (property.images[1] || property.images[2]) ? (
-                      <div className="absolute inset-0 w-full h-full flex flex-row">
-                        {/* Main Image (67% width) */}
-                        <div className="w-[67%] h-full border-r border-white/10 overflow-hidden relative">
-                          {property.images[0] ? (
+                {/* Full Bleed Image / Collage Grid */}
+                <div className="absolute inset-0 w-full h-full z-0 select-none pointer-events-none">
+                  {isCollage && property.images && (property.images[1] || property.images[2]) ? (
+                    <div className="w-full h-full flex flex-row">
+                      {/* Left Main (67%) */}
+                      <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
+                        {property.images[0] ? (
+                          <img 
+                            src={property.images[0]} 
+                            alt={propertyTitle} 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-450 bg-slate-900">🏠</div>
+                        )}
+                      </div>
+                      {/* Right stacked (33%) */}
+                      <div className="w-[33%] h-full flex flex-col">
+                        <div className="flex-1 relative border-b border-black/30 overflow-hidden">
+                          {property.images[1] ? (
                             <img 
-                              src={property.images[0]} 
-                              alt={propertyTitle} 
-                              className="w-full h-full object-cover select-none"
+                              src={property.images[1]} 
+                              alt="Görsel 2" 
+                              className="w-full h-full object-cover"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 bg-slate-800">Ana Görsel</div>
+                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
                           )}
                         </div>
-
-                        {/* Side stack (33% width) */}
-                        <div className="w-[33%] h-full flex flex-col border-l border-white/10">
-                          <div className="flex-1 border-b border-white/10 overflow-hidden relative">
-                            {property.images[1] ? (
-                              <img 
-                                src={property.images[1]} 
-                                alt="Görsel 2" 
-                                className="w-full h-full object-cover select-none"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-[7px] text-slate-500 bg-slate-850 font-bold">Resim 2</div>
-                            )}
-                          </div>
-                          <div className="flex-1 overflow-hidden relative">
-                            {property.images[2] ? (
-                              <img 
-                                src={property.images[2]} 
-                                alt="Görsel 3" 
-                                className="w-full h-full object-cover select-none"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-[7px] text-slate-500 bg-slate-850 font-bold">Resim 3</div>
-                            )}
-                          </div>
+                        <div className="flex-1 relative overflow-hidden">
+                          {property.images[2] ? (
+                            <img 
+                              src={property.images[2]} 
+                              alt="Görsel 3" 
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
+                          )}
                         </div>
                       </div>
+                    </div>
+                  ) : (
+                    // Full bleed single cover image
+                    property.images && property.images[0] ? (
+                      <img 
+                        src={property.images[0]} 
+                        alt={propertyTitle} 
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
                     ) : (
-                      // Regular single image
-                      property.images && property.images[0] ? (
-                        <img 
-                          src={property.images[0]} 
-                          alt={propertyTitle} 
-                          className="w-full h-full object-cover select-none"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                          <span className="text-3xl">🏠</span>
-                          <span className="text-[9px] font-bold mt-1">Görsel Eklenmemiş</span>
-                        </div>
-                      )
-                    )}
-                    
-                    {/* Floating Price Plate */}
-                    <div className="absolute bottom-2 right-2 bg-slate-950/90 text-white px-3 py-1 rounded-lg border border-slate-700 shadow-lg text-right">
-                      <span className="block text-[6px] text-slate-400 font-extrabold uppercase">
-                        {property.listing_intent === 'rent' ? 'KİRA BEDELİ' : 'SATIŞ BEDELİ'}
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
+                        <span className="text-4xl">🏠</span>
+                      </div>
+                    )
+                  )}
+
+                  {/* Dark vignette gradient overlays for high text readability */}
+                  <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/70 to-transparent" />
+                </div>
+
+                {/* --- CONTENT LAYER --- */}
+                <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 flex-1">
+                  {/* TOP ROW elements */}
+                  <div className="flex justify-between items-start gap-3">
+                    {/* Top Left: Oblique bold status banner (Rent vs Sale) */}
+                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                      <span className={`text-[22px] italic font-black tracking-tighter uppercase ${themeConfig.accentText}`}>
+                        {isRent ? 'KİRALIK' : 'SATILIK'}
                       </span>
-                      <span className="text-xs font-black text-emerald-400">{priceText}</span>
+                    </div>
+
+                    {/* Top Right: Accent Tag + Price block */}
+                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px]">
+                      {/* Accent Block Tag */}
+                      <div className={`px-2.5 py-1 rounded-sm shadow-md text-black font-black text-[9px] tracking-widest leading-none ${themeConfig.accentBg}`}>
+                        {`${roomsText ? roomsText + ' ' : ''}${categoryLabelForPreview(property.type)}`.toUpperCase()}
+                      </div>
+
+                      {/* Semi-transparent dark Price Tag */}
+                      <div className="bg-black/85 text-center border px-2 py-1.5 rounded-sm shadow-md flex items-center justify-center leading-none" style={{ borderColor: themeConfig.accentHex }}>
+                        <span className="text-[12px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
+                          {priceText}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Specs Box */}
-                <div className="px-4 mt-2">
-                  <div className="flex gap-1 flex-wrap select-none font-sans">
-                    <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
-                      {categoryLabelForPreview(property.type)}
-                    </span>
-                    {property.subtype && (
-                      <span className={`text-[8.5px] font-bold px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
-                        🏠 {property.subtype}
-                      </span>
-                    )}
-                    <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
-                      📍 {propertyLocation}
-                    </span>
-                    {property.square_meters && (
-                      <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
-                        📐 {property.square_meters} m²
-                      </span>
-                    )}
-                  </div>
-                  
-                  <p className={`text-[10px] font-bold mt-2.5 tracking-tight truncate ${themeConfig.textBody}`}>
-                    {roomsText ? `🛌 ${roomsText} • ` : ''}
-                    {isRent 
-                      ? `${property.furnished ? '🛋️ Eşyalı' : '🔑 Boş'} • ${property.deposit ? `💰 Depozito: ${currencySymbol}${formatNumberVal(property.deposit)}` : 'Depozitosuz'} • ⏱️ ${
-                          property.billing_period === 'yearly' ? 'Yıllık' :
-                          property.billing_period === '3-monthly' ? '3 Aylık' :
-                          property.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık'
-                        }` 
-                      : `📜 ${titleType}`}
-                    {property.kktc_region ? ` • 🌍 ${property.kktc_region}` : ''}
-                  </p>
-                </div>
+                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) */}
+                  {selectedRatio === 'story' && (
+                    <div className="my-auto px-4 py-3 bg-black/80 border rounded-xl text-center flex flex-col justify-center items-center backdrop-blur-xs shadow-xl" style={{ borderColor: themeConfig.accentHex }}>
+                      <span className="text-[9px] font-black block mb-0.5 uppercase tracking-wider text-white">KIBRIS'IN EN SEÇKİN LOKASYONU</span>
+                      <p className="text-[8px] max-w-[180px] leading-tight text-slate-300 font-medium">Değer kazanan eşsiz bölgesinde lüks emlak standartları!</p>
+                    </div>
+                  )}
 
-                {/* Callout box for Vertical Ratio */}
-                {selectedRatio === 'story' && (
-                  <div className={`px-4 py-3 mx-4 my-2 rounded-xl text-center flex flex-col justify-center items-center border ${
-                    selectedTheme === 'cyprus_warm'
-                      ? 'bg-orange-100/30 border-orange-200/50'
-                      : 'bg-amber-500/10 border-amber-550/25'
-                  }`}>
-                    <span className={`text-[10px] font-black block mb-0.5 uppercase tracking-widest ${
-                      selectedTheme === 'cyprus_warm' ? 'text-orange-950' : 'text-amber-300'
-                    }`}>👑 EN POPÜLER LOKASYON</span>
-                    <p className={`text-[9px] max-w-[200px] mx-auto ${
-                      selectedTheme === 'cyprus_warm' ? 'text-stone-850 font-semibold' : 'text-zinc-300'
-                    }`}>Kıbrıs'ın değer kazanan emsalsiz bölgesinde lüks yaşam standartları!</p>
-                  </div>
-                )}
+                  {/* BOTTOM ROW elements */}
+                  <div className="flex justify-between items-end gap-3 mt-auto">
+                    {/* Bottom Left: Bold Store name inside solid box */}
+                    <div className={`px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate ${themeConfig.accentBg}`}>
+                      {storeNameDisplay}
+                    </div>
 
-                {/* Footer slim */}
-                <div className={`mt-auto px-4 py-2 flex justify-between items-center text-[7.5px] leading-none ${themeConfig.footerBg}`}>
-                  <div className={`truncate font-black uppercase tracking-widest ${themeConfig.textTitle}`}>
-                    {(branding?.store_name && !branding.store_name.toLowerCase().includes('lookprice')) ? branding.store_name : 'PREMIUM VIP EMLAK'}
+                    {/* Bottom Right: Specs Glass Card */}
+                    <div className="bg-black/90 border border-white/10 px-3 py-2.5 rounded-sm shadow-xl flex flex-col min-w-[140px] max-w-[160px] leading-tight select-none">
+                      <span className="text-[9px] font-black text-white block truncate">📍 {propertyLocation.toUpperCase()}</span>
+                      <span className="text-[7.5px] font-extrabold text-slate-400 block truncate uppercase mb-1">{regionText}</span>
+                      <div className="h-[1px] bg-white/10 my-1" />
+                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">📐 Alan: {sqmText || 'Belirtilmedi'}</span>
+                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">📜 Koçan: {titleType}</span>
+                    </div>
                   </div>
-                  <div className={`text-right font-black uppercase tracking-widest opacity-80 text-[6.5px] ${themeConfig.textBody}`}>
-                    enrakipsiz.com
-                  </div>
+
                 </div>
 
               </div>

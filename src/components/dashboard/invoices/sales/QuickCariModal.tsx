@@ -14,6 +14,8 @@ interface QuickCariModalProps {
     tax_office?: string;
     tax_number?: string;
     currency?: string;
+    address?: string;
+    delivery_address?: string;
   }) => void;
   initialValue?: string;
 }
@@ -32,6 +34,8 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
   const [taxOffice, setTaxOffice] = useState("");
   const [taxNumber, setTaxNumber] = useState("");
   const [currency, setCurrency] = useState("TRY");
+  const [address, setAddress] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   React.useEffect(() => {
     setTitle(initialValue);
@@ -50,6 +54,8 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
       tax_office: type === 'company' ? taxOffice.trim() || undefined : undefined,
       tax_number: type === 'company' ? taxNumber.trim() || undefined : undefined,
       currency,
+      address: address.trim() || undefined,
+      delivery_address: type === 'company' ? deliveryAddress.trim() || undefined : undefined,
     });
     // Reset form
     setPhone("");
@@ -57,6 +63,8 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
     setTaxOffice("");
     setTaxNumber("");
     setCurrency("TRY");
+    setAddress("");
+    setDeliveryAddress("");
   };
 
   return (
@@ -165,6 +173,33 @@ export const QuickCariModal: React.FC<QuickCariModalProps> = ({
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
               </select>
+            </div>
+
+            {/* Address Details */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">{isTr ? "Fatura Adresi" : "Billing Address"}</label>
+                <textarea
+                  rows={2}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder={isTr ? "Cari hesabın resmi fatura adresi" : "Physical billing address"}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none font-medium text-slate-700 text-sm"
+                />
+              </div>
+
+              {type === 'company' && (
+                <div>
+                  <label className="text-[10px] font-black text-rose-500 uppercase tracking-wider block mb-1.5">{isTr ? "Sevk Adresi (2. Alternatif Adres)" : "Delivery / Dispatch Address"}</label>
+                  <textarea
+                    rows={2}
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder={isTr ? "Sevkiyat ve irsaliyeler için ikinci alternatif sevk adresi" : "Alternative delivery address"}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none font-medium text-slate-700 text-sm"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Tax specs (rendered ONLY for Corporate) */}

@@ -497,7 +497,35 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     />
                   </div>
                   <div className="md:col-span-2 space-y-2">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">{isTr ? 'Adres' : 'Address'}</p>
+                    <div className="flex items-center justify-between px-1">
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{isTr ? 'Adres' : 'Address'}</p>
+                      {selectedCompany?.delivery_address && (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditAddress(selectedCompany.address || "")}
+                            className={`px-2 py-0.5 text-[9px] font-black rounded-lg transition-all ${
+                              editAddress === selectedCompany.address
+                                ? "bg-indigo-600 text-white"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                            }`}
+                          >
+                            {isTr ? "Ana Adres (Fatura)" : "Billing Address"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditAddress(selectedCompany.delivery_address || "")}
+                            className={`px-2 py-0.5 text-[9px] font-black rounded-lg transition-all ${
+                              editAddress === selectedCompany.delivery_address
+                                ? "bg-rose-600 text-white"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                            }`}
+                          >
+                            {isTr ? "Sevk Adresi" : "Delivery Address"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <textarea 
                       className="w-full px-4 py-2 bg-white border border-indigo-100 rounded-xl text-xs font-bold text-slate-600 focus:border-indigo-500 transition-all min-h-[60px]"
                       value={editAddress}

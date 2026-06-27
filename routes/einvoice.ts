@@ -1694,6 +1694,7 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
     notes,
     currency,
     exchange_rate,
+    delivery_address,
     items
   } = req.body;
 
@@ -1733,8 +1734,8 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
         store_id, company_id, customer_id, waybill_number, waybill_date, waybill_time,
         actual_date, actual_time, prefix, scenario, waybill_type,
         driver_name, driver_surname, driver_vkn, plate_number, trailer_plate,
-        notes, status, total_amount, tax_amount, grand_total, currency, exchange_rate
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', $18, $19, $20, $21, $22)
+        notes, status, total_amount, tax_amount, grand_total, currency, exchange_rate, delivery_address
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', $18, $19, $20, $21, $22, $23)
       RETURNING id`,
       [
         storeId,
@@ -1758,7 +1759,8 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
         taxAmount,
         grandTotal,
         currency || 'TRY',
-        exchange_rate || 1
+        exchange_rate || 1,
+        delivery_address || null
       ]
     );
 
@@ -1825,6 +1827,7 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
     notes,
     currency,
     exchange_rate,
+    delivery_address,
     items
   } = req.body;
 
@@ -1882,8 +1885,8 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
         company_id = $1, customer_id = $2, waybill_number = $3, waybill_date = $4, waybill_time = $5,
         actual_date = $6, actual_time = $7, prefix = $8, scenario = $9, waybill_type = $10,
         driver_name = $11, driver_surname = $12, driver_vkn = $13, plate_number = $14, trailer_plate = $15,
-        notes = $16, total_amount = $17, tax_amount = $18, grand_total = $19, currency = $20, exchange_rate = $21
-      WHERE id = $22 AND store_id = $23`,
+        notes = $16, total_amount = $17, tax_amount = $18, grand_total = $19, currency = $20, exchange_rate = $21, delivery_address = $22
+      WHERE id = $23 AND store_id = $24`,
       [
         company_id || null,
         customer_id || null,
@@ -1906,6 +1909,7 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
         grandTotal,
         currency || 'TRY',
         exchange_rate || 1,
+        delivery_address || null,
         id,
         storeId
       ]
@@ -1985,7 +1989,7 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
   try {
     const waybillRes = await pool.query(
       `SELECT ew.*, 
-              c.name as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.email as company_email,
+              c.name as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.delivery_address as company_delivery_address, c.email as company_email,
               cust.name as customer_name, cust.surname as customer_surname, cust.phone as customer_phone, cust.email as customer_email, cust.address as customer_address
        FROM e_waybills ew
        LEFT JOIN companies c ON ew.company_id = c.id
@@ -2098,7 +2102,7 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
 
     const taxNumber = (waybill.company_tax_number || "").trim() || "11111111111";
     const customerTitle = waybill.company_title || waybill.company_name || `${waybill.customer_name || 'Bireysel'} ${waybill.customer_surname || 'Müşteri'}`;
-    const address = waybill.company_address || waybill.customer_address || "İstanbul Merkez";
+    const address = waybill.delivery_address || waybill.company_address || waybill.customer_address || "İstanbul Merkez";
 
     const parts = customerTitle.trim().split(/\s+/);
     const surname = parts.length > 1 ? parts.pop() : "ŞAHIS";

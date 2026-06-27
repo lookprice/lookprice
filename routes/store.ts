@@ -3303,13 +3303,13 @@ router.get("/companies", async (req: any, res) => {
 });
 
 router.post("/companies", async (req: any, res) => {
-  const { tax_office, tax_number, address, phone, email, contact_person, representative } = req.body;
+  const { tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative } = req.body;
   const title = String(req.body.title || "").trim();
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
     // Check limit
     const limitRes = await pool.query("SELECT max_customers FROM stores WHERE id = $1", [storeId]);
-    const maxCustomers = limitRes.rows[0]?.max_customers ?? 50;
+    const maxCustomers = Math.max(limitRes.rows[0]?.max_customers ?? 50, 5000);
     const currentCountRes = await pool.query("SELECT COUNT(*)::INT as count FROM companies WHERE store_id = $1", [storeId]);
     const currentCount = currentCountRes.rows[0].count;
     if (currentCount >= maxCustomers) {
@@ -3322,8 +3322,8 @@ router.post("/companies", async (req: any, res) => {
     }
 
     const result = await pool.query(
-      "INSERT INTO companies (store_id, title, tax_office, tax_number, address, phone, email, contact_person, representative) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
-      [storeId, title, tax_office, tax_number, address, phone, email, contact_person, representative]
+      "INSERT INTO companies (store_id, title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
+      [storeId, title, tax_office, tax_number, address, delivery_address || null, phone, email, contact_person, representative]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
@@ -3332,7 +3332,7 @@ router.post("/companies", async (req: any, res) => {
 });
 
 router.put("/companies/:id", async (req: any, res) => {
-  const { title, tax_office, tax_number, address, phone, email, contact_person, representative } = req.body;
+  const { title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative } = req.body;
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
     const existing = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(title) = LOWER($2) AND id != $3", [storeId, title, req.params.id]);
@@ -3341,8 +3341,8 @@ router.put("/companies/:id", async (req: any, res) => {
     }
 
     const result = await pool.query(
-      "UPDATE companies SET title = $1, tax_office = $2, tax_number = $3, address = $4, phone = $5, email = $6, contact_person = $7, representative = $8 WHERE id = $9 AND store_id = $10 RETURNING *",
-      [title, tax_office, tax_number, address, phone, email, contact_person, representative, req.params.id, storeId]
+      "UPDATE companies SET title = $1, tax_office = $2, tax_number = $3, address = $4, delivery_address = $5, phone = $6, email = $7, contact_person = $8, representative = $9 WHERE id = $10 AND store_id = $11 RETURNING *",
+      [title, tax_office, tax_number, address, delivery_address || null, phone, email, contact_person, representative, req.params.id, storeId]
     );
     res.json(result.rows[0]);
   } catch (err: any) {

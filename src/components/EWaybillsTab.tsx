@@ -21,7 +21,8 @@ import {
   Building2, 
   Divide,
   XCircle,
-  FileText
+  FileText,
+  MapPin
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
@@ -85,6 +86,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const [currency, setCurrency] = useState("TRY");
   const [exchangeRate, setExchangeRate] = useState("1");
   const [items, setItems] = useState<any[]>([]);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   // Product Dropdown inside line items helper
   const [productSearch, setProductSearch] = useState("");
@@ -145,6 +147,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     setNotes("");
     setCurrency(branding?.default_currency || "TRY");
     setExchangeRate("1");
+    setDeliveryAddress("");
     setItems([{ tempId: Date.now(), product_id: "", product_name: "", barcode: "", quantity: 1, unit_code: "Adet", unit_price: 0, tax_rate: 20 }]);
     setShowFormModal(true);
   };
@@ -174,6 +177,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       setNotes(data.notes || "");
       setCurrency(data.currency || "TRY");
       setExchangeRate(String(data.exchange_rate || 1));
+      setDeliveryAddress(data.delivery_address || "");
       
       const loadedItems = (data.items || []).map((i: any) => ({
         ...i,
@@ -243,6 +247,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       notes,
       currency,
       exchange_rate: Number(exchangeRate) || 1,
+      delivery_address: deliveryAddress,
       items: cleanedItems
     };
 
@@ -816,12 +821,23 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                         if (!val) {
                           setCompanyId("");
                           setCustomerId("");
+                          setDeliveryAddress("");
                         } else if (val.startsWith("company-")) {
-                          setCompanyId(val.replace("company-", ""));
+                          const cid = val.replace("company-", "");
+                          setCompanyId(cid);
                           setCustomerId("");
+                          const comp = companies.find(c => String(c.id) === String(cid));
+                          if (comp) {
+                            setDeliveryAddress(comp.delivery_address || comp.address || "");
+                          }
                         } else if (val.startsWith("customer-")) {
-                          setCustomerId(val.replace("customer-", ""));
+                          const cuid = val.replace("customer-", "");
+                          setCustomerId(cuid);
                           setCompanyId("");
+                          const cust = customers.find(cu => String(cu.id) === String(cuid));
+                          if (cust) {
+                            setDeliveryAddress(cust.address || "");
+                          }
                         }
                       }}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:border-indigo-500 transition font-medium"
@@ -910,6 +926,56 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                   </div>
 
                 </div>
+
+                {/* section 1.5: Delivery and Shipment address selection */}
+                {(() => {
+                  const selectedComp = companies.find(c => String(c.id) === String(companyId));
+                  return (
+                    <div className="bg-rose-50/10 p-4 rounded-xl border border-rose-100/50 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-rose-700 uppercase tracking-widest flex items-center gap-1">
+                          <MapPin className="h-4 w-4 text-rose-500" />
+                          {isTr ? "Sevk ve Teslimat Adresi (2. Adres)" : "Dispatch & Delivery Address (2nd Address)"}
+                        </h3>
+                        {selectedComp && (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setDeliveryAddress(selectedComp.address || "")}
+                              className={`px-2 py-0.5 text-[9px] font-black rounded-lg transition-all cursor-pointer ${
+                                deliveryAddress === selectedComp.address
+                                  ? "bg-rose-600 text-white"
+                                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                              }`}
+                            >
+                              {isTr ? "Ana Adres (Fatura)" : "Billing Address"}
+                            </button>
+                            {selectedComp.delivery_address && (
+                              <button
+                                type="button"
+                                onClick={() => setDeliveryAddress(selectedComp.delivery_address || "")}
+                                className={`px-2 py-0.5 text-[9px] font-black rounded-lg transition-all cursor-pointer ${
+                                  deliveryAddress === selectedComp.delivery_address
+                                    ? "bg-rose-600 text-white"
+                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                }`}
+                              >
+                                {isTr ? "Sevk Adresi (2. Adres)" : "Saved Delivery Address"}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        placeholder={isTr ? "Malın teslim edileceği sevk adresi..." : "Address where products will be dispatched..."}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm outline-none focus:border-rose-500 transition bg-white text-slate-700 font-medium"
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* section 2: Shipment carrier driver plate logitics info details */}
                 <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">

@@ -305,6 +305,7 @@ export async function initDb() {
         tax_office TEXT,
         tax_number TEXT,
         address TEXT,
+        delivery_address TEXT,
         phone TEXT,
         email TEXT,
         contact_person TEXT,
@@ -317,6 +318,9 @@ export async function initDb() {
       BEGIN 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='representative') THEN
           ALTER TABLE companies ADD COLUMN representative TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='delivery_address') THEN
+          ALTER TABLE companies ADD COLUMN delivery_address TEXT;
         END IF;
       END $$;
 
@@ -1094,8 +1098,16 @@ export async function initDb() {
         grand_total DECIMAL(12,2) DEFAULT 0,
         currency TEXT DEFAULT 'TRY',
         exchange_rate DECIMAL(12,4) DEFAULT 1,
+        delivery_address TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='e_waybills' AND column_name='delivery_address') THEN
+          ALTER TABLE e_waybills ADD COLUMN delivery_address TEXT;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS e_waybill_items (
         id SERIAL PRIMARY KEY,

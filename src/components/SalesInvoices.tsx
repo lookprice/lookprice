@@ -136,6 +136,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           tax_office: data.tax_office,
           tax_number: data.tax_number,
           currency: data.currency,
+          address: data.address,
+          delivery_address: data.delivery_address,
           status: 'active'
         }, storeId);
         setCompanies((prev: any) => [...prev, newCompany]);
@@ -148,6 +150,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           phone: data.phone,
           email: data.email,
           currency: data.currency,
+          address: data.address,
           status: 'active'
         }, storeId);
         setCustomers((prev: any) => [...prev, newCust]);
