@@ -38,6 +38,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   agents = []
 }) => {
   const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('luxury_dark');
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [isCollage, setIsCollage] = useState<boolean>(true);
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
@@ -167,29 +168,6 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   };
 
   const themeConfig = getThemeClasses();
-
-  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(() => {
-    if (property?.responsible_consultant_id) {
-      return Number(property.responsible_consultant_id);
-    }
-    return null;
-  });
-
-  useEffect(() => {
-    if (!selectedAgentId && property?.responsible_consultant_id && agents?.length > 0) {
-      const match = agents.find(a => Number(a.id) === Number(property.responsible_consultant_id));
-      if (match) {
-        setSelectedAgentId(Number(property.responsible_consultant_id));
-      } else {
-        const matchByName = agents.find(a => a.name && property.responsible_agent && a.name.toLowerCase().trim() === property.responsible_agent.toLowerCase().trim());
-        if (matchByName) {
-          setSelectedAgentId(matchByName.id);
-        }
-      }
-    }
-  }, [property?.responsible_consultant_id, property?.responsible_agent, agents, selectedAgentId]);
-
-  const selectedAgent = agents.find(a => a.id === selectedAgentId);
 
   // Dynamic Captions generator (100% Client-side robust copywriting)
   const getCaptionText = () => {
@@ -575,32 +553,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
                   {/* BOTTOM ROW elements */}
                   <div className="flex justify-between items-end gap-3 mt-auto">
-                    {/* Bottom Left: Bold Store name inside solid box & Agent avatar/name */}
-                    <div className="flex flex-col items-start gap-1.5 max-w-[130px]">
-                      <div className={"px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate " + themeConfig.accentBg}>
-                        {storeNameDisplay}
-                      </div>
-                      
-                      {selectedAgent && (
-                        <div className="flex items-center gap-1.5 bg-black/90 px-2 py-1 rounded-sm border border-white/10 shadow-lg w-full max-w-[135px]">
-                          {selectedAgent.image_url ? (
-                            <img 
-                              src={selectedAgent.image_url} 
-                              alt={selectedAgent.name}
-                              className="w-5 h-5 rounded-full object-cover border border-white/20 shrink-0"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[8px] text-white font-bold shrink-0">
-                              {selectedAgent.name ? selectedAgent.name.charAt(0).toUpperCase() : 'D'}
-                            </div>
-                          )}
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[7.5px] font-black text-white truncate">{selectedAgent.name}</span>
-                            <span className="text-[6px] font-extrabold text-slate-400 uppercase tracking-wide">Danışman</span>
-                          </div>
-                        </div>
-                      )}
+                    {/* Bottom Left: Bold Store name inside solid box */}
+                    <div className={"px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate " + themeConfig.accentBg}>
+                      {storeNameDisplay}
                     </div>
 
                     {/* Bottom Right: Specs Glass Card */}
