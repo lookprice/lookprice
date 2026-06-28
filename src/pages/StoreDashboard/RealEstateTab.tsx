@@ -39,6 +39,7 @@ interface RealEstateTabProps {
   initialStatusFilter: string;
   onResetStatusFilter: () => void;
   storeId?: number;
+  agents?: any[];
 }
 
 const formatNumberVal = (val: any) => {
@@ -49,7 +50,7 @@ const formatNumberVal = (val: any) => {
   return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(parsed));
 };
 
-const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, initialStatusFilter, onResetStatusFilter, storeId }: RealEstateTabProps) => {
+const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, initialStatusFilter, onResetStatusFilter, storeId, agents = [] }: RealEstateTabProps) => {
   const safeProperties = Array.isArray(properties) ? properties : [];
 
   const { lang } = useLanguage();
@@ -63,6 +64,20 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       setDriveConnected(!!res?.connected);
     }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
   }, []);
+
+  const [localAgents, setLocalAgents] = useState<any[]>(agents || []);
+
+  useEffect(() => {
+    if (agents && agents.length > 0) {
+      setLocalAgents(agents);
+    } else if (storeId) {
+      api.getUsers(storeId).then(res => {
+        if (Array.isArray(res)) {
+          setLocalAgents(res);
+        }
+      }).catch(err => console.error("Error fetching users in RealEstateTab:", err));
+    }
+  }, [agents, storeId]);
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [filterBranch, setFilterBranch] = useState("all");
@@ -705,6 +720,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             }}
             property={socialShareProperty}
             branding={branding}
+            agents={localAgents}
           />
         </React.Suspense>
       )}

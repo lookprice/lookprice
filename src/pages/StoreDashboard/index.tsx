@@ -765,6 +765,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   initialStatusFilter={realEstateStatusFilter}
                   onResetStatusFilter={() => setRealEstateStatusFilter("all")}
                   storeId={currentStoreId!}
+                  agents={users}
                 />
               )}
               {activeTab === "fleet" && (

@@ -1837,7 +1837,7 @@ router.get("/users", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
 
-  const users = await pool.query("SELECT id, email, role FROM users WHERE store_id = $1", [storeId]);
+  const users = await pool.query("SELECT id, email, role, COALESCE(name, SPLIT_PART(email, '@', 1)) as name, phone, image_url FROM users WHERE store_id = $1", [storeId]);
   res.json(users.rows);
 });
 
