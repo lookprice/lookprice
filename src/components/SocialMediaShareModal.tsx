@@ -23,9 +23,10 @@ interface SocialMediaShareModalProps {
   onClose: () => void;
   property: any;
   branding?: any;
+  agents?: any[];
 }
 
-type TemplateTheme = 'luxury_dark' | 'cyprus_warm' | 'modern_indigo' | 'minimal_carbon';
+type TemplateTheme = 'luxury_dark' | 'cyprus_warm' | 'modern_indigo' | 'minimal_carbon' | 'premium_gold';
 type AspectRatio = 'square' | 'story';
 type CaptionTone = 'luxury' | 'investment' | 'friendly';
 
@@ -33,9 +34,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   isOpen,
   onClose,
   property,
-  branding
+  branding,
+  agents = []
 }) => {
   const [selectedTheme, setSelectedTheme] = useState<TemplateTheme>('luxury_dark');
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [isCollage, setIsCollage] = useState<boolean>(true);
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
@@ -82,6 +85,15 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const roomsText = property.room_count ? `${property.room_count} Oda` : "";
   const typeText = property.type === 'residence' ? 'Konut' : property.type === 'commercial' ? 'Ticari Mülk' : 'Arsa';
   const titleType = property.kktc_title_type || "Eşdeğer Koçan";
+
+  const handleCopyCaption = async () => {
+    try {
+      await navigator.clipboard.writeText(getCaptionText());
+      setCopySuccess(true);
+    } catch (err) {
+      console.error('Kopyalama hatası:', err);
+    }
+  };
 
   // Determine theme colors for HTML Preview
   const getThemeClasses = () => {
@@ -138,6 +150,19 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
           pillBg: 'bg-zinc-800 text-zinc-100 border-zinc-750',
           priceBg: 'bg-white text-zinc-950',
           footerBg: 'bg-zinc-950/80 border-t border-zinc-850'
+        };
+      case 'premium_gold':
+        return {
+          bg: 'bg-white',
+          accentText: 'text-yellow-600',
+          accentHex: '#d4af37',
+          accentBg: 'bg-yellow-600',
+          accentBorder: 'border-yellow-700',
+          textTitle: 'text-black font-extrabold',
+          textBody: 'text-slate-800',
+          pillBg: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+          priceBg: 'bg-yellow-600 text-white',
+          footerBg: 'bg-white border-t border-yellow-200'
         };
     }
   };
@@ -233,22 +258,14 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `👉 Lokasyon Dostu: Alışveriş noktalarına, kafelere ve masmavi plajlara çok yakın!\n\n` +
                `💰 Fiyat: ${priceText}${isRent ? ' / Aylık' : ''} (Hızlı karar veren fırsat sahibi olur!)\n\n` +
                `Her sabah eşsiz Kıbrıs havasına gözlerinizi açacağınız, sevdiklerinizle huzurlu anılar biriktireceğiniz muhteşem bir konsepte sahip.\n\n` +
-               `Kahvemizi içmeye ve bu güzel mülkün tüm detaylarını yüz yüze konuşmaya bekliyoruz! 😊☕️\n\n` +
-               `💬 Hemen DM atın ya da bizi arayın:\n` +
-               `📞 ${contactPhoneText}\n` +
-               `👤 Danışmanınız: ${brokerName}\n` +
-               `🏢 Emlak Ağı: ${brandName}\n\n` +
+               `Kahvemizi içmeye ve bu güzel mülkü yakından incelemeye davetlisiniz.\n\n` +
+               `📞 Detaylı Bilgi: ${contactPhoneText}\n` +
+               `👤 Danışman: ${brokerName}\n\n` +
                `${friendlyHashtags}`;
     }
   };
 
-  const handleCopyCaption = () => {
-    navigator.clipboard.writeText(getCaptionText());
-    setCopySuccess(true);
-  };
-
-  // HTML5 Canvas Premium Graphics Export
-  const handleDownloadImage = () => {
+  const handleDownloadImage = async () => {
     setIsRendering(true);
     setRenderError(null);
 
@@ -272,10 +289,8 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     canvas.width = width;
     canvas.height = height;
 
-    const accentColor = themeConfig.accentHex;
-
-    // Background base fill (solid dark or matching)
-    ctx.fillStyle = selectedTheme === 'cyprus_warm' ? '#1c0d02' : '#090d16';
+    // Background base fill
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
     // Image URL loading list
@@ -283,6 +298,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     if (property.images && property.images[0]) imageUrls.push(property.images[0]);
     if (isCollage && property.images && property.images[1]) imageUrls.push(property.images[1]);
     if (isCollage && property.images && property.images[2]) imageUrls.push(property.images[2]);
+
+    const agent = agents.find(a => a.id === selectedAgentId);
+    if (agent && agent.image_url) imageUrls.push(agent.image_url);
 
     const loadImg = (url: string): Promise<HTMLImageElement | null> => {
       return new Promise((resolve) => {
@@ -295,254 +313,65 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       });
     };
 
-    const drawFallbackBlock = (x: number, y: number, w: number, h: number, emoji: string) => {
-      ctx.save();
-      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-      grad.addColorStop(0, '#111827');
-      grad.addColorStop(1, '#1f2937');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, y, w, h);
+    const loadedImages = await Promise.all(imageUrls.map(loadImg));
+    const imgElement = loadedImages[0];
+    const sideImg1 = loadedImages[1];
+    const sideImg2 = loadedImages[2];
+    const agentImg = agent && agent.image_url ? loadedImages[imageUrls.indexOf(agent.image_url)] : null;
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-      ctx.lineWidth = 2;
-      for (let offset = 0; offset < w + h; offset += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x + offset, y);
-        ctx.lineTo(x, y + offset);
-        ctx.stroke();
+    const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number) => {
+      if (imgPtr) {
+        try {
+          const imgAspect = imgPtr.width / imgPtr.height;
+          const targetAspect = w / h;
+          let sx = 0, sy = 0, sWidth = imgPtr.width, sHeight = imgPtr.height;
+          if (imgAspect > targetAspect) {
+            sWidth = imgPtr.height * targetAspect;
+            sx = (imgPtr.width - sWidth) / 2;
+          } else {
+            sHeight = imgPtr.width / targetAspect;
+            sy = (imgPtr.height - sHeight) / 2;
+          }
+          ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
+        } catch (err) {
+          ctx.fillStyle = '#f3f4f6';
+          ctx.fillRect(x, y, w, h);
+        }
+      } else {
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(x, y, w, h);
       }
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.font = 'bold 45px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(emoji, x + w/2, y + h/2 + 15);
-      ctx.restore();
     };
 
-    Promise.all(imageUrls.map(loadImg)).then((loadedImages) => {
-      const imgElement = loadedImages[0];
-      const sideImg1 = loadedImages[1];
-      const sideImg2 = loadedImages[2];
+    // Draw images (Main layout)
+    if (isCollage && (sideImg1 || sideImg2)) {
+      const mainW = Math.round(width * 0.67);
+      const gapSize = 10;
+      const sideXWidth = width - mainW - gapSize;
+      const sideH = Math.round((height - gapSize) / 2);
+      drawSingleImageCover(imgElement, 0, 0, mainW, height);
+      drawSingleImageCover(sideImg1, mainW + gapSize, 0, sideXWidth, sideH);
+      drawSingleImageCover(sideImg2, mainW + gapSize, sideH + gapSize, sideXWidth, sideH);
+    } else {
+      drawSingleImageCover(imgElement, 0, 0, width, height);
+    }
 
-      // Draw property image as FULL BLEED (occupies entire canvas)
-      const borderPadding = 16;
-      const imgX = 0;
-      const imgY = 0;
-      const imgWidth = width;
-      const imgHeight = height;
-
-      const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number, emoji: string) => {
-        if (imgPtr) {
-          try {
-            const imgAspect = imgPtr.width / imgPtr.height;
-            const targetAspect = w / h;
-            let sx = 0, sy = 0, sWidth = imgPtr.width, sHeight = imgPtr.height;
-            if (imgAspect > targetAspect) {
-              sWidth = imgPtr.height * targetAspect;
-              sx = (imgPtr.width - sWidth) / 2;
-            } else {
-              sHeight = imgPtr.width / targetAspect;
-              sy = (imgPtr.height - sHeight) / 2;
-            }
-            ctx.save();
-            // Polish & Shine filter: Increase brightness, contrast and saturation dynamically
-            ctx.filter = "brightness(1.12) contrast(1.05) saturate(1.12)";
-            ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
-            
-            // Draw a subtle diagonal glare sheen on the canvas image to give that "glass/metal polish" premium glossiness
-            const sheenGrad = ctx.createLinearGradient(x, y, x + w, y + h);
-            sheenGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
-            sheenGrad.addColorStop(0.42, "rgba(255, 255, 255, 0)");
-            sheenGrad.addColorStop(0.5, "rgba(255, 255, 255, 0.15)"); // smooth glossy shine
-            sheenGrad.addColorStop(0.58, "rgba(255, 255, 255, 0)");
-            sheenGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
-            ctx.fillStyle = sheenGrad;
-            ctx.globalCompositeOperation = "overlay";
-            ctx.fillRect(x, y, w, h);
-            
-            ctx.restore();
-          } catch (err) {
-            drawFallbackBlock(x, y, w, h, emoji);
-          }
-        } else {
-          drawFallbackBlock(x, y, w, h, emoji);
-        }
-      };
-
+    // Agent photo (Bottom-left)
+    if (agentImg) {
+      const agentSize = 200;
       ctx.save();
-      if (isCollage && (sideImg1 || sideImg2)) {
-        // Collage Grid: Left main image 67% width, Right side stacked vertically 33% width
-        const mainW = Math.round(width * 0.67);
-        const gapSize = 8;
-        const sideXWidth = width - mainW - gapSize;
-        const sideH = Math.round((height - gapSize) / 2);
-
-        // Main left
-        drawSingleImageCover(imgElement, 0, 0, mainW, height, "🏠");
-
-        // Side stacked right
-        drawSingleImageCover(sideImg1, mainW + gapSize, 0, sideXWidth, sideH, "📸");
-        drawSingleImageCover(sideImg2, mainW + gapSize, sideH + gapSize, sideXWidth, sideH, "📸");
-      } else {
-        // Full bleed single cover image
-        drawSingleImageCover(imgElement, 0, 0, width, height, "🏠");
-      }
+      ctx.beginPath();
+      ctx.arc(100 + agentSize / 2, height - 100 - agentSize / 2, agentSize / 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(agentImg, 100, height - 100 - agentSize, agentSize, agentSize);
       ctx.restore();
+    }
 
-      // Subtle dark vignette/gradient overlays to guarantee text readability
-      // Top vignette
-      const topGrad = ctx.createLinearGradient(0, 0, 0, 320);
-      topGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
-      topGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = topGrad;
-      ctx.fillRect(0, 0, width, 320);
-
-      // Bottom vignette
-      const botGrad = ctx.createLinearGradient(0, height - 420, 0, height);
-      botGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      botGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.65)');
-      botGrad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
-      ctx.fillStyle = botGrad;
-      ctx.fillRect(0, height - 420, width, 420);
-
-      // Outer border matching theme accent
-      ctx.strokeStyle = accentColor;
-      ctx.lineWidth = 14;
-      ctx.strokeRect(borderPadding / 2, borderPadding / 2, width - borderPadding, height - borderPadding);
-
-      // --- BRANDING ELEMENT 1: TOP LEFT HIGH-IMPACT OBLIQUE STATUS ---
-      ctx.save();
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = accentColor;
-      ctx.font = 'italic 900 75px system-ui, sans-serif';
-      ctx.fillText(isRent ? 'KİRALIK' : 'SATILIK', borderPadding + 40, borderPadding + 110);
-      ctx.restore();
-
-      // --- BRANDING ELEMENT 2: TOP RIGHT ACCENT INFORMATION TAG ---
-      const categoryLabel = (property.type === 'residence' ? 'KONUT' : property.type === 'commercial' ? 'TİCARİ' : 'ARSA');
-      const tagText = `${roomsText ? roomsText + ' ' : ''}${categoryLabel}`.toUpperCase();
-      
-      ctx.font = '900 22px system-ui, sans-serif';
-      const tagWidth = ctx.measureText(tagText).width + 50;
-      const tagX = width - borderPadding - tagWidth - 30;
-      const tagY = borderPadding + 40;
-      const tagH = 64;
-
-      // Draw Tag background box
-      ctx.fillStyle = accentColor;
-      ctx.fillRect(tagX, tagY, tagWidth, tagH);
-
-      // Draw Tag Text inside (Black text on colored background for maximum contrast, classic Hertz style!)
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.font = '900 22px system-ui, sans-serif';
-      ctx.fillText(tagText, tagX + tagWidth / 2, tagY + 41);
-      ctx.textAlign = 'left';
-
-      // --- BRANDING ELEMENT 3: SEMI-TRANSPARENT DARK PRICE PLATE UNDER TAG ---
-      const priceCardX = tagX;
-      const priceCardY = tagY + tagH + 12;
-      const priceCardW = tagWidth;
-      const priceCardH = 80;
-
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-      ctx.fillRect(priceCardX, priceCardY, priceCardW, priceCardH);
-      ctx.strokeStyle = accentColor;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(priceCardX, priceCardY, priceCardW, priceCardH);
-
-      // Price text
-      ctx.fillStyle = accentColor;
-      ctx.font = '900 34px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(priceText, priceCardX + priceCardW / 2, priceCardY + 52);
-      ctx.textAlign = 'left';
-
-      // --- BRANDING ELEMENT 4: BOTTOM LEFT SOLID HERTZ-STYLE LOGO BOX ---
-      const logoText = storeNameDisplay.toUpperCase();
-      ctx.font = '900 22px system-ui, sans-serif';
-      ctx.letterSpacing = '1px';
-      const logoW = ctx.measureText(logoText).width + 50;
-      const logoH = 75;
-      const logoX = borderPadding + 30;
-      const logoY = height - borderPadding - logoH - 35;
-
-      // Hertz Yellow/Accent background
-      ctx.fillStyle = accentColor;
-      ctx.fillRect(logoX, logoY, logoW, logoH);
-
-      // Bold black text logo
-      ctx.fillStyle = '#000000';
-      ctx.font = '900 22px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(logoText, logoX + logoW / 2, logoY + 46);
-      ctx.textAlign = 'left';
-
-      // --- BRANDING ELEMENT 5: BOTTOM RIGHT STRUCTURAL SPECS GRID (GLASS CARD) ---
-      const glassW = 520;
-      const glassH = 200;
-      const glassX = width - borderPadding - glassW - 30;
-      const glassY = height - borderPadding - glassH - 35;
-
-      // Draw glass card background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-      ctx.fillRect(glassX, glassY, glassW, glassH);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(glassX, glassY, glassW, glassH);
-
-      // Draw specs text elegantly
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 22px system-ui, sans-serif';
-      ctx.fillText(`📍 ${propertyLocation.toUpperCase()}`, glassX + 30, glassY + 45);
-
-      ctx.font = 'bold 15px system-ui, sans-serif';
-      ctx.fillStyle = '#94a3b8'; // slate-400
-      ctx.fillText(regionText.toUpperCase(), glassX + 30, glassY + 80);
-
-      ctx.fillStyle = '#cbd5e1'; // slate-300
-      ctx.font = '500 16px system-ui, sans-serif';
-      ctx.fillText(`📐 Alan Ölçüsü: ${sqmText || 'Belirtilmedi'}`, glassX + 30, glassY + 122);
-      if (isRent) {
-        ctx.fillText(`💵 Kapora: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}`, glassX + 30, glassY + 160);
-      } else {
-        ctx.fillText(`📜 Koçan Türü: ${titleType}`, glassX + 30, glassY + 160);
-      }
-
-      // Agent watermark watermark bottom center of glass card or top
-      ctx.font = '900 11px system-ui, sans-serif';
-      ctx.fillStyle = accentColor;
-      ctx.letterSpacing = '1px';
-      ctx.textAlign = 'right';
-      ctx.fillText(`LP-${property.reference_no || property.id}`, glassX + glassW - 30, glassY + 43);
-      ctx.textAlign = 'left';
-
-      // --- BRANDING ELEMENT 6: SPECIAL STORY ONLY PROMOTION LINE ---
-      if (selectedRatio === 'story') {
-        const promoY = 880;
-        const promoH = 140;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(50, promoY, width - 100, promoH);
-        ctx.strokeStyle = accentColor;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(50, promoY, width - 100, promoH);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 20px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText("KIBRIS'IN EN DEĞERLİ BÖLGESİNDE EŞSİZ GAYRİMENKUL FIRSATI!", width / 2, promoY + 55);
-        ctx.fillStyle = accentColor;
-        ctx.font = '900 20px system-ui, sans-serif';
-        ctx.fillText("Detaylı bilgi ve yerinde özel sunum için bize hemen ulaşın.", width / 2, promoY + 100);
-        ctx.textAlign = 'left';
-      }
-
-      // Start the download
-      try {
-        const link = document.createElement("a");
-        const sanitizedTitle = (property.title || 'ilan').toLowerCase().replace(/\s+/g, '-').substring(0, 20);
-        link.download = `afis-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
+    // Save and download
+    try {
+        const link = document.createElement('a');
+        let sanitizedTitle = (property.title || 'ilan').toLowerCase().replace(/\s+/g, '-').substring(0, 20);
+        link.download = 'afis-' + sanitizedTitle + '-' + selectedTheme + '-' + selectedRatio + '.png';
         link.href = canvas.toDataURL("image/png");
         document.body.appendChild(link);
         link.click();
@@ -551,7 +380,6 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
         setRenderError("Kaydetme işlemi sırasında tarayıcı güvenlik kısıtlaması nedeniyle hata oluştu.");
       }
       setIsRendering(false);
-    });
   };
 
   return (
@@ -569,11 +397,9 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 {/* Collage Toggle Mode */}
                 <button
                   onClick={() => setIsCollage(!isCollage)}
-                  className={`p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 ${
-                    isCollage
-                      ? 'bg-amber-600 text-white border-amber-600 shadow'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
+                  className={isCollage 
+                    ? "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-amber-600 text-white border-amber-600 shadow" 
+                    : "p-1 pl-2 pr-2.5 rounded-lg border text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5 bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}
                   title="Detaylı 3'lü Fotoğraf Kolajı"
                 >
                   <Grid className="w-3.5 h-3.5" />
@@ -582,14 +408,14 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 <div className="h-5 w-[1px] bg-slate-200" />
                 <button 
                   onClick={() => setSelectedRatio('square')}
-                  className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                  className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'square' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
                   title="Instagram Square Post (1:1)"
                 >
                   <Grid className="w-4 h-4" />
                 </button>
                 <button 
                   onClick={() => setSelectedRatio('story')}
-                  className={`p-1.5 rounded-lg border transition-all ${selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                  className={"p-1.5 rounded-lg border transition-all " + (selectedRatio === 'story' ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')}
                   title="Instagram Story / Vertical (9:16)"
                 >
                   <Smartphone className="w-4 h-4" />
@@ -696,7 +522,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   <div className="flex justify-between items-start gap-3">
                     {/* Top Left: Oblique bold status banner (Rent vs Sale) */}
                     <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-                      <span className={`text-[22px] italic font-black tracking-tighter uppercase ${themeConfig.accentText}`}>
+                      <span className={"text-[22px] italic font-black tracking-tighter uppercase " + themeConfig.accentText}>
                         {isRent ? 'KİRALIK' : 'SATILIK'}
                       </span>
                     </div>
@@ -704,8 +530,8 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     {/* Top Right: Accent Tag + Price block */}
                     <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px]">
                       {/* Accent Block Tag */}
-                      <div className={`px-2.5 py-1 rounded-sm shadow-md text-black font-black text-[9px] tracking-widest leading-none ${themeConfig.accentBg}`}>
-                        {`${roomsText ? roomsText + ' ' : ''}${categoryLabelForPreview(property.type)}`.toUpperCase()}
+                      <div className={"px-2.5 py-1 rounded-sm shadow-md text-black font-black text-[9px] tracking-widest leading-none " + themeConfig.accentBg}>
+                        { (roomsText ? roomsText + ' ' : '') + categoryLabelForPreview(property.type).toUpperCase() }
                       </div>
 
                       {/* Semi-transparent dark Price Tag */}
@@ -728,7 +554,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   {/* BOTTOM ROW elements */}
                   <div className="flex justify-between items-end gap-3 mt-auto">
                     {/* Bottom Left: Bold Store name inside solid box */}
-                    <div className={`px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate ${themeConfig.accentBg}`}>
+                    <div className={"px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate " + themeConfig.accentBg}>
                       {storeNameDisplay}
                     </div>
 
@@ -739,7 +565,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       <div className="h-[1px] bg-white/10 my-1" />
                       <span className="text-[7.5px] font-bold text-slate-300 block truncate">📐 Alan: {sqmText || 'Belirtilmedi'}</span>
                       {isRent ? (
-                        <span className="text-[7.5px] font-bold text-slate-300 block truncate">💵 Kapora: {property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Görüşülecek'}</span>
+                        <span className="text-[7.5px] font-bold text-slate-300 block truncate">💵 Kapora: {property.deposit ? currencySymbol + formatNumberVal(property.deposit) : 'Görüşülecek'}</span>
                       ) : (
                         <span className="text-[7.5px] font-bold text-slate-300 block truncate">📜 Koçan: {titleType}</span>
                       )}
@@ -754,35 +580,54 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
           {/* Controls for Template styles */}
           <div className="mt-4">
+            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">👤 DANIŞMAN SEÇİMİ</span>
+            <select
+              value={selectedAgentId || ''}
+              onChange={(e) => setSelectedAgentId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 mb-4 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
+            >
+              <option value="">Danışman Seçiniz (Fotoğraf İçin)</option>
+              {agents.map(agent => (
+                <option key={agent.id} value={agent.id}>{agent.name}</option>
+              ))}
+            </select>
+
             <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">🎨 GÖRSEL ŞABLON RENK DETAYI</span>
             <div className="grid grid-cols-4 gap-2">
               <button 
                 onClick={() => setSelectedTheme('luxury_dark')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'luxury_dark' ? 'bg-slate-900 border-amber-500 text-white ring-2 ring-amber-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'luxury_dark' ? 'bg-slate-900 border-amber-500 text-white ring-2 ring-amber-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
               >
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-950 to-amber-500 mb-1" />
                 <span className="text-[9px] font-bold">Lüks Siyah</span>
               </button>
               <button 
                 onClick={() => setSelectedTheme('cyprus_warm')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'cyprus_warm' ? 'bg-orange-50 border-orange-500 text-amber-950 ring-2 ring-orange-400/45 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'cyprus_warm' ? 'bg-orange-50 border-orange-500 text-amber-950 ring-2 ring-orange-400/45 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
               >
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-200 to-orange-600 mb-1" />
                 <span className="text-[9px] font-bold">Kıbrıs Sıcak</span>
               </button>
               <button 
                 onClick={() => setSelectedTheme('modern_indigo')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'modern_indigo' ? 'bg-indigo-950 border-cyan-400 text-white ring-2 ring-cyan-400/35 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'modern_indigo' ? 'bg-indigo-950 border-cyan-400 text-white ring-2 ring-cyan-400/35 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
               >
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-900 to-cyan-500 mb-1" />
                 <span className="text-[9px] font-bold">Sanal Safir</span>
               </button>
               <button 
                 onClick={() => setSelectedTheme('minimal_carbon')}
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedTheme === 'minimal_carbon' ? 'bg-zinc-900 border-zinc-550 text-white ring-2 ring-zinc-500/25 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'minimal_carbon' ? 'bg-zinc-900 border-zinc-550 text-white ring-2 ring-zinc-500/25 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
               >
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-zinc-700 to-neutral-900 mb-1" />
                 <span className="text-[9px] font-bold">Kömür Gri</span>
+              </button>
+              <button 
+                onClick={() => setSelectedTheme('premium_gold')}
+                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'premium_gold' ? 'bg-white border-yellow-600 text-yellow-800 ring-2 ring-yellow-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
+              >
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 mb-1" />
+                <span className="text-[9px] font-bold">Premium Gold</span>
               </button>
             </div>
 
@@ -831,19 +676,19 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
               <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-200">
                 <button 
                   onClick={() => setSelectedTone('luxury')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'luxury' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+                  className={"py-2 px-3 rounded-xl text-xs font-bold transition-all " + (selectedTone === 'luxury' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900')}
                 >
                   ⚜️ Lüks & Prestij
                 </button>
                 <button 
                   onClick={() => setSelectedTone('investment')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'investment' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+                  className={"py-2 px-3 rounded-xl text-xs font-bold transition-all " + (selectedTone === 'investment' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900')}
                 >
                   📈 Yatırım Raporlu
                 </button>
                 <button 
                   onClick={() => setSelectedTone('friendly')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${selectedTone === 'friendly' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900'}`}
+                  className={"py-2 px-3 rounded-xl text-xs font-bold transition-all " + (selectedTone === 'friendly' ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-extrabold' : 'text-slate-550 hover:text-slate-900')}
                 >
                   ✨ Samimi & Emojili
                 </button>
@@ -867,7 +712,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   </span>
                   <button 
                     onClick={handleCopyCaption}
-                    className={`px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm ${copySuccess ? 'bg-emerald-650 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}
+                    className={"px-3 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1 shadow-sm " + (copySuccess ? 'bg-emerald-650 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white')}
                   >
                     {copySuccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copySuccess ? 'Kopyalandı!' : 'Metni Kopyala'}

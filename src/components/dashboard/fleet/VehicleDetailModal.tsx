@@ -110,26 +110,26 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
         className="bg-white w-full max-w-7xl h-[85vh] rounded-[40px] shadow-2xl relative z-10 overflow-hidden flex flex-col border border-white/20"
       >
         {/* Header */}
-        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur-sm">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200">
-              <Car className="w-8 h-8" />
+        <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur-sm">
+          <div className="flex items-center gap-3 sm:gap-5 overflow-hidden">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 shrink-0">
+              <Car className="w-5 h-5 sm:w-8 sm:h-8" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-3">
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{vehicle.plate}</h3>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusColor(vehicle.status)}`}>
+                <h3 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight truncate">{vehicle.plate}</h3>
+                <span className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${getStatusColor(vehicle.status)}`}>
                   {getStatusText(vehicle.status)}
                 </span>
               </div>
-              <p className="text-sm font-bold text-gray-400 mt-0.5">{generateVehicleTitle(vehicle)}</p>
+              <p className="text-[10px] sm:text-sm font-bold text-gray-400 mt-0.5 truncate">{generateVehicleTitle(vehicle)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {!isViewer && onEditVehicle && (
               <button
                 onClick={onEditVehicle}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-2xl text-xs font-black uppercase tracking-wider transition-all active:scale-95"
+                className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-2xl text-xs font-black uppercase tracking-wider transition-all active:scale-95"
               >
                 <Settings className="w-4 h-4" />
                 {isTr ? 'Araç Bilgilerini Düzenle' : 'Edit Vehicle Info'}
@@ -139,8 +139,8 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{isTr ? 'KAYIT NO' : 'RECORD ID'}</span>
               <span className="text-xs font-black text-gray-900 tracking-wider">#{vehicle.id}</span>
             </div>
-            <button onClick={onClose} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all active:scale-95">
-              <X className="w-7 h-7" />
+            <button onClick={onClose} className="p-2 sm:p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all active:scale-95">
+              <X className="w-6 h-6 sm:w-7 sm:h-7" />
             </button>
           </div>
         </div>

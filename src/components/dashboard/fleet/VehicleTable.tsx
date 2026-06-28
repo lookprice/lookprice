@@ -148,30 +148,30 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                     fetchVehicleDetails(vehicle);
                     setShowDetailModal(true);
                   }}
-                  className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 hover:bg-blue-100 transition-all flex items-center justify-center active:scale-95"
+                  className="p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all flex items-center justify-center active:scale-95"
                   title="İncele"
                 >
-                  <Eye className="w-4 h-4" />
+                  <Eye className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => {
                     setShareVehicle(vehicle);
                     setIsShareModalOpen(true);
                   }}
-                  className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center active:scale-95"
+                  className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center active:scale-95"
                   title="Paylaş"
                 >
-                  <Share2 className="w-4 h-4" />
+                  <Share2 className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => {
                     setAutoContractVehicle(vehicle);
                     setIsAutoContractOpen(true);
                   }}
-                  className="p-2.5 bg-violet-50 text-violet-600 rounded-xl border border-violet-100 hover:bg-violet-100 transition-all flex items-center justify-center active:scale-95"
+                  className="p-4 bg-violet-50 text-violet-600 rounded-2xl border border-violet-100 hover:bg-violet-100 transition-all flex items-center justify-center active:scale-95"
                   title="Sözleşme Oluştur"
                 >
-                  <FileSignature className="w-4 h-4" />
+                  <FileSignature className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => {
@@ -211,17 +211,17 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                     });
                     setShowAddModal(true);
                   }}
-                  className="p-2.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center active:scale-95"
+                  className="p-4 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center active:scale-95"
                   title="Düzenle"
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <Edit2 className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => handleDeleteVehicle(vehicle.id)}
-                  className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-100 transition-all flex items-center justify-center active:scale-95"
+                  className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 hover:bg-red-100 transition-all flex items-center justify-center active:scale-95"
                   title="Sil"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
             </div>

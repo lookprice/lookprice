@@ -448,6 +448,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        ettn: ettn,
        docNo: documentNumber,
        note: invoice.notes || "",
+       notes: invoice.notes || "",
+       noteList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+       notesList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
        currencyCode: (invoice.currency || 'TRY').toUpperCase(),
        currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
        tenantIdentifierNumber: storeTaxNumber,
@@ -1497,6 +1500,10 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
       currencyCode: (invoice.currency || 'TRY').toUpperCase(),
       currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
       tenantIdentifierNumber: storeTaxNumber,
+      note: invoice.notes || "",
+      notes: invoice.notes || "",
+      noteList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+      notesList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
       
       // Receviver mailbox setup
       pkAlias: settings.receiver_alias_waybill || settings.receiver_alias || "urn:mail:defaultpk",
@@ -2169,6 +2176,10 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
       currencyCode: (waybill.currency || 'TRY').toUpperCase(),
       currencyRate: String(Number(Number(waybill.exchange_rate || 1).toFixed(4))),
       tenantIdentifierNumber: storeTaxNumber,
+      note: waybill.notes || "",
+      notes: waybill.notes || "",
+      noteList: (waybill.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+      notesList: (waybill.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
       pkAlias: settings.receiver_alias_waybill || settings.receiver_alias || "urn:mail:defaultpk",
 
       despatchAdviceAccount: {
