@@ -18,11 +18,22 @@ import {
   Calendar,
   Edit2,
   Trash2,
-  Cloud
+  Cloud,
+  MessageSquare,
+  Compass,
+  Zap,
+  TrendingUp,
+  UserCheck,
+  Bell,
+  Send,
+  RefreshCw,
+  AlertCircle,
+  PhoneCall
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
+import { SahibindenCanliRadar } from "../../components/SahibindenCanliRadar";
 
 const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
 const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
@@ -65,21 +76,9 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
     }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
   }, []);
 
-  const [localAgents, setLocalAgents] = useState<any[]>(agents || []);
-
-  useEffect(() => {
-    if (agents && agents.length > 0) {
-      setLocalAgents(agents);
-    } else if (storeId) {
-      api.getUsers(storeId).then(res => {
-        if (Array.isArray(res)) {
-          setLocalAgents(res);
-        }
-      }).catch(err => console.error("Error fetching users in RealEstateTab:", err));
-    }
-  }, [agents, storeId]);
-
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [subTab, setSubTab] = useState<'portfolio' | 'market'>('portfolio');
+
   const [filterBranch, setFilterBranch] = useState("all");
   const [branches, setBranches] = useState<any[]>([]);
   const [filterScope, setFilterScope] = useState("all");
@@ -245,8 +244,36 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         </div>
       </div>
 
-      {/* ŞUBELER ARASI ENRAKİPSİZ FİLTRE KAPLÜLLERİ */}
-      <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-200/40 space-y-3">
+      {/* SEKTÖREL GÜÇLENDİRİCİ PORTFÖY ARAÇLARI TAB BAR */}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-1">
+        <button
+          onClick={() => setSubTab('portfolio')}
+          className={`pb-3 px-3 text-xs font-black uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+            subTab === 'portfolio'
+              ? 'border-slate-900 text-slate-900 font-extrabold'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          Portföy Havuzu
+        </button>
+        <button
+          onClick={() => setSubTab('market')}
+          className={`pb-3 px-3 text-xs font-black uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+            subTab === 'market'
+              ? 'border-slate-900 text-slate-900 font-extrabold'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Zap className="w-4 h-4" />
+          Sahibinden Canlı Radar
+        </button>
+      </div>
+
+      {subTab === 'portfolio' && (
+        <React.Fragment>
+          {/* ŞUBELER ARASI ENRAKİPSİZ FİLTRE KAPLÜLLERİ */}
+          <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-200/40 space-y-3">
         <div className="flex flex-col gap-2">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Şubeler Arası Portföy Süzgeci</span>
           <div className="flex flex-wrap gap-1.5">
@@ -638,6 +665,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           })}
         </div>
       )}
+    </React.Fragment>
+  )}
+
+      {subTab === 'market' && (
+        <SahibindenCanliRadar />
+      )}
+
+      {/* Real Real Estate Modal component */}
 
       {/* Real Real Estate Modal component */}
       {isModalOpen && (
@@ -720,7 +755,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             }}
             property={socialShareProperty}
             branding={branding}
-            agents={localAgents}
+            agents={agents}
           />
         </React.Suspense>
       )}
