@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
+import compression from "compression";
 import { initDb } from "./models/db";
 import { startCronJobs } from "./src/services/cronJobs";
 import { aiWorkerService } from "./src/services/ai_worker.js";
@@ -49,12 +50,16 @@ async function startServer() {
 
   app.set("trust proxy", true);
 
+  // Enable Gzip/Deflate compression for all responses
+  app.use(compression());
+
   // 1. Serve Static Files FIRST (Highest Priority)
   if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath, { 
       index: false,
-      maxAge: '1d',
+      maxAge: "1y",
+      immutable: true,
       etag: true
     }));
   }
