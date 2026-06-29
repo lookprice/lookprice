@@ -233,7 +233,7 @@ router.get("/marketplace/listings", async (req, res) => {
         SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
         FROM vehicles v
         JOIN stores s ON v.store_id = s.id
-        WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true)
+        WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true) AND v.type <> 'company'
         ORDER BY v.id DESC
         LIMIT 100
       `);
@@ -740,6 +740,7 @@ router.get("/store/:slug/products", async (req, res) => {
     JOIN stores s ON v.store_id = s.id
     WHERE (v.store_id = $1 OR s.parent_id = $1) 
     AND v.status IN ('active', 'for_sale')
+    AND v.type <> 'company'
   `, [store.id]);
 
   let realEstateRes: any = { rows: [] };
