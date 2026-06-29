@@ -80,7 +80,24 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       );
     }
 
-    if (!storeRes || storeRes.rows.length === 0) return "";
+    if (!storeRes || storeRes.rows.length === 0) {
+      // Return LookPrice Main Platform premium meta tags
+      const title = "LookPrice | Seçkin Mağaza, Emlak ve Otomotiv Yönetim Platformu";
+      const desc = "LookPrice, işletmeniz için akıllı e-ticaret, gayrimenkul (emlak) portföy yönetimi ve otomotiv galeri tescil çözümlerini tek bir çatı altında sunan bulut tabanlı modern yönetim platformudur.";
+      const keywords = "lookprice, emlak yönetim paneli, oto galeri yazılımı, barkodlu satış sistemi, e-ticaret sitesi kur, kktc emlak, kıbrıs emlak portalı, bulut erp";
+      
+      return `
+        <title>${title}</title>
+        <meta name="description" content="${desc}" />
+        <meta name="keywords" content="${keywords}" />
+        <meta property="og:title" content="${title}" />
+        <meta property="og:description" content="${desc}" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="${title}" />
+        <meta name="twitter:description" content="${desc}" />
+      `;
+    }
     const store = storeRes.rows[0];
 
     // Global Meta settings (GA & GTM)
