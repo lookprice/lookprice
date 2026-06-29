@@ -185,8 +185,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   };
 
   const handleShareWhatsApp = () => {
-    const message = `Merhaba, [LP-${property.id}] ${property.title} için düzenlenen ${currentTemplate.titleTr} belgesi hazırdır. İncelemek için bizimle iletişime geçebilirsiniz. Sözleşme Tarihi: ${placeholderValues.contractDate}`;
-    window.open(`https://wa.me/${clientPhone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+    const formattedPhone = clientPhone ? clientPhone.replace(/[^\d+]/g, '') : '';
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 https://lookprice.me/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const handleEmailPDF = () => {

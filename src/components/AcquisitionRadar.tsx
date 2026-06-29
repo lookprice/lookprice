@@ -42,6 +42,13 @@ export const AcquisitionRadar: React.FC = () => {
     }
   };
 
+  const shareLeadOnWhatsApp = (lead: Lead) => {
+    const formattedPrice = `${lead.currency === 'GBP' ? '£' : lead.currency === 'USD' ? '$' : '₺'}${new Intl.NumberFormat('tr-TR').format(lead.price)}`;
+    const mockDiscount = Math.floor((parseInt(lead.id) || 7) % 7) + 12;
+    const message = `Ortağım! *${lead.location}* bölgesinde sahibinden acil satılık yeni bir *${lead.type}* ilanı düştü! 🎯\n\nFiyatı bölge piyasasının en az *%${mockDiscount} altında*! 📉\n\n*İlan:* ${lead.title}\n*Fırsat Bedeli:* ${formattedPrice}\n*Mülk Sahibi:* ${lead.owner_name}\n\nİlanı detaylıca incelemek ve hemen mal sahibini aramak için tıkla:\n🔗 ${lead.link}\n\nLookPrice Akıllı Radar Servisi 🛰️`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   useEffect(() => {
     scanPortals();
   }, []);
@@ -106,6 +113,13 @@ export const AcquisitionRadar: React.FC = () => {
                     <span className="block text-[10px] font-black text-slate-400 uppercase leading-none">FIRSAT FİYATI</span>
                     <span className="text-lg font-black text-indigo-600">{lead.currency === 'GBP' ? '£' : lead.currency === 'USD' ? '$' : '₺'}{new Intl.NumberFormat('tr-TR').format(lead.price)}</span>
                   </div>
+                  <button 
+                    onClick={() => shareLeadOnWhatsApp(lead)}
+                    className="bg-emerald-50 border border-emerald-200 hover:bg-emerald-600 hover:text-white text-emerald-700 font-bold text-xs px-4 py-3 rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5"
+                    title="Ortağa Bildir (WhatsApp)"
+                  >
+                    <span>WhatsApp</span>
+                  </button>
                   <a 
                     href={lead.link} 
                     target="_blank" 

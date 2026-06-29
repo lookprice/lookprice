@@ -1845,6 +1845,56 @@ router.get("/quotations/:id", async (req, res) => {
   }
 });
 
+// Public Vehicle View for Signing/Reviewing
+router.get("/vehicles/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+      SELECT v.*, s.name as store_name, s.logo_url as store_logo, s.phone as store_phone, s.email as store_email, s.address as store_address, s.slug as store_slug
+      FROM vehicles v
+      JOIN stores s ON v.store_id = s.id
+      WHERE v.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Vehicle not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Public Real Estate Property View for Signing/Reviewing
+router.get("/real-estate/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let result = { rows: [] as any[] };
+    try {
+      result = await pool.query(`
+        SELECT r.*, s.name as store_name, s.logo_url as store_logo, s.phone as store_phone, s.email as store_email, s.address as store_address, s.slug as store_slug
+        FROM real_estate_properties r
+        JOIN stores s ON r.store_id = s.id
+        WHERE r.id = $1
+      `, [id]);
+    } catch (err) {
+      result = await pool.query(`
+        SELECT r.*, s.name as store_name, s.logo_url as store_logo, s.phone as store_phone, s.email as store_email, s.address as store_address, s.slug as store_slug
+        FROM real_estate r
+        JOIN stores s ON r.store_id = s.id
+        WHERE r.id = $1
+      `, [id]);
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Public Quotation Action (Approve/Reject)
 router.post("/quotations/:id/action", async (req, res) => {
   const client = await pool.connect();

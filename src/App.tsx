@@ -28,6 +28,7 @@ const PaymentGatewayPage = React.lazy(() => import("./pages/PaymentGatewayPage")
 const StoreShowcase = React.lazy(() => import("./pages/StoreShowcase"));
 const Marketplace = React.lazy(() => import("./pages/Marketplace").then(m => ({ default: m.Marketplace })));
 const StoreDashboard = React.lazy(() => import("./pages/StoreDashboard/index"));
+const ContractSignPage = React.lazy(() => import("./pages/ContractSignPage"));
 
 const SuspenseLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -190,6 +191,7 @@ export default function App() {
             <Route path="/checkout/cancel" element={<CheckoutStatus />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            <Route path="/contract/sign/:id" element={<ContractSignPage />} />
             <Route path="/s/:slug/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
             <Route path="/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
             <Route path="/s/:slug" element={<StoreShowcase customSlug={detectedSlug} />} />
@@ -221,6 +223,7 @@ export default function App() {
             <Route path="/s/:slug/direct-checkout" element={<DirectCheckoutRedirect />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            <Route path="/contract/sign/:id" element={<ContractSignPage />} />
             
             {/* Auth Routes */}
             <Route path="/login" element={

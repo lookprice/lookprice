@@ -18,7 +18,8 @@ import {
   Calendar,
   Edit2,
   Trash2,
-  Cloud
+  Cloud,
+  Award
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ const RealEstateModal = React.lazy(() => import("../../components/RealEstateModa
 const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
 const ArrangeTourModal = React.lazy(() => import("../../components/ArrangeTourModal").then(m => ({ default: m.ArrangeTourModal })));
 const SocialMediaShareModal = React.lazy(() => import("../../components/SocialMediaShareModal").then(m => ({ default: m.SocialMediaShareModal })));
+const TapuTakipModal = React.lazy(() => import("../../components/TapuTakipModal").then(m => ({ default: m.TapuTakipModal })));
 
 interface RealEstateTabProps {
   properties: any[];
@@ -78,6 +80,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [isSocialShareModalOpen, setIsSocialShareModalOpen] = useState(false);
   const [socialShareProperty, setSocialShareProperty] = useState<any>(null);
+  const [isTapuModalOpen, setIsTapuModalOpen] = useState(false);
+  const [tapuProperty, setTapuProperty] = useState<any>(null);
 
   const [showingBufferTime, setShowingBufferTime] = useState<number>(15);
   const [showingWaitlist, setShowingWaitlist] = useState<any[]>([
@@ -571,6 +575,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                         >
                           <FileSignature className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => { setTapuProperty(property); setIsTapuModalOpen(true); }}
+                          className="flex items-center justify-center p-2.5 bg-amber-500 text-white hover:bg-amber-600 rounded-xl transition-all shadow active:scale-95 border border-amber-600 shrink-0"
+                          title="Tapu Süreç & Randevu Takipçisi"
+                        >
+                          <Award className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={() => { setSocialShareProperty(property); setIsSocialShareModalOpen(true); }}
                           className="flex items-center justify-center p-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-all shadow active:scale-95 border border-indigo-100 shrink-0"
@@ -672,6 +683,26 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                 documents: updatedDocs
               });
               setContractProperty(prev => prev ? { ...prev, documents: updatedDocs } : null);
+            }}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Tapu Süreç & Randevu Takipçisi Modal */}
+      {tapuProperty && (
+        <React.Suspense fallback={null}>
+          <TapuTakipModal
+            isOpen={isTapuModalOpen}
+            onClose={() => {
+              setIsTapuModalOpen(false);
+              setTapuProperty(null);
+            }}
+            property={tapuProperty}
+            branding={branding}
+            onSaveTrack={async (updatedProperty) => {
+              if (!onSave) return;
+              await onSave(updatedProperty);
+              toast.success("Tapu tescil süreci başarıyla kaydedildi!");
             }}
           />
         </React.Suspense>

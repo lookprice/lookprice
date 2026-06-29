@@ -265,8 +265,10 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   };
 
   const handleShareWhatsApp = () => {
-    const message = `Merhaba, ${vehicle.brand} ${vehicle.model} aracınız için düzenlenen resmi sözleşme hazırdır. Detayları incelemek için bizimle irtibata geçebilirsiniz. Tarih: ${contractDate}`;
-    window.open(`https://wa.me/${clientPhone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+    const formattedPhone = clientPhone ? clientPhone.replace(/[^\d+]/g, '') : '';
+    const contractTitle = contractType === 'consignment' ? 'Araç Emanet Sözleşmesi' : 'Araç Rezervasyon Protokolü';
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 https://lookprice.me/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${storeName.replace(/lookprice/gi, 'Seçkin')}*\nİrtibat: ${clientPhone || '+90 533 ...'}`;
+    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   return (
