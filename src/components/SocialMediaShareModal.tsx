@@ -305,7 +305,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     const loadImg = (url: string): Promise<HTMLImageElement | null> => {
       return new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = "anonymous";
+        // img.crossOrigin = "anonymous";
         img.onload = () => resolve(img);
         img.onerror = () => resolve(null);
         const cacheBustSep = url.includes('?') ? '&' : '?';
@@ -355,6 +355,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     } else {
       drawSingleImageCover(imgElement, 0, 0, width, height);
     }
+
+    // Draw stylish outer border
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 20;
+    ctx.strokeRect(0, 0, width, height);
 
     // Agent photo (Bottom-left)
     if (agentImg) {

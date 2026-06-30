@@ -61,7 +61,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [activeSearch, setActiveSearch] = useState("");
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();

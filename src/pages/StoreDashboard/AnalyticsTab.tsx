@@ -43,7 +43,7 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
 
   const [startDate, setStartDate] = React.useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = React.useState(new Date().toISOString().split('T')[0]);
 

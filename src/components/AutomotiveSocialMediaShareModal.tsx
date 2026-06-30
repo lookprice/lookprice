@@ -368,7 +368,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     const loadImg = (url: string): Promise<HTMLImageElement | null> => {
       return new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = "anonymous";
+        // img.crossOrigin = "anonymous";
         img.onload = () => resolve(img);
         img.onerror = () => resolve(null);
         const cacheBustSep = url.includes('?') ? '&' : '?';

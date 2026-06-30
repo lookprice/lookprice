@@ -654,11 +654,12 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
     if (mainImageUrl) {
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      // img.crossOrigin = "anonymous";
       img.onload = () => {
         finalizeDrawAndDownload(img);
       };
       img.onerror = () => {
+        console.error("Image loading error for:", mainImageUrl);
         finalizeDrawAndDownload(null);
       };
       const cacheBustSep = mainImageUrl.includes('?') ? '&' : '?';

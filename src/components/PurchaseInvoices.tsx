@@ -44,7 +44,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [isBulkPrinting, setIsBulkPrinting] = useState(false);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();

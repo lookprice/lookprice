@@ -578,9 +578,15 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
-  const isRealEstate = branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate';
-  const isAutomotive = branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive';
+  const isGapStore = 
+    slug?.toLowerCase() === 'gap' || 
+    branding?.slug?.toLowerCase() === 'gap' || 
+    branding?.store_name?.toUpperCase().includes('GAP') ||
+    user?.store_slug?.toLowerCase() === 'gap';
+
+  const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
+  const isRealEstate = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate');
+  const isAutomotive = !isGapStore && (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive');
 
   useEffect(() => {
     if (isPortfolio && (['products', 'pos', 'fast-pos', 'procurements', 'stock_transfer', 'service'].includes(activeTab))) {

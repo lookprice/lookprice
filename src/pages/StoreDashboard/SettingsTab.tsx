@@ -221,7 +221,12 @@ const SettingsTab = ({
   const [logs, setLogs] = React.useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = React.useState(false);
 
-  const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
+  const isGapStore = 
+    branding?.slug?.toLowerCase() === 'gap' || 
+    branding?.store_name?.toUpperCase().includes('GAP') ||
+    currentUser?.store_slug?.toLowerCase() === 'gap';
+
+  const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
 
   React.useEffect(() => {
     if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
