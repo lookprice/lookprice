@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { AcquisitionRadar } from "../../components/AcquisitionRadar";
 import { 
   Loader2, 
   Sparkles, 
@@ -191,6 +192,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
   ];
 
   // State Declarations
+  const [radarType, setRadarType] = useState<'legislation' | 'acquisition'>('legislation');
   const [newsTags, setNewsTags] = useState<TagItem[]>(isAuto ? defaultAutomotiveTags : defaultRealEstateTags);
   
   const [selectedNewsTag, setSelectedNewsTag] = useState<string | null>(null);
@@ -457,7 +459,34 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Tab Switcher for different radar types */}
+      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit border border-slate-200">
+        <button
+          onClick={() => setRadarType('legislation')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
+            radarType === 'legislation'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          🛰️ {isTr ? "Mevzuat & İmar Radarı" : "Legislation & Zoning Radar"}
+        </button>
+        <button
+          onClick={() => setRadarType('acquisition')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
+            radarType === 'acquisition'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          🎯 {isTr ? "Mülk Toplama Radarı (Sahibinden)" : "Property Acquisition Radar"}
+        </button>
+      </div>
+
+      {radarType === 'acquisition' ? (
+        <AcquisitionRadar />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* LEFT COLUMN: TAG SUBSCRIPTIONS & MONITORING CRON TERMINAL (Col-span-5) */}
         <div className="lg:col-span-4 space-y-6">
@@ -724,6 +753,7 @@ export const RadarAlertsTab: React.FC<RadarAlertsTabProps> = ({ sector }) => {
         </div>
 
       </div>
+      )}
     </div>
   );
 };

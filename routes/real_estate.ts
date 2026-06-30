@@ -594,35 +594,61 @@ router.post('/news', authenticate, async (req: any, res) => {
   }
 });
 
-// ACQUISITION RADAR (Mülk Toplama Radarı) - Fetch leads from 101evler.com individual listings
+// ACQUISITION RADAR (Mülk Toplama Radarı) - Fetch leads dynamically using Google Search Grounding with custom keywords
 router.post('/acquisition-radar', authenticate, async (req: any, res) => {
-  const { source, filter } = req.body;
-  const targetSource = source || "101evler.com";
-  const targetFilter = filter || "individual (owner)";
+  const { source, filter, keywords } = req.body;
+  const targetSource = source || "google_search";
+  const targetFilter = filter || "individual"; // "individual" (bireysel) or "all"
+  const searchKeywords = keywords || "sahibinden satılık daire girne kktc";
 
   try {
     const today = new Date().toISOString().split('T')[0];
-    const prompt = `Search for real estate listings specifically from the URL: https://www.101evler.com/kibris/satilik-konut?owner=by_owner
-    List the 5 most recent individual (sahibinden) real estate listings from Northern Cyprus (KKTC) found on that page.
-    The current date is ${today}.
-    CRITICAL: YOU MUST PROVIDE A DIRECT, FUNCTIONAL URL TO A SPECIFIC PROPERTY LISTING PAGE ON 101evler.com. 
-    DO NOT PROVIDE GENERIC CATEGORY OR SEARCH RESULTS PAGES. 
-    IF YOU CANNOT FIND A DIRECT URL, OMIT THE LISTING.
-    For each listing provide:
-    - id: unique string
-    - title: Listing title in Turkish
-    - type: Property type (e.g., Flat, Villa, Land)
-    - price: Price value
-    - currency: GBP, TRY, or EUR
-    - location: Specific location in KKTC (Girne, Lefkoşa, etc.)
-    - owner_name: Name of the individual poster if available (or use 'Sahibinden')
-    - description: Brief summary in Turkish
-    - link: The direct URL to the specific property listing page (MUST BE A DIRECT LISTING URL, NOT CATEGORY URL)
-    Return as a JSON array of objects.`;
+    let prompt = "";
+
+    if (targetSource === "101evler.com" && !keywords) {
+      prompt = `Search the web or specifically the portal https://www.101evler.com/kibris/satilik-konut?owner=by_owner for the 5 most recent property listings from Northern Cyprus (KKTC).
+      The current date is ${today}.
+      CRITICAL: YOU MUST PROVIDE A DIRECT, FUNCTIONAL URL TO A SPECIFIC PROPERTY LISTING PAGE ON 101evler.com. 
+      DO NOT PROVIDE GENERIC CATEGORY OR SEARCH RESULTS PAGES. 
+      IF YOU CANNOT FIND A DIRECT URL, OMIT THE LISTING.
+      For each listing provide:
+      - id: unique string
+      - title: Listing title in Turkish
+      - type: Property type (e.g., Daire, Villa, Arsa, Dükkan)
+      - price: Price value as a numeric number (e.g. 120000)
+      - currency: GBP, TRY, or EUR
+      - location: Specific location in KKTC (Girne, Lefkoşa, Gazimağusa, İskele, vb.)
+      - owner_name: Name of the individual poster if available (or use 'Sahibinden')
+      - description: Brief summary in Turkish of key features
+      - link: The direct URL to the specific property listing page (MUST BE A DIRECT LISTING URL, NOT CATEGORY URL)
+      Return as a JSON array of objects.`;
+    } else {
+      prompt = `You are an AI-powered Property Acquisition Radar for real estate professionals.
+      Your task is to use Google Search to find 5 real, active or very recent property listings, posts, or classified ads matching the search keywords: "${searchKeywords}".
+      Today's date is ${today}.
+      The focus of this scan is: "${targetFilter === 'individual' ? 'Sahibinden / Bireysel ilanlar (owner listings)' : 'Tüm fırsat ilanları (all listings/deals)'}".
+      
+      CRITICAL INSTRUCTIONS:
+      1. You MUST use the Google Search tool to look up live, actual listings on the web (e.g. from sahibinden.com, 101evler.com, local agencies, real estate blogs, Facebook groups, or any Cyprus/Turkish classifieds portals).
+      2. For each listing, extract a REAL, direct, and working web link/URL. Do NOT use fake or constructed domain URLs.
+      3. If the listing lacks an exact URL or details, skip it.
+      
+      For each of the 5 listings, provide:
+      - id: unique string (e.g. numeric ID, slug, or search index)
+      - title: Listing title in Turkish (brief and appealing)
+      - type: Property type in Turkish (e.g., Daire, Villa, Arsa, Ticari)
+      - price: Price as a numeric number (e.g. 150000)
+      - currency: GBP, TRY, EUR, or USD
+      - location: Specific region/neighborhood/city (e.g., Girne Alsancak, Lefkoşa Gönyeli, İskele Long Beach)
+      - owner_name: Name of the poster if found (e.g. 'Sahibinden', 'Ahmet Bey', or the agency name)
+      - description: Very brief highlight summary in Turkish
+      - link: The direct web link to the listing or source page.
+      
+      Return as a JSON array of objects with the exact schema.`;
+    }
 
     const response = await ai.models.generateContent({
-      // Using pro model for better search reasoning
-      model: "gemini-1.5-pro", 
+      model: "gemini-3.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],

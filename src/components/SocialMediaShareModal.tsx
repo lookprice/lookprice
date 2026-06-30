@@ -305,7 +305,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     const loadImg = (url: string): Promise<HTMLImageElement | null> => {
       return new Promise((resolve) => {
         const img = new Image();
-        // img.crossOrigin = "anonymous";
+        img.crossOrigin = "anonymous";
         img.onload = () => resolve(img);
         img.onerror = () => resolve(null);
         const cacheBustSep = url.includes('?') ? '&' : '?';
@@ -361,16 +361,88 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     ctx.lineWidth = 20;
     ctx.strokeRect(0, 0, width, height);
 
+    // Draw all texts, pricing and specs directly on the canvas with professional text shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 3;
+
+    // 1. TOP-LEFT: STATUS (SATILIK / KİRALIK)
+    ctx.fillStyle = themeConfig.accentHex;
+    ctx.font = 'italic 900 68px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(isRent ? 'KİRALIK' : 'SATILIK', 70, 130);
+
+    // 2. TOP-RIGHT: CATEGORY BADGE & PRICE
+    ctx.textAlign = 'right';
+    const badgeText = `${roomsText ? roomsText + ' ' : ''}${categoryLabelForPreview(property.type)}`.toUpperCase();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.fillText(badgeText, 1010, 100);
+
+    ctx.fillStyle = themeConfig.accentHex;
+    ctx.font = '950 52px system-ui, sans-serif';
+    ctx.fillText(priceText, 1010, 165);
+
+    // 3. MIDDLE: PROMOTION STORY LINE (Story ratio only)
+    if (selectedRatio === 'story') {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 26px system-ui, sans-serif';
+      ctx.fillText("KIBRIS'IN EN SEÇKİN LOKASYONU", width / 2, 940);
+      
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '800 20px system-ui, sans-serif';
+      ctx.fillText("Değer kazanan eşsiz bölgesinde lüks emlak standartları!", width / 2, 985);
+    }
+
+    // 4. BOTTOM-LEFT: AGENT & STORE NAME
     // Agent photo (Bottom-left)
     if (agentImg) {
       const agentSize = 200;
       ctx.save();
+      // Remove text shadows for the image clip
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
       ctx.beginPath();
       ctx.arc(100 + agentSize / 2, height - 100 - agentSize / 2, agentSize / 2, 0, Math.PI * 2);
       ctx.clip();
       ctx.drawImage(agentImg, 100, height - 100 - agentSize, agentSize, agentSize);
       ctx.restore();
     }
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = themeConfig.accentHex;
+    ctx.font = '900 36px system-ui, sans-serif';
+    const storeX = agentImg ? 330 : 70;
+    ctx.fillText(storeNameDisplay.toUpperCase(), storeX, height - 90);
+
+    // 5. BOTTOM-RIGHT: SPECS LIST DIRECTLY ON THE CANVAS
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 30px system-ui, sans-serif';
+    ctx.fillText(`📍 ${propertyLocation.toUpperCase()}`, 1010, height - 200);
+    
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '800 22px system-ui, sans-serif';
+    ctx.fillText(regionText.toUpperCase(), 1010, height - 160);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 22px system-ui, sans-serif';
+    ctx.fillText(`📐 Alan: ${sqmText || 'Belirtilmedi'}`, 1010, height - 115);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 22px system-ui, sans-serif';
+    if (isRent) {
+      ctx.fillText(`💵 Kapora: ${property.deposit ? currencySymbol + formatNumberVal(property.deposit) : 'Görüşülecek'}`, 1010, height - 75);
+    } else {
+      ctx.fillText(`📜 Koçan: ${titleType}`, 1010, height - 75);
+    }
+
+    ctx.restore();
 
     // Save and download
     try {
@@ -516,9 +588,8 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     )
                   )}
 
-                  {/* Dark vignette gradient overlays for high text readability */}
-                  <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/70 to-transparent" />
+                  {/* Subtle dark vignette gradient overlays for high text readability, keeping the image fully visible */}
+                  <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/50 via-black/20 to-transparent pointer-events-none" />
                 </div>
 
                 {/* --- CONTENT LAYER --- */}
@@ -526,53 +597,53 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   {/* TOP ROW elements */}
                   <div className="flex justify-between items-start gap-3">
                     {/* Top Left: Oblique bold status banner (Rent vs Sale) */}
-                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                       <span className={"text-[22px] italic font-black tracking-tighter uppercase " + themeConfig.accentText}>
                         {isRent ? 'KİRALIK' : 'SATILIK'}
                       </span>
                     </div>
 
-                    {/* Top Right: Accent Tag + Price block */}
-                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px]">
+                    {/* Top Right: Accent Tag + Price block with drop shadow, no backing box */}
+                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                       {/* Accent Block Tag */}
-                      <div className={"px-2.5 py-1 rounded-sm shadow-md text-black font-black text-[9px] tracking-widest leading-none " + themeConfig.accentBg}>
+                      <div className={"px-2 py-0.5 rounded-sm text-black font-black text-[9px] tracking-widest leading-none " + themeConfig.accentBg}>
                         { (roomsText ? roomsText + ' ' : '') + categoryLabelForPreview(property.type).toUpperCase() }
                       </div>
 
-                      {/* Semi-transparent dark Price Tag */}
-                      <div className="bg-black/85 text-center border px-2 py-1.5 rounded-sm shadow-md flex items-center justify-center leading-none" style={{ borderColor: themeConfig.accentHex }}>
-                        <span className="text-[12px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
+                      {/* Outlined Price Tag with NO background card */}
+                      <div className="text-center px-1 py-1 leading-none">
+                        <span className="text-[14px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
                           {priceText}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) */}
+                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) with drop shadow */}
                   {selectedRatio === 'story' && (
-                    <div className="my-auto px-4 py-3 bg-black/80 border rounded-xl text-center flex flex-col justify-center items-center backdrop-blur-xs shadow-xl" style={{ borderColor: themeConfig.accentHex }}>
-                      <span className="text-[9px] font-black block mb-0.5 uppercase tracking-wider text-white">KIBRIS'IN EN SEÇKİN LOKASYONU</span>
-                      <p className="text-[8px] max-w-[180px] leading-tight text-slate-300 font-medium">Değer kazanan eşsiz bölgesinde lüks emlak standartları!</p>
+                    <div className="my-auto px-4 py-3 text-center flex flex-col justify-center items-center drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
+                      <span className="text-[10px] font-black block mb-0.5 uppercase tracking-wider text-white">KIBRIS'IN EN SEÇKİN LOKASYONU</span>
+                      <p className="text-[9px] max-w-[180px] leading-tight text-slate-300 font-medium">Değer kazanan eşsiz bölgesinde lüks emlak standartları!</p>
                     </div>
                   )}
 
                   {/* BOTTOM ROW elements */}
-                  <div className="flex justify-between items-end gap-3 mt-auto">
-                    {/* Bottom Left: Bold Store name inside solid box */}
-                    <div className={"px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate " + themeConfig.accentBg}>
+                  <div className="flex justify-between items-end gap-3 mt-auto w-full z-10">
+                    {/* Bottom Left: Store name directly on image with accent color and drop shadow */}
+                    <div className={"text-[11px] font-black tracking-wider uppercase leading-none select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] truncate max-w-[140px] " + themeConfig.accentText}>
                       {storeNameDisplay}
                     </div>
 
-                    {/* Bottom Right: Specs Glass Card */}
-                    <div className="bg-black/90 border border-white/10 px-3 py-2.5 rounded-sm shadow-xl flex flex-col min-w-[140px] max-w-[160px] leading-tight select-none">
-                      <span className="text-[9px] font-black text-white block truncate">📍 {propertyLocation.toUpperCase()}</span>
-                      <span className="text-[7.5px] font-extrabold text-slate-400 block truncate uppercase mb-1">{regionText}</span>
-                      <div className="h-[1px] bg-white/10 my-1" />
-                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">📐 Alan: {sqmText || 'Belirtilmedi'}</span>
+                    {/* Bottom Right: Clean Specs overlay with drop shadow, NO dark background cards */}
+                    <div className="flex flex-col text-right items-end leading-tight select-none drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
+                      <span className="text-[10px] font-black text-white block truncate">📍 {propertyLocation.toUpperCase()}</span>
+                      <span className="text-[8px] font-extrabold text-slate-300 block truncate uppercase mb-1">{regionText}</span>
+                      <div className="h-[1px] bg-white/20 w-16 my-1 self-end" />
+                      <span className="text-[8px] font-bold text-slate-200 block truncate">📐 Alan: {sqmText || 'Belirtilmedi'}</span>
                       {isRent ? (
-                        <span className="text-[7.5px] font-bold text-slate-300 block truncate">💵 Kapora: {property.deposit ? currencySymbol + formatNumberVal(property.deposit) : 'Görüşülecek'}</span>
+                        <span className="text-[8px] font-bold text-slate-200 block truncate">💵 Kapora: {property.deposit ? currencySymbol + formatNumberVal(property.deposit) : 'Görüşülecek'}</span>
                       ) : (
-                        <span className="text-[7.5px] font-bold text-slate-300 block truncate">📜 Koçan: {titleType}</span>
+                        <span className="text-[8px] font-bold text-slate-200 block truncate">📜 Koçan: {titleType}</span>
                       )}
                     </div>
                   </div>

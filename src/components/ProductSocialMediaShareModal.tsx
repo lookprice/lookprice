@@ -327,16 +327,12 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     ctx.lineWidth = 12;
     ctx.strokeRect(30, 30, width - 60, height - 60);
 
-    // Draw Store Branding Header inside the Canvas
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.fillRect(30, 30, width - 60, 110);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(30, 140);
-    ctx.lineTo(width - 30, 140);
-    ctx.stroke();
+    // Draw Store Branding Header inside the Canvas directly with text shadows, no blocking background
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 3;
 
     ctx.textAlign = 'left';
     ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
@@ -360,6 +356,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     const contactPhoneText = branding?.phone || branding?.whatsapp_number || 'PREMIUM MAĞAZA';
     ctx.fillText(contactPhoneText, width - 80, 95);
     ctx.textAlign = 'left'; // Reset
+    ctx.restore();
 
     // Main image loading
     const mainImageUrl = productImages[0] || null;
@@ -401,13 +398,12 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
       ctx.restore();
 
-      // Subtle black gradient overlay on the bottom portion of image
-      const imgGrad = ctx.createLinearGradient(30, imgY + imgHeight - 480, 30, imgY + imgHeight);
+      // Subtle black gradient overlay on the bottom portion of image - made very subtle
+      const imgGrad = ctx.createLinearGradient(30, imgY + imgHeight - 200, 30, imgY + imgHeight);
       imgGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      imgGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
-      imgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+      imgGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
       ctx.fillStyle = imgGrad;
-      ctx.fillRect(30, imgY + imgHeight - 480, imgWidth, 480);
+      ctx.fillRect(30, imgY + imgHeight - 200, imgWidth, 200);
 
       // Draw floating discount sticker top right if discountPercentage exists
       if (discountPercentage > 0) {
@@ -432,22 +428,18 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
         ctx.textAlign = 'left';
       }
 
-      // --- TEXT CONTENT GLASS CARD OVERLAY ---
+      // --- TEXT CONTENT OVERLAY DIRECTLY ON IMAGE WITH SHADOWS ---
       const glassX = 70;
       const glassY = selectedRatio === 'square' ? 730 : 1085;
       const glassW = width - 140;
       const glassH = 290;
 
-      // Draw glass card container
-      ctx.fillStyle = 'rgba(8, 11, 22, 0.90)'; // premium slate backdrop
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(glassX, glassY, glassW, glassH, 24) : ctx.rect(glassX, glassY, glassW, glassH);
-      ctx.fill();
-
-      ctx.strokeStyle = selectedTheme === 'luxury_dark' ? 'rgba(217,119,6,0.35)' :
-                        selectedTheme === 'neon_cyber' ? 'rgba(6,182,212,0.4)' : 'rgba(255,255,255,0.18)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
+      // Enable text shadow globally for this layer
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 3;
 
       // Pills starts at X = glassX + 40, Y = glassY + 30
       const pillY = glassY + 30;
@@ -456,11 +448,15 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       const catWidth = ctx.measureText(catText).width + 30;
 
       // Category Pill
+      ctx.save();
+      ctx.shadowColor = 'transparent'; // no shadow for solid background pills
+      ctx.shadowBlur = 0;
       ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#d97706' :
                       selectedTheme === 'neon_cyber' ? '#06b6d4' : '#ffffff';
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(glassX + 35, pillY, catWidth, 34, 8) : ctx.rect(glassX + 35, pillY, catWidth, 34);
       ctx.fill();
+      ctx.restore();
 
       ctx.fillStyle = '#010510';
       ctx.font = '900 13px system-ui, sans-serif';
@@ -590,6 +586,8 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
         ctx.textAlign = 'left'; // restore
       }
 
+      ctx.restore(); // Restore global shadow state
+
       // Trigger actual download of canvas
       try {
         const link = document.createElement("a");
@@ -654,7 +652,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
     if (mainImageUrl) {
       const img = new Image();
-      // img.crossOrigin = "anonymous";
+      img.crossOrigin = "anonymous";
       img.onload = () => {
         finalizeDrawAndDownload(img);
       };
@@ -705,8 +703,8 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 className={`relative w-full max-w-[340px] rounded-2xl overflow-hidden shadow-2xl border-4 ${themeConfig.accentBorder} ${themeConfig.bg} transition-all duration-300 flex flex-col`}
                 style={{ aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16' }}
               >
-                {/* Brand Header (Sits beautifully at the top) */}
-                <div className="p-3 bg-black/45 backdrop-blur-md border-b border-white/10 flex justify-between items-center z-10">
+                {/* Brand Header directly over image with drop shadow, no blocking background */}
+                <div className="p-3 bg-transparent flex justify-between items-center z-10 drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.95)]">
                   <div className="truncate pr-2">
                     <h3 className={`text-[11px] font-black tracking-wider uppercase leading-none select-none ${themeConfig.textTitle}`}>
                       {storeName}
@@ -716,7 +714,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                     </span>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-[10px] font-mono font-black text-rose-400 bg-rose-500/10 border border-rose-500/25 px-1.5 py-0.5 rounded select-none">
+                    <span className="text-[10px] font-mono font-black text-rose-400 bg-black/40 border border-rose-500/25 px-1.5 py-0.5 rounded select-none">
                       {branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}
                     </span>
                   </div>
@@ -739,8 +737,8 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                     </div>
                   )}
 
-                  {/* Gradient Overlay for exceptional legibility and contrast */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                  {/* Subtle bottom gradient to keep the product fully visible */}
+                  <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 via-black/15 to-transparent pointer-events-none" />
 
                   {/* Floating Discount Sticker */}
                   {discountPercentage > 0 && (
@@ -749,11 +747,11 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                     </span>
                   )}
 
-                  {/* PREMIUM OVERLAY INFO BLOC (Always visible, clean spacing) */}
-                  <div className="relative z-10 p-2.5 m-2.5 bg-slate-950/80 backdrop-blur-md border border-white/10 rounded-xl flex flex-col gap-1.5">
+                  {/* PREMIUM OVERLAY INFO BLOC directly on image with shadow, no slate background card */}
+                  <div className="relative z-10 p-2.5 m-2.5 flex flex-col gap-1.5 drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
                     
                     {/* Pills row (Category, Brand, Barcode) - NO STOCKS! */}
-                    <div className="flex gap-1 flex-wrap select-none">
+                    <div className="flex gap-1 flex-wrap select-none drop-shadow-none">
                       <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
                         {productCategory}
                       </span>
@@ -797,11 +795,11 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   </div>
                 </div>
 
-                {/* Callout box for Vertical Ratio Story - sits beautifully below the centerpiece */}
+                {/* Callout box for Vertical Ratio Story - sits beautifully below the centerpiece with drop shadow */}
                 {selectedRatio === 'story' && (
-                  <div className="p-3 mx-2.5 mb-2.5 bg-white/5 border border-white/10 rounded-xl text-center flex flex-col justify-center items-center">
+                  <div className="p-3 mx-2.5 mb-2.5 rounded-xl text-center flex flex-col justify-center items-center drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.95)]">
                     <span className="text-[8.5px] font-black tracking-wider text-[#fbbf24] mb-0.5 uppercase">⭐ %100 SATICI GÜVENCESİ</span>
-                    <p className="text-[8.5px] text-slate-350 leading-normal">
+                    <p className="text-[8.5px] text-slate-300 leading-normal">
                       Orijinal kutusundaki bu parçaya <strong>{storeName}</strong> ayrıcalığı ve hızlı kargo desteği ile sahip olabilirsiniz!
                     </p>
                   </div>

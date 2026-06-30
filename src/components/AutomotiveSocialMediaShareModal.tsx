@@ -368,7 +368,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     const loadImg = (url: string): Promise<HTMLImageElement | null> => {
       return new Promise((resolve) => {
         const img = new Image();
-        // img.crossOrigin = "anonymous";
+        img.crossOrigin = "anonymous";
         img.onload = () => resolve(img);
         img.onerror = () => resolve(null);
         const cacheBustSep = url.includes('?') ? '&' : '?';
@@ -492,26 +492,27 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
       ctx.restore();
 
-      // Vignette overlays for maximum contrast
+      // Vignette overlays - made extremely subtle to keep the vehicle completely visible
       // Top vignette
-      const topGrad = ctx.createLinearGradient(imgX, imgY, imgX, imgY + 300);
-      topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+      const topGrad = ctx.createLinearGradient(imgX, imgY, imgX, imgY + 150);
+      topGrad.addColorStop(0, 'rgba(0,0,0,0.4)');
       topGrad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = topGrad;
-      ctx.fillRect(imgX, imgY, imgWidth, 300);
+      ctx.fillRect(imgX, imgY, imgWidth, 150);
 
       // Bottom vignette
-      const bottomGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 650, imgX, imgY + imgHeight);
+      const bottomGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 300, imgX, imgY + imgHeight);
       bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      bottomGrad.addColorStop(0.35, 'rgba(0,0,0,0.6)');
-      bottomGrad.addColorStop(1, 'rgba(0,0,0,0.98)');
+      bottomGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
       ctx.fillStyle = bottomGrad;
-      ctx.fillRect(imgX, imgY + imgHeight - 650, imgWidth, 650);
+      ctx.fillRect(imgX, imgY + imgHeight - 300, imgWidth, 300);
 
       // TOP-LEFT: Oblique bold status banner
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowColor = 'rgba(0,0,0,0.95)';
       ctx.shadowBlur = 15;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 3;
       ctx.fillStyle = canvasColors.border; // accent color
       ctx.font = 'italic 900 62px system-ui, sans-serif';
       ctx.fillText(vehicle.is_trade_in_available ? 'TAKASLI' : 'SATILIK', imgX + 50, imgY + 110);
@@ -540,126 +541,79 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       ctx.textAlign = 'center';
       ctx.fillText(badgeText, badgeX + (badgeW / 2), badgeY + 37);
 
-      // Semi-transparent dark Price Tag below badge
-      const priceTagW = 260;
-      const priceTagH = 75;
-      const priceTagX = width - borderPadding - 50 - priceTagW;
-      const priceTagY = badgeY + badgeH + 15;
-
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.beginPath();
-      if ((ctx as any).roundRect) {
-        (ctx as any).roundRect(priceTagX, priceTagY, priceTagW, priceTagH, 6);
-      } else {
-        ctx.fillRect(priceTagX, priceTagY, priceTagW, priceTagH);
-      }
-      ctx.fill();
-
-      ctx.strokeStyle = canvasColors.border;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      // Price text inside Price Tag (accent color)
+      // Price text directly with shadow (no solid background card)
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.95)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 3;
+      
+      ctx.textAlign = 'right';
       ctx.fillStyle = canvasColors.border;
-      ctx.font = '950 32px system-ui, sans-serif';
-      ctx.fillText(priceText, priceTagX + (priceTagW / 2), priceTagY + 48);
-      ctx.textAlign = 'left'; // restore default
+      ctx.font = '950 48px system-ui, sans-serif';
+      ctx.fillText(priceText, width - borderPadding - 50, badgeY + badgeH + 60);
+      ctx.restore();
 
       // SPECIAL STORY PROMOTION LINE (Story ratio only)
       if (selectedRatio === 'story') {
-        const promoY = 820;
-        const promoW = 600;
-        const promoH = 150;
-        const promoX = (width - promoW) / 2;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.85)';
-        ctx.beginPath();
-        if ((ctx as any).roundRect) {
-          (ctx as any).roundRect(promoX, promoY, promoW, promoH, 16);
-        } else {
-          ctx.fillRect(promoX, promoY, promoW, promoH);
-        }
-        ctx.fill();
-
-        ctx.strokeStyle = canvasColors.border;
-        ctx.lineWidth = 3;
-        ctx.stroke();
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.95)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 3;
 
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 24px system-ui, sans-serif';
-        ctx.fillText("SEÇKİN GALERİ GÜVENCESİ", width / 2, promoY + 55);
+        ctx.font = '900 28px system-ui, sans-serif';
+        ctx.fillText("SEÇKİN GALERİ GÜVENCESİ", width / 2, 850);
 
         ctx.fillStyle = '#cbd5e1';
-        ctx.font = 'semibold 18px system-ui, sans-serif';
-        ctx.fillText("Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!", width / 2, promoY + 100);
-        ctx.textAlign = 'left'; // restore
+        ctx.font = 'semibold 20px system-ui, sans-serif';
+        ctx.fillText("Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!", width / 2, 895);
+        ctx.restore();
       }
 
-      // BOTTOM-LEFT: Solid box with the store name
-      const storeBoxH = 75;
-      ctx.font = '900 28px system-ui, sans-serif';
-      const storeBoxW = Math.max(220, ctx.measureText(storeName.toUpperCase()).width + 50);
-      const storeBoxX = imgX + 50;
-      const storeBoxY = imgY + imgHeight - 50 - storeBoxH;
+      // BOTTOM-LEFT: Store Name directly with drop shadow
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.95)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 3;
 
       ctx.fillStyle = canvasColors.border;
-      ctx.beginPath();
-      if ((ctx as any).roundRect) {
-        (ctx as any).roundRect(storeBoxX, storeBoxY, storeBoxW, storeBoxH, 6);
-      } else {
-        ctx.fillRect(storeBoxX, storeBoxY, storeBoxW, storeBoxH);
-      }
-      ctx.fill();
-
-      // Store name text (black)
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.fillText(storeName.toUpperCase(), storeBoxX + (storeBoxW / 2), storeBoxY + 47);
+      ctx.font = '900 36px system-ui, sans-serif';
       ctx.textAlign = 'left';
+      ctx.fillText(storeName.toUpperCase(), imgX + 50, imgY + imgHeight - 90);
+      ctx.restore();
 
-      // BOTTOM-RIGHT: Specs Glass Card
-      const specsW = 420;
-      const specsH = 210;
-      const specsX = width - borderPadding - 50 - specsW;
-      const specsY = imgY + imgHeight - 50 - specsH;
+      // BOTTOM-RIGHT: Specs Overlay directly with shadow
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.95)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 3;
 
-      ctx.fillStyle = 'rgba(0,0,0,0.9)';
-      ctx.beginPath();
-      if ((ctx as any).roundRect) {
-        (ctx as any).roundRect(specsX, specsY, specsW, specsH, 12);
-      } else {
-        ctx.fillRect(specsX, specsY, specsW, specsH);
-      }
-      ctx.fill();
-
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.textAlign = 'right';
+      const specRightX = width - borderPadding - 50;
+      const specBottomY = imgY + imgHeight - 90;
 
       // Brand Title
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 26px system-ui, sans-serif';
-      ctx.fillText(vehicle.brand.toUpperCase(), specsX + 30, specsY + 45);
+      ctx.font = '900 32px system-ui, sans-serif';
+      ctx.fillText(vehicle.brand.toUpperCase(), specRightX, specBottomY - 145);
 
       // Model Title
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '800 20px system-ui, sans-serif';
-      ctx.fillText(vehicle.model.toUpperCase(), specsX + 30, specsY + 78);
-
-      // Line separator
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-      ctx.beginPath();
-      ctx.moveTo(specsX + 30, specsY + 95);
-      ctx.lineTo(specsX + specsW - 30, specsY + 95);
-      ctx.stroke();
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '800 22px system-ui, sans-serif';
+      ctx.fillText(vehicle.model.toUpperCase(), specRightX, specBottomY - 110);
 
       // Details list
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = 'bold 18px system-ui, sans-serif';
-      ctx.fillText(`📐 KM: ${mileageText || 'Düşük Km'}`, specsX + 30, specsY + 130);
-      ctx.fillText(`⚙️ Şanzıman: ${transmissionText}`, specsX + 30, specsY + 163);
-      ctx.fillText(`⛽ Yakıt: ${fuelText}`, specsX + 30, specsY + 195);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px system-ui, sans-serif';
+      ctx.fillText(`📐 KM: ${mileageText || 'Düşük Km'}`, specRightX, specBottomY - 70);
+      ctx.fillText(`⚙️ Şanzıman: ${transmissionText}`, specRightX, specBottomY - 35);
+      ctx.fillText(`⛽ Yakıt: ${fuelText}`, specRightX, specBottomY);
+      ctx.restore();
 
       // Trigger actual download of canvas
       try {
@@ -808,9 +762,8 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                     )
                   )}
 
-                  {/* Dark vignette gradient overlays for high text readability */}
-                  <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/70 to-transparent" />
+                  {/* Subtle dark vignette gradient overlays for high text readability, keeping the image fully visible */}
+                  <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/50 via-black/20 to-transparent pointer-events-none" />
                 </div>
 
                 {/* --- CONTENT LAYER --- */}
@@ -818,51 +771,51 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                   {/* TOP ROW elements */}
                   <div className="flex justify-between items-start gap-3">
                     {/* Top Left: Oblique bold status banner */}
-                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                       <span className={`text-[22px] italic font-black tracking-tighter uppercase ${themeConfig.accentText}`}>
                         {vehicle.is_trade_in_available ? 'TAKASLI' : 'SATILIK'}
                       </span>
                     </div>
 
-                    {/* Top Right: Accent Tag + Price block */}
-                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px]">
+                    {/* Top Right: Accent Tag + Price block with drop shadow, no backing box */}
+                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                       {/* Accent Block Tag */}
-                      <div className={`px-2.5 py-1 rounded-sm shadow-md text-black font-black text-[9px] tracking-widest leading-none ${themeConfig.accentBg}`}>
+                      <div className={`px-2 py-0.5 rounded-sm text-black font-black text-[9px] tracking-widest leading-none ${themeConfig.accentBg}`}>
                         {`${vehicle.year ? vehicle.year + ' ' : ''}${transmissionText}`.toUpperCase()}
                       </div>
 
-                      {/* Semi-transparent dark Price Tag */}
-                      <div className="bg-black/85 text-center border px-2 py-1.5 rounded-sm shadow-md flex items-center justify-center leading-none" style={{ borderColor: themeConfig.accentHex }}>
-                        <span className="text-[12px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
+                      {/* Outlined Price Tag with NO background card */}
+                      <div className="text-center px-1 py-1 leading-none">
+                        <span className="text-[14px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
                           {priceText}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) */}
+                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) with drop shadow */}
                   {selectedRatio === 'story' && (
-                    <div className="my-auto px-4 py-3 bg-black/80 border rounded-xl text-center flex flex-col justify-center items-center backdrop-blur-xs shadow-xl" style={{ borderColor: themeConfig.accentHex }}>
-                      <span className="text-[9px] font-black block mb-0.5 uppercase tracking-wider text-white">SEÇKİN GALERİ GÜVENCESİ</span>
-                      <p className="text-[8px] max-w-[180px] leading-tight text-slate-300 font-medium">Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!</p>
+                    <div className="my-auto px-4 py-3 text-center flex flex-col justify-center items-center drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
+                      <span className="text-[10px] font-black block mb-0.5 uppercase tracking-wider text-white">SEÇKİN GALERİ GÜVENCESİ</span>
+                      <p className="text-[9px] max-w-[180px] leading-tight text-slate-300 font-medium">Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!</p>
                     </div>
                   )}
 
                   {/* BOTTOM ROW elements */}
-                  <div className="flex justify-between items-end gap-3 mt-auto">
-                    {/* Bottom Left: Bold Store name inside solid box */}
-                    <div className={`px-3 py-2 rounded-sm text-black font-extrabold text-[10px] tracking-wider uppercase leading-none select-none shadow-lg max-w-[120px] truncate ${themeConfig.accentBg}`}>
+                  <div className="flex justify-between items-end gap-3 mt-auto w-full z-10">
+                    {/* Bottom Left: Bold Store name directly on image with accent color and drop shadow */}
+                    <div className={`text-[11px] font-black tracking-wider uppercase leading-none select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] truncate max-w-[140px] ${themeConfig.accentText}`}>
                       {storeName}
                     </div>
 
-                    {/* Bottom Right: Specs Glass Card */}
-                    <div className="bg-black/90 border border-white/10 px-3 py-2.5 rounded-sm shadow-xl flex flex-col min-w-[140px] max-w-[160px] leading-tight select-none">
-                      <span className="text-[9px] font-black text-white block truncate">{vehicle.brand.toUpperCase()}</span>
-                      <span className="text-[7.5px] font-extrabold text-slate-400 block truncate uppercase mb-1">{vehicle.model.toUpperCase()}</span>
-                      <div className="h-[1px] bg-white/10 my-1" />
-                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">📐 KM: {mileageText || 'Düşük Km'}</span>
-                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">⚙️ Şanzıman: {transmissionText}</span>
-                      <span className="text-[7.5px] font-bold text-slate-300 block truncate">⛽ Yakıt: {fuelText}</span>
+                    {/* Bottom Right: Clean Specs overlay with drop shadow, NO dark background cards */}
+                    <div className="flex flex-col text-right items-end leading-tight select-none drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
+                      <span className="text-[10px] font-black text-white block truncate">{vehicle.brand.toUpperCase()}</span>
+                      <span className="text-[8px] font-extrabold text-slate-300 block truncate uppercase mb-1">{vehicle.model.toUpperCase()}</span>
+                      <div className="h-[1px] bg-white/20 w-16 my-1 self-end" />
+                      <span className="text-[8px] font-bold text-slate-200 block truncate">📐 KM: {mileageText || 'Düşük Km'}</span>
+                      <span className="text-[8px] font-bold text-slate-200 block truncate">⚙️ Şanzıman: {transmissionText}</span>
+                      <span className="text-[8px] font-bold text-slate-200 block truncate">⛽ Yakıt: {fuelText}</span>
                     </div>
                   </div>
 
