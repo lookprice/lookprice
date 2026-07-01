@@ -9,7 +9,8 @@ import {
   FileSearch, 
   CloudUpload, 
   XCircle, 
-  RefreshCw
+  RefreshCw,
+  Truck
 } from 'lucide-react';
 
 interface SalesInvoiceTableProps {
@@ -27,6 +28,7 @@ interface SalesInvoiceTableProps {
   handleEdit: (id: number) => void;
   handleViewDetails: (inv: any, print?: boolean) => void;
   handleDelete: (id: number) => void;
+  handleOpenWaybillModal?: (inv: any) => void;
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
@@ -47,6 +49,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   handleEdit,
   handleViewDetails,
   handleDelete,
+  handleOpenWaybillModal,
   page,
   totalPages,
   setPage
@@ -239,13 +242,22 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                     <td className="px-3 py-4 text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
                         {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
-                          <button 
-                            onClick={() => handleSendToGIB(inv.id)}
-                            className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
-                            title={isTr ? "GİB'e Gönder" : "Push to Document Integrator"}
-                          >
-                            <CloudUpload className="h-4 w-4" />
-                          </button>
+                          <div className="flex gap-1">
+                            <button 
+                              onClick={() => handleSendToGIB(inv.id)}
+                              className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                              title={isTr ? "GİB'e Gönder (E-Fatura/Arşiv)" : "Push to Document Integrator (Invoice)"}
+                            >
+                              <CloudUpload className="h-4 w-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleOpenWaybillModal && handleOpenWaybillModal(inv)}
+                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              title={isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}
+                            >
+                              <Truck className="h-4 w-4" />
+                            </button>
+                          </div>
                         )}
                         {(isApproved || isQueued) && (
                           <button 

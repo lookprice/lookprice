@@ -28,6 +28,10 @@ import {
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import * as XLSX from 'xlsx';
+import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
+import { AutocompleteSelect } from "./AutocompleteSelect";
+import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
+import { normalizeSearch } from "../lib/searchUtils";
 
 const INCOTERMS_LIST = [
   { code: "CFR", labelTr: "CFR - Masraflar ve Navlun", labelEn: "CFR - Cost and Freight" },
@@ -123,12 +127,33 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const [productSearch, setProductSearch] = useState("");
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
 
+  // Quick Product Add states
+  const [showQuickProductModal, setShowQuickProductModal] = useState(false);
+  const [quickProductRowIdx, setQuickProductRowIdx] = useState<number | null>(null);
+  const [quickProductForm, setQuickProductForm] = useState<any>({
+    name: "",
+    category: "",
+    sub_category: "",
+    barcode: "",
+    tax_rate: "20",
+    price: "0",
+    currency: "TRY"
+  });
+
+  // Quick Cari Add states
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showQuickCariModal, setShowQuickCariModal] = useState(false);
+  const [quickCariSearchInitial, setQuickCariSearchInitial] = useState("");
+
   // Fetch initial data
   const fetchData = async () => {
     setLoading(true);
     try {
       // 1. Fetch waybills
-      const waybillRes = await fetch(`/api/independent-waybills?search=${deferredSearch}&status=${statusFilter === 'all' ? '' : statusFilter}`);
+      const token = localStorage.getItem("token");
+      const waybillRes = await fetch(`/api/independent-waybills?storeId=${storeId}&search=${deferredSearch}&status=${statusFilter === 'all' ? '' : statusFilter}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (waybillRes.ok) {
         const data = await waybillRes.json();
         setWaybills(data);
@@ -143,7 +168,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       setCustomers(custRes || []);
 
       // 4. Fetch products
-      const prodRes = await api.getProducts(storeId);
+      const prodRes = await api.getProducts("", storeId);
       setProducts(prodRes || []);
 
       // 5. Fetch drivers
@@ -179,6 +204,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     setFormId(null);
     setCompanyId("");
     setCustomerId("");
+    setCustomerSearch("");
     setWaybillDate(new Date().toISOString().split('T')[0]);
     setWaybillTime(new Date().toLocaleTimeString('tr-TR', { hour12: false }));
     setActualDate(new Date().toISOString().split('T')[0]);
@@ -207,13 +233,32 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   // Open edit form
   const handleOpenEdit = async (waybill: any) => {
     try {
-      const res = await fetch(`/api/independent-waybills/${waybill.id}`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/independent-waybills/${waybill.id}?storeId=${storeId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!res.ok) throw new Error("Could not retrieve details");
       const data = await res.json();
 
       setFormId(data.id);
-      setCompanyId(data.company_id ? String(data.company_id) : "");
-      setCustomerId(data.customer_id ? String(data.customer_id) : "");
+      const compId = data.company_id ? String(data.company_id) : "";
+      const custId = data.customer_id ? String(data.customer_id) : "";
+      setCompanyId(compId);
+      setCustomerId(custId);
+      
+      let initialCustSearch = "";
+      if (compId) {
+        const comp = companies.find(c => String(c.id) === String(compId));
+        if (comp) {
+          initialCustSearch = comp.title || comp.name || "";
+        }
+      } else if (custId) {
+        const cust = customers.find(c => String(c.id) === String(custId));
+        if (cust) {
+          initialCustSearch = `${cust.name || ""} ${cust.surname || ""}`.trim();
+        }
+      }
+      setCustomerSearch(initialCustSearch);
       setWaybillDate(new Date(data.waybill_date).toISOString().split('T')[0]);
       setWaybillTime(data.waybill_time || "12:00:00");
       setActualDate(new Date(data.actual_date).toISOString().split('T')[0]);
@@ -252,7 +297,11 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const handleDelete = async (id: number) => {
     if (!window.confirm(isTr ? "Bu irsaliyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this waybill?")) return;
     try {
-      const res = await fetch(`/api/independent-waybills/${id}`, { method: 'DELETE' });
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/independent-waybills/${id}?storeId=${storeId}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         toast.success(isTr ? "İrsaliye silindi." : "Waybill deleted successfully.");
         fetchData();
@@ -287,6 +336,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     }
 
     const payload = {
+      storeId: Number(storeId),
       company_id: companyId ? Number(companyId) : null,
       customer_id: customerId ? Number(customerId) : null,
       waybill_date: waybillDate,
@@ -317,9 +367,13 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       const url = formId ? `/api/independent-waybills/${formId}` : '/api/independent-waybills';
       const method = formId ? 'PUT' : 'POST';
 
+      const token = localStorage.getItem("token");
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(payload)
       });
 
@@ -340,7 +394,11 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   const handleSendToMysoft = async (id: number) => {
     const loaderId = toast.loading(isTr ? "E-İrsaliye MySoft entegratörüne iletiliyor..." : "Transmitting waybill to Mysoft...");
     try {
-      const res = await fetch(`/api/independent-waybills/${id}/send`, { method: 'POST' });
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/independent-waybills/${id}/send?storeId=${storeId}`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         toast.success(isTr ? "E-İrsaliye başarıyla iletildi!" : "E-Waybill transmitted successfully!", { id: loaderId });
         fetchData();
@@ -356,7 +414,10 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   // Sync / check status
   const handleCheckStatus = async (id: number) => {
     try {
-      const res = await fetch(`/api/independent-waybills/${id}/status`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/independent-waybills/${id}/status?storeId=${storeId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       const data = await res.json();
       if (res.ok) {
         toast.success(`${isTr ? 'GİB Durumu' : 'GİB Status'}: ${data.message || data.status}`);
@@ -377,10 +438,117 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
     setShowHtmlModal(true);
 
     try {
-      const res = await fetch(`/api/independent-waybills/${waybill.id}/html`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/independent-waybills/${waybill.id}/html?storeId=${storeId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const html = await res.text();
-        setPreviewContent(html);
+        
+        // Inject perfect A4 print layout styles to prevent margin cutoffs and enable perfect color printing
+        const printStyles = `
+          <style id="a4-print-styles">
+            @media print {
+              @page {
+                size: A4 portrait !important;
+                margin: 10mm 12mm 10mm 12mm !important;
+              }
+              html, body {
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              table, tr, img, .section, .totals {
+                page-break-inside: avoid !important;
+              }
+            }
+            body {
+              max-width: 800px;
+              margin: 0 auto !important;
+              padding: 20px !important;
+              background-color: #ffffff !important;
+            }
+          </style>
+          <script id="hide-prices-script">
+            (function() {
+              function hidePrices() {
+                const keywords = ['fiyat', 'tutar', 'kdv', 'iskonto', 'matrah', 'toplam', 'vergi', 'price', 'total', 'tax', 'rate', 'amount', 'currency', 'döviz', 'discount', 'ödenecek'];
+                const skipKeywords = ['miktarı', 'adeti', 'birimi', 'ürün', 'hizmet', 'tarih', 'numara', 'şoför', 'plaka', 'adres', 'carrier', 'driver', 'plate', 'actual', 'sevk', 'fiili', 'koli', 'kutu', 'kg', 'adet'];
+                
+                // 1. Hide table columns
+                document.querySelectorAll('table').forEach(table => {
+                  const rows = Array.from(table.querySelectorAll('tr'));
+                  if (rows.length === 0) return;
+                  
+                  const colsToHide = new Set();
+                  rows.forEach(row => {
+                    const cells = Array.from(row.querySelectorAll('th, td'));
+                    cells.forEach((cell, idx) => {
+                      const text = (cell.textContent || '').toLowerCase().trim();
+                      const hasKeyword = keywords.some(kw => text.includes(kw));
+                      const shouldSkip = skipKeywords.some(skw => text.includes(skw));
+                      if (hasKeyword && !shouldSkip) {
+                        colsToHide.add(idx);
+                      }
+                    });
+                  });
+                  
+                  rows.forEach(row => {
+                    const cells = Array.from(row.querySelectorAll('th, td'));
+                    colsToHide.forEach(idx => {
+                      if (cells[idx]) {
+                        cells[idx].style.setProperty('display', 'none', 'important');
+                      }
+                    });
+                  });
+                });
+                
+                // 2. Hide any loose elements displaying totals, currency, or pricing rows
+                const totalsKeywords = ['toplam', 'kdv', 'matrah', 'fiyat', 'tutarı', 'ödenecek', 'ara toplam', 'genel toplam', 'net tutar', 'kdv toplam', 'grand total', 'tax total', 'subtotal', 'currency', 'para birimi'];
+                document.querySelectorAll('div, span, p, td, tr, li, strong, b, h1, h2, h3, h4, h5, h6').forEach(el => {
+                  const text = (el.textContent || '').toLowerCase().trim();
+                  const hasTotalsKeyword = totalsKeywords.some(kw => text.includes(kw));
+                  const shouldSkip = skipKeywords.some(skw => text.includes(skw));
+                  
+                  if (hasTotalsKeyword && !shouldSkip) {
+                    const hasCurrencySymbol = /[₺$€\\d,.\\s]+(tl|try|usd|eur|usd|gpb|%)/i.test(text) || text.includes('tl') || text.includes('try') || text.includes('eur') || text.includes('usd') || text.includes('%');
+                    if (hasCurrencySymbol && text.length < 100) {
+                      el.style.setProperty('display', 'none', 'important');
+                    }
+                  }
+                });
+              }
+
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', hidePrices);
+              } else {
+                hidePrices();
+              }
+              window.addEventListener('load', hidePrices);
+              setTimeout(hidePrices, 50);
+              setTimeout(hidePrices, 200);
+              setTimeout(hidePrices, 1000);
+            })();
+          </script>
+        `;
+        
+        const styledHtml = html.includes("</head>")
+          ? html.replace("</head>", `${printStyles}</head>`)
+          : html.includes("<head>")
+            ? html.replace("<head>", `<head>${printStyles}`)
+            : printStyles + html;
+
+        setPreviewContent(styledHtml);
       } else {
         toast.error(isTr ? "Görsel alınamadı (Taslak olabilir)" : "Could not retrieve visual (might be draft)");
         setShowHtmlModal(false);
@@ -396,7 +564,10 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
   // View draft particulars
   const handleViewDetails = async (waybill: any) => {
     try {
-      const res = await fetch(`/api/independent-waybills/${waybill.id}`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/independent-waybills/${waybill.id}?storeId=${storeId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const data = await res.json();
         setSelectedWaybill(data);
@@ -439,6 +610,91 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
       return copy;
     });
     setShowProductDropdown(null);
+  };
+
+  const handleQuickProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const taxRate = Number(quickProductForm.tax_rate) || 20;
+      const newProduct = await api.addProduct({
+        ...quickProductForm,
+        tax_rate: taxRate,
+        stock_quantity: 0,
+        status: 'active'
+      }, storeId);
+      
+      // Update our products list
+      setProducts((prev: any[]) => [...prev, newProduct]);
+      
+      // If we added this for a specific row index, let's update that row!
+      if (quickProductRowIdx !== null && quickProductRowIdx !== undefined) {
+        selectProductForLine(quickProductRowIdx, newProduct);
+      } else {
+        // If it was added globally, add a new row
+        setItems((prev: any[]) => [...prev, {
+          tempId: Date.now(),
+          product_id: String(newProduct.id),
+          product_name: newProduct.name,
+          barcode: newProduct.barcode || "",
+          quantity: 1,
+          unit_code: newProduct.unit_code || "Adet",
+          unit_price: Number(newProduct.price) || 0,
+          tax_rate: Number(newProduct.tax_rate) || 20
+        }]);
+      }
+      
+      toast.success(isTr ? "Ürün başarıyla kaydedildi!" : "Product saved successfully!");
+      setShowQuickProductModal(false);
+      setQuickProductRowIdx(null);
+    } catch (error) {
+      toast.error(isTr ? "Ürün ekleme hatası" : "Product add error");
+    }
+  };
+
+  const handleQuickCariSubmit = async (data: any) => {
+    try {
+      if (data.type === 'company') {
+        const newCompany = await api.addCompany({
+          title: data.title,
+          representative: data.phone ? data.title + " Temsilcisi" : undefined,
+          phone: data.phone,
+          email: data.email,
+          tax_office: data.tax_office,
+          tax_number: data.tax_number,
+          currency: data.currency,
+          address: data.address,
+          delivery_address: data.delivery_address,
+          status: 'active'
+        }, storeId);
+        setCompanies((prev: any) => [...prev, newCompany]);
+        setCompanyId(String(newCompany.id));
+        setCustomerId("");
+        setCustomerSearch(newCompany.title || newCompany.company_title || "");
+        if (newCompany.delivery_address || newCompany.address) {
+          setDeliveryAddress(newCompany.delivery_address || newCompany.address || "");
+        }
+      } else {
+        const newCust = await api.addCustomer({
+          name: data.title,
+          phone: data.phone,
+          email: data.email,
+          currency: data.currency,
+          address: data.address,
+          status: 'active'
+        }, storeId);
+        setCustomers((prev: any) => [...prev, newCust]);
+        setCustomerId(String(newCust.id));
+        setCompanyId("");
+        setCustomerSearch(newCust.name || newCust.customer_name || "");
+        if (newCust.address) {
+          setDeliveryAddress(newCust.address || "");
+        }
+      }
+      setShowQuickCariModal(false);
+      toast.success(isTr ? "Cari başarıyla kaydedildi" : "Cari successfully registered");
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? "Cari kaydedilemedi" : "Cari register failed"));
+    }
   };
 
   // Calculate totals
@@ -490,10 +746,15 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
 
     const loaderId = toast.loading(isTr ? "İrsaliyeler birleştirilip e-Faturaya dönüştürülüyor..." : "Consolidating waybills into e-invoice...");
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch("/api/independent-waybills/convert-to-invoice", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
+          storeId: Number(storeId),
           waybillIds: selectedIds,
           invoiceProfile: convertForm.invoiceProfile,
           giInvoiceType: convertForm.giInvoiceType,
@@ -690,7 +951,6 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                   <th className="py-4 px-4">{isTr ? "Alıcı / Cari" : "Receiver Business"}</th>
                   <th className="py-4 px-4">{isTr ? "Tevzi Tarihi" : "Logistics Dates"}</th>
                   <th className="py-4 px-4">{isTr ? "Nakliye & Plaka" : "Logistics info"}</th>
-                  <th className="py-4 px-4 text-right">{isTr ? "Genel Toplam" : "Grand Total"}</th>
                   <th className="py-4 px-4 text-center">{isTr ? "Durum" : "Status"}</th>
                   <th className="py-4 px-5 text-right">{isTr ? "İşlemler" : "Actions"}</th>
                 </tr>
@@ -744,9 +1004,6 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                         <div className="text-slate-400 mt-0.5">
                           {w.driver_name ? `${w.driver_name} ${w.driver_surname}` : (isTr ? "Sürücü Belirtilmedi" : "Driver generic")}
                         </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-slate-900">
-                        {Number(w.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {w.currency || 'TRY'}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className={getStatusBadgeClass(w.status)}>
@@ -873,49 +1130,45 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                 {/* section 1: Buyer/Sender Accounts information */}
                 <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
                   
-                  {/* Select Receiver entity */}
+                   {/* Select Receiver entity */}
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-600 block">{isTr ? "Vkn/Tckn - Ünvan (Alıcı Seçimi)" : "Vkn/Tckn - Receiver (Business/Cari Select)"}</label>
-                    <select
-                      value={companyId ? `company-${companyId}` : customerId ? `customer-${customerId}` : ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) {
-                          setCompanyId("");
-                          setCustomerId("");
-                          setDeliveryAddress("");
-                        } else if (val.startsWith("company-")) {
-                          const cid = val.replace("company-", "");
-                          setCompanyId(cid);
-                          setCustomerId("");
-                          const comp = companies.find(c => String(c.id) === String(cid));
-                          if (comp) {
-                            setDeliveryAddress(comp.delivery_address || comp.address || "");
-                          }
-                        } else if (val.startsWith("customer-")) {
-                          const cuid = val.replace("customer-", "");
-                          setCustomerId(cuid);
-                          setCompanyId("");
-                          const cust = customers.find(cu => String(cu.id) === String(cuid));
-                          if (cust) {
-                            setDeliveryAddress(cust.address || "");
-                          }
+                    <AutocompleteSelect
+                      label={isTr ? "Vkn/Tckn - Ünvan (Alıcı Seçimi)" : "Vkn/Tckn - Receiver (Business/Cari Select)"}
+                      items={[
+                        ...customers.map(c => ({ ...c, display: `${c.name || ""} ${c.surname || ""}`.trim() || c.customer_name || c.email, type: 'customer' })),
+                        ...companies.map(c => ({ ...c, display: c.title || c.company_title || c.name, type: 'company' }))
+                      ]}
+                      displayField="display"
+                      secondaryField="phone"
+                      value={customerSearch}
+                      type="all-accounts"
+                      lang={isTr ? 'tr' : 'en'}
+                      placeholder={isTr ? "Cari adı veya telefon ara..." : "Search cari name or phone..."}
+                      onQuickAdd={(search) => {
+                        setQuickCariSearchInitial(search);
+                        setShowQuickCariModal(true);
+                      }}
+                      onSelect={(item) => {
+                        if (!item) {
+                          setCustomerId('');
+                          setCompanyId('');
+                          setCustomerSearch('');
+                          setDeliveryAddress('');
+                          return;
+                        }
+                        if (item.type === 'customer') {
+                          setCustomerId(String(item.id));
+                          setCompanyId('');
+                          setCustomerSearch(`${item.name || ""} ${item.surname || ""}`.trim() || item.customer_name || item.email || '');
+                          setDeliveryAddress(item.address || '');
+                        } else {
+                          setCompanyId(String(item.id));
+                          setCustomerId('');
+                          setCustomerSearch(item.title || item.company_title || item.name || '');
+                          setDeliveryAddress(item.delivery_address || item.address || '');
                         }
                       }}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:border-indigo-500 transition font-medium"
-                    >
-                      <option value="">{isTr ? "-- Alıcı Seçin --" : "-- Select Recipient --"}</option>
-                      <optgroup label={isTr ? "Cari Firmalar" : "B2B Companies"}>
-                        {companies.map(c => (
-                          <option key={`c-${c.id}`} value={`company-${c.id}`}>{c.title || c.name} ({c.tax_number || "VKN Yok"})</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label={isTr ? "Şahıs / Bireysel Müşteriler" : "Direct Customers"}>
-                        {customers.map(cu => (
-                          <option key={`cu-${cu.id}`} value={`customer-${cu.id}`}>{cu.name} {cu.surname || ""} ({cu.phone || "Telefon Yok"})</option>
-                        ))}
-                      </optgroup>
-                    </select>
+                    />
                   </div>
 
                   {/* Document date & dispatch dates */}
@@ -1265,7 +1518,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                 </div>
 
                 {/* section 3: Line items table */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest">{isTr ? "Taşınan Mal Hizmet Satırları" : "Despatch Line Details"}</h3>
                     <button
@@ -1280,17 +1533,16 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                   </div>
 
                   {/* table body */}
-                  <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                  <div className="border border-slate-100 rounded-xl overflow-visible shadow-sm">
                     <table className="w-full text-left text-xs text-slate-700">
                       <thead className="bg-slate-50 border-b border-indigo-100 uppercase tracking-wide font-bold text-slate-500">
                         <tr>
-                          <th className="p-3 w-40">{isTr ? "Ürün Seçimi" : "Select Product"}</th>
                           <th className="p-3">{isTr ? "Ürün Adı" : "Product Name"}</th>
                           <th className="p-3 w-28 text-center">{isTr ? "Miktar" : "Qty"}</th>
                           <th className="p-3 w-24">{isTr ? "Birim" : "Unit"}</th>
-                          <th className="p-3 w-32">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
-                          <th className="p-3 w-20 text-center">{isTr ? "KDV %" : "KDV %"}</th>
-                          <th className="p-3 w-28 text-right">{isTr ? "Toplam (Vesika)" : "Net Total"}</th>
+                          <th className="p-3 w-32 hidden">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
+                          <th className="p-3 w-20 text-center hidden">{isTr ? "KDV %" : "KDV %"}</th>
+                          <th className="p-3 w-28 text-right hidden">{isTr ? "Toplam (Vesika)" : "Net Total"}</th>
                           <th className="p-3 w-10"></th>
                         </tr>
                       </thead>
@@ -1302,35 +1554,99 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                             <tr key={item.tempId || idx} className="hover:bg-slate-50/50">
                               
                               <td className="p-2 relative">
-                                <select
-                                  value={item.product_id || ""}
-                                  onChange={(e) => {
-                                    const pId = e.target.value;
-                                    const matched = products.find(p => String(p.id) === String(pId));
-                                    if (matched) {
-                                      selectProductForLine(idx, matched);
-                                    } else {
-                                      handleUpdateItem(idx, "product_id", "");
-                                    }
-                                  }}
-                                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-slate-50 font-medium"
-                                >
-                                  <option value="">{isTr ? "Katalog Seçimi..." : "Catalog Select..."}</option>
-                                  {products.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                  ))}
-                                </select>
-                              </td>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    placeholder={isTr ? "Ürün adı veya barkod..." : "Product name or barcode..."}
+                                    required
+                                    value={item.product_name}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      handleUpdateItem(idx, "product_name", val);
+                                      setShowProductDropdown(idx);
+                                    }}
+                                    onFocus={() => setShowProductDropdown(idx)}
+                                    className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:border-indigo-500 outline-none"
+                                  />
+                                  
+                                  {showProductDropdown === idx && (
+                                    <>
+                                      <div className="fixed inset-0 z-[115]" onClick={() => setShowProductDropdown(null)} />
+                                      <div className="absolute z-[120] left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1.5 min-w-[320px]">
+                                        <div className="p-1 border-b border-slate-100 mb-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setQuickProductForm({
+                                                name: item.product_name,
+                                                category: "",
+                                                sub_category: "",
+                                                barcode: "",
+                                                tax_rate: "20",
+                                                price: String(item.unit_price || "0"),
+                                                currency: currency || "TRY"
+                                              });
+                                              setQuickProductRowIdx(idx);
+                                              setShowQuickProductModal(true);
+                                              setShowProductDropdown(null);
+                                            }}
+                                            className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm"
+                                          >
+                                            <Plus className="h-3 w-3" />
+                                            {isTr ? `Hızlı Yeni Ürün Ekle: "${item.product_name}"` : `Quick Add New Product: "${item.product_name}"`}
+                                          </button>
+                                        </div>
 
-                              <td className="p-2">
-                                <input
-                                  type="text"
-                                  placeholder={isTr ? "Ürün/Tanım Adı" : "Label"}
-                                  required
-                                  value={item.product_name}
-                                  onChange={(e) => handleUpdateItem(idx, "product_name", e.target.value)}
-                                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-slate-800"
-                                />
+                                        {(() => {
+                                          const query = (item.product_name || "").trim();
+                                          const searchTerms = normalizeSearch(query).split(/\s+/).filter(Boolean);
+                                          
+                                          const filtered = products.filter(p => {
+                                            if (searchTerms.length === 0) return true;
+                                            const pNameNormalized = normalizeSearch(p.name || "");
+                                            const pBarcodeNormalized = normalizeSearch(p.barcode || "");
+                                            return searchTerms.every(term => 
+                                              pNameNormalized.includes(term) || pBarcodeNormalized.includes(term)
+                                            );
+                                          });
+
+                                          if (filtered.length === 0) {
+                                            return (
+                                              <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                                                {isTr ? "Eşleşen katalog ürünü bulunamadı." : "No matching catalog product."}
+                                              </div>
+                                            );
+                                          }
+
+                                          return filtered.map(p => (
+                                            <button
+                                              key={p.id}
+                                              type="button"
+                                              className="w-full text-left px-3 py-2 hover:bg-indigo-50 rounded-lg transition-colors flex items-center justify-between gap-2 group"
+                                              onClick={() => {
+                                                selectProductForLine(idx, p);
+                                              }}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <div className="p-1 bg-slate-100 rounded group-hover:bg-indigo-100 text-slate-500 group-hover:text-indigo-600">
+                                                  <Package className="h-3.5 w-3.5" />
+                                                </div>
+                                                <div>
+                                                  <div className="text-xs font-bold text-slate-700">{p.name}</div>
+                                                  <div className="text-[10px] text-slate-400 font-mono">{p.barcode || "-"}</div>
+                                                </div>
+                                              </div>
+                                              <div className="text-right shrink-0">
+                                                <div className="text-xs font-black text-indigo-600">{Number(p.price).toLocaleString('tr-TR')} {p.currency || 'TRY'}</div>
+                                                <div className="text-[9px] font-bold text-slate-400">{isTr ? 'Stok' : 'Stock'}: {p.stock || 0}</div>
+                                              </div>
+                                            </button>
+                                          ));
+                                        })()}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
                               </td>
 
                               <td className="p-2">
@@ -1359,7 +1675,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                                 </select>
                               </td>
 
-                              <td className="p-2">
+                              <td className="p-2 hidden">
                                 <div className="relative">
                                   <input
                                     type="number"
@@ -1374,7 +1690,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                                 </div>
                               </td>
 
-                              <td className="p-2">
+                              <td className="p-2 hidden">
                                 <select
                                   value={item.tax_rate}
                                   onChange={(e) => handleUpdateItem(idx, "tax_rate", e.target.value)}
@@ -1387,7 +1703,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                                 </select>
                               </td>
 
-                              <td className="p-2 text-right font-bold text-slate-800">
+                              <td className="p-2 text-right font-bold text-slate-800 hidden">
                                 {itemTotalNet.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}
                               </td>
 
@@ -1454,29 +1770,11 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                   </div>
 
                   {/* calculated totals summary */}
-                  <div className="md:col-span-5 bg-slate-50/80 p-5 rounded-2xl border border-slate-100 flex flex-col justify-between space-y-3">
-                    <h4 className="text-xs font-bold text-slate-500 tracking-wider uppercase border-b border-slate-200 pb-2">{isTr ? "TUTAR HESAPLAMALARI" : "PRICE SUMMARY"}</h4>
-                    
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between text-slate-600">
-                        <span>{isTr ? "Mal / Hizmet Toplam" : "Total lines price"}</span>
-                        <span className="font-semibold">{getSubtotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-600">
-                        <span>{isTr ? "Hesaplanan KDV" : "Calculated Tax"}</span>
-                        <span className="font-semibold">{getTaxTotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-slate-900">
-                      <span className="font-bold text-sm">{isTr ? "İrsaliye Vesika Toplam:" : "Waybill Grand Total:"}</span>
-                      <span className="font-extrabold text-lg text-indigo-700">{getGrandTotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {currency}</span>
-                    </div>
-
-                    <p className="text-[10px] text-slate-400 text-center leading-relaxed italic mt-1 bg-white p-2 rounded-lg border border-slate-100">
+                  <div className="md:col-span-5 bg-slate-50/80 p-5 rounded-2xl border border-slate-100 flex flex-col justify-center space-y-3">
+                    <p className="text-xs text-indigo-700 text-center leading-relaxed font-bold bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/60 shadow-sm">
                       {isTr 
-                        ? "Sevkiyat İrsaliyesinin yasal olarak teslim tarihinden itibaren 10 gün içinde e-Faturaya dönüştürülmesi gerekmektedir."
-                        : "Waybill documents must legally be billed into actual invoices within 10 days of same month."}
+                        ? "⚠️ Sevkiyat İrsaliyesinin yasal olarak fiili sevk tarihinden itibaren 7 gün içinde e-Faturaya dönüştürülmesi gerekmektedir."
+                        : "⚠️ Waybill documents must legally be converted into actual sales invoices within 7 days of delivery."}
                     </p>
                   </div>
 
@@ -1589,9 +1887,9 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                           <th className="p-3">{isTr ? "Ürün Adı / Tanımı" : "Product label"}</th>
                           <th className="p-3 text-center">{isTr ? "Miktar" : "Quantity"}</th>
                           <th className="p-3">{isTr ? "Ölçü Birmi" : "Unit"}</th>
-                          <th className="p-3 text-right">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
-                          <th className="p-3 text-center">{isTr ? "KDV %" : "TAX %"}</th>
-                          <th className="p-3 text-right">{isTr ? "Satır Tutarı" : "Line Total"}</th>
+                          <th className="p-3 text-right hidden">{isTr ? "Birim Fiyat" : "Unit Price"}</th>
+                          <th className="p-3 text-center hidden">{isTr ? "KDV %" : "TAX %"}</th>
+                          <th className="p-3 text-right hidden">{isTr ? "Satır Tutarı" : "Line Total"}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1600,9 +1898,9 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                             <td className="p-3 font-medium text-slate-800">{it.product_name}</td>
                             <td className="p-3 text-center font-bold">{it.quantity}</td>
                             <td className="p-3">{it.unit_code}</td>
-                            <td className="p-3 text-right">{Number(it.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedWaybill.currency}</td>
-                            <td className="p-3 text-center font-semibold text-slate-500">%{it.tax_rate}</td>
-                            <td className="p-3 text-right font-bold text-slate-900">{(it.quantity * it.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedWaybill.currency}</td>
+                            <td className="p-3 text-right hidden">{Number(it.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedWaybill.currency}</td>
+                            <td className="p-3 text-center font-semibold text-slate-500 hidden">%{it.tax_rate}</td>
+                            <td className="p-3 text-right font-bold text-slate-900 hidden">{(it.quantity * it.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedWaybill.currency}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1610,21 +1908,12 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                   </div>
                 </div>
 
-                {/* Notes and financial summaries */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{isTr ? "MAHSUS NOTLAR / AÇIKLAMA" : "WAYBILL INSTRUCTIONS"}</span>
-                    <p className="text-xs text-slate-600 leading-relaxed italic">
-                      {selectedWaybill.notes || (isTr ? "İrsaliye notu eklenmedi." : "No waybill notes added.")}
-                    </p>
-                  </div>
-                  <div className="text-right space-y-1.5 text-xs text-slate-600 flex flex-col justify-end">
-                    <div>{isTr ? "Vesika Net Tutar:" : "Net values:"} <strong>{Number(selectedWaybill.total_amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedWaybill.currency}</strong></div>
-                    <div>{isTr ? "Vesika KDV Toplam:" : "Tax values:"} <strong>{Number(selectedWaybill.tax_amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedWaybill.currency}</strong></div>
-                    <div className="border-t border-slate-200 mt-2 pt-2 text-sm text-indigo-700 font-bold">
-                      {isTr ? "Vesika Genel Toplam:" : "Grand total:"} <span className="text-lg font-black">{Number(selectedWaybill.grand_total || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {selectedWaybill.currency}</span>
-                    </div>
-                  </div>
+                {/* Notes and financial summaries (financials hidden) */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{isTr ? "MAHSUS NOTLAR / AÇIKLAMA" : "WAYBILL INSTRUCTIONS"}</span>
+                  <p className="text-xs text-slate-600 leading-relaxed italic">
+                    {selectedWaybill.notes || (isTr ? "İrsaliye notu eklenmedi." : "No waybill notes added.")}
+                  </p>
                 </div>
 
               </div>
@@ -1799,6 +2088,28 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
           </div>
         )}
       </AnimatePresence>
+
+      <QuickProductModal 
+        isOpen={showQuickProductModal}
+        onClose={() => {
+          setShowQuickProductModal(false);
+          setQuickProductRowIdx(null);
+        }}
+        isTr={isTr}
+        quickProductForm={quickProductForm}
+        setQuickProductForm={setQuickProductForm}
+        handleQuickProductSubmit={handleQuickProductSubmit}
+      />
+
+      <QuickCariModal
+        isOpen={showQuickCariModal}
+        onClose={() => {
+          setShowQuickCariModal(false);
+        }}
+        isTr={isTr}
+        initialValue={quickCariSearchInitial}
+        onSubmit={handleQuickCariSubmit}
+      />
 
     </div>
   );

@@ -448,9 +448,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        ettn: ettn,
        docNo: documentNumber,
        note: invoice.notes || "",
-       notes: invoice.notes || "",
-       noteList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
-       notesList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
+       notes: (invoice.notes || "").split('\n').map((n: string) => ({ note: n.trim() })).filter((n: any) => n.note),
+       noteList: (invoice.notes || "").split('\n').map((n: string) => n.trim()).filter(Boolean),
+       notesList: (invoice.notes || "").split('\n').map((n: string) => n.trim()).filter(Boolean),
        currencyCode: (invoice.currency || 'TRY').toUpperCase(),
        currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
        tenantIdentifierNumber: storeTaxNumber,
@@ -1390,30 +1390,32 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
     const prefixWithYear = `${defaultPrefix}${currentYear}`;
 
     const client = await pool.connect();
-    let waybillNumber = "";
+    let waybillNumber = invoice.waybill_number;
     let waybillEttn = invoice.waybill_ettn || crypto.randomUUID();
 
     try {
       await client.query("BEGIN");
 
-      // Count existing successfully processed waybills under this prefix/year to increment sequence
-      const seqRes = await client.query(
-         "SELECT waybill_number FROM sales_invoices WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 ORDER BY waybill_number DESC LIMIT 1 FOR UPDATE",
-         [storeId, `${prefixWithYear}%`]
-      );
+      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== defaultPrefix) {
+        // Count existing successfully processed waybills under this prefix/year to increment sequence
+        const seqRes = await client.query(
+           "SELECT waybill_number FROM sales_invoices WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 ORDER BY waybill_number DESC LIMIT 1 FOR UPDATE",
+           [storeId, `${prefixWithYear}%`]
+        );
 
-      let nextSequenceNumber = 1;
-      if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
-          const lastDocNum = seqRes.rows[0].waybill_number;
-          const lastSequencePart = lastDocNum.substring(7);
-          const parsed = parseInt(lastSequencePart, 10);
-          if (!isNaN(parsed)) {
-             nextSequenceNumber = parsed + 1;
-          }
+        let nextSequenceNumber = 1;
+        if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
+            const lastDocNum = seqRes.rows[0].waybill_number;
+            const lastSequencePart = lastDocNum.substring(7);
+            const parsed = parseInt(lastSequencePart, 10);
+            if (!isNaN(parsed)) {
+               nextSequenceNumber = parsed + 1;
+            }
+        }
+
+        const paddedSequence = nextSequenceNumber.toString().padStart(9, '0');
+        waybillNumber = `${prefixWithYear}${paddedSequence}`;
       }
-
-      const paddedSequence = nextSequenceNumber.toString().padStart(9, '0');
-      waybillNumber = `${prefixWithYear}${paddedSequence}`;
 
       // Update local record to hold this reserved number
       await client.query(
@@ -1449,11 +1451,24 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
 
     // Build details
     const DespatchLines = lines.map((item, index) => {
-      const quantity = Number(item.quantity);
+      const quantity = Number(item.quantity) || 1;
       return {
+        lineIndex: index + 1,
         id: String(index + 1),
-        productName: item.product_name,
-        qty: quantity,
+        lineId: String(index + 1),
+        stockName: (item.product_name || "Ürün").substring(0, 200),
+        name: (item.product_name || "Ürün").substring(0, 200),
+        productName: (item.product_name || "Ürün").substring(0, 200),
+        item: {
+          name: (item.product_name || "Ürün").substring(0, 200),
+          description: (item.product_name || "Ürün").substring(0, 200),
+          sellersItemIdentification: {
+            id: String(item.product_id || index + 1)
+          }
+        },
+        quantity: quantity,
+        deliveredQuantity: quantity,
+        qty: quantity.toString(),
         unitCode: (() => {
           const rawUnit = item.unit_code;
           if (!rawUnit) return UNIT_CODES.PIECE;
@@ -1467,13 +1482,23 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
           };
           return mapping[norm] || rawUnit;
         })(),
-        unitPriceTra: String(Number(Number(item.unit_price || 0).toFixed(4))),
-        amtTra: String(Number(Number(item.total_price || 0).toFixed(2)))
+        price: 0,
+        unitPriceTra: "0",
+        amtTra: "0",
+        vatRate: "0",
+        amtVatTra: "0",
+        taxableAmtTra: "0",
+        taxPercent: 0,
+        taxAmount: 0,
+        lineExtensionAmount: 0,
+        totalAmount: 0,
+        allowanceAmount: 0,
+        taxTypeCode: "0015"
       };
     });
 
     const isCorporate = taxNumber.length === 10;
-    const customerTitle = invoice.company_title || invoice.customer_name || "Seyirci Müşteri";
+    const customerTitle = invoice.company_title || invoice.customer_name || "Seçkin Müşteri";
 
     // Split names
     const parts = customerTitle.trim().split(/\s+/);
@@ -1485,6 +1510,21 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
     const cityName = addressTokens[addressTokens.length - 1] || "İSTANBUL";
     const districtName = addressTokens[addressTokens.length - 2] || "MERKEZ";
 
+    const service = await getEInvoiceService(storeId);
+    let pkAlias = "urn:mail:defaultpk"; // default for virtual e-waybill
+    try {
+      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+      if (taxpayerCheck.isTaxpayer && taxpayerCheck.waybillAlias) {
+         pkAlias = taxpayerCheck.waybillAlias;
+         console.log(`[MySoft e-Waybill] Found e-Waybill alias for ${taxNumber}: ${pkAlias}`);
+      } else if (taxpayerCheck.isTaxpayer && taxpayerCheck.alias) {
+         pkAlias = taxpayerCheck.alias; // fallback to e-fatura pk
+         console.log(`[MySoft e-Waybill] Found e-Fatura alias for ${taxNumber}: ${pkAlias}`);
+      }
+    } catch (e) {
+      console.warn("Taxpayer check failed for waybill:", e);
+    }
+
     // Map UBL-TR compliant MySoft e-Waybill JSON Payload
     const ublData: any = {
       isCalculateByApi: false,
@@ -1495,21 +1535,48 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
       despatchAdviceType: "SEVK",
       docDate: new Date(invoice.invoice_date).toISOString().split('T')[0],
       docTime: invoice.invoice_time || "12:00:00",
+      issueDate: new Date(invoice.invoice_date).toISOString().split('T')[0],
+      issueTime: invoice.invoice_time || "12:00:00",
       ettn: waybillEttn,
       docNo: waybillNumber,
       currencyCode: (invoice.currency || 'TRY').toUpperCase(),
       currencyRate: String(Number(Number(invoice.exchange_rate || 1).toFixed(4))),
       tenantIdentifierNumber: storeTaxNumber,
       note: invoice.notes || "",
-      notes: invoice.notes || "",
+      notes: (invoice.notes || "").split('\n').map(n => ({ note: n.trim() })).filter(n => n.note),
       noteList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
       notesList: (invoice.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
       
-      // Receviver mailbox setup
-      pkAlias: settings.receiver_alias_waybill || settings.receiver_alias || "urn:mail:defaultpk",
+      // Receiver mailbox setup
+      pkAlias: pkAlias,
+
+      // Sender (Store) account details
+      despatchSupplierAccount: {
+        vknTckn: storeTaxNumber,
+        identifierNumber: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        countryName: "Türkiye",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+      sellerAccount: {
+        vknTckn: storeTaxNumber,
+        identifierNumber: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        countryName: "Türkiye",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
 
       despatchAdviceAccount: {
         vknTckn: taxNumber,
+        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: invoice.tax_office || "",
         email1: invoice.customer_email || "",
@@ -1519,6 +1586,55 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
         streetName: (invoice.address || "İstanbul").substring(0, 250)
       },
 
+      deliveryAccount: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: invoice.tax_office || "",
+        email1: invoice.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: (invoice.address || "İstanbul").substring(0, 250)
+      },
+
+      account: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: invoice.tax_office || "",
+        email1: invoice.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: (invoice.address || "İstanbul").substring(0, 250)
+      },
+
+      buyerAccount: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: invoice.tax_office || "",
+        email1: invoice.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: (invoice.address || "İstanbul").substring(0, 250)
+      },
+
+      receiverAccount: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: invoice.tax_office || "",
+        email1: invoice.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: (invoice.address || "İstanbul").substring(0, 250)
+      },
+
+      despatchLines: DespatchLines,
       despatchAdviceDetail: DespatchLines,
       despatchDetail: DespatchLines, // Mirror key redundancy
       invoiceDetail: DespatchLines, // Mirror key redundancy
@@ -1531,11 +1647,46 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
         plateNumber: plateNumber,
         trailerPlateNumber: trailerPlate || undefined,
         actualDeliveryDate: actualDate,
-        actualDeliveryTime: actualTime
+        actualDeliveryTime: actualTime,
+        carrierParty: {
+          vknTckn: storeTaxNumber,
+          accountName: branding.store_name || "Seçkin Mağaza",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          streetName: (settings.address || "İstanbul").substring(0, 250)
+        }
+      },
+      shipmentDetail: {
+        driverName: driverName,
+        driverSurname: driverSurname,
+        driverVknTckn: driverVkn,
+        plateNumber: plateNumber,
+        trailerPlateNumber: trailerPlate || undefined,
+        actualDeliveryDate: actualDate,
+        actualDeliveryTime: actualTime,
+        carrierParty: {
+          vknTckn: storeTaxNumber,
+          accountName: branding.store_name || "Seçkin Mağaza",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          streetName: (settings.address || "İstanbul").substring(0, 250)
+        }
+      },
+      shipmentData: {
+        driverName: driverName,
+        driverSurname: driverSurname,
+        driverVknTckn: driverVkn,
+        plateNumber: plateNumber,
+        trailerPlateNumber: trailerPlate || undefined,
+        actualDeliveryDate: actualDate,
+        actualDeliveryTime: actualTime,
+        carrierParty: {
+          vknTckn: storeTaxNumber,
+          accountName: branding.store_name || "Seçkin Mağaza",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          streetName: (settings.address || "İstanbul").substring(0, 250)
+        }
       }
     };
 
-    const service = await getEInvoiceService(storeId);
     console.log(`[MySoft e-Waybill] Triggering sendWaybill with document number: ${waybillNumber}`);
     
     const result = await service.sendWaybill(ublData);
@@ -1601,7 +1752,7 @@ router.get("/einvoice/waybill/html/:invoiceId", authenticate, async (req: any, r
     }
 
     const service = await getEInvoiceService(invoice.store_id);
-    const htmlContent = await service.getWaybillHtml(invoice.waybill_ettn);
+    const htmlContent = await service.getWaybillHtml(invoice.waybill_ettn, invoice.notes || "");
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(htmlContent);
@@ -1618,10 +1769,10 @@ router.get("/einvoice/waybill/html/:invoiceId", authenticate, async (req: any, r
 // 1. List independent waybills
 router.get("/independent-waybills", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.user.store_id;
+    const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
     let query = `
       SELECT ew.*, 
-             c.name as company_name, c.title as company_title,
+             c.title as company_name, c.title as company_title,
              cust.name as customer_name, cust.surname as customer_surname,
              si.invoice_number as linked_invoice_number
       FROM e_waybills ew
@@ -1645,7 +1796,6 @@ router.get("/independent-waybills", authenticate, async (req: any, res) => {
       const searchTerm = `%${search}%`;
       query += ` AND (
         ew.waybill_number ILIKE $${paramIndex} OR
-        c.name ILIKE $${paramIndex} OR
         c.title ILIKE $${paramIndex} OR
         cust.name ILIKE $${paramIndex} OR
         cust.surname ILIKE $${paramIndex}
@@ -1667,10 +1817,10 @@ router.get("/independent-waybills", authenticate, async (req: any, res) => {
 // 2. Clear Waybill/Details
 router.get("/independent-waybills/:id", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.user.store_id;
+    const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
     const waybillRes = await pool.query(
       `SELECT ew.*, 
-              c.name as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.email as company_email,
+              c.title as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.email as company_email,
               cust.name as customer_name, cust.surname as customer_surname, cust.phone as customer_phone, cust.email as customer_email, cust.address as customer_address,
               si.invoice_number as linked_invoice_number
        FROM e_waybills ew
@@ -1703,7 +1853,7 @@ router.get("/independent-waybills/:id", authenticate, async (req: any, res) => {
 
 // 3. Create independent waybill
 router.post("/independent-waybills", authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.body.storeId ? Number(req.body.storeId) : req.user.store_id;
   const {
     company_id,
     customer_id,
@@ -1846,7 +1996,7 @@ router.post("/independent-waybills", authenticate, async (req: any, res) => {
 
 // 4. Update independent waybill
 router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.body.storeId ? Number(req.body.storeId) : req.user.store_id;
   const { id } = req.params;
   const {
     company_id,
@@ -2007,7 +2157,7 @@ router.put("/independent-waybills/:id", authenticate, async (req: any, res) => {
 
 // 5. Delete independent waybill
 router.delete("/independent-waybills/:id", authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
   try {
     const statusCheck = await pool.query(
       "SELECT status FROM e_waybills WHERE id = $1 AND store_id = $2",
@@ -2034,12 +2184,12 @@ router.delete("/independent-waybills/:id", authenticate, async (req: any, res) =
 // 6. Transmit independent waybill to MySoft
 router.post("/independent-waybills/:id/send", authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.user.store_id;
+  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
 
   try {
     const waybillRes = await pool.query(
       `SELECT ew.*, 
-              c.name as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.delivery_address as company_delivery_address, c.email as company_email,
+              c.title as company_name, c.title as company_title, c.tax_number as company_tax_number, c.tax_office as company_tax_office, c.address as company_address, c.delivery_address as company_delivery_address, c.email as company_email,
               cust.name as customer_name, cust.surname as customer_surname, cust.phone as customer_phone, cust.email as customer_email, cust.address as customer_address
        FROM e_waybills ew
        LEFT JOIN companies c ON ew.company_id = c.id
@@ -2073,32 +2223,34 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     const prefixWithYear = `${prefix}${year}`;
 
     const client = await pool.connect();
-    let waybillNumber = "";
+    let waybillNumber = waybill.waybill_number;
     let waybillEttn = waybill.ettn || crypto.randomUUID();
 
     try {
       await client.query("BEGIN");
 
-      // Count existing e-waybills under this prefix/year
-      const seqRes = await client.query(
-        `SELECT waybill_number FROM e_waybills 
-         WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 
-         ORDER BY waybill_number DESC LIMIT 1 FOR UPDATE`,
-        [storeId, `${prefixWithYear}%`]
-      );
+      if (!waybillNumber || waybillNumber.startsWith("TASLAK") || waybillNumber.substring(0,3) !== prefix) {
+        // Count existing e-waybills under this prefix/year
+        const seqRes = await client.query(
+          `SELECT waybill_number FROM e_waybills 
+           WHERE store_id = $1 AND waybill_number LIKE $2 AND LENGTH(waybill_number) = 16 
+           ORDER BY waybill_number DESC LIMIT 1 FOR UPDATE`,
+          [storeId, `${prefixWithYear}%`]
+        );
 
-      let nextSequenceNumber = 1;
-      if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
-        const lastDocNum = seqRes.rows[0].waybill_number;
-        const lastSequencePart = lastDocNum.substring(7);
-        const parsed = parseInt(lastSequencePart, 10);
-        if (!isNaN(parsed)) {
-          nextSequenceNumber = parsed + 1;
+        let nextSequenceNumber = 1;
+        if (seqRes.rows.length > 0 && seqRes.rows[0].waybill_number) {
+          const lastDocNum = seqRes.rows[0].waybill_number;
+          const lastSequencePart = lastDocNum.substring(7);
+          const parsed = parseInt(lastSequencePart, 10);
+          if (!isNaN(parsed)) {
+            nextSequenceNumber = Math.max(nextSequenceNumber, parsed + 1);
+          }
         }
-      }
 
-      const paddedSequence = nextSequenceNumber.toString().padStart(9, '0');
-      waybillNumber = `${prefixWithYear}${paddedSequence}`;
+        const paddedSequence = nextSequenceNumber.toString().padStart(9, '0');
+        waybillNumber = `${prefixWithYear}${paddedSequence}`;
+      }
 
       await client.query(
         "UPDATE e_waybills SET waybill_number = $1, ettn = $2, status = 'queued' WHERE id = $3",
@@ -2130,23 +2282,54 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
 
     const DespatchLines = items.map((item: any, idx: number) => {
       const q = Number(item.quantity) || 1;
-      const price = Number(item.unit_price) || 0;
-      const netTotal = q * price;
-      const taxRate = Number(item.tax_rate) || 20;
-      const taxAm = netTotal * (taxRate / 100);
+      
+      // Standard Unit Code mapping for UBL-TR
+      const unitCode = (() => {
+        const rawUnit = (item.unit_code || "").trim();
+        if (!rawUnit) return "C62";
+        const norm = rawUnit.toLowerCase();
+        const mapping: { [key: string]: string } = {
+          "adet": "C62", "ad": "C62", "pcs": "C62", "piece": "C62",
+          "kg": "KGM", "kilogram": "KGM", "gr": "GRM", "litre": "LTR", "lt": "LTR",
+          "meter": "MTR", "metre": "MTR", "paket": "PA", "kutu": "BX", "ton": "TNE",
+          "metrekare": "MTK", "m2": "MTK", "gün": "DAY", "gun": "DAY", "saat": "HUR"
+        };
+        return mapping[norm] || "C62";
+      })();
 
       return {
+        lineIndex: idx + 1,
+        id: (idx + 1).toString(),
         lineId: (idx + 1).toString(),
         barcodeField: item.barcode || "",
         stockCode: item.barcode || "M-" + (item.product_id || idx),
         stockName: item.product_name.substring(0, 200),
+        name: item.product_name.substring(0, 200),
+        productName: item.product_name.substring(0, 200),
+        item: {
+           name: item.product_name.substring(0, 200),
+           description: item.product_name.substring(0, 200),
+           sellersItemIdentification: {
+             id: String(item.product_id || idx)
+           }
+        },
         quantity: q,
-        unitCode: item.unit_code || "Adet",
-        price: price,
-        kdvPercent: taxRate,
-        kdvAmount: taxAm,
-        totalAmount: netTotal,
-        rowTotalAmount: netTotal + taxAm
+        deliveredQuantity: q,
+        outstandingQuantity: 0,
+        invoicedQuantity: 0,
+        qty: q.toString(),
+        unitCode: unitCode,
+        price: Number(item.unit_price) || 0,
+        unitPriceTra: String(Number(item.unit_price) || 0),
+        amtTra: String((Number(item.unit_price) || 0) * q),
+        vatRate: String(Number(item.tax_rate) || 0),
+        amtVatTra: String(Number(item.tax_amount) || 0),
+        taxableAmtTra: String((Number(item.unit_price) || 0) * q),
+        taxPercent: Number(item.tax_rate) || 0,
+        taxAmount: Number(item.tax_amount) || 0,
+        lineExtensionAmount: (Number(item.unit_price) || 0) * q,
+        totalAmount: Number(item.total_price) || 0,
+        allowanceAmount: 0
       };
     });
 
@@ -2162,6 +2345,33 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     const cityName = addressTokens[addressTokens.length - 1] || "İSTANBUL";
     const districtName = addressTokens[addressTokens.length - 2] || "MERKEZ";
 
+    const service = await getEInvoiceService(storeId);
+    let pkAlias = "urn:mail:defaultpk"; // default for virtual e-waybill
+    try {
+      const taxpayerCheck = await service.checkTaxpayer(taxNumber);
+      if (taxpayerCheck.isTaxpayer && taxpayerCheck.waybillAlias) {
+         pkAlias = taxpayerCheck.waybillAlias;
+         console.log(`[MySoft Independent e-Waybill] Found e-Waybill alias for ${taxNumber}: ${pkAlias}`);
+      } else if (taxpayerCheck.isTaxpayer && taxpayerCheck.alias) {
+         pkAlias = taxpayerCheck.alias; // fallback to e-fatura pk if no waybill specific pk
+         console.log(`[MySoft Independent e-Waybill] Found e-Fatura alias for ${taxNumber}: ${pkAlias}`);
+      }
+    } catch (e) {
+      console.warn("Taxpayer check failed for waybill:", e);
+    }
+
+    // Ensure times have seconds
+    const normalizeTime = (t: string) => {
+      if (!t) return "12:00:00";
+      const parts = t.split(':');
+      if (parts.length === 2) return `${t}:00`;
+      if (parts.length === 1) return `${t}:00:00`;
+      return t;
+    };
+
+    const waybillDocTime = normalizeTime(waybill.waybill_time);
+    const waybillActualTime = normalizeTime(waybill.actual_time);
+
     const ublData: any = {
       isCalculateByApi: false,
       isManuelCalculation: true,
@@ -2170,20 +2380,167 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
       profile: "TEMELIRSALIYE",
       despatchAdviceType: "SEVK",
       docDate: new Date(waybill.waybill_date).toISOString().split('T')[0],
-      docTime: waybill.waybill_time || "12:00:00",
+      docTime: waybillDocTime,
+      issueDate: new Date(waybill.waybill_date).toISOString().split('T')[0],
+      issueTime: waybillDocTime,
       ettn: waybillEttn,
       docNo: waybillNumber,
       currencyCode: (waybill.currency || 'TRY').toUpperCase(),
       currencyRate: String(Number(Number(waybill.exchange_rate || 1).toFixed(4))),
       tenantIdentifierNumber: storeTaxNumber,
       note: waybill.notes || "",
-      notes: waybill.notes || "",
+      notes: (waybill.notes || "").split('\n').map(n => ({ note: n.trim() })).filter(n => n.note),
       noteList: (waybill.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
       notesList: (waybill.notes || "").split('\n').map(n => n.trim()).filter(Boolean),
-      pkAlias: settings.receiver_alias_waybill || settings.receiver_alias || "urn:mail:defaultpk",
+      pkAlias: pkAlias,
 
+      // References
+      orderReference: {
+         id: waybillNumber,
+         issueDate: new Date(waybill.waybill_date).toISOString().split('T')[0]
+      },
+      additionalDocumentReference: [
+         { id: waybillEttn, issueDate: new Date(waybill.waybill_date).toISOString().split('T')[0], documentTypeCode: "SDR" }
+      ],
+
+      // Sender details
+      despatchSupplierAccount: {
+        vknTckn: storeTaxNumber,
+        identifierNumber: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        countryName: "Türkiye",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+      despatchSupplierParty: {
+        vknTckn: storeTaxNumber,
+        identifierNumber: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        countryName: "Türkiye",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+      sellerSupplierParty: {
+        vknTckn: storeTaxNumber,
+        identifierNumber: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        countryName: "Türkiye",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+      sellerAccount: {
+        vknTckn: storeTaxNumber,
+        identifierNumber: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        countryName: "Türkiye",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+      supplierAccount: {
+        vknTckn: storeTaxNumber,
+        identifierNumber: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
+        countryName: "Türkiye",
+        cityName: (settings.city || "İSTANBUL").toUpperCase(),
+        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
+        streetName: settings.address || "İstanbul"
+      },
+
+      // Receiver details
+      deliveryAccount: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
       despatchAdviceAccount: {
         vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
+      deliveryCustomerAccount: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
+      deliveryCustomerParty: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
+      buyerAccount: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
+      buyerCustomerParty: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
+      receiverAccount: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
+        accountName: customerTitle.substring(0, 100),
+        taxOfficeName: waybill.company_tax_office || "",
+        email1: waybill.company_email || waybill.customer_email || "",
+        countryName: "Türkiye",
+        cityName: cityName.toUpperCase(),
+        citySubdivision: districtName.toUpperCase(),
+        streetName: address.substring(0, 250)
+      },
+      account: {
+        vknTckn: taxNumber,
+        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: waybill.company_tax_office || "",
         email1: waybill.company_email || waybill.customer_email || "",
@@ -2193,22 +2550,61 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
         streetName: address.substring(0, 250)
       },
 
+      despatchLines: DespatchLines,
       despatchAdviceDetail: DespatchLines,
-      despatchDetail: DespatchLines,
-      invoiceDetail: DespatchLines,
 
       shipment: {
+        carrierParty: {
+          vknTckn: storeTaxNumber,
+          accountName: branding.store_name || "Seçkin Mağaza",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          streetName: settings.address || "İstanbul"
+        },
         driverName: driverName,
         driverSurname: driverSurname,
         driverVknTckn: driverVkn,
+        driverPerson: [
+          {
+            firstName: driverName,
+            familyName: driverSurname,
+            id: driverVkn,
+            identifier: driverVkn,
+            vknTckn: driverVkn
+          }
+        ],
+        delivery: {
+          actualDeliveryDate: actualDate,
+          actualDeliveryTime: waybillActualTime
+        },
+        despatch: {
+          actualDespatchDate: actualDate,
+          actualDespatchTime: waybillActualTime
+        },
+        shipmentStage: [
+           {
+              transportMeans: {
+                 roadTransportMeans: {
+                    plateId: plateNumber
+                 }
+              },
+              driverPerson: [
+                 {
+                    firstName: driverName,
+                    familyName: driverSurname,
+                    id: driverVkn,
+                    identifier: driverVkn,
+                    vknTckn: driverVkn
+                 }
+              ]
+           }
+        ],
         plateNumber: plateNumber,
         trailerPlateNumber: trailerPlate || undefined,
         actualDeliveryDate: actualDate,
-        actualDeliveryTime: actualTime
+        actualDeliveryTime: waybillActualTime
       }
     };
 
-    const service = await getEInvoiceService(storeId);
     console.log(`[MySoft Independent e-Waybill] Transmitting e-Waybill #${waybillNumber}`);
     const result = await service.sendWaybill(ublData);
 
@@ -2235,7 +2631,7 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
 // 7. Status checker
 router.get("/independent-waybills/:id/status", authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.user.store_id;
+  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
   try {
     const waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (waybillRes.rows.length === 0) return res.status(404).json({ error: "İrsaliye bulunamadı." });
@@ -2263,7 +2659,7 @@ router.get("/independent-waybills/:id/status", authenticate, async (req: any, re
 // 8. HTML visualization of independent waybill
 router.get("/independent-waybills/:id/html", authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.user.store_id;
+  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
   try {
     const waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (waybillRes.rows.length === 0) return res.status(404).json({ error: "İrsaliye bulunamadı." });
@@ -2274,7 +2670,7 @@ router.get("/independent-waybills/:id/html", authenticate, async (req: any, res)
     }
 
     const service = await getEInvoiceService(storeId);
-    const htmlContent = await service.getWaybillHtml(waybill.ettn);
+    const htmlContent = await service.getWaybillHtml(waybill.ettn, waybill.notes || "");
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(htmlContent);
@@ -2286,7 +2682,7 @@ router.get("/independent-waybills/:id/html", authenticate, async (req: any, res)
 
 // 9. Convert multiple waybills to a single Sales Invoice
 router.post("/independent-waybills/convert-to-invoice", authenticate, async (req: any, res) => {
-  const storeId = req.user.store_id;
+  const storeId = req.body.storeId ? Number(req.body.storeId) : req.user.store_id;
   const { waybillIds, invoiceProfile, giInvoiceType, paymentMethod, notes, currency } = req.body;
 
   if (!waybillIds || waybillIds.length === 0) {

@@ -74,7 +74,7 @@ export class MySoftService {
   }
 
   // 2. Taxpayer Query (Mükellef Sorgulama)
-  async checkTaxpayer(vknTckn: string): Promise<{ isTaxpayer: boolean; title?: string; documentType: 'E-FATURA' | 'E-ARSIV' | 'UNKNOWN', alias?: string }> {
+  async checkTaxpayer(vknTckn: string): Promise<{ isTaxpayer: boolean; title?: string; documentType: 'E-FATURA' | 'E-ARSIV' | 'UNKNOWN', alias?: string, waybillAlias?: string }> {
     try {
       const token = await this.authenticate();
       
@@ -98,6 +98,7 @@ export class MySoftService {
 
       const title = data.gibAccountName || data.GibAccountName || "";
       let alias = "";
+      let waybillAlias = "";
 
       // Extract alias
       const aliasList = data.gibAccountAliasList || data.GibAccountAliasList;
@@ -112,14 +113,22 @@ export class MySoftService {
            const fallbackPk = aliasList.find(a => a.aliasType === 1) || aliasList[0];
            if (fallbackPk) alias = fallbackPk.alias || fallbackPk.Alias;
         }
+
+        // Look for a PK (Posta Kutusu) for E-Waybill
+        // gibDocumentType = 2 (E-Waybill), aliasType = 1 (PK)
+        const eWaybillPk = aliasList.find(a => a.gibDocumentType === 2 && a.aliasType === 1);
+        if (eWaybillPk) {
+           waybillAlias = eWaybillPk.alias || eWaybillPk.Alias;
+        }
       }
 
-      console.log(`Taxpayer ${vknTckn} identified as E-FATURA with alias: ${alias}`);
+      console.log(`Taxpayer ${vknTckn} identified as E-FATURA with alias: ${alias}, Waybill PK: ${waybillAlias}`);
       return {
         isTaxpayer: true,
         title: title,
         documentType: 'E-FATURA',
-        alias: alias
+        alias: alias,
+        waybillAlias: waybillAlias
       };
 
     } catch (error: any) {
@@ -166,7 +175,21 @@ export class MySoftService {
       const apiErrorResponse = error.response?.data;
       let detailedMsg = error.message;
       if (apiErrorResponse) {
-        detailedMsg = apiErrorResponse.message || apiErrorResponse.Message || JSON.stringify(apiErrorResponse);
+        // Handle structured error responses from MySoft
+        if (typeof apiErrorResponse === 'object') {
+          detailedMsg = apiErrorResponse.message || apiErrorResponse.Message || apiErrorResponse.description || apiErrorResponse.Description || JSON.stringify(apiErrorResponse);
+          
+          // Check for validation results or schematron errors
+          if (apiErrorResponse.validationResults || apiErrorResponse.ValidationResults) {
+             const results = apiErrorResponse.validationResults || apiErrorResponse.ValidationResults;
+             if (Array.isArray(results)) {
+                const innerErrors = results.map((r: any) => r.message || r.Message || r.description || r.Description).filter(Boolean).join(' | ');
+                if (innerErrors) detailedMsg += " -> Detaylar: " + innerErrors;
+             }
+          }
+        } else {
+          detailedMsg = String(apiErrorResponse);
+        }
       }
       console.error("[MySoft] Send Invoice Error:", detailedMsg);
       throw new Error(detailedMsg);
@@ -765,7 +788,21 @@ export class MySoftService {
       const apiErrorResponse = error.response?.data;
       let detailedMsg = error.message;
       if (apiErrorResponse) {
-        detailedMsg = apiErrorResponse.message || apiErrorResponse.Message || JSON.stringify(apiErrorResponse);
+        // Handle structured error responses from MySoft
+        if (typeof apiErrorResponse === 'object') {
+          detailedMsg = apiErrorResponse.message || apiErrorResponse.Message || apiErrorResponse.description || apiErrorResponse.Description || JSON.stringify(apiErrorResponse);
+          
+          // Check for validation results or schematron errors (common in e-Waybill)
+          if (apiErrorResponse.validationResults || apiErrorResponse.ValidationResults) {
+             const results = apiErrorResponse.validationResults || apiErrorResponse.ValidationResults;
+             if (Array.isArray(results)) {
+                const innerErrors = results.map((r: any) => r.message || r.Message || r.description || r.Description).filter(Boolean).join(' | ');
+                if (innerErrors) detailedMsg += " -> Detaylar: " + innerErrors;
+             }
+          }
+        } else {
+          detailedMsg = String(apiErrorResponse);
+        }
       }
       console.error("[MySoft] Send Waybill Error:", detailedMsg);
       throw new Error(detailedMsg);
@@ -800,52 +837,103 @@ export class MySoftService {
   }
 
   // 3. Get Waybill HTML representation
-  async getWaybillHtml(ettn: string): Promise<string> {
+  async getWaybillHtml(ettn: string, notes?: string): Promise<string> {
     try {
       const token = await this.authenticate();
+      const tId = this.credentials.tenant_id;
+      const storeVkn = this.credentials.vkn;
+
       const config: any = {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}` 
+        },
+        responseType: 'arraybuffer',
+        timeout: 15000
       };
-      
-      // Let's try standard outbox HTML endpoint first 
-      const url = `${this.baseUrl}/DespatchOutbox/getDespatchOutboxHTML?despatchETTN=${ettn}`;
-      console.log(`[MySoft] Fetching Waybill HTML from: ${url}`);
-      
-      const response = await axios.get(url, config);
-      const data = response.data;
-      
-      // Look for data.Data or directly string
-      const rawHtml = data.Data || data.data || data;
-      if (typeof rawHtml === 'string' && (rawHtml.includes('<html') || rawHtml.includes('<body') || rawHtml.includes('<?xml'))) {
-        return rawHtml;
+
+      if (tId) {
+        config.headers['TenantId'] = tId;
+        config.headers['ApplicationId'] = tId;
       }
-      
-      // Look if base64 encoded
-      const base64Str = data.Data || data.data || (typeof data === 'object' && data.html) || "";
-      if (base64Str && typeof base64Str === 'string' && !base64Str.trim().startsWith('<')) {
-        const decoded = Buffer.from(base64Str, 'base64');
-        const content = decoded.toString('utf8');
-        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-          return content;
+
+      const endpoints = [
+        `${this.baseUrl}/DespatchOutbox/getDespatchOutboxHTMLAsZip`,
+        `${this.baseUrl}/DespatchInbox/getDespatchInboxHTMLAsZip`,
+        `${this.baseUrl}/DespatchOutbox/getDespatchOutboxHTML`,
+        `${this.baseUrl}/DespatchInbox/getDespatchInboxHTML`
+      ];
+
+      const paramVariations: any[] = [
+        { despatchETTN: ettn },
+        { despatchETTN: ettn, tenantIdentifierNumber: storeVkn },
+        { despatchETTN: ettn, tenantIdentifierNumber: tId },
+        { ettn: ettn },
+        { uuid: ettn }
+      ];
+
+      for (const url of endpoints) {
+        for (const params of paramVariations) {
+          try {
+            console.log(`[WAYBILL-HTML-FETCH] Trying URL: ${url} with params: ${JSON.stringify(params)}`);
+            const response = await axios.get(url, { ...config, params });
+            
+            if (response.status === 200 && response.data) {
+              const buffer = Buffer.from(response.data);
+              
+              // Handle JSON response
+              if (buffer[0] === 123) { // '{'
+                const jsonObj = JSON.parse(buffer.toString('utf8'));
+                const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
+                if (isSuccess) {
+                  const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
+                  if (base64Data && typeof base64Data === 'string') {
+                    const decoded = Buffer.from(base64Data, 'base64');
+                    if (decoded[0] === 0x50 && decoded[1] === 0x4B) { // ZIP
+                      const AdmZip = (await import('adm-zip')).default;
+                      const zip = new AdmZip(decoded);
+                      for (const entry of zip.getEntries()) {
+                        const content = entry.getData().toString('utf8');
+                        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                      }
+                    } else {
+                      const content = decoded.toString('utf8');
+                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                    }
+                  }
+                }
+                continue;
+              }
+
+              // Handle direct ZIP
+              if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
+                const AdmZip = (await import('adm-zip')).default;
+                const zip = new AdmZip(buffer);
+                for (const entry of zip.getEntries()) {
+                  const content = entry.getData().toString('utf8');
+                  if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                }
+              }
+
+              // Handle direct HTML
+              const content = buffer.toString('utf8');
+              if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+            }
+          } catch (e) { /* continue */ }
         }
       }
       
-      // Fallback: build a beautiful customized print template if entegrator returns raw JSON or no image
+      // Fallback: build a beautiful customized print template
       return `
         <html>
         <head>
           <style>
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: white; }
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: white; line-height: 1.5; }
             .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; }
             .title { font-size: 24px; font-weight: bold; color: #0f172a; margin: 0; }
             .meta { font-size: 13px; color: #64748b; margin-top: 5px; }
             .section { margin-bottom: 30px; }
             .section-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            th { background: #f8fafc; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #64748b; padding: 10px 14px; text-align: left; border-bottom: 1.5px solid #e2e8f0; }
-            td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-            .val { font-weight: 500; color: #0f172a; }
+            .note-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-top: 20px; white-space: pre-wrap; font-size: 13px; color: #334155; }
           </style>
         </head>
         <body>
@@ -859,14 +947,20 @@ export class MySoftService {
               <div class="meta">Yasal Belge / Resmi Evraktır</div>
             </div>
           </div>
-          <p style="font-size: 13px;">Bu belge MySoft entegrasyonu üzerinden gönderilmiş ve resmi olarak tescil edilmiştir. Detaylı görsel entegratör üzerinden henüz yüklenmemiş olabilir.</p>
+          <div class="section">
+             <div class="section-title">Bilgilendirme</div>
+             <p>Bu belge MySoft entegrasyonu üzerinden başarıyla tescil edilmiştir. Detaylı tasarım görüntüsü (XSLT) entegratör tarafından henüz oluşturuluyor olabilir.</p>
+          </div>
+          <div class="note-box">
+             <strong>NOTLAR:</strong><br/>
+             ${notes ? notes.replace(/\n/g, '<br/>') : 'Açıklama bulunmamaktadır.'}
+          </div>
         </body>
         </html>
       `;
     } catch (error: any) {
       console.warn("MySoft Waybill HTML Fetch issue:", error.message);
-      // Fallback template
-      return `<html><body><h3>E-İrsaliye Belge Görseli</h3><p>ETTN: ${ettn}</p><p>Sistem üzerinden e-waybill başarıyla tescil edilmiştir.</p></body></html>`;
+      return `<html><body><h3>E-İRSALİYE BELGESİ</h3><p>ETTN: ${ettn}</p><div style="margin-top:20px; white-space:pre-wrap;"><strong>NOTLAR:</strong><br/>${notes || ''}</div></body></html>`;
     }
   }
 }

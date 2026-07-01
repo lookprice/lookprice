@@ -25,6 +25,51 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
     setIframeReady(false);
   }, [htmlContent]);
 
+  const getStyledHtml = (html: string) => {
+    if (!html) return '';
+    const printStyles = `
+      <style id="a4-print-styles">
+        @media print {
+          @page {
+            size: A4 portrait !important;
+            margin: 10mm 12mm 10mm 12mm !important;
+          }
+          html, body {
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          table, tr, img, .section, .totals {
+            page-break-inside: avoid !important;
+          }
+        }
+        body {
+          max-width: 800px;
+          margin: 0 auto !important;
+          padding: 20px !important;
+          background-color: #ffffff !important;
+        }
+      </style>
+    `;
+    if (html.includes("</head>")) {
+      return html.replace("</head>", `${printStyles}</head>`);
+    } else if (html.includes("<head>")) {
+      return html.replace("<head>", `<head>${printStyles}`);
+    } else {
+      return printStyles + html;
+    }
+  };
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
@@ -65,7 +110,7 @@ export const SalesInvoiceHtmlModal: React.FC<SalesInvoiceHtmlModalProps> = ({
             )}
             <iframe 
               id="sales-invoice-iframe"
-              srcDoc={htmlContent || ''}
+              srcDoc={getStyledHtml(htmlContent)}
               onLoad={() => setIframeReady(true)}
               className={`w-full h-full bg-white shadow-inner p-4 rounded-2xl min-h-[60vh] border-0 transition-opacity duration-300 ${
                 iframeReady && !htmlLoading ? 'opacity-100' : 'opacity-0'

@@ -24,7 +24,8 @@ import {
   CloudUpload, 
   RefreshCw, 
   Loader2, 
-  XCircle 
+  XCircle,
+  Truck
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
@@ -38,6 +39,7 @@ import { SalesInvoiceHtmlModal } from "./dashboard/invoices/sales/SalesInvoiceHt
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
+import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
 export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
@@ -56,6 +58,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [showModal, setShowModal] = useState(false);
   const lastSyncedIdRef = useRef<string | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showWaybillModal, setShowWaybillModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
@@ -576,6 +579,11 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     }
   };
 
+  const handleOpenWaybillModal = (inv: any) => {
+    setSelectedInvoice(inv);
+    setShowWaybillModal(true);
+  };
+
   const handleViewHtml = async (id: number) => {
     setHtmlLoading(true);
     setShowHtmlModal(true);
@@ -815,6 +823,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         handleEdit={handleEdit}
         handleViewDetails={handleViewDetails}
         handleDelete={handleDelete}
+        handleOpenWaybillModal={handleOpenWaybillModal}
         page={page}
         totalPages={Math.ceil((() => {
           let filtered = invoices;
@@ -913,6 +922,14 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         isTr={isTr}
         invoiceRef={invoiceRef}
         handlePrint={handlePrint}
+      />
+
+      <SalesInvoiceWaybillModal 
+        isOpen={showWaybillModal}
+        onClose={() => setShowWaybillModal(false)}
+        invoice={selectedInvoice}
+        isTr={isTr}
+        onRefresh={() => fetchInvoicesData(activeSearch, startDate, endDate)}
       />
 
       <SalesInvoiceHtmlModal 
