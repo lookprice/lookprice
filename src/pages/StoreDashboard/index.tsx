@@ -52,7 +52,8 @@ import { User, Product } from "../../types";
 import * as XLSX from 'xlsx';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from "sonner";
-import { handleDownloadQuotationPDF, numberToTurkishWords } from "../../utils/dashboardUtils";
+import { handleDownloadQuotationPDF } from "../../utils/dashboardUtils";
+import { numberToTurkishWords } from "../../utils/formatUtils";
 
 // Modular Components
 import { DashboardLayout } from "./DashboardLayout";

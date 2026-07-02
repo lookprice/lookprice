@@ -763,6 +763,11 @@ export class MySoftService {
         },
         timeout: 30000
       };
+
+      if (this.credentials.tenant_id) {
+        config.headers['TenantId'] = this.credentials.tenant_id;
+        config.headers['ApplicationId'] = this.credentials.tenant_id;
+      }
       
       const targetUrl = `${this.baseUrl}/DespatchOutbox/despatchOutbox`;
       console.log(`[MySoft] Sending Waybill (e-Irsaliye) to: ${targetUrl}`);

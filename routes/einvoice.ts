@@ -5,7 +5,7 @@ import { authenticate } from "../middleware/auth";
 import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
-import { numberToTurkishWords } from "../src/utils/dashboardUtils";
+import { numberToTurkishWords } from "../src/utils/formatUtils";
 
 const router = express.Router();
 
@@ -1084,14 +1084,15 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
 
     let invoiceRes;
     if (invoiceType === 'sales') {
-        invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        invoiceRes = await pool.query("SELECT ettn, document_number, notes, total_amount, currency, exchange_rate, subtotal, tax_amount FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
     } else {
-        invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        // Use payable_amount as total_amount for purchase invoices as it's the confirmed field name
+        invoiceRes = await pool.query("SELECT ettn, document_number, notes, payable_amount as total_amount, currency, exchange_rate, subtotal, tax_amount FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
     }
     
     if (invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
-    const { ettn, document_number, notes } = invoiceRes.rows[0];
+    const { ettn, document_number, notes, total_amount, currency, exchange_rate, subtotal, tax_amount } = invoiceRes.rows[0];
     if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
 
     const service = await getEInvoiceService(storeId);
@@ -1100,12 +1101,75 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
       console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}`);
       let html = await (service as any).getInvoiceHtml(ettn, document_number);
       
-      if (notes) {
-        const noteHtml = `<div class="invoice-notes" style="margin-top: 20px; border-top: 1px solid #ccc; padding: 10px;"><strong>Notlar / Açıklamalar:</strong><p>${notes}</p></div>`;
-        html = html.replace('</body>', `${noteHtml}</body>`);
+      // 1. Prepare Amount in Words and Currency Info
+      const amountWordsRaw = numberToTurkishWords(Number(total_amount), currency || 'TRY');
+      const amountWords = amountWordsRaw.replace(/\s+/g, '').replace(/Kr$/, 'Krş');
+      const alonePart = `<div style="border-bottom: 1px solid #000; margin-bottom: 10px; padding-bottom: 5px; font-weight: bold; font-size: 14px;">YALNIZ: # ${amountWords} #</div>`;
+
+      // 2. Exchange Rate and TRY conversion if foreign currency
+      let tryTotalsBlock = "";
+      let exchangeRateBlock = "";
+      if (exchange_rate && Number(exchange_rate) > 0 && currency && currency.toUpperCase() !== 'TRY') {
+          exchangeRateBlock = `<div style="margin-bottom: 10px; font-weight: bold; font-size: 12px; color: #333;">Döviz Kuru: 1 ${currency.toUpperCase()} = ${Number(exchange_rate).toFixed(4)} TRY</div>`;
+          
+          const trySubtotal = (Number(subtotal || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const tryTax = (Number(tax_amount || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const tryTotal = (Number(total_amount || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+          tryTotalsBlock = `
+            <table style="width: 100%; margin-top: 15px; border-collapse: collapse; border: 1px solid #000; font-family: sans-serif; font-size: 11px;">
+              <tr style="background: #f9f9f9;">
+                <th colspan="2" style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">Döviz Karşılıkları (TRY)</th>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #000; padding: 5px;">Mal Hizmet Toplam Tutarı (TL)</td>
+                <td style="border: 1px solid #000; padding: 5px; text-align: right;">${trySubtotal} TL</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #000; padding: 5px;">Hesaplanan KDV (TL)</td>
+                <td style="border: 1px solid #000; padding: 5px; text-align: right;">${tryTax} TL</td>
+              </tr>
+              <tr style="font-weight: bold; background: #eee;">
+                <td style="border: 1px solid #000; padding: 5px;">Vergiler Dahil Toplam Tutar (TL)</td>
+                <td style="border: 1px solid #000; padding: 5px; text-align: right;">${tryTotal} TL</td>
+              </tr>
+            </table>
+          `;
+      }
+
+      // 3. Notes and Boxing
+      const notesWithBr = (notes || "").replace(/\n/g, '<br/>');
+      const boxedNotes = `
+        <div class="invoice-notes-box" style="margin-top: 30px; border: 2px solid #000; padding: 15px; font-family: sans-serif; font-size: 12px; line-height: 1.5; background: #fff;">
+          ${alonePart}
+          ${exchangeRateBlock}
+          <div style="margin-top: 10px;">
+            <strong>Notlar / Açıklamalar:</strong><br/>
+            ${notesWithBr || "---"}
+          </div>
+          ${tryTotalsBlock}
+        </div>
+      `;
+
+      // Handle insertion to avoid double notes
+      if (notes && html.includes(notesWithBr)) {
+          // If notes are already in HTML, try to wrap them or replace them
+          // We target the id="notesTable" if present in MySoft HTML
+          if (html.includes('id="notesTable"')) {
+              // Replace the whole table with our boxed version
+              const notesTableStart = html.indexOf('<table id="notesTable"');
+              const notesTableEnd = html.indexOf('</table>', notesTableStart) + 8;
+              html = html.slice(0, notesTableStart) + boxedNotes + html.slice(notesTableEnd);
+          } else {
+              // Fallback: replace the text itself
+              html = html.replace(notesWithBr, boxedNotes);
+          }
+      } else {
+          // Just append at the end
+          html = html.replace('</body>', `${boxedNotes}</body>`);
       }
       
-      console.log(`[HTML-FETCH] HTML fetched for ${invoiceId}`);
+      console.log(`[HTML-FETCH] HTML fetched and processed for ${invoiceId}`);
       return res.json({ html });
     }
 
@@ -1550,88 +1614,71 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
       // Receiver mailbox setup
       pkAlias: pkAlias,
 
-      // Sender (Store) account details
-      despatchSupplierAccount: {
+      orderReference: {
+        id: invoice.invoice_number || "TASLAK",
+        issueDate: new Date(invoice.invoice_date).toISOString().split('T')[0]
+      },
+
+      despatchSupplierParty: {
         vknTckn: storeTaxNumber,
-        identifierNumber: storeTaxNumber,
         accountName: branding.store_name || "Seçkin Mağaza",
         taxOfficeName: settings.tax_office || "",
         email1: settings.username || "",
-        countryName: "Türkiye",
+        postalAddress: {
+          streetName: settings.address || "İstanbul",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          citySubdivisionName: (settings.district || "MERKEZ").toUpperCase(),
+          countryName: "Türkiye"
+        }
+      },
+      despatchSupplierAccount: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
         cityName: (settings.city || "İSTANBUL").toUpperCase(),
-        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
         streetName: settings.address || "İstanbul"
+      },
+      sellerSupplierParty: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || ""
       },
       sellerAccount: {
         vknTckn: storeTaxNumber,
-        identifierNumber: storeTaxNumber,
-        accountName: branding.store_name || "Seçkin Mağaza",
-        taxOfficeName: settings.tax_office || "",
-        email1: settings.username || "",
-        countryName: "Türkiye",
-        cityName: (settings.city || "İSTANBUL").toUpperCase(),
-        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
-        streetName: settings.address || "İstanbul"
+        accountName: branding.store_name || "Seçkin Mağaza"
       },
 
-      despatchAdviceAccount: {
+      deliveryCustomerParty: {
         vknTckn: taxNumber,
-        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: invoice.tax_office || "",
         email1: invoice.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: (invoice.address || "İstanbul").substring(0, 250)
+        postalAddress: {
+          streetName: (invoice.address || "İstanbul").substring(0, 250),
+          cityName: cityName.toUpperCase(),
+          citySubdivisionName: districtName.toUpperCase(),
+          countryName: "Türkiye"
+        }
       },
-
       deliveryAccount: {
         vknTckn: taxNumber,
-        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: invoice.tax_office || "",
         email1: invoice.customer_email || "",
-        countryName: "Türkiye",
         cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
         streetName: (invoice.address || "İstanbul").substring(0, 250)
       },
-
-      account: {
+      buyerCustomerParty: {
         vknTckn: taxNumber,
-        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: invoice.tax_office || "",
-        email1: invoice.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: (invoice.address || "İstanbul").substring(0, 250)
+        email1: invoice.customer_email || ""
       },
-
       buyerAccount: {
         vknTckn: taxNumber,
-        identifierNumber: taxNumber,
-        accountName: customerTitle.substring(0, 100),
-        taxOfficeName: invoice.tax_office || "",
-        email1: invoice.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: (invoice.address || "İstanbul").substring(0, 250)
-      },
-
-      receiverAccount: {
-        vknTckn: taxNumber,
-        identifierNumber: taxNumber,
-        accountName: customerTitle.substring(0, 100),
-        taxOfficeName: invoice.tax_office || "",
-        email1: invoice.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: (invoice.address || "İstanbul").substring(0, 250)
+        accountName: customerTitle.substring(0, 100)
       },
 
       despatchLines: DespatchLines,
@@ -1641,49 +1688,42 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
 
       // GİB shipment logistics block (Carrier/Driver)
       shipment: {
-        driverName: driverName,
-        driverSurname: driverSurname,
-        driverVknTckn: driverVkn,
-        plateNumber: plateNumber,
-        trailerPlateNumber: trailerPlate || undefined,
-        actualDeliveryDate: actualDate,
-        actualDeliveryTime: actualTime,
         carrierParty: {
           vknTckn: storeTaxNumber,
           accountName: branding.store_name || "Seçkin Mağaza",
-          cityName: (settings.city || "İSTANBUL").toUpperCase(),
-          streetName: (settings.address || "İstanbul").substring(0, 250)
-        }
-      },
-      shipmentDetail: {
-        driverName: driverName,
-        driverSurname: driverSurname,
-        driverVknTckn: driverVkn,
+          postalAddress: {
+            streetName: settings.address || "İstanbul",
+            cityName: (settings.city || "İSTANBUL").toUpperCase(),
+            countryName: "Türkiye"
+          }
+        },
+        driverPerson: [
+          {
+            firstName: driverName,
+            familyName: driverSurname,
+            id: driverVkn
+          }
+        ],
+        delivery: {
+          actualDeliveryDate: actualDate,
+          actualDeliveryTime: actualTime
+        },
+        transportMeans: {
+          roadTransportMeans: {
+            plateId: plateNumber
+          }
+        },
+        shipmentStage: [
+          {
+            transportMeans: {
+              roadTransportMeans: {
+                plateId: plateNumber
+              }
+            }
+          }
+        ],
         plateNumber: plateNumber,
-        trailerPlateNumber: trailerPlate || undefined,
-        actualDeliveryDate: actualDate,
-        actualDeliveryTime: actualTime,
-        carrierParty: {
-          vknTckn: storeTaxNumber,
-          accountName: branding.store_name || "Seçkin Mağaza",
-          cityName: (settings.city || "İSTANBUL").toUpperCase(),
-          streetName: (settings.address || "İstanbul").substring(0, 250)
-        }
-      },
-      shipmentData: {
-        driverName: driverName,
-        driverSurname: driverSurname,
-        driverVknTckn: driverVkn,
-        plateNumber: plateNumber,
-        trailerPlateNumber: trailerPlate || undefined,
-        actualDeliveryDate: actualDate,
-        actualDeliveryTime: actualTime,
-        carrierParty: {
-          vknTckn: storeTaxNumber,
-          accountName: branding.store_name || "Seçkin Mağaza",
-          cityName: (settings.city || "İSTANBUL").toUpperCase(),
-          streetName: (settings.address || "İstanbul").substring(0, 250)
-        }
+        trailerPlateNumber: trailerPlate || undefined
       }
     };
 
@@ -2404,152 +2444,59 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
       ],
 
       // Sender details
-      despatchSupplierAccount: {
-        vknTckn: storeTaxNumber,
-        identifierNumber: storeTaxNumber,
-        accountName: branding.store_name || "Seçkin Mağaza",
-        taxOfficeName: settings.tax_office || "",
-        email1: settings.username || "",
-        countryName: "Türkiye",
-        cityName: (settings.city || "İSTANBUL").toUpperCase(),
-        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
-        streetName: settings.address || "İstanbul"
-      },
       despatchSupplierParty: {
         vknTckn: storeTaxNumber,
-        identifierNumber: storeTaxNumber,
         accountName: branding.store_name || "Seçkin Mağaza",
         taxOfficeName: settings.tax_office || "",
         email1: settings.username || "",
-        countryName: "Türkiye",
+        postalAddress: {
+          streetName: settings.address || "İstanbul",
+          cityName: (settings.city || "İSTANBUL").toUpperCase(),
+          citySubdivisionName: (settings.district || "MERKEZ").toUpperCase(),
+          countryName: "Türkiye"
+        }
+      },
+      despatchSupplierAccount: {
+        vknTckn: storeTaxNumber,
+        accountName: branding.store_name || "Seçkin Mağaza",
+        taxOfficeName: settings.tax_office || "",
+        email1: settings.username || "",
         cityName: (settings.city || "İSTANBUL").toUpperCase(),
-        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
         streetName: settings.address || "İstanbul"
       },
       sellerSupplierParty: {
         vknTckn: storeTaxNumber,
-        identifierNumber: storeTaxNumber,
         accountName: branding.store_name || "Seçkin Mağaza",
         taxOfficeName: settings.tax_office || "",
-        email1: settings.username || "",
-        countryName: "Türkiye",
-        cityName: (settings.city || "İSTANBUL").toUpperCase(),
-        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
-        streetName: settings.address || "İstanbul"
-      },
-      sellerAccount: {
-        vknTckn: storeTaxNumber,
-        identifierNumber: storeTaxNumber,
-        accountName: branding.store_name || "Seçkin Mağaza",
-        taxOfficeName: settings.tax_office || "",
-        email1: settings.username || "",
-        countryName: "Türkiye",
-        cityName: (settings.city || "İSTANBUL").toUpperCase(),
-        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
-        streetName: settings.address || "İstanbul"
-      },
-      supplierAccount: {
-        vknTckn: storeTaxNumber,
-        identifierNumber: storeTaxNumber,
-        accountName: branding.store_name || "Seçkin Mağaza",
-        taxOfficeName: settings.tax_office || "",
-        email1: settings.username || "",
-        countryName: "Türkiye",
-        cityName: (settings.city || "İSTANBUL").toUpperCase(),
-        citySubdivision: (settings.district || "MERKEZ").toUpperCase(),
-        streetName: settings.address || "İstanbul"
+        email1: settings.username || ""
       },
 
-      // Receiver details
-      deliveryAccount: {
+      deliveryCustomerParty: {
         vknTckn: taxNumber,
-        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: waybill.company_tax_office || "",
         email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: address.substring(0, 250)
-      },
-      despatchAdviceAccount: {
-        vknTckn: taxNumber,
-        identifierNumber: taxNumber,
-        accountName: customerTitle.substring(0, 100),
-        taxOfficeName: waybill.company_tax_office || "",
-        email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: address.substring(0, 250)
+        postalAddress: {
+          streetName: address.substring(0, 250),
+          cityName: cityName.toUpperCase(),
+          citySubdivisionName: districtName.toUpperCase(),
+          countryName: "Türkiye"
+        }
       },
       deliveryCustomerAccount: {
         vknTckn: taxNumber,
-        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: waybill.company_tax_office || "",
         email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
         cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: address.substring(0, 250)
-      },
-      deliveryCustomerParty: {
-        vknTckn: taxNumber,
-        identifierNumber: taxNumber,
-        accountName: customerTitle.substring(0, 100),
-        taxOfficeName: waybill.company_tax_office || "",
-        email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: address.substring(0, 250)
-      },
-      buyerAccount: {
-        vknTckn: taxNumber,
-        identifierNumber: taxNumber,
-        accountName: customerTitle.substring(0, 100),
-        taxOfficeName: waybill.company_tax_office || "",
-        email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
         streetName: address.substring(0, 250)
       },
       buyerCustomerParty: {
         vknTckn: taxNumber,
-        identifierNumber: taxNumber,
         accountName: customerTitle.substring(0, 100),
         taxOfficeName: waybill.company_tax_office || "",
-        email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: address.substring(0, 250)
+        email1: waybill.company_email || waybill.customer_email || ""
       },
-      receiverAccount: {
-        vknTckn: taxNumber,
-        identifierNumber: taxNumber,
-        accountName: customerTitle.substring(0, 100),
-        taxOfficeName: waybill.company_tax_office || "",
-        email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: address.substring(0, 250)
-      },
-      account: {
-        vknTckn: taxNumber,
-        identifierNumber: taxNumber,
-        accountName: customerTitle.substring(0, 100),
-        taxOfficeName: waybill.company_tax_office || "",
-        email1: waybill.company_email || waybill.customer_email || "",
-        countryName: "Türkiye",
-        cityName: cityName.toUpperCase(),
-        citySubdivision: districtName.toUpperCase(),
-        streetName: address.substring(0, 250)
-      },
-
       despatchLines: DespatchLines,
       despatchAdviceDetail: DespatchLines,
 
@@ -2557,28 +2504,27 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
         carrierParty: {
           vknTckn: storeTaxNumber,
           accountName: branding.store_name || "Seçkin Mağaza",
-          cityName: (settings.city || "İSTANBUL").toUpperCase(),
-          streetName: settings.address || "İstanbul"
+          postalAddress: {
+            streetName: settings.address || "İstanbul",
+            cityName: (settings.city || "İSTANBUL").toUpperCase(),
+            countryName: "Türkiye"
+          }
         },
-        driverName: driverName,
-        driverSurname: driverSurname,
-        driverVknTckn: driverVkn,
         driverPerson: [
           {
             firstName: driverName,
             familyName: driverSurname,
-            id: driverVkn,
-            identifier: driverVkn,
-            vknTckn: driverVkn
+            id: driverVkn
           }
         ],
         delivery: {
           actualDeliveryDate: actualDate,
           actualDeliveryTime: waybillActualTime
         },
-        despatch: {
-          actualDespatchDate: actualDate,
-          actualDespatchTime: waybillActualTime
+        transportMeans: {
+          roadTransportMeans: {
+            plateId: plateNumber
+          }
         },
         shipmentStage: [
            {
@@ -2591,17 +2537,13 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
                  {
                     firstName: driverName,
                     familyName: driverSurname,
-                    id: driverVkn,
-                    identifier: driverVkn,
-                    vknTckn: driverVkn
+                    id: driverVkn
                  }
               ]
            }
         ],
         plateNumber: plateNumber,
-        trailerPlateNumber: trailerPlate || undefined,
-        actualDeliveryDate: actualDate,
-        actualDeliveryTime: waybillActualTime
+        trailerPlateNumber: trailerPlate || undefined
       }
     };
 
