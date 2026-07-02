@@ -48,7 +48,7 @@ export const numberToTurkishWords = (number: number, currency: string = 'TRY') =
   }
 
   const currencyMap: { [key: string]: { main: string, sub: string } } = {
-    'TRY': { main: 'TL', sub: 'Kr' },
+    'TRY': { main: 'TL', sub: 'Krş' },
     'USD': { main: 'USD', sub: 'Cent' },
     'EUR': { main: 'EUR', sub: 'Cent' }
   };
@@ -57,7 +57,7 @@ export const numberToTurkishWords = (number: number, currency: string = 'TRY') =
   result += cur.main;
 
   if (decimalPart > 0) {
-    result += " " + convertThreeDigits(decimalPart) + " " + cur.sub;
+    result += convertThreeDigits(decimalPart) + cur.sub;
   }
 
   return result;

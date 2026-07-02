@@ -1083,16 +1083,30 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     const invoiceType = req.query.type || 'purchase';
 
     let invoiceRes;
-    if (invoiceType === 'sales') {
-        invoiceRes = await pool.query("SELECT ettn, document_number, notes, total_amount, currency, exchange_rate, subtotal, tax_amount FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
-    } else {
-        // Use payable_amount as total_amount for purchase invoices as it's the confirmed field name
-        invoiceRes = await pool.query("SELECT ettn, document_number, notes, payable_amount as total_amount, currency, exchange_rate, subtotal, tax_amount FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+    try {
+        if (invoiceType === 'sales') {
+            invoiceRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        } else {
+            invoiceRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        }
+    } catch (queryErr) {
+        console.error("[DB-ERROR] Error fetching invoice details:", queryErr);
+        // Fallback to basic query if full select fails (to avoid crash if columns missing)
+        if (invoiceType === 'sales') {
+            invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        } else {
+            invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+        }
     }
     
     if (invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
-    const { ettn, document_number, notes, total_amount, currency, exchange_rate, subtotal, tax_amount } = invoiceRes.rows[0];
+    const invData = invoiceRes.rows[0];
+    const { ettn, document_number, notes, currency, exchange_rate } = invData;
+    // Map various potential field names for totals to be defensive
+    const grand_total = invData.grand_total || invData.payable_amount || invData.total_amount || 0;
+    const subtotal = invData.subtotal || invData.total_amount || (Number(grand_total) - Number(invData.tax_amount || 0));
+    const tax_amount = invData.tax_amount || 0;
     if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
 
     const service = await getEInvoiceService(storeId);
@@ -1102,37 +1116,46 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
       let html = await (service as any).getInvoiceHtml(ettn, document_number);
       
       // 1. Prepare Amount in Words and Currency Info
-      const amountWordsRaw = numberToTurkishWords(Number(total_amount), currency || 'TRY');
-      const amountWords = amountWordsRaw.replace(/\s+/g, '').replace(/Kr$/, 'Krş');
-      const alonePart = `<div style="border-bottom: 1px solid #000; margin-bottom: 10px; padding-bottom: 5px; font-weight: bold; font-size: 14px;">YALNIZ: # ${amountWords} #</div>`;
+      const amountWordsRaw = numberToTurkishWords(Number(grand_total), currency || 'TRY');
+      const amountWords = amountWordsRaw.replace(/\s+/g, '');
+      const alonePart = `<div style="border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 8px; font-weight: bold; font-size: 15px; color: #000; text-align: left;">YALNIZ: # ${amountWords} #</div>`;
 
       // 2. Exchange Rate and TRY conversion if foreign currency
       let tryTotalsBlock = "";
       let exchangeRateBlock = "";
       if (exchange_rate && Number(exchange_rate) > 0 && currency && currency.toUpperCase() !== 'TRY') {
-          exchangeRateBlock = `<div style="margin-bottom: 10px; font-weight: bold; font-size: 12px; color: #333;">Döviz Kuru: 1 ${currency.toUpperCase()} = ${Number(exchange_rate).toFixed(4)} TRY</div>`;
+          exchangeRateBlock = `
+            <div style="margin-bottom: 15px; padding: 10px; border: 2px solid #d32f2f; background: #fff5f5; display: inline-block; border-radius: 4px;">
+                <span style="color: #d32f2f; font-weight: bold; font-size: 14px;">DÖVİZ KUR BİLGİSİ:</span>
+                <span style="font-size: 16px; font-weight: 800; color: #000; margin-left: 10px;">1 ${currency.toUpperCase()} = ${Number(exchange_rate).toFixed(4)} TRY</span>
+            </div>
+          `;
           
           const trySubtotal = (Number(subtotal || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           const tryTax = (Number(tax_amount || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const tryTotal = (Number(total_amount || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const tryTotal = (Number(grand_total || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
           tryTotalsBlock = `
-            <table style="width: 100%; margin-top: 15px; border-collapse: collapse; border: 1px solid #000; font-family: sans-serif; font-size: 11px;">
-              <tr style="background: #f9f9f9;">
-                <th colspan="2" style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">Döviz Karşılıkları (TRY)</th>
-              </tr>
-              <tr>
-                <td style="border: 1px solid #000; padding: 5px;">Mal Hizmet Toplam Tutarı (TL)</td>
-                <td style="border: 1px solid #000; padding: 5px; text-align: right;">${trySubtotal} TL</td>
-              </tr>
-              <tr>
-                <td style="border: 1px solid #000; padding: 5px;">Hesaplanan KDV (TL)</td>
-                <td style="border: 1px solid #000; padding: 5px; text-align: right;">${tryTax} TL</td>
-              </tr>
-              <tr style="font-weight: bold; background: #eee;">
-                <td style="border: 1px solid #000; padding: 5px;">Vergiler Dahil Toplam Tutar (TL)</td>
-                <td style="border: 1px solid #000; padding: 5px; text-align: right;">${tryTotal} TL</td>
-              </tr>
+            <table style="width: 100%; margin-top: 20px; border-collapse: collapse; border: 2px solid #000; font-family: 'Inter', sans-serif; font-size: 12px; background: #fff;">
+              <thead>
+                <tr style="background: #000; color: #fff;">
+                  <th colspan="2" style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 13px;">Döviz Karşılıkları (TRY)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="border: 1px solid #000; padding: 8px; font-weight: 500;">Mal Hizmet Toplam Tutarı (TL)</td>
+                  <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${trySubtotal} TL</td>
+                </tr>
+                <tr>
+                  <td style="border: 1px solid #000; padding: 8px; font-weight: 500;">Hesaplanan KDV (TL)</td>
+                  <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${tryTax} TL</td>
+                </tr>
+                <tr style="background: #f1f1f1;">
+                  <td style="border: 1px solid #000; padding: 10px; font-weight: bold; font-size: 13px;">Vergiler Dahil Toplam Tutar (TL)</td>
+                  <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: 800; font-size: 14px; color: #000;">${tryTotal} TL</td>
+                </tr>
+              </tbody>
             </table>
           `;
       }
@@ -1140,36 +1163,32 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
       // 3. Notes and Boxing
       const notesWithBr = (notes || "").replace(/\n/g, '<br/>');
       const boxedNotes = `
-        <div class="invoice-notes-box" style="margin-top: 30px; border: 2px solid #000; padding: 15px; font-family: sans-serif; font-size: 12px; line-height: 1.5; background: #fff;">
+        <div class="invoice-notes-box" style="margin-top: 40px; border: 3px solid #000; padding: 20px; font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.6; background: #fff; color: #000; clear: both; page-break-inside: avoid;">
           ${alonePart}
           ${exchangeRateBlock}
-          <div style="margin-top: 10px;">
-            <strong>Notlar / Açıklamalar:</strong><br/>
-            ${notesWithBr || "---"}
+          <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+            <strong style="display: block; margin-bottom: 8px; font-size: 14px; text-transform: uppercase;">Notlar / Açıklamalar:</strong>
+            <div style="white-space: pre-wrap; font-size: 13px; color: #333;">${notes || "---"}</div>
           </div>
           ${tryTotalsBlock}
         </div>
       `;
 
-      // Handle insertion to avoid double notes
-      if (notes && html.includes(notesWithBr)) {
-          // If notes are already in HTML, try to wrap them or replace them
-          // We target the id="notesTable" if present in MySoft HTML
-          if (html.includes('id="notesTable"')) {
-              // Replace the whole table with our boxed version
-              const notesTableStart = html.indexOf('<table id="notesTable"');
-              const notesTableEnd = html.indexOf('</table>', notesTableStart) + 8;
-              html = html.slice(0, notesTableStart) + boxedNotes + html.slice(notesTableEnd);
-          } else {
-              // Fallback: replace the text itself
-              html = html.replace(notesWithBr, boxedNotes);
-          }
+      // Surgery to inject the box correctly and avoid double notes
+      const notesClean = (notes || "").trim();
+      if (html.includes('id="notesTable"')) {
+          const notesTableStart = html.indexOf('<table id="notesTable"');
+          const notesTableEnd = html.indexOf('</table>', notesTableStart) + 8;
+          html = html.slice(0, notesTableStart) + boxedNotes + html.slice(notesTableEnd);
+      } else if (notesClean && html.includes(notesClean)) {
+          // Replace specific notes text if found
+          html = html.replace(notesClean, boxedNotes);
       } else {
-          // Just append at the end
+          // Final fallback
           html = html.replace('</body>', `${boxedNotes}</body>`);
       }
       
-      console.log(`[HTML-FETCH] HTML fetched and processed for ${invoiceId}`);
+      console.log(`[HTML-FETCH] HTML processed for ${invoiceId}`);
       return res.json({ html });
     }
 
@@ -1436,8 +1455,8 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
     }
 
     // Driver / Plate validations (Mandatory for GİB E-Waybill)
-    const driverName = invoice.waybill_driver_name || "Bilinmeyen";
-    const driverSurname = invoice.waybill_driver_surname || "Sürücü";
+    const driverName = invoice.waybill_driver_name || "Sürücü";
+    const driverSurname = invoice.waybill_driver_surname || "Bey/Hanım";
     const driverVkn = (invoice.waybill_driver_vkn || "11111111111").replace(/\D/g, '');
     const plateNumber = (invoice.waybill_plate_number || "").replace(/\s/g, '').toUpperCase();
     const trailerPlate = invoice.waybill_trailer_plate || "";

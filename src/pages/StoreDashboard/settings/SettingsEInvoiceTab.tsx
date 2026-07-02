@@ -47,21 +47,40 @@ export const SettingsEInvoiceTab = ({
         </div>
 
         {/* Toggle System */}
-        <div className="flex items-center justify-between p-6 bg-slate-50 rounded-xl border border-slate-200">
-          <div>
-            <h4 className="font-bold text-slate-800 font-sans">{lang === 'tr' ? 'E-Fatura Sistemi Aktif' : 'E-Invoice System Active'}</h4>
-            <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans">{lang === 'tr' ? 'Eğer bu ülkede/mağazada e-fatura kullanmıyorsanız kapalı tutun.' : 'Keep this disabled if you do not use e-invoices in your country/store.'}</p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-6 bg-slate-50 rounded-xl border border-slate-200">
+            <div>
+              <h4 className="font-bold text-slate-800 font-sans">{lang === 'tr' ? 'E-Fatura Sistemi Aktif' : 'E-Invoice System Active'}</h4>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans">{lang === 'tr' ? 'Eğer bu ülkede/mağazada e-fatura kullanmıyorsanız kapalı tutun.' : 'Keep this disabled if you do not use e-invoices in your country/store.'}</p>
+            </div>
+            <button
+              type="button"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${branding?.einvoice_settings?.is_active ? 'bg-indigo-600' : 'bg-slate-300'}`}
+              onClick={() => {
+                const currentParams = branding?.einvoice_settings || { provider: 'none' };
+                onBrandingChange('einvoice_settings', { ...currentParams, is_active: !currentParams.is_active });
+              }}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding?.einvoice_settings?.is_active ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
+            </button>
           </div>
-          <button
-            type="button"
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${branding?.einvoice_settings?.is_active ? 'bg-indigo-600' : 'bg-slate-300'}`}
-            onClick={() => {
-              const currentParams = branding?.einvoice_settings || { provider: 'none' };
-              onBrandingChange('einvoice_settings', { ...currentParams, is_active: !currentParams.is_active });
-            }}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding?.einvoice_settings?.is_active ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
-          </button>
+
+          <div className="flex items-center justify-between p-6 bg-slate-50 rounded-xl border border-slate-200">
+            <div>
+              <h4 className="font-bold text-slate-800 font-sans">{lang === 'tr' ? 'E-İrsaliye Sistemi Aktif' : 'E-Waybill System Active'}</h4>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed font-sans">{lang === 'tr' ? 'Eğer e-irsaliye (sevk irsaliyesi) kullanmıyorsanız bu seçeneği kapatın.' : 'Disable this if you do not use e-waybills (shipment waybills).'}</p>
+            </div>
+            <button
+              type="button"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${branding?.einvoice_settings?.is_ewaybill_active ? 'bg-indigo-600' : 'bg-slate-300'}`}
+              onClick={() => {
+                const currentParams = branding?.einvoice_settings || { provider: 'none' };
+                onBrandingChange('einvoice_settings', { ...currentParams, is_ewaybill_active: !currentParams.is_ewaybill_active });
+              }}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding?.einvoice_settings?.is_ewaybill_active ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
+            </button>
+          </div>
         </div>
 
         {branding?.einvoice_settings?.is_active && (

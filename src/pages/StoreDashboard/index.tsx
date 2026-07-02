@@ -642,7 +642,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
       { id: "quotations", label: t.quotations, icon: FileCheck },
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' },
-      { id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck },
+      ...(branding?.einvoice_settings?.is_ewaybill_active ? [{ id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck }] : []),
       { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },

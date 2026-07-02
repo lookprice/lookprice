@@ -54,6 +54,12 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   totalPages,
   setPage
 }) => {
+  const isGapStore = 
+    branding?.slug?.toLowerCase() === 'gap' || 
+    branding?.store_name?.toUpperCase().includes('GAP');
+
+  const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -241,7 +247,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                     </td>
                     <td className="px-3 py-4 text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
-                        {branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
+                        {!isPortfolio && branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
                           <div className="flex gap-1">
                             <button 
                               onClick={() => handleSendToGIB(inv.id)}
@@ -250,16 +256,18 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             >
                               <CloudUpload className="h-4 w-4" />
                             </button>
-                            <button 
-                              onClick={() => handleOpenWaybillModal && handleOpenWaybillModal(inv)}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                              title={isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}
-                            >
-                              <Truck className="h-4 w-4" />
-                            </button>
+                            {branding?.einvoice_settings?.is_ewaybill_active && (
+                              <button 
+                                onClick={() => handleOpenWaybillModal && handleOpenWaybillModal(inv)}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                title={isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}
+                              >
+                                <Truck className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         )}
-                        {(isApproved || isQueued) && (
+                        {!isPortfolio && (isApproved || isQueued) && (
                           <button 
                             onClick={() => handleCancelGIB(inv.id)}
                             className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
@@ -268,12 +276,12 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             <XCircle className="h-4 w-4" />
                           </button>
                         )}
-                        {isRejected && (
+                        {!isPortfolio && isRejected && (
                           <div className="p-2 text-rose-500" title={inv.integration_message || (isTr ? "Faturalama hatası / İptal edildi" : "Invoicing error / Cancelled")}>
                             <XCircle className="h-4 w-4" />
                           </div>
                         )}
-                        {isQueued && branding?.einvoice_settings?.is_active && (
+                        {!isPortfolio && isQueued && branding?.einvoice_settings?.is_active && (
                           <button 
                             onClick={() => handleCheckEInvoiceStatus(inv.id)}
                             className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
@@ -283,13 +291,15 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           </button>
                         )}
 
-                        <button 
-                          onClick={() => handleViewHtml(inv.id)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          title={isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                        {!isPortfolio && (
+                          <button 
+                            onClick={() => handleViewHtml(inv.id)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title={isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => handleEdit(inv.id)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
