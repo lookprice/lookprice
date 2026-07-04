@@ -232,6 +232,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const [isCopied, setIsCopied] = useState(false);
 
+  // Helper to get annotated image URL for Sold/Rented status
+  const getAnnotatedImageUrl = (originalUrl: string) => {
+    if (!product || !originalUrl) return originalUrl;
+    const status = (product as any).status || product.sector_data?.status;
+    const labels = getLabels(product.labels).map(l => l.toLowerCase());
+    
+    const isSold = status === 'sold' || labels.includes('satildi') || labels.includes('sold');
+    const isRented = status === 'rented' || labels.includes('kiralandi') || labels.includes('rented');
+    
+    if (isSold || isRented) {
+      const normalizedStatus = isSold ? 'sold' : 'rented';
+      const origin = window.location.origin;
+      // Force absolute URL for sharing bots
+      const absoluteUrl = originalUrl.startsWith('http') ? originalUrl : `${origin}${originalUrl.startsWith('/') ? '' : '/'}${originalUrl}`;
+      return `${origin}/api/annotate-image?imageUrl=${encodeURIComponent(absoluteUrl)}&status=${normalizedStatus}`;
+    }
+    return originalUrl;
+  };
+
   const productUrl = useMemo(() => {
     if (!product) return window.location.href;
     const baseUrl = window.location.origin;
@@ -303,7 +322,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       <SEO
         title={`${product.name} | ${store?.name}`}
         description={product.description?.substring(0, 160)}
-        ogImage={product.image_url}
+        ogImage={getAnnotatedImageUrl(product.image_url)}
         schemaData={productSchema}
       />
       <motion.div
@@ -419,7 +438,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 }
               >
                 <img
-                  src={productImages[activeImageIdx]}
+                  src={getAnnotatedImageUrl(productImages[activeImageIdx])}
                   alt={product.name}
                   className="w-full h-full object-cover md:object-contain transition-all duration-300 group-hover/gallery:scale-105"
                   referrerPolicy="no-referrer"
@@ -474,7 +493,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${activeImageIdx === idx ? "border-indigo-600 scale-105 shadow-md" : "border-slate-100 hover:border-slate-300"}`}
                     >
                       <img
-                        src={img}
+                        src={getAnnotatedImageUrl(img)}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
@@ -886,7 +905,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Large Active Image inside Enlarged View */}
               <img
-                src={productImages[activeImageIdx]}
+                src={getAnnotatedImageUrl(productImages[activeImageIdx])}
                 alt={product.name}
                 className="max-w-full max-h-[70vh] md:max-h-[82vh] object-contain select-none shadow-2xl rounded-xl"
                 referrerPolicy="no-referrer"
@@ -921,7 +940,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     onClick={() => setActiveImageIdx(idx)}
                     className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImageIdx === idx ? "border-indigo-500 scale-110 shadow-lg" : "border-slate-800 hover:border-slate-600"}`}
                   >
-                    <img src={img} className="w-full h-full object-cover" />
+                    <img src={getAnnotatedImageUrl(img)} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>

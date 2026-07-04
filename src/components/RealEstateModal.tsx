@@ -289,7 +289,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
              >🏠 SATILIK (SALE)</button>
              <button
                 type="button"
-                onClick={() => setFormData({...formData, listing_intent: 'rent', status: 'rented'})}
+                onClick={() => setFormData({...formData, listing_intent: 'rent', status: 'active'})}
                 className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 font-black transition-all ${formData.listing_intent === 'rent' ? 'border-sky-600 bg-sky-50 text-sky-800' : 'border-slate-200 text-slate-500'}`}
              >🔑 KİRALIK (RENT)</button>
           </div>
@@ -494,10 +494,19 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                 >
-                  <option value="active">Satılık (For Sale)</option>
-                  <option value="rented">Kiralık (For Rent)</option>
-                  <option value="optioned">Opsiyonlu (Kapora Alındı)</option>
-                  <option value="sold">Satıldı (Sold)</option>
+                  {formData.listing_intent === 'sale' ? (
+                    <>
+                      <option value="active">Satışta (For Sale)</option>
+                      <option value="optioned">Opsiyonlu (Kapora Alındı)</option>
+                      <option value="sold">Satıldı (Sold)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="active">Kiralık (For Rent)</option>
+                      <option value="optioned">Opsiyonlu (Kapora Alındı)</option>
+                      <option value="rented">Kiralandı (Rented)</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>

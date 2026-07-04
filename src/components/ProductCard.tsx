@@ -62,6 +62,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [product.price, product.currency, store?.currency]);
 
+  // Helper to get annotated image URL for Sold/Rented status
+  const getAnnotatedImageUrl = (originalUrl: string) => {
+    if (!product || !originalUrl) return originalUrl;
+    const status = (product as any).status || product.sector_data?.status;
+    const labels = getLabels(product.labels).map(l => l.toLowerCase());
+    
+    const isSold = status === 'sold' || labels.includes('satildi') || labels.includes('sold');
+    const isRented = status === 'rented' || labels.includes('kiralandi') || labels.includes('rented');
+    
+    if (isSold || isRented) {
+      const normalizedStatus = isSold ? 'sold' : 'rented';
+      const origin = window.location.origin;
+      const absoluteUrl = originalUrl.startsWith('http') ? originalUrl : `${origin}${originalUrl.startsWith('/') ? '' : '/'}${originalUrl}`;
+      return `${origin}/api/annotate-image?imageUrl=${encodeURIComponent(absoluteUrl)}&status=${normalizedStatus}`;
+    }
+    return originalUrl;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -71,7 +89,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div className="aspect-[4/5] bg-slate-50 relative overflow-hidden">
         {product.image_url ? (
           <img
-            src={product.image_url}
+            src={getAnnotatedImageUrl(product.image_url)}
             alt={product.name}
             className="w-full h-full object-contain p-4 bg-white group-hover:scale-105 transition-transform duration-1000"
             referrerPolicy="no-referrer"

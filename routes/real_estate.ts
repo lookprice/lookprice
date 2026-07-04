@@ -556,7 +556,8 @@ router.post('/news', authenticate, async (req: any, res) => {
   ];
 
   try {
-    const prompt = `Fetch the latest, real-world news and updates about Northern Cyprus real estate, zoning laws, property values, regional development and economy related to these topics/tags: ${tagQuery}. 
+    const prompt = `Fetch the latest, real-world news and updates (specifically from late 2025 and 2026) about Northern Cyprus real estate, zoning laws, property values, regional development and economy related to these topics/tags: ${tagQuery}. 
+    The current year is 2026. Focus on trend-setting developments and new regulations.
     Return the result as a JSON array of objects. 
     Each object should have:
     - id: random unique string
@@ -572,7 +573,7 @@ router.post('/news', authenticate, async (req: any, res) => {
     Give me exactly 3-5 real, grounded news items.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -624,8 +625,9 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
       Return as a JSON array of objects.`;
     } else {
       prompt = `You are an AI-powered Property Acquisition Radar for real estate professionals.
-      Your task is to use Google Search to find 5 real, active or very recent property listings, posts, or classified ads matching the search keywords: "${searchKeywords}".
-      Today's date is ${today}.
+      Your task is to use Google Search to find 5 real, active or very recent property listings (posted in the last 30 days of 2026) matching the search keywords: "${searchKeywords}".
+      Today's date is ${today}. 
+      CRITICAL: Focus on the latest 2026 trends and recently updated listings.
       The focus of this scan is: "${targetFilter === 'individual' ? 'Sahibinden / Bireysel ilanlar (owner listings)' : 'Tüm fırsat ilanları (all listings/deals)'}".
       
       CRITICAL INSTRUCTIONS:
@@ -648,7 +650,7 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash", 
+      model: "gemini-1.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],

@@ -24,6 +24,8 @@ import { pool } from "./models/db";
 import multer from "multer";
 import fs from "fs";
 import { generateMetaTags } from "./src/utils/metaTags";
+import axios from "axios";
+import sharp from "sharp";
 
 dotenv.config();
 
@@ -88,6 +90,40 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   app.use(domainMiddleware);
+
+  // API route to annotate images for social sharing
+  app.get("/api/annotate-image", async (req, res) => {
+    const { imageUrl, status } = req.query;
+    if (!imageUrl || !status) return res.status(400).send("Missing parameters");
+
+    try {
+      const response = await axios.get(imageUrl as string, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(response.data);
+      
+      // Create ribbon SVG
+      const text = status === 'sold' ? 'SATILDI' : 'KİRALANDI';
+      const color = status === 'sold' ? '#d32f2f' : '#f57c00'; // Red for sold, Orange for rented
+      
+      // SVG overlay for diagonal ribbon
+      const svgRibbon = `
+        <svg width="800" height="800">
+          <rect x="-100" y="300" width="1000" height="200" fill="${color}" transform="rotate(-45 400 400)" fill-opacity="0.8"/>
+          <text x="400" y="425" font-family="Arial" font-size="80" fill="white" text-anchor="middle" font-weight="bold" transform="rotate(-45 400 400)">${text}</text>
+        </svg>
+      `;
+      
+      const annotated = await sharp(imageBuffer)
+        .composite([{ input: Buffer.from(svgRibbon), gravity: 'center' }])
+        .toBuffer();
+      
+      res.set('Content-Type', 'image/jpeg');
+      res.send(annotated);
+    } catch (err) {
+      console.error("Image annotation error:", err);
+      res.status(500).send("Error annotating image");
+    }
+  });
+
 
 function sanitizeFilename(originalName: string): string {
   const turkishMap: { [key: string]: string } = {
