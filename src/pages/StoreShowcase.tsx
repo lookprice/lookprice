@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
@@ -100,6 +100,7 @@ import { AboutModal } from '../components/showcase/AboutModal';
 import { StoreHeader } from '../components/showcase/StoreHeader';
 import { NewsletterSection } from '../components/showcase/NewsletterSection';
 import { StoreFooter } from '../components/showcase/StoreFooter';
+const StoreMapSection = React.lazy(() => import("../components/StoreMapSection").then(m => ({ default: m.StoreMapSection })));
 import { MobileFiltersModal } from '../components/showcase/MobileFiltersModal';
 import { StoreProfile } from '../components/showcase/StoreProfile';
 const PropertyMapTour = React.lazy(() => import("../components/PropertyMapTour").then(m => ({ default: m.PropertyMapTour })));
@@ -3425,6 +3426,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             {lang === "tr" ? "Yardım Al" : "WhatsApp"}
           </span>
         </a>
+      )}
+
+      {store && (
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 mb-24">
+          <Suspense fallback={null}>
+            <StoreMapSection store={store} />
+          </Suspense>
+        </div>
       )}
 
       {/* Small Footer for Compliance */}

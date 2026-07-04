@@ -87,6 +87,8 @@ export interface Store {
   logo_url: string;
   primary_color: string;
   secondary_color: string;
+  latitude?: number;
+  longitude?: number;
   address: string;
   phone: string;
   email: string;

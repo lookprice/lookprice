@@ -21,6 +21,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
 import { BlogShowcaseModal } from "./BlogShowcaseModal";
+import { StoreMapSection } from "./StoreMapSection";
 import { AutomotiveSocialMediaShareModal } from "./AutomotiveSocialMediaShareModal";
 
 interface ModernAutomotiveLayoutProps {
@@ -660,6 +661,10 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 mb-24">
+        <StoreMapSection store={store} />
       </div>
 
       {/* Footer */}

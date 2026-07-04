@@ -23,6 +23,8 @@ import { BlogShowcaseModal } from "./BlogShowcaseModal";
 import { ListingFinancingCalculator } from "./ListingFinancingCalculator";
 import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
 
+import { StoreMapSection } from "./StoreMapSection";
+
 interface ModernRealEstateLayoutProps {
   store: Store;
   products: Product[];
@@ -394,15 +396,39 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
   const displayedProducts = React.useMemo(() => {
     return filteredProducts.filter(p => {
-      if (listingTypeFilter === 'all') return true;
+      // Determine if property is for rent or sale
+      const isRentalIntent = p.sector_data?.listing_intent === 'rent' || 
+                            p.category?.toLowerCase().includes('kira') || 
+                            p.category?.toLowerCase().includes('rent');
+      
+      const isSaleIntent = p.sector_data?.listing_intent === 'sale' || 
+                          p.category?.toLowerCase().includes('satı') || 
+                          p.category?.toLowerCase().includes('sale');
+
+      // Visibility filter: Generally show active ones. 
+      // If we want to show sold/rented as "Archive" or "Recently Done", we'd handle it differently.
+      // But based on user request, they want active "Kiralık" (For Rent) to be visible.
+      const isActuallyRented = p.status === 'rented' || (p as any).status === 'rented';
+      const isActuallySold = p.status === 'sold' || (p as any).status === 'sold';
+
+      if (listingTypeFilter === 'all') {
+        // If "All" is selected, we usually show everything that isn't finalized, 
+        // or we show everything with badges.
+        return true;
+      }
+
       if (listingTypeFilter === 'sale') {
-        const isRent = p.status === 'rented' || (p as any).status === 'rented';
-        return !isRent;
+        // Show active sale listings. 
+        // If status is 'sold', we might want to hide it if user says "tam tersi" (meaning only show available)
+        return isSaleIntent && !isActuallySold;
       }
+
       if (listingTypeFilter === 'rent') {
-        const isRent = p.status === 'rented' || (p as any).status === 'rented';
-        return isRent;
+        // Show active rent listings.
+        // User says "kiralandı" (rented) should be off, "kiralık" (for rent) should be on.
+        return isRentalIntent && !isActuallyRented;
       }
+
       return true;
     });
   }, [filteredProducts, listingTypeFilter]);
@@ -874,13 +900,42 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                               backgroundImage: `url(${p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"})`,
                             }}
                           ></div>
-                          <div className="absolute top-6 left-6 flex gap-2">
-                            <span className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-slate-900 uppercase tracking-widest shadow-sm">
-                              {p.status === 'rented' || (p as any).status === 'rented'
+                          <div className="absolute top-6 left-6 flex flex-wrap gap-2">
+                            {/* Listing Type Badge */}
+                            <span className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-slate-900 uppercase tracking-widest shadow-sm border border-slate-100">
+                              {p.sector_data?.listing_intent === 'rent' || p.category?.toLowerCase().includes('kira') || p.category?.toLowerCase().includes('rent')
                                 ? (lang === "tr" ? "KİRALIK" : "FOR RENT")
                                 : (lang === "tr" ? "SATILIK" : "FOR SALE")}
                             </span>
+
+                            {/* Finalized Status Badge/Overlay */}
+                            {(p.status === 'rented' || (p as any).status === 'rented') && (
+                              <span className="bg-emerald-600/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
+                                {lang === "tr" ? "KİRALANDI" : "RENTED"}
+                              </span>
+                            )}
+                            {(p.status === 'sold' || (p as any).status === 'sold') && (
+                              <span className="bg-rose-600/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
+                                {lang === "tr" ? "SATILDI" : "SOLD"}
+                              </span>
+                            )}
+                            {p.status === 'optioned' && (
+                              <span className="bg-amber-500/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-white uppercase tracking-widest shadow-lg">
+                                {lang === "tr" ? "OPSİYONLU" : "OPTIONED"}
+                              </span>
+                            )}
                           </div>
+                          
+                          {/* Sold/Rented Overlay on image */}
+                          {(p.status === 'sold' || p.status === 'rented') && (
+                            <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center backdrop-grayscale-[0.5]">
+                               <div className="border-4 border-white/40 px-8 py-4 -rotate-12">
+                                  <span className="text-3xl font-black text-white uppercase tracking-[0.2em] drop-shadow-2xl">
+                                     {p.status === 'sold' ? (lang === 'tr' ? 'SATILDI' : 'SOLD') : (lang === 'tr' ? 'KİRALANDI' : 'RENTED')}
+                                  </span>
+                               </div>
+                            </div>
+                          )}
                         </div>
                         <div className="mt-8 space-y-3 px-6 pb-8">
                           <div className="flex items-center justify-between gap-2 text-[10px] font-black tracking-wider uppercase text-slate-400">
@@ -1104,6 +1159,10 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
           </div>
         </div>
       )}
+
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 mb-24">
+        <StoreMapSection store={store} />
+      </div>
 
       {/* Footer */}
       <footer className="bg-slate-900 pt-12 pb-8 text-white mt-16">

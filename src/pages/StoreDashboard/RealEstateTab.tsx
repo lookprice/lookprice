@@ -65,18 +65,24 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [driveConnected, setDriveConnected] = useState(false);
   const [isBackupLoading, setIsBackupLoading] = useState(false);
 
+  const fetchTasks = async () => {
+    const sid = storeId || user?.store_id;
+    if (sid) {
+      try {
+        const res = await api.getTasks(sid);
+        if (Array.isArray(res)) setTasks(res);
+      } catch (err) {
+        console.error("Error fetching tasks:", err);
+      }
+    }
+  };
+
   useEffect(() => {
     api.getGoogleDriveSettings().then(res => {
       setDriveConnected(!!res?.connected);
     }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
 
-    // Fetch tasks for CRM/Calendar
-    const sid = storeId || user?.store_id;
-    if (sid) {
-      api.getTasks(sid).then(res => {
-        if (Array.isArray(res)) setTasks(res);
-      }).catch(err => console.error("Error fetching tasks:", err));
-    }
+    fetchTasks();
   }, [storeId, user?.store_id]);
 
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar' | 'pipeline'>('list');
@@ -314,7 +320,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             </button>
           )}
           <button
-            onClick={() => setViewMode('calendar')}
+            onClick={() => setViewMode(viewMode === 'calendar' ? 'list' : 'calendar')}
             className={`flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm active:scale-95 hover:bg-slate-50 ${viewMode === 'calendar' ? 'ring-2 ring-indigo-500' : ''}`}
             title="Gezi & Randevu Takvimi"
           >
@@ -322,7 +328,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             Takvim
           </button>
           <button
-            onClick={() => setViewMode('pipeline')}
+            onClick={() => setViewMode(viewMode === 'pipeline' ? 'list' : 'pipeline')}
             className={`flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm active:scale-95 hover:bg-slate-50 ${viewMode === 'pipeline' ? 'ring-2 ring-indigo-500' : ''}`}
             title="CRM Pipeline"
           >
@@ -455,7 +461,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         />
       ) : viewMode === 'pipeline' ? (
         <RealEstateCRM
-          storeId={storeId || user?.store_id}
+          storeId={storeId || user?.store_id || 0}
           properties={safeProperties}
           tasks={tasks}
           onOpenCalendar={() => setViewMode('calendar')}
@@ -463,6 +469,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             setActiveTourProperty(p);
             setIsTourModalOpen(true);
           }}
+          onRefresh={fetchTasks}
         />
       ) : loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100">

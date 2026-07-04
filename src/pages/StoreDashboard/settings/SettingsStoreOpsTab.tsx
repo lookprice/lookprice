@@ -436,19 +436,21 @@ export const SettingsStoreOpsTab = ({
         </div>
       )}
 
-      {/* Store Locator & Reservations */}
-      {!isPortfolio && (
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
-                <MapPin className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Mağaza ve Rezervasyon</h3>
+      {/* Store Locator & Locations */}
+      <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
+              <MapPin className="h-6 w-6" />
             </div>
+            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">
+              {isPortfolio ? (lang === 'tr' ? 'Ofis / Şube Konumları' : 'Office / Branch Locations') : (lang === 'tr' ? 'Mağaza ve Rezervasyon' : 'Store & Reservation')}
+            </h3>
           </div>
-          
-          <div className="space-y-6">
+        </div>
+        
+        <div className="space-y-6">
+          {!isPortfolio && (
             <label className="flex items-center gap-3 cursor-pointer">
               <input 
                 type="checkbox" 
@@ -458,37 +460,74 @@ export const SettingsStoreOpsTab = ({
               />
               <span className="text-sm font-bold text-slate-900 font-sans">Mağazadan Teslimat (Rezervasyon) Aktif Et</span>
             </label>
+          )}
 
-            <div className="space-y-4">
-               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest font-sans">Mağaza Konumları</h4>
-               {(branding.locations || []).map((loc: any, idx: number) => (
-                 <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl items-center">
-                   <input 
-                     name={`location_name_${idx}`} 
-                     id={`location_name_${idx}`} 
-                     value={loc.name} 
-                     onChange={(e) => { 
-                       const l = [...(branding.locations||[])]; 
-                       l[idx] = { ...l[idx], name: e.target.value }; 
-                       onBrandingChange('locations', l); 
-                     }} 
-                     placeholder="Mağaza Adı" 
-                     className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
-                   />
-                   <input 
-                     name={`location_address_${idx}`} 
-                     id={`location_address_${idx}`} 
-                     value={loc.address} 
-                     onChange={(e) => { 
-                       const l = [...(branding.locations||[])]; 
-                       l[idx] = { ...l[idx], address: e.target.value }; 
-                       onBrandingChange('locations', l); 
-                     }} 
-                     placeholder="Adres" 
-                     className="col-span-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
-                   />
-                 </div>
-               ))}
+          <div className="space-y-4">
+             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest font-sans">
+               {isPortfolio ? (lang === 'tr' ? 'Ofis Konumları' : 'Office Locations') : (lang === 'tr' ? 'Mağaza Konumları' : 'Store Locations')}
+             </h4>
+                {(branding.locations || []).map((loc: any, idx: number) => (
+                  <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                      <input 
+                        name={`location_name_${idx}`} 
+                        id={`location_name_${idx}`} 
+                        value={loc.name} 
+                        onChange={(e) => { 
+                          const l = [...(branding.locations||[])]; 
+                          l[idx] = { ...l[idx], name: e.target.value }; 
+                          onBrandingChange('locations', l); 
+                        }} 
+                        placeholder="Mağaza Adı" 
+                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                      />
+                      <input 
+                        name={`location_address_${idx}`} 
+                        id={`location_address_${idx}`} 
+                        value={loc.address} 
+                        onChange={(e) => { 
+                          const l = [...(branding.locations||[])]; 
+                          l[idx] = { ...l[idx], address: e.target.value }; 
+                          onBrandingChange('locations', l); 
+                        }} 
+                        placeholder="Adres" 
+                        className="md:col-span-3 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LAT</span>
+                        <input 
+                          type="number"
+                          step="0.000001"
+                          value={loc.lat || ''} 
+                          onChange={(e) => { 
+                            const l = [...(branding.locations||[])]; 
+                            l[idx] = { ...l[idx], lat: parseFloat(e.target.value) }; 
+                            onBrandingChange('locations', l); 
+                          }} 
+                          placeholder="Latitude" 
+                          className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                        />
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LNG</span>
+                        <input 
+                          type="number"
+                          step="0.000001"
+                          value={loc.lng || ''} 
+                          onChange={(e) => { 
+                            const l = [...(branding.locations||[])]; 
+                            l[idx] = { ...l[idx], lng: parseFloat(e.target.value) }; 
+                            onBrandingChange('locations', l); 
+                          }} 
+                          placeholder="Longitude" 
+                          className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
                <button 
                  type="button"
                  onClick={() => onBrandingChange('locations', [...(branding.locations || []), { name: '', address: '', active: true }])}
@@ -499,7 +538,6 @@ export const SettingsStoreOpsTab = ({
             </div>
           </div>
         </div>
-      )}
 
       {/* Bulk Price Update */}
       {!isPortfolio && (
