@@ -19,11 +19,13 @@ import {
   Edit2,
   Trash2,
   Cloud,
-  Award
+  Award,
+  CalendarDays
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
+import { RealEstateCalendar } from "../../components/RealEstateCalendar";
 
 const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
 const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
@@ -66,7 +68,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
     }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
   }, []);
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar'>('list');
   const [filterBranch, setFilterBranch] = useState("all");
   const [branches, setBranches] = useState<any[]>([]);
   const [filterScope, setFilterScope] = useState("all");
@@ -301,6 +303,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             </button>
           )}
           <button
+            onClick={() => setViewMode('calendar')}
+            className={`flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm active:scale-95 hover:bg-slate-50 ${viewMode === 'calendar' ? 'ring-2 ring-indigo-500' : ''}`}
+            title="Gezi & Randevu Takvimi"
+          >
+            <CalendarDays className="h-4 w-4 text-indigo-600" />
+            Takvim
+          </button>
+          <button
             onClick={() => {
               setSelectedProperty(null);
               setIsModalOpen(true);
@@ -418,7 +428,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         </div>
       </div>
       
-      {loading ? (
+      {viewMode === 'calendar' ? (
+        <RealEstateCalendar 
+          storeId={storeId || user?.store_id} 
+          properties={safeProperties} 
+          onClose={() => setViewMode('list')}
+        />
+      ) : loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
           <span className="text-xs text-slate-500 font-bold">Portföy Yükleniyor...</span>

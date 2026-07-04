@@ -42,6 +42,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [isCollage, setIsCollage] = useState<boolean>(true);
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
+  const [forcedStatus, setForcedStatus] = useState<'sold' | 'rented' | null>(property?.status === 'sold' ? 'sold' : property?.status === 'rented' ? 'rented' : null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -442,6 +443,31 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillText(`📜 Koçan: ${titleType}`, 1010, height - 75);
     }
 
+    // 6. CENTER DIAGONAL BANNER FOR SOLD/RENTED (STAMP EFFECT)
+    if (forcedStatus) {
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 40;
+      ctx.fillStyle = forcedStatus === 'sold' ? '#e11d48' : '#0369a1'; // rose-600 or sky-700
+      
+      const bannerWidth = width * 1.6;
+      const bannerHeight = 180; 
+      
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(-Math.PI / 6); // Subtle diagonal across the center
+      
+      ctx.fillRect(-bannerWidth / 2, -bannerHeight / 2, bannerWidth, bannerHeight);
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'black 900 120px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.letterSpacing = '15px';
+      ctx.fillText(forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI', 0, 0);
+      ctx.restore();
+    }
+
     ctx.restore();
 
     // Save and download
@@ -588,6 +614,17 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     )
                   )}
 
+                  {/* Diagonal Banner for SOLD/RENTED (HTML Preview) */}
+                  {forcedStatus && (
+                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
+                      <div className={`w-[200%] py-6 text-center text-5xl font-black tracking-[0.3em] text-white shadow-2xl transform -rotate-12 uppercase ${
+                        forcedStatus === 'sold' ? 'bg-rose-600/90' : 'bg-sky-700/90'
+                      }`}>
+                        {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Subtle dark vignette gradient overlays for high text readability, keeping the image fully visible */}
                   <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/50 via-black/20 to-transparent pointer-events-none" />
                 </div>
@@ -669,7 +706,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
             </select>
 
             <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">🎨 GÖRSEL ŞABLON RENK DETAYI</span>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-2 mb-4">
               <button 
                 onClick={() => setSelectedTheme('luxury_dark')}
                 className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'luxury_dark' ? 'bg-slate-900 border-amber-500 text-white ring-2 ring-amber-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
@@ -692,18 +729,36 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 <span className="text-[9px] font-bold">Sanal Safir</span>
               </button>
               <button 
-                onClick={() => setSelectedTheme('minimal_carbon')}
-                className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'minimal_carbon' ? 'bg-zinc-900 border-zinc-550 text-white ring-2 ring-zinc-500/25 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
-              >
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-zinc-700 to-neutral-900 mb-1" />
-                <span className="text-[9px] font-bold">Kömür Gri</span>
-              </button>
-              <button 
                 onClick={() => setSelectedTheme('premium_gold')}
                 className={"p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all " + (selectedTheme === 'premium_gold' ? 'bg-white border-yellow-600 text-yellow-800 ring-2 ring-yellow-500/40 shadow-md' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700')}
               >
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 mb-1" />
                 <span className="text-[9px] font-bold">Premium Gold</span>
+              </button>
+            </div>
+
+            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">📢 DURUM ETİKETİ (OPSİYONEL)</span>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <button 
+                onClick={() => setForcedStatus(null)}
+                className={"py-2 px-3 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === null ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Normal
+              </button>
+              <button 
+                onClick={() => setForcedStatus('sold')}
+                className={"py-2 px-3 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'sold' ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-600')}
+              >
+                <Award className="w-3.5 h-3.5" />
+                Satıldı
+              </button>
+              <button 
+                onClick={() => setForcedStatus('rented')}
+                className={"py-2 px-3 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'rented' ? 'bg-sky-600 text-white border-sky-600 shadow-md ring-2 ring-sky-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-sky-50 hover:text-sky-600')}
+              >
+                <Check className="w-3.5 h-3.5" />
+                Kiralandı
               </button>
             </div>
 
